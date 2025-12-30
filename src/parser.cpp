@@ -1,5 +1,5 @@
 #include "parser.h"
-
+#include "ast.h"
 
 const Token &Parser::peek(int _offset) const {
     size_t pos = position_ + _offset;
@@ -60,6 +60,12 @@ NSLNodePtr Parser::parse() {
     return parse_nsl();
 }
 
+/*
+<nsl> ::= <struct_declaration>
+                   | <declare_block>
+                   | <module_block>
+                   | #line <decimal_literal> <identifier>
+*/
 NSLNodePtr Parser::parse_nsl() {
     auto top = std::make_unique<NSLNode>(peek().loc);
 
@@ -69,6 +75,11 @@ NSLNodePtr Parser::parse_nsl() {
                 top->add_declaration(parse_declaration());
             } else if (check(TokenKind::TK_MODULE)) {
                 top->add_module(parse_module_implementation());
+            } else if (check(TokenKind::TK_STRUCT)) {
+                top->add_struct(parse_struct_declaration());
+            } else {
+                error("declare/module/struct are expected", peek());
+                synchronize(TokenKind::TK_RBRACE);
             }
         } catch (const std::exception &e) {
             error(std::string("Parse error: ") + e.what());
@@ -168,7 +179,7 @@ ModuleDeclarationNodePtr Parser::parse_declaration() {
                     func_type = FunctionType::FUNC_OUT;
                 }
 
-                auto func_node = std::make_unique<FunctionDeclarationNode>(
+                auto func_node = std::make_unique<FunctionPortDeclarationNode>(
                     func_type, func_name_token.text, parameters, return_type, func_name_token.loc);
 
                 break;
@@ -190,19 +201,231 @@ ModuleImplementationNodePtr Parser::parse_module_implementation() {
 
     Token name_token = expect(TokenKind::TK_IDENTIFIER, "Expected module name");
 
+    auto module_impl_node = std::make_unique<ModuleImplementationNode>(name_token.text, name_token.loc);
+
     expect(TokenKind::TK_LBRACE, "Expected '{' to start module implementation");
 
-    /* TODO: Parse module implementation contents
     while (!check(TokenKind::TK_RBRACE) && !is_eof()) {
-        advance(); // For now, just skip the contents
+        // TODO: handle `type_t reg/wire ident`;
+        module_impl_node->add_declarations(std::move(parse_declarations()));
     }
-    */
     
     expect(TokenKind::TK_RBRACE, "Expected '}' to end module implementation");
 
-    auto module_impl_node = std::make_unique<ModuleImplementationNode>(name_token.text, name_token.loc);
-
     return module_impl_node;
+}
+
+StructDeclarationNodePtr Parser::parse_struct_declaration() {
+    expect(TokenKind::TK_STRUCT, "Expected 'struct' keyword");
+
+    Token name_token = expect(TokenKind::TK_IDENTIFIER, "Expected struct name");
+    auto struct_node = std::make_unique<StructDeclarationNode>(name_token.text, name_token.loc);
+
+    expect(TokenKind::TK_LBRACE, "Expected '{' to start struct declaration");
+
+    while (!check(TokenKind::TK_RBRACE) && !is_eof()) {
+        Token field_name_token = expect(TokenKind::TK_IDENTIFIER, "Expected struct field name");
+
+        int width = 0; // Default 1-bit
+        if (match(TokenKind::TK_LBRACKET)) {
+            Token width_token = expect(TokenKind::TK_INT, "Expected field width");
+            width = std::stoi(width_token.text);
+            expect(TokenKind::TK_RBRACKET, "Expected ']'");
+        }
+
+        struct_node->add_field(field_name_token.text, width, field_name_token.loc);
+
+        expect(TokenKind::TK_SEMICOLON, "Expected ';' after struct field declaration");
+    }
+
+    expect(TokenKind::TK_RBRACE, "Expected '}' to end struct declaration");
+    expect(TokenKind::TK_SEMICOLON, "Expected ';' after struct declaration");
+
+    return struct_node;
+}
+
+ASTNodeList Parser::parse_declarations() {
+    if (check(TokenKind::TK_WIRE)) {
+        return parse_wire_declarations();
+    } else if (check(TokenKind::TK_REG)) {
+        return parse_reg_declarations();
+    } else if (check(TokenKind::TK_MEM)) {
+        return parse_mem_declarations();
+    } else if (check(TokenKind::TK_VARIABLE)) {
+        return parse_variable_declarations();
+    } else if (check(TokenKind::TK_INTEGER)) {
+        return parse_integer_declarations();
+    } else {
+        return ASTNodeList();
+    }
+    return ASTNodeList();
+}
+
+ASTNodeList Parser::parse_wire_declarations() {
+    ASTNodeList wire_declarations;
+
+    expect(TokenKind::TK_WIRE, "Expected 'wire' keyword");
+    while (!check(TokenKind::TK_SEMICOLON) && !is_eof()) {
+        Token name_token = expect(TokenKind::TK_IDENTIFIER, "Expected port name");
+
+        int width = 0; // Default 1-bit
+        if (match(TokenKind::TK_LBRACKET)) {
+            Token width_token = expect(TokenKind::TK_INT, "Expected port width");
+            width = std::stoi(width_token.text);
+            expect(TokenKind::TK_RBRACKET, "Expected ']'");
+        }
+
+        auto port_node = std::make_unique<WireDeclarationNode>(
+            name_token.text, width, name_token.loc);
+        wire_declarations.push_back(std::move(port_node));
+
+        if (!match(TokenKind::TK_COMMA)) {
+            break;
+        }
+    }
+
+    expect(TokenKind::TK_SEMICOLON, "Expected ';' after wire declarations");
+
+    return wire_declarations;
+}
+
+ASTNodeList Parser::parse_reg_declarations() {
+    ASTNodeList reg_declarations;
+
+    expect(TokenKind::TK_REG, "Expected 'reg' keyword");
+    while (!check(TokenKind::TK_SEMICOLON) && !is_eof()) {
+        Token name_token = expect(TokenKind::TK_IDENTIFIER, "Expected reg name");
+
+        int width = 0; // Default 1-bit
+        if (match(TokenKind::TK_LBRACKET)) {
+            Token width_token = expect(TokenKind::TK_INT, "Expected reg width");
+            width = std::stoi(width_token.text);
+            expect(TokenKind::TK_RBRACKET, "Expected ']'");
+        }
+
+        std::string init_value;
+        if (match(TokenKind::TK_OP_ASSIGN)) {
+            Token init_value_token = expect(TokenKind::TK_INT, "Expected reg initialization value");
+            init_value = init_value_token.text;
+        }
+
+        auto port_node = std::make_unique<RegDeclarationNode>(
+            name_token.text, width, init_value, name_token.loc);
+        reg_declarations.push_back(std::move(port_node));
+
+        if (!match(TokenKind::TK_COMMA)) {
+            break;
+        }
+    }
+
+    expect(TokenKind::TK_SEMICOLON, "Expected ';' after reg declarations");
+
+    return reg_declarations;
+}
+
+ASTNodeList Parser::parse_mem_declarations() {
+    ASTNodeList mem_declarations;
+
+    expect(TokenKind::TK_MEM, "Expected 'mem' keyword");
+    while (!check(TokenKind::TK_SEMICOLON) && !is_eof()) {
+        Token name_token = expect(TokenKind::TK_IDENTIFIER, "Expected memory name");
+
+        int depth = 0;
+        if (!check(TokenKind::TK_LBRACKET)) {
+            error("Expected '[' for memory depth");
+            synchronize();
+            // TODO: better error recovery?
+            return mem_declarations;
+        }
+        expect(TokenKind::TK_LBRACKET, "Expected '[' for memory depth");
+        Token depth_token = expect(TokenKind::TK_INT, "Expected memory depth");
+        depth = std::stoi(depth_token.text);
+        expect(TokenKind::TK_RBRACKET, "Expected ']' for memory depth");
+
+        int width = 0; // Default 1-bit
+        if (match(TokenKind::TK_LBRACKET)) {
+            Token width_token = expect(TokenKind::TK_INT, "Expected memory width");
+            width = std::stoi(width_token.text);
+            expect(TokenKind::TK_RBRACKET, "Expected ']'");
+        }
+
+        std::vector<std::string> init_values;
+        if (match(TokenKind::TK_OP_ASSIGN)) {
+            expect(TokenKind::TK_LBRACE, "Expected '{' for memory initialization");
+
+            while (!check(TokenKind::TK_RBRACE) && !is_eof()) {
+                Token init_value_token = expect(TokenKind::TK_INT, "Expected memory initialization value");
+
+                init_values.push_back(init_value_token.text);
+
+                if (!match(TokenKind::TK_COMMA)) {
+                    break;
+                }
+            }
+            expect(TokenKind::TK_RBRACE, "Expected '}' for memory initialization");
+        }
+
+        auto port_node = std::make_unique<MemoryDeclarationNode>(
+            name_token.text, width, depth, init_values, name_token.loc);
+        mem_declarations.push_back(std::move(port_node));
+
+        if (!match(TokenKind::TK_COMMA)) {
+            break;
+        }
+    }
+
+    expect(TokenKind::TK_SEMICOLON, "Expected ';' after memory declarations");
+
+    return mem_declarations;
+}
+
+ASTNodeList Parser::parse_variable_declarations() {
+    ASTNodeList variable_declarations;
+
+    expect(TokenKind::TK_VARIABLE, "Expected 'variable' keyword");
+    while (!check(TokenKind::TK_SEMICOLON) && !is_eof()) {
+        Token name_token = expect(TokenKind::TK_IDENTIFIER, "Expected variable name");
+        int width = 0; // Default 1-bit
+        if (match(TokenKind::TK_LBRACKET)) {
+            Token width_token = expect(TokenKind::TK_INT, "Expected variable width");
+            width = std::stoi(width_token.text);
+            expect(TokenKind::TK_RBRACKET, "Expected ']'");
+        }
+        auto variable_node = std::make_unique<VariableDeclarationNode>(
+            name_token.text, width, name_token.loc);
+
+        variable_declarations.push_back(std::move(variable_node));
+
+        if (!match(TokenKind::TK_COMMA)) {
+            break;
+        }
+    }
+
+    expect(TokenKind::TK_SEMICOLON, "Expected ';' after variable declarations");
+
+    return variable_declarations;
+}
+
+ASTNodeList Parser::parse_integer_declarations() {
+    ASTNodeList integer_declarations;
+
+    expect(TokenKind::TK_INTEGER, "Expected 'integer' keyword");
+    while (!check(TokenKind::TK_SEMICOLON) && !is_eof()) {
+        Token name_token = expect(TokenKind::TK_IDENTIFIER, "Expected integer name");
+
+        auto integer_node = std::make_unique<IntegerDeclarationNode>(
+            name_token.text, name_token.loc);
+
+        integer_declarations.push_back(std::move(integer_node));
+
+        if (!match(TokenKind::TK_COMMA)) {
+            break;
+        }
+    }
+
+    expect(TokenKind::TK_SEMICOLON, "Expected ';' after integer declarations");
+
+    return integer_declarations;
 }
 
 void Parser::synchronize() {
@@ -221,12 +444,29 @@ void Parser::synchronize() {
             case TokenKind::TK_FUNC_IN:
             case TokenKind::TK_FUNC_OUT:
             case TokenKind::TK_MODULE:
+            case TokenKind::TK_STRUCT:
+            case TokenKind::TK_WIRE:
+            case TokenKind::TK_REG:
+            case TokenKind::TK_MEM:
+            case TokenKind::TK_VARIABLE:
+            case TokenKind::TK_INTEGER:
             // TODO
                 return;
             default:
                 break;
         }
 
+        advance();
+    }
+}
+
+void Parser::synchronize(TokenKind stop_kind) {
+    advance();
+
+    while (!is_eof()) {
+        if (peek(-1).kind == stop_kind) {
+            return;
+        }
         advance();
     }
 }

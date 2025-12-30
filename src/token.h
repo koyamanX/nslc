@@ -68,6 +68,7 @@ enum class TokenKind
     TK_VARIABLE,         // variable
     TK_WHILE,            // while
     TK_WIRE,             // wire
+    TK_STRUCT,           // struct
                             
     TK_KEYWORD_END,
 

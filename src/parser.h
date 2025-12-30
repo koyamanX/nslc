@@ -34,8 +34,16 @@ private:
     Token expect(TokenKind _kind, const std::string &_msg);
 
     void synchronize();
+    void synchronize(TokenKind stop_kind);
 
     NSLNodePtr parse_nsl();
     ModuleDeclarationNodePtr parse_declaration();
+    StructDeclarationNodePtr parse_struct_declaration();
     ModuleImplementationNodePtr parse_module_implementation();
+    ASTNodeList parse_declarations();
+    ASTNodeList parse_wire_declarations();
+    ASTNodeList parse_reg_declarations();
+    ASTNodeList parse_mem_declarations();
+    ASTNodeList parse_variable_declarations();
+    ASTNodeList parse_integer_declarations();
 };

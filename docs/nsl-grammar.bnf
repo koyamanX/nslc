@@ -20,29 +20,31 @@
  * ============================================================================ */
 
 <nsl_source_file> ::= { <preprocessor_directive> }
-                      { <top_level_item> }
+                      { <nsl> }
 
-<top_level_item> ::= <struct_declaration>
-                   | <declare_block>
-                   | <module_block>
-                   | #line <decimal_literal> <identifier>
+<nsl> ::= <struct_declaration>
+        | <declare>
+        | <module>
+        | #line <decimal_literal> <identifier>
 
-<declare_block> ::= "declare" <identifier> [ <modifiers> ]
-                    "{"
-                        { <declare_item> }
-                    "}"
+<declare> ::= "declare" <identifier> [ <modifiers> ]
+              "{"
+                  { <port_declarations> }
+              "}"
 
-<module_block> ::= "module" <identifier>
-                   "{"
-                       { <module_item> }
-                   "}"
+<module> ::= "module" <identifier>
+             "{"
+                 { <module_implementation> }
+             "}"
+
+<modifiers> ::= <modifier> { <modifier> }
 
 <modifier> ::= "interface"     /* Module uses custom clock/reset names */
              | "simulation"    /* Enable system tasks */
 
-<declare_item> ::= <data_port_declaration>
-                 | <function_port_declaration>
-                 | <parameter_declaration>
+<port_declarations> ::= <port_declaration>
+                      | <function_port_declaration>
+                      | <parameter_declaration>
 
 <preprocessor_directive> ::= "#include" <string_literal>
                            | "#define" <identifier> [ <constant_expression> ]
@@ -56,15 +58,15 @@
  * PORT DECLARATIONS (in declare block)
  * ============================================================================ */
 
-<data_port_declaration> ::= <data_port_direction> <data_port_list> ";"
+<port_declaration> ::= <port_direction> <port_list> ";"
 
-<data_port_direction> ::= "input"     /* Data input terminal */
-                        | "output"    /* Data output terminal */
-                        | "inout"     /* Data bidirectional terminal */
+<port_direction> ::= "input"     /* Data input terminal */
+                   | "output"    /* Data output terminal */
+                   | "inout"     /* Data bidirectional terminal */
 
-<data_port_list> ::= <data_port_spec> { "," <data_port_spec> }
+<port_list> ::= <port_spec> { "," <port_spec> }
 
-<data_port_spec> ::= <identifier> [ "[" <width_expr> "]" ]
+<port_spec> ::= <identifier> [ "[" <width_expr> "]" ]
 
 <function_port_declaration> ::= <function_port_direction> <function_port_list> ";"
 
@@ -83,22 +85,22 @@
  * ============================================================================ */
 
 <parameter_declaration> ::= "param_int" <identifier> { "," <identifier> } ";"
-                            | "param_str" <identifier> { "," <identifier> } ";"
+                          | "param_str" <identifier> { "," <identifier> } ";"
 
 /* ============================================================================
  * MODULE ITEMS (in module block)
  * ============================================================================ */
 
-<module_item> ::= <signal_declaration>
-                | <memory_declaration>
-                | <state_name_declaration>
-                | <func_self_declaration>
-                | <function_declaration>
-                | <procedure_forward_decl>
-                | <procedure_declaration>
-                | <state_machine_definition>
-                | <module_instantiation>
-                | <assignment_statement>  /* Continuous assignments */
+<module_implementation> ::= <signal_declaration>
+                          | <memory_declaration>
+                          | <state_name_declaration>
+                          | <func_self_declaration>
+                          | <function_definition>
+                          | <procedure_declaration>
+                          | <procedure_definition>
+                          | <state_machine_definition>
+                          | <module_instantiation>
+                          | <assignment_statement>  /* Continuous assignments */
 
 /* ============================================================================
  * FUNC_SELF DECLARATIONS (in module block ONLY)
@@ -108,26 +110,28 @@
 
 /* ============================================================================
  * SIGNAL DECLARATIONS
- * ============================================================================
- * Signal declarations do NOT use "declare" keyword - use "wire" or "reg" directly.
- */
+ * ============================================================================ */
+<signal_declaration> ::= <wire_declaration>
+                       | <reg_declaration>
+                       | <variable_declaration>
+                       | <integer_declaration>
 
-<signal_declaration> ::= <signal_type> <signal_list> ";"
+<wire_declaration> ::= [ <type_identifier> ] "wire" <signal_list> ";"
 
-<signal_type> ::= "wire"    /* Combinational signal */
-                | "reg"     /* Sequential signal (register) */
-                | "variable"
-                | "integer"
+<reg_declaration> ::= [ <type_identifier> ] "reg" <signal_list> ";"
+
+<variable_declaration> ::= "variable" <signal_list> ";"
+
+<integer_declaration> ::= "integer" <identifier_list> ";"
 
 <signal_list> ::= <signal_spec> { "," <signal_spec> }
 
-<signal_spec> ::= [ <type_identifier> ] <identifier> [ "[" <width_expr> "]" ]
+<signal_spec> ::= <identifier> [ "[" <width_expr> "]" ]
                   [ "=" <constant_expression> ]  /* Optional initialization */
 
 /* ============================================================================
  * MEMORY DECLARATIONS
- * ============================================================================
- */
+ * ============================================================================ */
 
 <memory_declaration> ::= "mem" <identifier>
                          "[" <depth_expr> "]"
@@ -173,29 +177,29 @@
 <struct_member> ::= <data_type> <identifier> [ "[" <width_expr> "]" ] ";"
 
 /* ============================================================================
- * FUNCTION DECLARATIONS
+ * FUNCTION DEFINITIONS
  * ============================================================================ */
 
-<function_declaration> ::= "func" <identifier>
+<function_definition> ::= "func" <identifier>
+                          [ <seq> ]
+                          "{"
+                              { <statement> }
+                              [ "return" <expression> ";" ]
+                          "}"
+
+/* ============================================================================
+ * PROCEDURE DECLARATIONS AND DEFINITIONS
+ * ============================================================================ */
+
+<procedure_declaration> ::= "proc_name" <identifier>
+                            "(" [ <parameter_list_names> ] ")" ";"
+
+<procedure_definition> ::= "proc" <identifier>
                            [ <seq> ]
                            "{"
                                { <statement> }
-                               [ "return" <expression> ";" ]
+                               { <finish> }
                            "}"
-
-/* ============================================================================
- * PROCEDURE DECLARATIONS
- * ============================================================================ */
-
-<procedure_forward_decl> ::= "proc_name" <identifier>
-                             "(" [ <parameter_list_names> ] ")" ";"
-
-<procedure_declaration> ::= "proc" <identifier>
-                            [ <seq> ]
-                            "{"
-                                { <statement> }
-                                { <finish> }
-                            "}"
 
 /* ============================================================================
  * STATE MACHINE DEFINITION
@@ -427,7 +431,7 @@
 
 <alphanumeric_or_underscore> ::= <letter> | <digit> | "_"
 
-<printable_char> ::= /* Any printable ASCII character except " and \ */
+<printable_char> ::= /* ASCII 0x20-0x7E except " and \ */
 
 /* ============================================================================
  * COMMENTS AND WHITESPACE
@@ -440,6 +444,15 @@
 <block_comment> ::= "/*" { <any_char> } "*/"
 
 <whitespace> ::= <space> | <tab> | <newline> | <carriage_return>
+
+<space>           ::= " "
+<tab>             ::= "\t"
+<newline>         ::= "\n"
+<carriage_return> ::= "\r"
+
+<any_char> ::= <printable_char> | <whitespace> | '"' | "\\"
+
+<any_char_except_newline> ::= <printable_char> | <space> | <tab> | '"' | "\\"
 
 /* ============================================================================
  * KEYWORDS (Reserved Words) - FROM OFFICIAL SPEC APPENDIX 3
@@ -454,7 +467,8 @@
  *   output       p_reset      proc         proc_name    reg
  *   seq          state        state_name   variable     while
  *   wire
- *   param_int    param_str    integer      invoke       simulation
+ *   param_int    param_str    invoke       simulation
+ *   struct       if           else         return
  */
 
 /* ============================================================================
@@ -462,7 +476,7 @@
  * ============================================================================ */
 
 /* Operators:
- *   Arithmetic: +, -, *, /, %
+ *   Arithmetic: +, -, *
  *   Bitwise: &, |, ^, ~, <<, >>
  *   Logical: &&, ||, !
  *   Relational: ==, !=, <, >, <=, >=
@@ -473,4 +487,3 @@
  *   Reduction: &, ~&, |, ~|, ^, ~^
  *   Concatenation/Replication: { } (context-dependent)
  */
-

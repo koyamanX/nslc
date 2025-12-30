@@ -6,69 +6,135 @@
 #include <string>
 
 enum class ASTNodeType {
-    AST_NSL,
-    AST_MODULE_DECLARATION,
-    AST_MODULE_IMPLEMENTATION,
-    AST_STRUCT_DECLARATION,
+    /* ========== TOP-LEVEL ========== */
+    AST_NSL,                        // <nsl_source_file>
+    AST_MODULE_DECLARATION,         // <declare> block
+    AST_MODULE_IMPLEMENTATION,      // <module> block
+    AST_STRUCT_DECLARATION,         // <struct_declaration>
 
-    AST_WIRE_DECLRATION,
-    AST_FUNCTION_DECLARATION,
+    /* ========== PORT DECLARATIONS (in declare block) ========== */
+    AST_PORT_DECLARATION,           // <port_declaration> (input/output/inout)
+    AST_FUNCTION_PORT_DECLARATION,  // <function_port_declaration> (func_in/func_out)
+    AST_PARAMETER_DECLARATION,      // <parameter_declaration> (param_int/param_str)
 
-#if 0
-    AST_PORT_DECLARATION,
-    AST_SIGNAL_DECLARATION,
-    AST_MEMORY_DECLARATION,
-    AST_FUNCTION_PORT_DECLARATION,
-    AST_FUNC_SELF_DECLARATION,
-    AST_FUNCTION_DECLARATION,
-    AST_STATE_DECLARATION,
-    AST_STATE_NAME_DECLARATION,
-    AST_PROC_NAME_DECLARATION,
-    AST_PROCEDURE_DECLARATION,
+    /* ========== SIGNAL DECLARATIONS (in module block) ========== */
+    AST_WIRE_DECLARATION,           // <signal_declaration> wire
+    AST_REG_DECLARATION,            // <signal_declaration> reg
+    AST_VARIABLE_DECLARATION,       // <signal_declaration> variable
+    AST_INTEGER_DECLARATION,        // <signal_declaration> integer
+    AST_MEMORY_DECLARATION,         // <memory_declaration>
 
-    AST_ASSIGNMENT_STATEMENT,
-    AST_IF_STATEMENT,
-    AST_ALT_STATEMENT,
-    AST_ANY_STATEMENT,
-    AST_SEQ_STATEMENT,
-    AST_WHILE_STATEMENT,
-    AST_FOR_STATEMENT,
-    AST_GOTO_STATEMENT,
-    AST_FINISH_STATEMENT,
-    AST_RETURN_STATEMENT,
-    AST_INVOKE_STATEMENT,
-    AST_LABEL_STATEMENT,
-    AST_FUNCTION_CALL_STATEMENT,
-    AST_PROCEDURE_CALL_STATEMENT,
-    AST_STATE_BEHAVIOR,
+    /* ========== FUNCTION/PROCEDURE ========== */
+    AST_FUNC_SELF_DECLARATION,      // <func_self_declaration>
+    AST_FUNCTION_DEFINITION,        // <function_definition> (func block)
+    AST_PROCEDURE_DECLARATION,      // <procedure_declaration> (proc_name)
+    AST_PROCEDURE_DEFINITION,       // <procedure_definition> (proc block)
 
-    AST_BINARY_EXPRESSION,
-    AST_UNARY_EXPRESSION,
-    AST_CONDITIONAL_EXPRESSION,
-    AST_IDENTIFIER_EXPRESSION,
-    AST_LITERAL_EXPRESSION,
-    AST_INDEX_EXPRESSION,
-    AST_SLICE_EXPRESSION,
-    AST_MEMBER_ACCESS_EXPRESSION,
-    AST_CONCATENATION_EXPRESSION,
-    AST_REPLICATION_EXPRESSION,
-    AST_SIGN_EXTENSION_EXPRESSION,
-    AST_ZERO_EXTENSION_EXPRESSION,
-    AST_FUNCTION_CALL_EXPRESSION,
+    /* ========== STATE MACHINE ========== */
+    AST_STATE_NAME_DECLARATION,     // <state_name_declaration>
+    AST_STATE_BEHAVIOR,             // <state_behavior>
 
-    AST_MODULE_INSTANTIATION
-#endif
+    /* ========== MODULE INSTANTIATION ========== */
+    AST_MODULE_INSTANTIATION,       // <module_instantiation>
+
+    /* ========== STATEMENTS ========== */
+    AST_BLOCK_STATEMENT,            // <block_statement>
+    AST_ASSIGNMENT_STATEMENT,       // <assignment_statement>
+    AST_IF_STATEMENT,               // <if_statement>
+    AST_ANY_STATEMENT,              // <any_statement>
+    AST_ALT_STATEMENT,              // <alt_statement>
+    AST_SEQ_STATEMENT,              // <seq_statement>
+    AST_WHILE_STATEMENT,            // <while_statement>
+    AST_FOR_STATEMENT,              // <for_statement>
+    AST_GOTO_STATEMENT,             // <goto_statement>
+    AST_GENERATE_STATEMENT,         // <generate_statement>
+    AST_RETURN_STATEMENT,           // <return_statement>
+    AST_INVOKE_STATEMENT,           // <invoke_statement>
+    AST_FINISH_STATEMENT,           // <finish_statement>
+    AST_FUNCTION_CALL_STATEMENT,    // <function_call_statement>
+
+    /* ========== EXPRESSIONS ========== */
+    AST_BINARY_EXPRESSION,          // Binary operators (+, -, *, <<, >>, etc.)
+    AST_UNARY_EXPRESSION,           // <unary_expression> (!, ~, -, +, reductions)
+    AST_CONDITIONAL_EXPRESSION,     // <conditional_expression> (if-else expr)
+    AST_IDENTIFIER_EXPRESSION,      // <identifier> in expression context
+    AST_LITERAL_EXPRESSION,         // <literal> (integer, string)
+    AST_INDEX_EXPRESSION,           // Array index: id[expr]
+    AST_SLICE_EXPRESSION,           // Bit slice: id[expr:expr]
+    AST_MEMBER_ACCESS_EXPRESSION,   // Member access: id.id
+    AST_CONCATENATION_EXPRESSION,   // <concatenation> {a, b, c}
+    AST_REPLICATION_EXPRESSION,     // <replication> n{expr}
+    AST_SIGN_EXTENSION_EXPRESSION,  // <sign_extension> n#(expr)
+    AST_ZERO_EXTENSION_EXPRESSION,  // <zero_extension> n'(expr)
+    AST_FUNCTION_CALL_EXPRESSION,   // <function_call> in expression context
 };
 
 using ASTNodePtr = std::unique_ptr<class ASTNode>;
 using ASTNodeList = std::vector<ASTNodePtr>;
+
+// Top-Level
 using NSLNodePtr = std::unique_ptr<class NSLNode>;
-using DeclarationNodePtr = std::unique_ptr<class DeclarationNode>;
-using FunctionDeclarationNodePtr = std::unique_ptr<class FunctionDeclarationNode>;
-using ModuleImplementationNodePtr = std::unique_ptr<class ModuleImplementationNode>;
 using ModuleDeclarationNodePtr = std::unique_ptr<class ModuleDeclarationNode>;
-using WireDeclarationNodePtr = std::unique_ptr<class WireDeclarationNode>;
+using ModuleImplementationNodePtr = std::unique_ptr<class ModuleImplementationNode>;
+using StructDeclarationNodePtr = std::unique_ptr<class StructDeclarationNode>;
+
+// Port Declarations
 using PortDeclarationNodePtr = std::unique_ptr<class PortDeclarationNode>;
+using FunctionPortDeclarationNodePtr = std::unique_ptr<class FunctionPortDeclarationNode>;
+using ParameterDeclarationNodePtr = std::unique_ptr<class ParameterDeclarationNode>;
+
+// Signal Declarations
+using WireDeclarationNodePtr = std::unique_ptr<class WireDeclarationNode>;
+using RegDeclarationNodePtr = std::unique_ptr<class RegDeclarationNode>;
+using VariableDeclarationNodePtr = std::unique_ptr<class VariableDeclarationNode>;
+using IntegerDeclarationNodePtr = std::unique_ptr<class IntegerDeclarationNode>;
+using MemoryDeclarationNodePtr = std::unique_ptr<class MemoryDeclarationNode>;
+
+// Function/Procedure
+using FuncSelfDeclarationNodePtr = std::unique_ptr<class FuncSelfDeclarationNode>;
+using FunctionDefinitionNodePtr = std::unique_ptr<class FunctionDefinitionNode>;
+using ProcedureDeclarationNodePtr = std::unique_ptr<class ProcedureDeclarationNode>;
+using ProcedureDefinitionNodePtr = std::unique_ptr<class ProcedureDefinitionNode>;
+
+// State Machine
+using StateNameDeclarationNodePtr = std::unique_ptr<class StateNameDeclarationNode>;
+using StateBehaviorNodePtr = std::unique_ptr<class StateBehaviorNode>;
+
+// Module Instantiation
+using ModuleInstantiationNodePtr = std::unique_ptr<class ModuleInstantiationNode>;
+
+// Statements
+using StatementNodePtr = std::unique_ptr<class StatementNode>;
+using BlockStatementNodePtr = std::unique_ptr<class BlockStatementNode>;
+using AssignmentStatementNodePtr = std::unique_ptr<class AssignmentStatementNode>;
+using IfStatementNodePtr = std::unique_ptr<class IfStatementNode>;
+using AnyStatementNodePtr = std::unique_ptr<class AnyStatementNode>;
+using AltStatementNodePtr = std::unique_ptr<class AltStatementNode>;
+using SeqStatementNodePtr = std::unique_ptr<class SeqStatementNode>;
+using WhileStatementNodePtr = std::unique_ptr<class WhileStatementNode>;
+using ForStatementNodePtr = std::unique_ptr<class ForStatementNode>;
+using GotoStatementNodePtr = std::unique_ptr<class GotoStatementNode>;
+using GenerateStatementNodePtr = std::unique_ptr<class GenerateStatementNode>;
+using ReturnStatementNodePtr = std::unique_ptr<class ReturnStatementNode>;
+using InvokeStatementNodePtr = std::unique_ptr<class InvokeStatementNode>;
+using FinishStatementNodePtr = std::unique_ptr<class FinishStatementNode>;
+using FunctionCallStatementNodePtr = std::unique_ptr<class FunctionCallStatementNode>;
+
+// Expressions
+using ExpressionNodePtr = std::unique_ptr<class ExpressionNode>;
+using BinaryExpressionNodePtr = std::unique_ptr<class BinaryExpressionNode>;
+using UnaryExpressionNodePtr = std::unique_ptr<class UnaryExpressionNode>;
+using ConditionalExpressionNodePtr = std::unique_ptr<class ConditionalExpressionNode>;
+using IdentifierExpressionNodePtr = std::unique_ptr<class IdentifierExpressionNode>;
+using LiteralExpressionNodePtr = std::unique_ptr<class LiteralExpressionNode>;
+using IndexExpressionNodePtr = std::unique_ptr<class IndexExpressionNode>;
+using SliceExpressionNodePtr = std::unique_ptr<class SliceExpressionNode>;
+using MemberAccessExpressionNodePtr = std::unique_ptr<class MemberAccessExpressionNode>;
+using ConcatenationExpressionNodePtr = std::unique_ptr<class ConcatenationExpressionNode>;
+using ReplicationExpressionNodePtr = std::unique_ptr<class ReplicationExpressionNode>;
+using SignExtensionExpressionNodePtr = std::unique_ptr<class SignExtensionExpressionNode>;
+using ZeroExtensionExpressionNodePtr = std::unique_ptr<class ZeroExtensionExpressionNode>;
+using FunctionCallExpressionNodePtr = std::unique_ptr<class FunctionCallExpressionNode>;
 
 class ASTVisitor;
 
@@ -143,7 +209,7 @@ public:
         return name_;
     }
 
-    void accept(ASTVisitor& _visitor) override;
+    void accept(ASTVisitor& _visitor) override = 0;
 
 private:
     std::string name_;
@@ -189,7 +255,7 @@ public:
     WireDeclarationNode(const std::string& _name,
                         int _width,
                         const SourceLocation& _loc)
-      : DeclarationNode(ASTNodeType::AST_WIRE_DECLRATION, _loc, _name), width_(_width) {}
+      : DeclarationNode(ASTNodeType::AST_WIRE_DECLARATION, _loc, _name), width_(_width) {}
 
     int get_width() const {
       return width_;
@@ -199,6 +265,79 @@ public:
 
 private:
     int width_; // 0 means 1-bit (default)
+};
+
+class RegDeclarationNode : public DeclarationNode {
+public:
+    RegDeclarationNode(const std::string& _name,
+                        int _width,
+                        const SourceLocation& _loc)
+      : DeclarationNode(ASTNodeType::AST_WIRE_DECLARATION, _loc, _name), width_(_width)
+      , has_init_value_(false) {}
+
+    RegDeclarationNode(const std::string& _name,
+                        int _width,
+                        const std::string& _init_value,
+                        const SourceLocation& _loc)
+      : DeclarationNode(ASTNodeType::AST_WIRE_DECLARATION, _loc, _name), width_(_width)
+      , has_init_value_(true), init_value_(_init_value) {}
+
+    int get_width() const {
+        return width_;
+    }
+
+    bool has_init_value() const {
+        return has_init_value_;
+    }
+
+    void accept(ASTVisitor& visitor) override;
+
+private:
+    int width_; // 0 means 1-bit (default)
+    bool has_init_value_;
+    std::string init_value_;
+};
+
+class MemoryDeclarationNode : public DeclarationNode {
+public:
+    MemoryDeclarationNode(const std::string& _name,
+                          int _width,
+                          int _depth,
+                          const SourceLocation& _loc)
+      : DeclarationNode(ASTNodeType::AST_WIRE_DECLARATION, _loc, _name), width_(_width)
+      , depth_(_depth), has_init_values_(false) {}
+
+    MemoryDeclarationNode(const std::string& _name,
+                          int _width,
+                          int _depth,
+                          const std::vector<std::string>& _init_values,
+                          const SourceLocation& _loc)
+      : DeclarationNode(ASTNodeType::AST_WIRE_DECLARATION, _loc, _name), width_(_width)
+      , depth_(_depth), has_init_values_(true), init_values_(_init_values) {}
+
+    int get_width() const {
+        return width_;
+    }
+
+    int get_depth() const {
+        return depth_;
+    }
+
+    bool has_init_values() const {
+        return has_init_values_;
+    }
+
+    const std::vector<std::string>& get_init_values() const {
+        return init_values_;
+    }
+
+    void accept(ASTVisitor& visitor) override;
+
+private:
+    int width_; // 0 means 1-bit (default)
+    int depth_;
+    bool has_init_values_;
+    std::vector<std::string> init_values_;
 };
 
 enum class PortDirection { INPUT, OUTPUT, INOUT };
@@ -221,23 +360,23 @@ private:
     PortDirection direction_;
 };
 
-enum class FunctionType { FUNC_IN, FUNC_OUT, FUNC_SELF };
+enum class FunctionType { FUNC_IN, FUNC_OUT };
 
-class FunctionDeclarationNode : public DeclarationNode {
+class FunctionPortDeclarationNode : public DeclarationNode {
 public:
-    FunctionDeclarationNode(FunctionType _type,
+    FunctionPortDeclarationNode(FunctionType _type,
                               const std::string &_name,
                               const std::vector<std::string> &_params,
                               const SourceLocation &_loc)
-        : DeclarationNode(ASTNodeType::AST_FUNCTION_DECLARATION, _loc, _name), type_(_type)
+        : DeclarationNode(ASTNodeType::AST_FUNCTION_PORT_DECLARATION, _loc, _name), type_(_type)
         , parameters_(_params), return_value_("") {}
 
-    FunctionDeclarationNode(FunctionType _type,
+    FunctionPortDeclarationNode(FunctionType _type,
                               const std::string &_name,
                               const std::vector<std::string> &_params,
                               const std::string &_return_value,
                               const SourceLocation &_loc)
-        : DeclarationNode(ASTNodeType::AST_FUNCTION_DECLARATION, _loc, _name), type_(_type)
+        : DeclarationNode(ASTNodeType::AST_FUNCTION_PORT_DECLARATION, _loc, _name), type_(_type)
         , parameters_(_params), return_value_(_return_value) {}
 
     FunctionType get_type() const {
@@ -267,6 +406,12 @@ public:
         declarations_.push_back(std::move(_decl));
     }
 
+    void add_declarations(ASTNodeList _declarations) {
+        for (auto &decl : _declarations) {
+            declarations_.push_back(std::move(decl));
+        }
+    }
+
     void add_statement(ASTNodePtr _stmt) {
         statements_.push_back(std::move(_stmt));
     }
@@ -293,7 +438,7 @@ private:
 
 class StructDeclarationNode : public DeclarationNode {
 public:
-    struct Member {
+    struct StructField {
         std::string name;
         int width; // 0 means 1-bit (default)
         SourceLocation location;
@@ -302,30 +447,90 @@ public:
     StructDeclarationNode(const std::string& _name, const SourceLocation& _loc)
         : DeclarationNode(ASTNodeType::AST_STRUCT_DECLARATION, _loc, _name) {}
 
-    void add_member(const std::string& _name, int _width, const SourceLocation& _loc) {
-        members_.push_back({ _name, _width, _loc });
+    void add_field(const std::string& _name, int _width, const SourceLocation& _loc) {
+        fields_.push_back({ _name, _width, _loc });
     }
 
-    const std::vector<Member>& get_members() const {
-        return members_;
+    const std::vector<StructField>& get_fields() const {
+        return fields_;
     }
 
     void accept(class ASTVisitor& visitor) override;
 
 private:
-    std::vector<Member> members_;
+    std::vector<StructField> fields_;
+};
+
+class VariableDeclarationNode : public DeclarationNode {
+public:
+    VariableDeclarationNode(const std::string& _name,
+                            int _width,
+                            const SourceLocation& _loc)
+      : DeclarationNode(ASTNodeType::AST_WIRE_DECLARATION, _loc, _name), width_(_width) {}
+
+    int get_width() const {
+        return width_;
+    }
+    void accept(ASTVisitor& visitor) override;
+private:
+    int width_; // 0 means 1-bit (default)
+};
+
+class IntegerDeclarationNode : public DeclarationNode {
+public:
+    IntegerDeclarationNode(const std::string& _name, SourceLocation& _loc)
+        : DeclarationNode(ASTNodeType::AST_WIRE_DECLARATION,  _loc, _name) {}
+    void accept(ASTVisitor& visitor) override;
 };
 
 class ASTVisitor {
 public:
     virtual ~ASTVisitor() = default;
 
-    virtual void visit_nsl(NSLNode* _node) = 0;
-    virtual void visit_module_declaration(ModuleDeclarationNode* _node) = 0;
-    virtual void visit_declaration(DeclarationNode* _node) = 0;
-    virtual void visit_wire_declaration(WireDeclarationNode* _node) = 0;
-    virtual void visit_port_declaration(PortDeclarationNode* _node) = 0;
-    virtual void visit_function_declaration(FunctionDeclarationNode* _node) = 0;
-    virtual void visit_module_implementation(ModuleImplementationNode* _node) = 0;
-    virtual void visit_struct_declaration(StructDeclarationNode* _node) = 0;
+   // Top-Level
+    virtual void visit(NSLNode* node) = 0;
+    virtual void visit(ModuleDeclarationNode* node) = 0;
+    virtual void visit(ModuleImplementationNode* node) = 0;
+    virtual void visit(StructDeclarationNode* node) = 0;
+
+    // Port Declarations
+    virtual void visit(PortDeclarationNode* node) = 0;
+    virtual void visit(FunctionPortDeclarationNode* node) = 0;
+    virtual void visit(ParameterDeclarationNode* node) = 0;
+
+    // Signal Declarations
+    virtual void visit(WireDeclarationNode* node) = 0;
+    virtual void visit(RegDeclarationNode* node) = 0;
+    virtual void visit(VariableDeclarationNode* node) = 0;
+    virtual void visit(IntegerDeclarationNode* node) = 0;
+    virtual void visit(MemoryDeclarationNode* node) = 0;
+
+    // Function/Procedure
+    virtual void visit(FuncSelfDeclarationNode* node) = 0;
+    virtual void visit(FunctionDefinitionNode* node) = 0;
+    virtual void visit(ProcedureDeclarationNode* node) = 0;
+    virtual void visit(ProcedureDefinitionNode* node) = 0;
+
+    // State Machine
+    virtual void visit(StateNameDeclarationNode* node) = 0;
+    virtual void visit(StateBehaviorNode* node) = 0;
+
+    // Module Instantiation
+    virtual void visit(ModuleInstantiationNode* node) = 0;
+
+    // Statements
+    virtual void visit(BlockStatementNode* node) = 0;
+    virtual void visit(AssignmentStatementNode* node) = 0;
+    virtual void visit(IfStatementNode* node) = 0;
+    virtual void visit(AnyStatementNode* node) = 0;
+    virtual void visit(AltStatementNode* node) = 0;
+    virtual void visit(SeqStatementNode* node) = 0;
+    virtual void visit(WhileStatementNode* node) = 0;
+    virtual void visit(ForStatementNode* node) = 0;
+    virtual void visit(GotoStatementNode* node) = 0;
+    virtual void visit(GenerateStatementNode* node) = 0;
+    virtual void visit(ReturnStatementNode* node) = 0;
+    virtual void visit(InvokeStatementNode* node) = 0;
+    virtual void visit(FinishStatementNode* node) = 0;
+    virtual void visit(FunctionCallStatementNode* node) = 0;
 };

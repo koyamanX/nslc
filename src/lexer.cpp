@@ -41,6 +41,7 @@ void Lexer::init_keywords()
         {"variable", TokenKind::TK_VARIABLE},        // variable
         {"while", TokenKind::TK_WHILE},              // while
         {"wire", TokenKind::TK_WIRE},                // wire
+        {"struct", TokenKind::TK_STRUCT},            // struct
     };
 }
 

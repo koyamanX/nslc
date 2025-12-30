@@ -39,6 +39,7 @@ std::map<TokenKind, std::string> tk2str_map_ = {
     {TokenKind::TK_VARIABLE, "variable"},
     {TokenKind::TK_WHILE, "while"},
     {TokenKind::TK_WIRE, "wire"},
+    {TokenKind::TK_STRUCT, "struct"},
 
     {TokenKind::TK_IDENTIFIER, "<identifier>"},
     {TokenKind::TK_INT, "<int>"},
