@@ -1,0 +1,476 @@
+/**
+ * NSL (Next Synthesis Language) BNF Grammar Specification
+ *
+ * This grammar defines the complete syntax of NSL based on official NSL Language
+ * Reference Manual v1.4E
+ *
+ * Grammar Notation:
+ *   - <name>       : Non-terminal symbol
+ *   - "literal"    : Terminal symbol (keyword or operator)
+ *   - ::=          : Production rule
+ *   - |            : Alternative production
+ *   - [ ... ]      : Optional (zero or one)
+ *   - { ... }      : Repetition (zero or more)
+ *   - ( ... )      : Grouping
+ *   - /* comment */: Grammar annotation
+ */
+
+/* ============================================================================
+ * TOP LEVEL STRUCTURE
+ * ============================================================================ */
+
+<nsl_source_file> ::= { <preprocessor_directive> }
+                      { <top_level_item> }
+
+<top_level_item> ::= <struct_declaration>
+                   | <declare_block>
+                   | <module_block>
+                   | #line <decimal_literal> <identifier>
+
+<declare_block> ::= "declare" <identifier> [ <modifiers> ]
+                    "{"
+                        { <declare_item> }
+                    "}"
+
+<module_block> ::= "module" <identifier>
+                   "{"
+                       { <module_item> }
+                   "}"
+
+<modifier> ::= "interface"     /* Module uses custom clock/reset names */
+             | "simulation"    /* Enable system tasks */
+
+<declare_item> ::= <data_port_declaration>
+                 | <function_port_declaration>
+                 | <parameter_declaration>
+
+<preprocessor_directive> ::= "#include" <string_literal>
+                           | "#define" <identifier> [ <constant_expression> ]
+                           | "#undef" <identifier>
+                           | "#ifdef" <identifier>
+                           | "#ifndef" <identifier>
+                           | "#else"
+                           | "#endif"
+
+/* ============================================================================
+ * PORT DECLARATIONS (in declare block)
+ * ============================================================================ */
+
+<data_port_declaration> ::= <data_port_direction> <data_port_list> ";"
+
+<data_port_direction> ::= "input"     /* Data input terminal */
+                        | "output"    /* Data output terminal */
+                        | "inout"     /* Data bidirectional terminal */
+
+<data_port_list> ::= <data_port_spec> { "," <data_port_spec> }
+
+<data_port_spec> ::= <identifier> [ "[" <width_expr> "]" ]
+
+<function_port_declaration> ::= <function_port_direction> <function_port_list> ";"
+
+<function_port_direction> ::= "func_in"      /* Control input terminal */
+                            | "func_out"     /* Control output terminal */
+
+<function_port_list> ::= <function_port_spec> { "," <function_port_spec> }
+
+<function_port_spec> ::= <identifier> [ "(" [ <parameter_list_names> ] ")" ]
+                                      [ ":" <identifier> ]  /* Return value terminal */
+
+<parameter_list_names> ::= <identifier> { "," <identifier> }
+
+/* ============================================================================
+ * PARAMETER DECLARATIONS (in declare block)
+ * ============================================================================ */
+
+<parameter_declaration> ::= "param_int" <identifier> { "," <identifier> } ";"
+                            | "param_str" <identifier> { "," <identifier> } ";"
+
+/* ============================================================================
+ * MODULE ITEMS (in module block)
+ * ============================================================================ */
+
+<module_item> ::= <signal_declaration>
+                | <memory_declaration>
+                | <state_name_declaration>
+                | <func_self_declaration>
+                | <function_declaration>
+                | <procedure_forward_decl>
+                | <procedure_declaration>
+                | <state_machine_definition>
+                | <module_instantiation>
+                | <assignment_statement>  /* Continuous assignments */
+
+/* ============================================================================
+ * FUNC_SELF DECLARATIONS (in module block ONLY)
+ * ============================================================================ */
+
+<func_self_declaration> ::= "func_self" <function_port_list> ";"
+
+/* ============================================================================
+ * SIGNAL DECLARATIONS
+ * ============================================================================
+ * Signal declarations do NOT use "declare" keyword - use "wire" or "reg" directly.
+ */
+
+<signal_declaration> ::= <signal_type> <signal_list> ";"
+
+<signal_type> ::= "wire"    /* Combinational signal */
+                | "reg"     /* Sequential signal (register) */
+                | "variable"
+                | "integer"
+
+<signal_list> ::= <signal_spec> { "," <signal_spec> }
+
+<signal_spec> ::= [ <type_identifier> ] <identifier> [ "[" <width_expr> "]" ]
+                  [ "=" <constant_expression> ]  /* Optional initialization */
+
+/* ============================================================================
+ * MEMORY DECLARATIONS
+ * ============================================================================
+ */
+
+<memory_declaration> ::= "mem" <identifier>
+                         "[" <depth_expr> "]"
+                         [ "[" <width_expr> "]" ]
+                         [ "=" <initializer> ]  /* Optional initialization */
+                         ";"
+
+<initializer> ::= "{" <initializer_list> "}"  /* e.g., = {0} */
+<initializer_list> ::= <constant_expression> { "," <constant_expression> }
+
+/* ============================================================================
+ * STATE_NAME DECLARATIONS (in module block)
+ * ============================================================================ */
+
+<state_name_declaration> ::= "state_name" <identifier_list> ";"
+
+<identifier_list> ::= <identifier> { "," <identifier> }
+
+/* ============================================================================
+ * DATA TYPES
+ * ============================================================================ */
+
+<data_type> ::= <type_identifier>      /* User-defined type (from struct or typedef) */
+              | /* empty */            /* Type inferred from context */
+
+<type_identifier> ::= <identifier>     /* e.g., mstatus_t, satp_t */
+
+<width_expr> ::= <constant_expression>  /* Bit width specification */
+
+<depth_expr> ::= <constant_expression>  /* Memory depth specification */
+
+/* ============================================================================
+ * STRUCTURE DECLARATIONS (TOP-LEVEL ONLY)
+ * ============================================================================ */
+
+<struct_declaration> ::= "struct" <identifier>
+                         "{"
+                             <struct_member_list>
+                         "}" ";"
+
+<struct_member_list> ::= <struct_member> { <struct_member> }
+
+<struct_member> ::= <data_type> <identifier> [ "[" <width_expr> "]" ] ";"
+
+/* ============================================================================
+ * FUNCTION DECLARATIONS
+ * ============================================================================ */
+
+<function_declaration> ::= "func" <identifier>
+                           [ <seq> ]
+                           "{"
+                               { <statement> }
+                               [ "return" <expression> ";" ]
+                           "}"
+
+/* ============================================================================
+ * PROCEDURE DECLARATIONS
+ * ============================================================================ */
+
+<procedure_forward_decl> ::= "proc_name" <identifier>
+                             "(" [ <parameter_list_names> ] ")" ";"
+
+<procedure_declaration> ::= "proc" <identifier>
+                            [ <seq> ]
+                            "{"
+                                { <statement> }
+                                { <finish> }
+                            "}"
+
+/* ============================================================================
+ * STATE MACHINE DEFINITION
+ * ============================================================================ */
+
+<state_machine_definition> ::= { <state_behavior> }
+
+<state_behavior> ::= "state" <identifier>
+                     "{"
+                      { <statement> }
+                      { <goto_statement> }
+                     "}"
+
+/* ============================================================================
+ * STATEMENTS
+ * ============================================================================ */
+
+<statement_block> ::= "{" { <statement> } "}"
+                    | <statement>
+
+<statement> ::= <assignment_statement>
+              | <if_statement>
+              | <any_statement>
+              | <alt_statement>
+              | <seq_statement>
+              | <while_statement>
+              | <for_statement>
+              | <return_statement>
+              | <invoke_statement>
+              | <finish_statement>
+              | <function_call_statement>
+              | <block_statement>
+              | <generate_statement>
+
+<block_statement> ::= "{" { <statement> } "}"
+
+<assignment_statement> ::= <lvalue> <assignment_operator> <expression> ";"
+
+<assignment_operator> ::= "="    /* Blocking assignment */
+                        | ":="   /* Non-blocking assignment (register update) */
+
+<lvalue> ::= <identifier>
+           | <identifier> "[" <expression> "]"              /* Array index */
+           | <identifier> "." <identifier>  /* Structure member access */
+
+<if_statement> ::= "if" "(" <expression> ")" <statement_block>
+                   [ "else" <statement_block> ]
+
+<else_statement> ::= "else" ":" <statement_block>
+
+<any_statement> ::= "any" "{" { <any_alternative> } [ <else_statement> ] "}"
+
+<any_alternative> ::= <expression> ":" <statement_block>
+
+<alt_statement> ::= "alt" "{" { <alt_alternative> } [ <else_statement> ] "}"
+
+<alt_alternative> ::= <expression> ":" <statement_block>
+
+<seq>           ::= "seq"
+<seq_statement> ::= <seq> <statement_block>
+
+<while_statement> ::= "while" "(" <expression> ")" <statement_block>
+
+<for_statement> ::= "for" "(" <assignment_statement> ";" <expression> ";" <assignment_statement> ")"
+                    <statement_block>
+
+<goto_statement> ::= "goto" <identifier> ";"  /* Can be state name */
+
+<generate_statement> ::= "generate" "(" <identifier> "=" <expression> ";" <expression> ")"
+                         <statement_block>
+
+<return_statement> ::= "return" [ <expression> ] ";"
+
+<invoke_statement> ::= <identifier> "." "invoke" "(" [ <argument_list> ] ")" ";"
+                     | <identifier> "(" [ <argument_list> ] ")" ";"
+
+<finish>           ::= "finish" ";"
+<finish_statement> ::= <identifier> "." "finish" "(" ")" ";"
+
+<function_call_statement> ::= <identifier> "(" [ <argument_list> ] ")" ";"
+                            | <identifier> "." <identifier> "(" [ <argument_list> ] ")" ";"
+
+<argument_list> ::= <expression> { "," <expression> }
+
+/* ============================================================================
+ * EXPRESSIONS
+ * ============================================================================ */
+
+<expression> ::= <conditional_expression>
+
+/* Ternary conditional expression */
+<conditional_expression> ::= <logical_or_expression>
+                           | "if" "(" <expression> ")" <expression> "else" <expression>
+
+<logical_or_expression> ::= <logical_and_expression>
+                           { "||" <logical_and_expression> }
+
+<logical_and_expression> ::= <bitwise_or_expression>
+                            { "&&" <bitwise_or_expression> }
+
+<bitwise_or_expression> ::= <bitwise_xor_expression>
+                           { "|" <bitwise_xor_expression> }
+
+<bitwise_xor_expression> ::= <bitwise_and_expression>
+                            { "^" <bitwise_and_expression> }
+
+<bitwise_and_expression> ::= <equality_expression>
+                            { "&" <equality_expression> }
+
+<equality_expression> ::= <relational_expression>
+                         { ( "==" | "!=" ) <relational_expression> }
+
+<relational_expression> ::= <shift_expression>
+                           { ( "<" | ">" | "<=" | ">=" ) <shift_expression> }
+
+<shift_expression> ::= <additive_expression>
+                      { ( "<<" | ">>" ) <additive_expression> }
+
+<additive_expression> ::= <multiplicative_expression>
+                         { ( "+" | "-" ) <multiplicative_expression> }
+
+<multiplicative_expression> ::= <unary_expression>
+                               { "*" <unary_expression> }
+
+<unary_expression> ::= <primary_expression>
+                     | ( "!" | "~" | "-" | "+" ) <unary_expression>
+                     | <reduction_operator> <unary_expression>
+
+<reduction_operator> ::= "&"    /* Reduction AND */
+                       | "~&"   /* Reduction NAND */
+                       | "|"    /* Reduction OR */
+                       | "~|"   /* Reduction NOR */
+                       | "^"    /* Reduction XOR */
+                       | "~^"   /* Reduction XNOR */
+
+<primary_expression> ::= <identifier>
+                       | <literal>
+                       | "(" <expression> ")"
+                       | <identifier> "[" <expression> "]"              /* Array index */
+                       | <identifier> "[" <expression> ":" <expression> "]"  /* Bit slice */
+                       | <identifier> "." <identifier>  /* Structure member or module port access */
+                       | <function_call>
+                       | <concatenation>
+                       | <replication>
+                       | <sign_extension>
+                       | <zero_extension>
+
+<function_call> ::= <identifier> "(" [ <argument_list> ] ")"
+
+<concatenation> ::= "{" <expression> { "," <expression> } "}"
+
+<replication> ::= <expression> "{" <expression> "}"
+
+<sign_extension> ::= <integer_literal> "#" "(" <expression> ")"
+
+<zero_extension> ::= <integer_literal> "'" "(" <expression> ")"
+
+/* ============================================================================
+ * MODULE INSTANTIATION
+ * ============================================================================ */
+
+<module_instantiation> ::= <identifier> <instance_list> ";"
+
+<instance_list> ::= <instance_spec> { "," <instance_spec> }
+
+<instance_spec> ::= <identifier> [ "[" <constant_expression> "]" ]
+                    [ "(" <parameter_assignments> ")" ]
+
+<parameter_assignments> ::= <parameter_assignment> { "," <parameter_assignment> }
+
+<parameter_assignment> ::= <identifier> "=" <constant_expression>
+
+/* ============================================================================
+ * LITERALS AND IDENTIFIERS
+ * ============================================================================ */
+
+<literal> ::= <integer_literal>
+            | <string_literal>
+
+<integer_literal> ::= <decimal_literal>
+                    | <hexadecimal_literal>
+                    | <octal_literal>
+                    | <binary_literal>
+                    | <sized_literal>
+
+<decimal_literal> ::= <digit> { <digit> }
+
+<hexadecimal_literal> ::= "0" ( "x" | "X" ) <hex_digit> { <hex_digit> }
+
+<octal_literal> ::= "0" ( "o" | "O" ) <octal_digit> { <octal_digit> }
+
+<binary_literal> ::= "0" ( "b" | "B" ) <binary_digit> { <binary_digit> }
+
+<sized_literal> ::= <decimal_literal> "'" ( "b" | "o" | "d" | "h" ) <value_part>
+
+<value_part> ::= <hex_digit> { <hex_digit> }
+               | <decimal_literal>
+               | <octal_digit> { <octal_digit> }
+               | <binary_digit> { <binary_digit> }
+
+<string_literal> ::= '"' { <string_char> } '"'
+
+<string_char> ::= <printable_char>
+                | <escape_sequence>
+
+<escape_sequence> ::= "\\" ( "n" | "t" | "r" | "\\" | '"' )
+
+<identifier> ::= <letter_or_underscore> { <alphanumeric_or_underscore> }
+
+<constant_expression> ::= <expression>  /* Must be computable at compile time */
+
+/* ============================================================================
+ * LEXICAL ELEMENTS
+ * ============================================================================ */
+
+<digit> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+
+<hex_digit> ::= <digit>
+              | "a" | "b" | "c" | "d" | "e" | "f"
+              | "A" | "B" | "C" | "D" | "E" | "F"
+
+<octal_digit> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7"
+
+<binary_digit> ::= "0" | "1"
+
+<letter> ::= "a" | "b" | "c" | ... | "z" | "A" | "B" | "C" | ... | "Z"
+
+<letter_or_underscore> ::= <letter> | "_"
+
+<alphanumeric_or_underscore> ::= <letter> | <digit> | "_"
+
+<printable_char> ::= /* Any printable ASCII character except " and \ */
+
+/* ============================================================================
+ * COMMENTS AND WHITESPACE
+ * ============================================================================ */
+
+<comment> ::= <line_comment> | <block_comment>
+
+<line_comment> ::= "//" { <any_char_except_newline> } <newline>
+
+<block_comment> ::= "/*" { <any_char> } "*/"
+
+<whitespace> ::= <space> | <tab> | <newline> | <carriage_return>
+
+/* ============================================================================
+ * KEYWORDS (Reserved Words) - FROM OFFICIAL SPEC APPENDIX 3
+ * ============================================================================ */
+
+/* Complete keyword list from NSL Language Reference v1.4E:
+ *
+ *   alt          any          declare      finish       for
+ *   func         func_in      func_out     func_self    generate
+ *   goto         inout        input        integer      interface
+ *   m_clock      mem          module
+ *   output       p_reset      proc         proc_name    reg
+ *   seq          state        state_name   variable     while
+ *   wire
+ *   param_int    param_str    integer      invoke       simulation
+ */
+
+/* ============================================================================
+ * OPERATORS (Terminal Symbols)
+ * ============================================================================ */
+
+/* Operators:
+ *   Arithmetic: +, -, *, /, %
+ *   Bitwise: &, |, ^, ~, <<, >>
+ *   Logical: &&, ||, !
+ *   Relational: ==, !=, <, >, <=, >=
+ *   Assignment: =, :=
+ *   Type Casting: #, '
+ *   Grouping: ( ), [ ], { }
+ *   Separators: , ; : .
+ *   Reduction: &, ~&, |, ~|, ^, ~^
+ *   Concatenation/Replication: { } (context-dependent)
+ */
+

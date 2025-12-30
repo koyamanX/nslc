@@ -1,0 +1,95 @@
+#include <string>
+#include <map>
+#include "token.h"
+#include <cassert>
+
+std::map<TokenKind, std::string> tk2str_map_ = {
+    {TokenKind::TK_ALT, "alt"},
+    {TokenKind::TK_ANY, "any"},
+    {TokenKind::TK_DECLARE, "declare"},
+    {TokenKind::TK_ELSE, "else"},
+    {TokenKind::TK_FINISH, "finish"},
+    {TokenKind::TK_FOR, "for"},
+    {TokenKind::TK_FUNC, "func"},
+    {TokenKind::TK_FUNC_IN, "func_in"},
+    {TokenKind::TK_FUNC_OUT, "func_out"},
+    {TokenKind::TK_FUNC_SELF, "func_self"},
+    {TokenKind::TK_GENERATE, "generate"},
+    {TokenKind::TK_GOTO, "goto"},
+    {TokenKind::TK_IF, "if"},
+    {TokenKind::TK_INOUT, "inout"},
+    {TokenKind::TK_INPUT, "input"},
+    {TokenKind::TK_INTEGER, "integer"},
+    {TokenKind::TK_INTERFACE, "interface"},
+    {TokenKind::TK_SIMULATION, "simulation"},
+    {TokenKind::TK_LABEL, "label"},
+    {TokenKind::TK_LABEL_NAME, "label_name"},
+    {TokenKind::TK_M_CLOCK, "m_clock"},
+    {TokenKind::TK_MEM, "mem"},
+    {TokenKind::TK_MODULE, "module"},
+    {TokenKind::TK_OUTPUT, "output"},
+    {TokenKind::TK_P_RESET, "p_reset"},
+    {TokenKind::TK_PROC, "proc"},
+    {TokenKind::TK_PROC_NAME, "proc_name"},
+    {TokenKind::TK_REG, "reg"},
+    {TokenKind::TK_RETURN, "return"},
+    {TokenKind::TK_SEQ, "seq"},
+    {TokenKind::TK_STATE, "state"},
+    {TokenKind::TK_STATE_NAME, "state_name"},
+    {TokenKind::TK_VARIABLE, "variable"},
+    {TokenKind::TK_WHILE, "while"},
+    {TokenKind::TK_WIRE, "wire"},
+
+    {TokenKind::TK_IDENTIFIER, "<identifier>"},
+    {TokenKind::TK_INT, "<int>"},
+    {TokenKind::TK_BINARY, "<binary>"},
+    {TokenKind::TK_OCTAL, "<octal>"},
+    {TokenKind::TK_HEX, "<hex>"},
+    {TokenKind::TK_STRING, "<string>"},
+    {TokenKind::TK_SIZED_LITERAL, "<sized_literal>"},
+
+    {TokenKind::TK_OP_PLUS, "+"},
+    {TokenKind::TK_OP_MINUS, "-"},
+    {TokenKind::TK_OP_INC, "++"},
+    {TokenKind::TK_OP_DEC, "--"},
+    {TokenKind::TK_OP_MULTIPLY, "*"},
+    {TokenKind::TK_OP_AND, "&"},
+    {TokenKind::TK_OP_OR, "|"},
+    {TokenKind::TK_OP_XOR, "^"},
+    {TokenKind::TK_OP_NOT, "~"},
+    {TokenKind::TK_OP_LSHIFT, "<<"},
+    {TokenKind::TK_OP_RSHIFT, ">>"},
+    {TokenKind::TK_OP_EQ, "=="},
+    {TokenKind::TK_OP_NEQ, "!="},
+    {TokenKind::TK_OP_LT, "<"},
+    {TokenKind::TK_OP_LE, "<="},
+    {TokenKind::TK_OP_GT, ">"},
+    {TokenKind::TK_OP_GE, ">="},
+    {TokenKind::TK_OP_LAND, "&&"},
+    {TokenKind::TK_OP_LOR, "||"},
+    {TokenKind::TK_OP_LNOT, "!"},
+    {TokenKind::TK_OP_ASSIGN, "="},
+    {TokenKind::TK_OP_ASSIGN_REG, ":="},
+    {TokenKind::TK_LPAREN, "("},
+    {TokenKind::TK_RPAREN, ")"},
+    {TokenKind::TK_LBRACE, "{"},
+    {TokenKind::TK_RBRACE, "}"},
+    {TokenKind::TK_LBRACKET, "["},
+    {TokenKind::TK_RBRACKET, "]"},
+    {TokenKind::TK_SEMICOLON, ";"},
+    {TokenKind::TK_COLON, ":"},
+    {TokenKind::TK_COMMA, ","},
+    {TokenKind::TK_DOT, "."},
+    {TokenKind::TK_HASH, "#"},
+    {TokenKind::TK_APOSTROPHE, "'"},
+
+    {TokenKind::TK_EOF, "<eof>"},
+};
+
+std::string Token::to_string() const
+{
+   assert(tk2str_map_.find(kind) != tk2str_map_.end()); 
+   std::string str = tk2str_map_[kind];
+   return loc.to_string() + ": " + str;
+}
+
