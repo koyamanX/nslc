@@ -182,6 +182,8 @@ ModuleDeclarationNodePtr Parser::parse_declaration() {
                 auto func_node = std::make_unique<FunctionPortDeclarationNode>(
                     func_type, func_name_token.text, parameters, return_type, func_name_token.loc);
 
+                module_node->add_port_declaration(std::move(func_node));
+
                 break;
             }
             default:
@@ -255,6 +257,12 @@ ASTNodeList Parser::parse_declarations() {
         return parse_variable_declarations();
     } else if (check(TokenKind::TK_INTEGER)) {
         return parse_integer_declarations();
+    } else if (check(TokenKind::TK_STATE_NAME)) {
+        return parse_state_name_declarations();
+    } else if (check(TokenKind::TK_FUNC_SELF)) {
+        return parse_func_self_declarations();
+    } else if (check(TokenKind::TK_PROC_NAME)) {
+        return parse_proc_name_declarations();
     } else {
         return ASTNodeList();
     }
@@ -305,8 +313,12 @@ ASTNodeList Parser::parse_reg_declarations() {
 
         std::string init_value;
         if (match(TokenKind::TK_OP_ASSIGN)) {
-            Token init_value_token = expect(TokenKind::TK_INT, "Expected reg initialization value");
-            init_value = init_value_token.text;
+            if (check(TokenKind::TK_INT) || check(TokenKind::TK_BINARY) || check(TokenKind::TK_HEX) || check(TokenKind::TK_OCTAL) || check(TokenKind::TK_SIZED_LITERAL)) {
+                Token init_value_token = advance();
+                init_value = init_value_token.text;
+            } else {
+                error("Expected reg initialization value", peek());
+            }
         }
 
         auto port_node = std::make_unique<RegDeclarationNode>(
@@ -354,9 +366,12 @@ ASTNodeList Parser::parse_mem_declarations() {
             expect(TokenKind::TK_LBRACE, "Expected '{' for memory initialization");
 
             while (!check(TokenKind::TK_RBRACE) && !is_eof()) {
-                Token init_value_token = expect(TokenKind::TK_INT, "Expected memory initialization value");
-
-                init_values.push_back(init_value_token.text);
+                if (check(TokenKind::TK_INT) || check(TokenKind::TK_BINARY) || check(TokenKind::TK_HEX) || check(TokenKind::TK_OCTAL) || check(TokenKind::TK_SIZED_LITERAL)) {
+                    Token init_value_token = advance();
+                    init_values.push_back(init_value_token.text);
+                } else {
+                    error("Expected memory initialization value", peek());
+                }
 
                 if (!match(TokenKind::TK_COMMA)) {
                     break;
@@ -426,6 +441,125 @@ ASTNodeList Parser::parse_integer_declarations() {
     expect(TokenKind::TK_SEMICOLON, "Expected ';' after integer declarations");
 
     return integer_declarations;
+}
+
+ASTNodeList Parser::parse_state_name_declarations() {
+    ASTNodeList state_name_declarations;
+    StateNameDeclarationNodePtr state_name_node;
+    bool is_first = false;
+
+    expect(TokenKind::TK_STATE_NAME, "Expected 'state_name' keyword"); 
+
+    while (!check(TokenKind::TK_SEMICOLON) && !is_eof()) {
+        Token name_token = expect(TokenKind::TK_IDENTIFIER, "Expected state name");
+
+        if (!is_first) {
+            // First state in state_name declaration
+            state_name_node = std::make_unique<StateNameDeclarationNode>(
+                name_token.text, name_token.loc);
+            is_first = true;
+        } else {
+            state_name_node->add_state_name(name_token.text);
+        }
+
+        if (!match(TokenKind::TK_COMMA)) {
+            break;
+        }
+    }
+
+    state_name_declarations.push_back(std::move(state_name_node));
+
+    expect(TokenKind::TK_SEMICOLON, "Expected ';' after state_name declarations");
+
+    return state_name_declarations;
+}
+
+ASTNodeList Parser::parse_func_self_declarations() {
+    ASTNodeList func_self_declarations;
+
+    expect(TokenKind::TK_FUNC_SELF, "Expected 'func_self' keyword");
+
+    while (!check(TokenKind::TK_SEMICOLON) && !is_eof()) {
+        Token name_token = expect(TokenKind::TK_IDENTIFIER, "Expected func_self name");
+
+        std::vector<std::string> parameters;
+        if (check(TokenKind::TK_LPAREN)) {
+            expect(TokenKind::TK_LPAREN, "Expected '(' after func_self name");
+            while (!check(TokenKind::TK_RPAREN) && !is_eof()) {
+                if (!check(TokenKind::TK_IDENTIFIER)) {
+                    break;
+                }
+                Token param_token = expect(TokenKind::TK_IDENTIFIER, "Expected parameter name");
+                parameters.push_back(param_token.text);
+
+                if (!match(TokenKind::TK_COMMA)) {
+                    break;
+                }
+            }
+            expect(TokenKind::TK_RPAREN, "Expected ')' after func_self parameters");
+        }
+
+        std::string return_value;
+        if (check(TokenKind::TK_COLON)) {
+            expect(TokenKind::TK_COLON, "Expected ':' before func_self return value");
+            Token return_value_token = expect(TokenKind::TK_IDENTIFIER, "Expected func_self return value");
+            return_value = return_value_token.text;
+        }
+
+        auto func_self_node = std::make_unique<FuncSelfDeclarationNode>(
+            name_token.text, name_token.loc);
+
+        func_self_declarations.push_back(std::move(func_self_node));
+
+        if (!match(TokenKind::TK_COMMA)) {
+            break;
+        }
+    }
+
+    expect(TokenKind::TK_SEMICOLON, "Expected ';' after func_self declarations");
+
+    return func_self_declarations;
+}
+
+ASTNodeList Parser::parse_proc_name_declarations() {
+    ASTNodeList proc_name_declarations;
+
+    expect(TokenKind::TK_PROC_NAME, "Expected 'proc_name' keyword");
+
+    while (!check(TokenKind::TK_SEMICOLON) && !is_eof()) {
+        Token name_token = expect(TokenKind::TK_IDENTIFIER, "Expected proc_name");
+
+        std::vector<std::string> parameters;
+        if (check(TokenKind::TK_LPAREN)) {
+            expect(TokenKind::TK_LPAREN, "Expected '(' after proc_name");
+            while (!check(TokenKind::TK_RPAREN) && !is_eof()) {
+                if (!check(TokenKind::TK_IDENTIFIER)) {
+                    break;
+                }
+                Token param_token = expect(TokenKind::TK_IDENTIFIER, "Expected procedure parameter name");
+
+                parameters.push_back(param_token.text);
+
+                if (!match(TokenKind::TK_COMMA)) {
+                    break;
+                }
+            }
+            expect(TokenKind::TK_RPAREN, "Expected ')' after proc_name parameters");
+        }
+
+        auto proc_name_node = std::make_unique<ProcNameDeclarationNode>(
+            name_token.text, parameters, name_token.loc);
+
+        proc_name_declarations.push_back(std::move(proc_name_node));
+
+        if (!match(TokenKind::TK_COMMA)) {
+            break;
+        }
+    }
+
+    expect(TokenKind::TK_SEMICOLON, "Expected ';' after proc_name declarations");
+
+    return proc_name_declarations;
 }
 
 void Parser::synchronize() {

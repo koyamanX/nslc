@@ -62,7 +62,6 @@ void MemoryDeclarationNode::accept(ASTVisitor& visitor) {
     visitor.visit(this);
 }
 
-#if 0
 // ============================================================================
 // FUNCTION/PROCEDURE
 // ============================================================================
@@ -71,15 +70,17 @@ void FuncSelfDeclarationNode::accept(ASTVisitor& visitor) {
     visitor.visit(this);
 }
 
+#if 0
 void FunctionDefinitionNode::accept(ASTVisitor& visitor) {
     visitor.visit(this);
 }
-
-void ProcedureDeclarationNode::accept(ASTVisitor& visitor) {
+#endif
+void ProcNameDeclarationNode::accept(ASTVisitor& visitor) {
     visitor.visit(this);
 }
 
-void ProcedureDefinitionNode::accept(ASTVisitor& visitor) {
+#if 0
+void ProceDefinitionNode::accept(ASTVisitor& visitor) {
     visitor.visit(this);
 }
 
@@ -87,10 +88,13 @@ void ProcedureDefinitionNode::accept(ASTVisitor& visitor) {
 // STATE MACHINE
 // ============================================================================
 
+#endif
+
 void StateNameDeclarationNode::accept(ASTVisitor& visitor) {
     visitor.visit(this);
 }
 
+#if 0
 void StateBehaviorNode::accept(ASTVisitor& visitor) {
     visitor.visit(this);
 }

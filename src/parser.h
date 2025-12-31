@@ -46,4 +46,7 @@ private:
     ASTNodeList parse_mem_declarations();
     ASTNodeList parse_variable_declarations();
     ASTNodeList parse_integer_declarations();
+    ASTNodeList parse_state_name_declarations();
+    ASTNodeList parse_func_self_declarations();
+    ASTNodeList parse_proc_name_declarations();
 };

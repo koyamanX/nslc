@@ -90,11 +90,11 @@ using VariableDeclarationNodePtr = std::unique_ptr<class VariableDeclarationNode
 using IntegerDeclarationNodePtr = std::unique_ptr<class IntegerDeclarationNode>;
 using MemoryDeclarationNodePtr = std::unique_ptr<class MemoryDeclarationNode>;
 
-// Function/Procedure
+// Function/Proc
 using FuncSelfDeclarationNodePtr = std::unique_ptr<class FuncSelfDeclarationNode>;
 using FunctionDefinitionNodePtr = std::unique_ptr<class FunctionDefinitionNode>;
-using ProcedureDeclarationNodePtr = std::unique_ptr<class ProcedureDeclarationNode>;
-using ProcedureDefinitionNodePtr = std::unique_ptr<class ProcedureDefinitionNode>;
+using ProcNameDeclarationNodePtr = std::unique_ptr<class ProcNameDeclarationNode>;
+using ProcDefinitionNodePtr = std::unique_ptr<class ProcDefinitionNode>;
 
 // State Machine
 using StateNameDeclarationNodePtr = std::unique_ptr<class StateNameDeclarationNode>;
@@ -483,6 +483,73 @@ public:
     void accept(ASTVisitor& visitor) override;
 };
 
+class StateNameDeclarationNode : public DeclarationNode {
+public:
+    StateNameDeclarationNode(const std::string& _name, SourceLocation& _loc)
+        : DeclarationNode(ASTNodeType::AST_STATE_NAME_DECLARATION,  _loc, _name) {}
+
+
+    void add_state_name(const std::string& _state_name) {
+        state_names_.push_back(_state_name);
+    }
+
+    std::vector<std::string> get_state_names() const {
+        return state_names_;
+    }
+
+    std::string get_start_state_name() const {
+        return get_name();
+    }
+
+    void accept(ASTVisitor& visitor) override;
+
+private:
+    std::vector<std::string> state_names_;
+};
+
+class FuncSelfDeclarationNode : public DeclarationNode {
+public:
+    FuncSelfDeclarationNode(const std::string& _name, SourceLocation& _loc)
+        : DeclarationNode(ASTNodeType::AST_FUNC_SELF_DECLARATION,  _loc, _name) {}
+
+    FuncSelfDeclarationNode(const std::string& _name,
+                           const std::vector<std::string>& _parameters,
+                           const std::string& _return_value,
+                           SourceLocation& _loc)
+        : DeclarationNode(ASTNodeType::AST_FUNC_SELF_DECLARATION,  _loc, _name)
+        , parameters_(_parameters), return_value_(_return_value) {}
+
+    const std::vector<std::string>& get_parameters() const {
+        return parameters_;
+    }
+
+    const std::string& get_return_value() const {
+        return return_value_;
+    }
+
+    void accept(ASTVisitor& visitor) override;
+private:
+    std::vector<std::string> parameters_;
+    std::string return_value_;
+};
+
+class ProcNameDeclarationNode : public DeclarationNode {
+public:
+    ProcNameDeclarationNode(const std::string& _name,
+                           const std::vector<std::string>& _parameters,
+                           SourceLocation& _loc)
+        : DeclarationNode(ASTNodeType::AST_FUNC_SELF_DECLARATION,  _loc,
+                            _name), parameters_(_parameters) {}
+
+    const std::vector<std::string>& get_parameters() const {
+        return parameters_;
+    }
+
+    void accept(ASTVisitor& visitor) override;
+private:
+    std::vector<std::string> parameters_;
+};
+
 class ASTVisitor {
 public:
     virtual ~ASTVisitor() = default;
@@ -505,11 +572,11 @@ public:
     virtual void visit(IntegerDeclarationNode* node) = 0;
     virtual void visit(MemoryDeclarationNode* node) = 0;
 
-    // Function/Procedure
+    // Function/Proc
     virtual void visit(FuncSelfDeclarationNode* node) = 0;
     virtual void visit(FunctionDefinitionNode* node) = 0;
-    virtual void visit(ProcedureDeclarationNode* node) = 0;
-    virtual void visit(ProcedureDefinitionNode* node) = 0;
+    virtual void visit(ProcNameDeclarationNode* node) = 0;
+    virtual void visit(ProcDefinitionNode* node) = 0;
 
     // State Machine
     virtual void visit(StateNameDeclarationNode* node) = 0;

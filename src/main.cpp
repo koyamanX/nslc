@@ -29,6 +29,10 @@ int main(int argc, char **argv)
        reg z = 1'b0 ; \
        mem m1[16] ; \
        mem m2[32] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15} ; \
+       state_name s0, s1, s2 ; \
+       proc_name p0, p1, p2(a, b, c); \
+       func_self f1(); \
+       func_self f2, f3(x, y), f(a):b; \
    }\
    "
 , "sample.nsl");
