@@ -62,6 +62,35 @@ find_package(CIRCT REQUIRED CONFIG)
 message(STATUS "Found MLIR  ${MLIR_PACKAGE_VERSION} at ${MLIR_DIR}")
 message(STATUS "Found CIRCT ${CIRCT_PACKAGE_VERSION} at ${CIRCT_DIR}")
 
+# LLVM/MLIR ship CMake helper modules (AddLLVM, TableGen, AddMLIR)
+# that are NOT auto-included by find_package(... CONFIG). The
+# `add_lit_testsuite` command in test/CMakeLists.txt and the future
+# TableGen/MLIR-dialect helpers used by nsl-dialect (M4+) need them
+# on CMAKE_MODULE_PATH and explicitly included.
+list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
+
+# AddLLVM resolves lit via LLVM_EXTERNAL_LIT. The vendored LLVM build
+# bakes in a path under /opt/llvm/bin/llvm-lit that is NOT actually
+# installed (LLVM_INSTALL_UTILS=ON installs the C++ helpers but not
+# the Python lit module). Detect lit on PATH and override before
+# AddLLVM consumes the cached default.
+find_program(NSL_LIT_PATH NAMES llvm-lit lit
+  HINTS ${LLVM_TOOLS_BINARY_DIR})
+if(NSL_LIT_PATH)
+  set(LLVM_EXTERNAL_LIT "${NSL_LIT_PATH}" CACHE FILEPATH
+      "Path to lit; auto-detected by NSL_LIT_PATH" FORCE)
+  message(STATUS "Using lit at ${LLVM_EXTERNAL_LIT}")
+else()
+  message(WARNING
+    "lit not found on PATH or in LLVM_TOOLS_BINARY_DIR. The check-nslc "
+    "target will be unavailable. Install via `pip install lit` or apt.")
+endif()
+
+include(TableGen)
+include(AddLLVM)
+include(AddMLIR)
+
 # -----------------------------------------------------------------------------
 # Subdirectories
 # -----------------------------------------------------------------------------

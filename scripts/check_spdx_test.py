@@ -178,7 +178,8 @@ def test_git_ls_files_mode_works():
         [sys.executable, str(SCRIPT), "--all"],
         capture_output=True, text=True, cwd=REPO_ROOT)
     files = subprocess.check_output(
-        ["git", "ls-files"], cwd=REPO_ROOT, text=True).splitlines()
+        ["git", "-c", "safe.directory=*", "ls-files"],
+        cwd=REPO_ROOT, text=True).splitlines()
     if not files:
         pytest.skip("git ls-files returned nothing")
     r_explicit = subprocess.run(

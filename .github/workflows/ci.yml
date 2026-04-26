@@ -2,8 +2,15 @@
 #
 # .github/workflows/ci.yml — six-stage CI pipeline per Constitution
 # Principle IX. Mirrors scripts/ci.sh exactly: each step calls into
-# the same dispatch so divergence between local and remote is
+# the same dispatch so divergence between local and remote runs is
 # impossible (FR-021).
+#
+# Container strategy (research §2 + .docker/): every job that needs
+# LLVM/MLIR/CIRCT runs inside ghcr.io/<owner>/nsl-nslc:dev, which is
+# built and pushed by .github/workflows/publish-images.yml from the
+# pins in cmake/deps.lock. Local dev uses scripts/docker-build.sh
+# against the same Dockerfiles + pins (Principle V — identical
+# input → identical environment).
 
 name: ci
 
@@ -15,16 +22,41 @@ on:
 
 permissions:
   contents: read
+  packages: read         # pull ghcr.io/<owner>/nsl-nslc:dev
   pull-requests: write   # for the wired-but-empty sticky comment
+
+env:
+  # The container image consumed by every real-work job. Hardcoded
+  # lowercase owner because (a) ghcr.io requires lowercase in the
+  # image path, and (b) GitHub Actions expressions do not have a
+  # `lowercase` filter applicable to `container.image`. Forks should
+  # update both this value and the corresponding registry namespace
+  # in `.github/workflows/publish-images.yml`.
+  #
+  # Floating `:dev` tag — bumped atomically by publish-images.yml when
+  # any docker-stack input changes (.docker/** or cmake/deps.lock).
+  # Pin to an immutable per-SHA tag (e.g. :llvm-2b43da5a) in a
+  # follow-up commit if reproducibility of a single CI run matters.
+  NSLC_IMAGE: ghcr.io/koyamanx/nsl-nslc:dev
 
 jobs:
 
   # --------------------------------------------------------------------------
   # Stage 1: build-matrix (4 cells: Debug × Release × {gcc, clang})
+  #
+  # The container provides clang/gcc/cmake/ninja/lld/ccache/python3
+  # and the prebuilt /opt/llvm + /opt/circt staged by
+  # publish-images.yml's nsl-llvm-mlir + nsl-circt jobs. No on-the-fly
+  # LLVM/MLIR/CIRCT build in this loop.
   # --------------------------------------------------------------------------
   build-matrix:
     name: build-matrix (${{ matrix.build_type }}, ${{ matrix.compiler }})
-    runs-on: ubuntu-22.04                  # research §7: pinned, never `latest`
+    runs-on: ubuntu-22.04                # research §7: pinned, never `latest`
+    container:
+      image: ${{ env.NSLC_IMAGE }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -36,28 +68,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Restore LLVM/MLIR/CIRCT prebuilt cache
-        id: deps-cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}/llvm-circt
-          key: llvm-circt-${{ hashFiles('cmake/deps.lock') }}
-
-      - name: Download LLVM/MLIR/CIRCT prebuilt
-        if: steps.deps-cache.outputs.cache-hit != 'true'
-        run: |
-          # Read URL + SHA from cmake/deps.lock; download + verify + unpack
-          # into ${{ runner.temp }}/llvm-circt. Implementation lands when
-          # the nslc-deps GitHub release publishes the tarball; a
-          # placeholder URL is currently in cmake/deps.lock.
-          echo "TODO: nslc-deps release not yet published; this step must"
-          echo "be replaced with a real curl + sha256sum + tar -xf flow."
-          mkdir -p "${{ runner.temp }}/llvm-circt"
-
       - name: Run stage 1 via scripts/ci.sh
-        env:
-          MLIR_DIR:  ${{ runner.temp }}/llvm-circt/lib/cmake/mlir
-          CIRCT_DIR: ${{ runner.temp }}/llvm-circt/lib/cmake/circt
         run: ./scripts/ci.sh build-matrix ${{ matrix.build_type }} ${{ matrix.compiler }}
 
       - name: Upload compile_commands.json (used by stage 2)
@@ -75,6 +86,11 @@ jobs:
     name: static-checks
     runs-on: ubuntu-22.04
     needs: build-matrix
+    container:
+      image: ${{ env.NSLC_IMAGE }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -94,21 +110,17 @@ jobs:
     name: unit-and-layer-tests
     runs-on: ubuntu-22.04
     needs: build-matrix
+    container:
+      image: ${{ env.NSLC_IMAGE }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Restore LLVM/MLIR/CIRCT prebuilt cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}/llvm-circt
-          key: llvm-circt-${{ hashFiles('cmake/deps.lock') }}
-
       - name: Configure + build (Release × gcc)
-        env:
-          MLIR_DIR:  ${{ runner.temp }}/llvm-circt/lib/cmake/mlir
-          CIRCT_DIR: ${{ runner.temp }}/llvm-circt/lib/cmake/circt
         run: ./scripts/ci.sh build-matrix Release gcc
 
       - name: Run stage 3 via scripts/ci.sh
@@ -121,21 +133,17 @@ jobs:
     name: lowering-tests
     runs-on: ubuntu-22.04
     needs: build-matrix
+    container:
+      image: ${{ env.NSLC_IMAGE }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Restore LLVM/MLIR/CIRCT prebuilt cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}/llvm-circt
-          key: llvm-circt-${{ hashFiles('cmake/deps.lock') }}
-
       - name: Configure + build (Release × gcc)
-        env:
-          MLIR_DIR:  ${{ runner.temp }}/llvm-circt/lib/cmake/mlir
-          CIRCT_DIR: ${{ runner.temp }}/llvm-circt/lib/cmake/circt
         run: ./scripts/ci.sh build-matrix Release gcc
 
       - name: Run stage 4 via scripts/ci.sh

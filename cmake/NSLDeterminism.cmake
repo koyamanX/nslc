@@ -65,10 +65,14 @@ endif()
 # -----------------------------------------------------------------------------
 # 4. Template-instantiation ordering.
 # -----------------------------------------------------------------------------
-
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-  add_compile_options("-frandom-seed=$<TARGET_OBJECTS:>")
-endif()
+#
+# `-frandom-seed=<string>` requires a per-TU value to be useful, but
+# CMake has no native generator-expression form that yields the
+# current source filename inside `add_compile_options`. We rely on
+# GCC/Clang's default behaviour, which derives the seed from the
+# source path — already normalised by `-ffile-prefix-map` above.
+# Revisit if a non-determinism leak is observed in CI's two-build
+# gate that traces back to template instantiation order.
 
 # -----------------------------------------------------------------------------
 # 5. Forbid time-sensitive built-in macros.

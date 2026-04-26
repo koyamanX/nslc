@@ -7,7 +7,7 @@
 add_nsl_library(nsl-lower
   DEPENDS nsl-sema nsl-dialect
   LINK_LIBS
-    CIRCTHWDialect
+    CIRCTHW
     CIRCTComb
     CIRCTSeq
     CIRCTSV)

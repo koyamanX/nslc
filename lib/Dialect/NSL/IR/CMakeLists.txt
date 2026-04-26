@@ -11,4 +11,4 @@
 add_nsl_library(nsl-dialect
   LINK_LIBS
     MLIRIR
-    CIRCTHWDialect)
+    CIRCTHW)

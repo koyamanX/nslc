@@ -22,8 +22,13 @@ find_package(Git QUIET)
 set(NSLC_GIT_DESCRIBE "unknown")
 
 if(Git_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
+  # `-c safe.directory=*` tolerates the dubious-ownership case that
+  # arises when the source tree is mounted into a Docker container
+  # (the volume's uid/gid mismatch the running user). The check
+  # exists as a defence against attackers planting a hostile .git in
+  # a writable parent dir; we are not in that situation here.
   execute_process(
-    COMMAND ${GIT_EXECUTABLE} describe --tags --always --dirty
+    COMMAND ${GIT_EXECUTABLE} -c safe.directory=* describe --tags --always --dirty
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     OUTPUT_VARIABLE _git_describe
     OUTPUT_STRIP_TRAILING_WHITESPACE

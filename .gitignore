@@ -1,10 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #
-# Build directories (Principle V two-build determinism gate uses build1/build2)
+# Build directories. The two-build determinism gate (Principle V)
+# uses build1/build2; build-docker-smoke and any other build-* prefix
+# are casual ad-hoc verification dirs.
 build/
 build1/
 build2/
+build-*/
 out/
+
+# lit's per-fixture output and timing cache (lit creates `Output/` at
+# the test_source_root unless test_exec_root is set explicitly).
+test/Output/
+test/build*/
 
 # Editor / OS detritus
 *.bak

@@ -3,21 +3,42 @@
 # nslc dependency pin file
 # ========================
 #
-# Pins the vendored prebuilt LLVM + MLIR + CIRCT tarball this build
-# expects. CI cache key in .github/workflows/ci.yml derives from this
-# file's SHA, so any pin change invalidates caches and forces a fresh
-# download. See specs/001-m0-build-ci-scaffolding/research.md §2.
+# Authoritative source of truth for the LLVM / CIRCT versions the
+# project builds against. Both the local `scripts/docker-build.sh`
+# helper and the GitHub Actions `publish-images.yml` workflow read
+# these pins; updating them retriggers a docker-image rebuild.
 #
-# Format: KEY=VALUE, one per line, '#' for comments.
+# Format: KEY=VALUE, one per line, '#' for comments. No quoting.
+# Compatible with `set -a; source cmake/deps.lock; set +a`.
+
+# -----------------------------------------------------------------------------
+# Upstream commits
+# -----------------------------------------------------------------------------
 #
-# Initial host: a tarball checked into the project's `nslc-deps` GitHub
-# release. Migrate to CIRCT nightlies once those exist (research §2).
+# CIRCT_COMMIT determines CIRCT_DIR contents. LLVM_COMMIT MUST equal
+# the SHA at CIRCT's `llvm/` git submodule for the corresponding
+# CIRCT_COMMIT — otherwise the CIRCT layer's `find_package(MLIR ...)`
+# resolves to the wrong revision and the build fails. The pair below
+# was sampled together from CIRCT main on 2026-04-26; bump them
+# atomically.
 
-LLVM_CIRCT_TARBALL_URL=https://github.com/REPLACE-OWNER/nslc-deps/releases/download/v0.0.0-placeholder/llvm-mlir-circt-linux-x86_64.tar.zst
-LLVM_CIRCT_TARBALL_SHA256=0000000000000000000000000000000000000000000000000000000000000000
+LLVM_COMMIT=2b43da5ac0fa4c49b7f5f443b6a3a6ffec8b7494
+CIRCT_COMMIT=ac114c5e4561927e5b4d34d4aa1a727b5052cdfd
 
-# CIRCT-pinned commit (informational; the prebuilt embeds this revision)
-CIRCT_GIT_REVISION=PLACEHOLDER
+# -----------------------------------------------------------------------------
+# Docker image registry (consumed by .github/workflows/{publish-images,ci}.yml
+# and scripts/docker-build.sh). The owner segment is filled in at
+# CI run time via ${{ github.repository_owner }}; locally, override
+# with NSLC_DOCKER_OWNER when invoking scripts/docker-build.sh.
+# -----------------------------------------------------------------------------
 
-# LLVM revision CIRCT was built against
-LLVM_GIT_REVISION=PLACEHOLDER
+DOCKER_REGISTRY=ghcr.io
+DOCKER_NSLC_IMAGE=nsl-nslc
+DOCKER_BASE_IMAGE=nsl-base
+DOCKER_LLVM_MLIR_IMAGE=nsl-llvm-mlir
+DOCKER_CIRCT_IMAGE=nsl-circt
+
+# Floating tag CI consumes; a per-pin immutable tag is also published
+# (e.g. nsl-llvm-mlir:llvm-2b43da5a), but ci.yml uses the floating one
+# so dep-pin bumps don't require ci.yml edits.
+DOCKER_TAG=dev

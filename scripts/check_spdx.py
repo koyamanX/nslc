@@ -229,9 +229,14 @@ def stale_exception_paths(raw_entries: list[str], repo_root: Path) -> list[str]:
 
 
 def gather_files_from_git(repo_root: Path) -> list[Path]:
+    # `-c safe.directory=*` tolerates the dubious-ownership case that
+    # arises when the source tree is mounted into a Docker container
+    # (the volume's uid/gid mismatch the running user). Same workaround
+    # used in cmake/NSLVersion.cmake.
     try:
         out = subprocess.check_output(
-            ["git", "ls-files"], cwd=repo_root, text=True)
+            ["git", "-c", "safe.directory=*", "ls-files"],
+            cwd=repo_root, text=True)
     except (subprocess.CalledProcessError, FileNotFoundError) as exc:
         print(f"check_spdx.py: git ls-files failed: {exc}", file=sys.stderr)
         sys.exit(2)
