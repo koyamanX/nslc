@@ -239,6 +239,38 @@ re-checked for drift.
 (skill present + agent present + both edited in the same PR when one
 is touched).
 
+### 3.11 Local CI reproduction
+
+`scripts/ci.sh` is the single authoritative entry point for the
+six-stage CI pipeline mandated by Constitution Principle IX. The
+GitHub Actions workflow at `.github/workflows/ci.yml` calls into
+the same dispatcher so divergence between local and remote runs is
+impossible (FR-021).
+
+```bash
+./scripts/ci.sh build-matrix             # stage 1 (Release × host by default)
+./scripts/ci.sh build-matrix --matrix    # stage 1, fan out all 4 cells
+./scripts/ci.sh static-checks            # stage 2 (clang-format + clang-tidy + SPDX)
+./scripts/ci.sh unit-tests               # stage 3 (ctest)
+./scripts/ci.sh lowering-tests           # stage 4 (lit)
+./scripts/ci.sh e2e                      # stage 5 — wired but empty until M7
+./scripts/ci.sh formal                   # stage 6 — wired but empty until M8
+./scripts/ci.sh all                      # stages 1..4 in order; stop at first fail
+```
+
+Stages 5 (`end-to-end`) and 6 (`formal`) deliberately exit 0 with a
+"wired but empty" diagnostic until M7 / M8 land. They are not in
+`.github/branch-protection.json` `required_status_checks.contexts`
+yet — adding them is a one-line PR at each milestone.
+
+The merge gate enforces required-checks for **all** PRs, including
+those by repository administrators (`enforce_admins: true`). The
+**only** permitted bypass is GitHub's repo-admin "Merge without
+waiting for required status checks" override, accompanied by a
+named-reason note in the PR description per Constitution Principle
+IX. `git commit --no-verify` / `git push --force` to `main` /
+maintainer-comment overrides are NOT acceptable bypass mechanisms.
+
 ---
 
 ## 4. Sign-off and certification

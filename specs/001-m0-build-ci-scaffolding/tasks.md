@@ -176,9 +176,9 @@ Single-project compiler layout per `plan.md` §Project Structure:
 
 **Purpose**: Documentation hooks, governance gates, and final acceptance validation.
 
-- [ ] T068 [P] Append "Building" section to `README.md` linking to [`specs/001-m0-build-ci-scaffolding/quickstart.md`](./quickstart.md) and naming `./scripts/ci.sh` as the local-reproduction entry point (FR-021)
-- [ ] T069 [P] Append "Local CI reproduction" sub-section to `CONTRIBUTING.md` documenting the `./scripts/ci.sh` stage-name dispatch, the `--matrix` flag, the wired-but-empty stage status, and the spec-Q3 named-reason bypass requirement (FR-017, FR-021)
-- [ ] T070 [P] Update SPECKIT START/END markers in root `CLAUDE.md` to point at [`specs/001-m0-build-ci-scaffolding/plan.md`](./plan.md) (already partial — verify and finalize)
+- [x] T068 [P] Append "Building" section to `README.md` linking to [`specs/001-m0-build-ci-scaffolding/quickstart.md`](./quickstart.md) and naming `./scripts/ci.sh` as the local-reproduction entry point (FR-021)
+- [x] T069 [P] Append "Local CI reproduction" sub-section to `CONTRIBUTING.md` documenting the `./scripts/ci.sh` stage-name dispatch, the `--matrix` flag, the wired-but-empty stage status, and the spec-Q3 named-reason bypass requirement (FR-017, FR-021)
+- [x] T070 [P] Update SPECKIT START/END markers in root `CLAUDE.md` to point at [`specs/001-m0-build-ci-scaffolding/plan.md`](./plan.md) (already partial — verify and finalize)
 - [ ] T071 Run `./scripts/ci.sh all` end-to-end on a clean clone per [`quickstart.md`](./quickstart.md); capture stdout + per-stage exit codes; verify SC-001..SC-008 are observable (build < documented time; `nslc --version` < 100 ms per SC-002; determinism gate green per SC-005; reviewer-locatable failure per SC-007)
 - [ ] T072 [P] Run the `nsl-coupling-audit` agent against the working tree to verify Principle VII spec ↔ design coupling — the M0 row in [`docs/CLAUDE.md`](../../docs/CLAUDE.md) and the language-feature roll-up in [`CLAUDE.md`](../../CLAUDE.md) §1 must reflect the new build artifacts; resolve any findings before merge
 - [ ] T073 Run the `nsl-constitution-review` agent against the branch (Principle V/VI/VII/VIII/IX gate per merge protocol); resolve any blocking findings before merge
