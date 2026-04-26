@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+# scripts/spdx_exceptions.txt — files exempt from the SPDX-header
+# check. The script (scripts/check_spdx.py) treats matching paths as
+# EXEMPT and skips header validation.
+#
+# Format: one entry per line. Entries ending with `/` are directory
+# prefixes; entries without are exact file paths. '#'-prefixed lines
+# and blank lines are ignored. Paths are repo-relative or absolute.
+#
+# LICENSE and `.keep` files are auto-exempt by basename — no entry
+# required here.
+
+# -----------------------------------------------------------------------------
+# Speckit vendored tooling. Templates, helper scripts, manifests, and
+# the speckit-managed JSON metadata files have no canonical SPDX
+# story (they're authored upstream and JSON has no comment syntax).
+# Per data-model §entity 4 row "json", these MUST be on this list.
+# -----------------------------------------------------------------------------
+.specify/
+
+# -----------------------------------------------------------------------------
+# Claude Code project-level configuration (agents/, commands/, skills/,
+# settings.json). Claude-managed; SPDX would land in a future
+# claude-code-style guide if/when that exists.
+# -----------------------------------------------------------------------------
+.claude/
+
+# -----------------------------------------------------------------------------
+# Branch-protection JSON — included via the `_comment_top` key inside
+# the JSON, but JSON formally has no recipe (data-model.md §entity 4).
+# -----------------------------------------------------------------------------
+.github/branch-protection.json
