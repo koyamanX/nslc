@@ -31,18 +31,39 @@ if [[ ! -d "${build2}" ]]; then
   exit 2
 fi
 
-# Compare lib/ first (the .a archives the macro emits). bin/ second
-# (the nslc binary). Either divergence is a Principle V violation.
-#
-# Some build dirs may not have a lib/ subtree yet (e.g., M0 in-tree
-# placement under build/lib/nsl/<Layer>/); fall back to a top-level
-# scan when that happens.
+# Principle V "byte-identical artifacts" means the .a archives the
+# macro emits AND the bin/ executables — NOT the cmake-generated
+# install scripts (`cmake_install.cmake` legitimately bakes in the
+# absolute build-dir path) or the build-graph glue (CMakeFiles/,
+# CTestTestfile.cmake, build.ninja, etc.). Restrict the comparison
+# to actual deliverable artifacts.
 
-if [[ -d "${build1}/lib" && -d "${build2}/lib" ]]; then
-  diff -r "${build1}/lib" "${build2}/lib"
-fi
-if [[ -d "${build1}/bin" && -d "${build2}/bin" ]]; then
-  diff -r "${build1}/bin" "${build2}/bin"
+failed=0
+declare -a checked=()
+
+_compare_one() {
+  local rel="$1"
+  if ! cmp -s "${build1}/${rel}" "${build2}/${rel}"; then
+    printf 'non-deterministic: %s\n' "${rel}" >&2
+    failed=1
+  fi
+  checked+=("${rel}")
+}
+
+# Static-library archives.
+while IFS= read -r rel; do
+  _compare_one "${rel}"
+done < <(cd "${build1}" && find lib -type f -name '*.a' 2>/dev/null | sort)
+
+# bin/ executables (nslc plus anything later milestones add).
+while IFS= read -r rel; do
+  _compare_one "${rel}"
+done < <(cd "${build1}" && find bin -type f 2>/dev/null | sort)
+
+if [[ ${failed} -ne 0 ]]; then
+  printf 'determinism gate: FAILED (%s vs %s)\n' "${build1}" "${build2}" >&2
+  exit 1
 fi
 
-printf 'determinism gate: identical (%s vs %s)\n' "${build1}" "${build2}"
+printf 'determinism gate: identical — %d artifact(s) byte-equal (%s vs %s)\n' \
+  "${#checked[@]}" "${build1}" "${build2}"

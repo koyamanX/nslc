@@ -18,12 +18,11 @@ constexpr const char *kUsage =
     "nslc: usage: nslc --version  (M0 smoke; full CLI lands M1+)\n";
 
 bool isVersionFlag(const char *arg) {
-  return std::strcmp(arg, "--version") == 0 ||
-         std::strcmp(arg, "-v") == 0 ||
+  return std::strcmp(arg, "--version") == 0 || std::strcmp(arg, "-v") == 0 ||
          std::strcmp(arg, "-V") == 0;
 }
 
-}  // namespace
+} // namespace
 
 int main(int argc, char **argv) {
   if (argc == 2 && isVersionFlag(argv[1])) {

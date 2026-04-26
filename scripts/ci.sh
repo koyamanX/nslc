@@ -69,6 +69,7 @@ _one_cell() {
 
   cmake -S "${REPO_ROOT}" -B "${cell_dir}" -G Ninja \
     "-DCMAKE_BUILD_TYPE=${build_type}" \
+    "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" \
     "${cmake_extra[@]}" \
     "${MLIR_DIR:+-DMLIR_DIR=${MLIR_DIR}}" \
     "${CIRCT_DIR:+-DCIRCT_DIR=${CIRCT_DIR}}"
@@ -81,6 +82,7 @@ _one_cell() {
     log "determinism gate (Release × gcc): rebuilding into ${DETERMINISM_BUILD_DIR}"
     cmake -S "${REPO_ROOT}" -B "${DETERMINISM_BUILD_DIR}" -G Ninja \
       "-DCMAKE_BUILD_TYPE=Release" \
+      "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" \
       "-DCMAKE_C_COMPILER=gcc" "-DCMAKE_CXX_COMPILER=g++" \
       "${MLIR_DIR:+-DMLIR_DIR=${MLIR_DIR}}" \
       "${CIRCT_DIR:+-DCIRCT_DIR=${CIRCT_DIR}}"
@@ -110,26 +112,45 @@ stage_static_checks() {
   log "stage 2: static-checks"
   local rc=0
 
+  # `git ls-files` inside a Docker bind-mount fails with "dubious
+  # ownership" when the host uid/gid differ from the in-container
+  # uid; `-c safe.directory=*` is the standard workaround.
+  local _git=(git -c safe.directory=*)
+
   # 1. clang-format dry-run (FR-009).
-  log "  clang-format --dry-run --Werror $(git ls-files '*.cpp' '*.h' '*.cc' '*.hpp' | wc -l) files"
   local format_files
-  format_files="$(git ls-files '*.cpp' '*.h' '*.cc' '*.hpp' || true)"
+  format_files="$("${_git[@]}" ls-files '*.cpp' '*.h' '*.cc' '*.hpp' || true)"
+  local format_count
+  format_count="$(printf '%s\n' "${format_files}" | grep -c .)"
+  log "  clang-format --dry-run --Werror ${format_count} files"
   if [[ -n "${format_files}" ]]; then
     # shellcheck disable=SC2086
     clang-format --dry-run --Werror ${format_files} || rc=$?
   fi
 
-  # 2. clang-tidy (FR-008). Reuses compile_commands.json from a build dir.
-  if [[ -f "${DEFAULT_BUILD_DIR}/compile_commands.json" ]]; then
+  # 2. clang-tidy (FR-008). Reuses compile_commands.json from a build
+  # dir. Look at the conventional name first; fall back to whichever
+  # build-Release-* dir was produced by `./scripts/ci.sh build-matrix`.
+  local tidy_build_dir=""
+  for candidate in "${DEFAULT_BUILD_DIR}" \
+                   "${REPO_ROOT}/build-Release-gcc" \
+                   "${REPO_ROOT}/build-Release-clang" \
+                   "${REPO_ROOT}/build-Release-host"; do
+    if [[ -f "${candidate}/compile_commands.json" ]]; then
+      tidy_build_dir="${candidate}"
+      break
+    fi
+  done
+  if [[ -n "${tidy_build_dir}" ]]; then
     local tidy_files
-    tidy_files="$(git ls-files '*.cpp' || true)"
+    tidy_files="$("${_git[@]}" ls-files '*.cpp' || true)"
     if [[ -n "${tidy_files}" ]]; then
-      log "  clang-tidy -p ${DEFAULT_BUILD_DIR}"
+      log "  clang-tidy -p ${tidy_build_dir}"
       # shellcheck disable=SC2086
-      clang-tidy -p "${DEFAULT_BUILD_DIR}" ${tidy_files} || rc=$?
+      clang-tidy -p "${tidy_build_dir}" ${tidy_files} || rc=$?
     fi
   else
-    log "  (skipping clang-tidy: ${DEFAULT_BUILD_DIR}/compile_commands.json absent)"
+    log "  (skipping clang-tidy: no compile_commands.json in build-* dirs — run \`./scripts/ci.sh build-matrix\` first)"
   fi
 
   # 3. SPDX-header presence check, full-repo scan (FR-010, spec Q4).
@@ -147,9 +168,30 @@ stage_static_checks() {
 # Stage 3: unit-tests
 # -----------------------------------------------------------------------------
 
+_resolve_build_dir() {
+  if [[ -n "${1:-}" && -d "${1}" ]]; then
+    printf '%s' "${1}"
+    return 0
+  fi
+  for candidate in "${DEFAULT_BUILD_DIR}" \
+                   "${REPO_ROOT}/build-Release-gcc" \
+                   "${REPO_ROOT}/build-Release-clang" \
+                   "${REPO_ROOT}/build-Release-host" \
+                   "${REPO_ROOT}/build-Debug-gcc" \
+                   "${REPO_ROOT}/build-Debug-clang"; do
+    if [[ -f "${candidate}/CMakeCache.txt" ]]; then
+      printf '%s' "${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
 stage_unit_tests() {
   log "stage 3: unit-and-layer-tests"
-  local build_dir="${1:-${DEFAULT_BUILD_DIR}}"
+  local build_dir
+  build_dir="$(_resolve_build_dir "${1:-}")" || \
+    die "no configured build dir; run \`./scripts/ci.sh build-matrix\` first"
   ctest --test-dir "${build_dir}" --output-on-failure
 }
 
@@ -159,7 +201,9 @@ stage_unit_tests() {
 
 stage_lowering_tests() {
   log "stage 4: lowering-tests (lit)"
-  local build_dir="${1:-${DEFAULT_BUILD_DIR}}"
+  local build_dir
+  build_dir="$(_resolve_build_dir "${1:-}")" || \
+    die "no configured build dir; run \`./scripts/ci.sh build-matrix\` first"
   cmake --build "${build_dir}" --target check-nslc
 }
 

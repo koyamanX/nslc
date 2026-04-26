@@ -55,6 +55,8 @@ RECIPES_BY_EXT: dict[str, tuple[str, Optional[str]]] = {
     ".lock":   ("#",    None),  # cmake/deps.lock and friends
     ".td":     ("//",   None),  # MLIR/LLVM TableGen
     ".mlir":   ("//",   None),  # MLIR text format (M4+)
+    ".txt":    ("#",    None),  # plain-text config (spdx_exceptions.txt etc.)
+    ".cfg":    ("#",    None),  # config files (.lit configs etc.)
 }
 
 # Special basenames (no extension or non-canonical extension).

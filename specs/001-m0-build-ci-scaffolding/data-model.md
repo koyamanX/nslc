@@ -32,19 +32,29 @@ Represents one of the nine compiler-track static library archives
 | `depends_on` | list of `LibrarySkeleton.name` | Each entry MUST be at a strictly lower `layer_index` than the declaring library; the `add_nsl_library` macro MUST refuse otherwise (FR-004). | spec FR-004; Principle II |
 | `participates_in_libnslfrontend` | boolean | True for layers 1–6 (per Principle II's `libNSLFrontend.a` aggregate); False for `nsl-dialect`/`nsl-lower`/`nsl-driver` (those depend on MLIR/CIRCT and aren't part of the front-end aggregate by Principle II's wording). | Principle II |
 
-**M0 instances** (all 9, in §3 order):
+**M0 instances** (all 9, layer index ordered by Principle II downward-only direction):
 
 | name | layer | header_dir | depends_on |
 |---|---|---|---|
 | `nsl-basic` | 1 | `include/nsl/Basic/` | (none) |
 | `nsl-preprocess` | 2 | `include/nsl/Preprocess/` | `nsl-basic` |
 | `nsl-lex` | 3 | `include/nsl/Lex/` | `nsl-basic` |
-| `nsl-parse` | 4 | `include/nsl/Parse/` | `nsl-lex`, `nsl-ast` |
-| `nsl-ast` | 5 | `include/nsl/AST/` | `nsl-basic` |
+| `nsl-ast` | 4 | `include/nsl/AST/` | `nsl-basic` |
+| `nsl-parse` | 5 | `include/nsl/Parse/` | `nsl-lex`, `nsl-ast` |
 | `nsl-sema` | 6 | `include/nsl/Sema/` | `nsl-ast` |
 | `nsl-dialect` | 7 | `include/nsl/Dialect/NSL/IR/` | (MLIR, CIRCT — external) |
 | `nsl-lower` | 8 | `include/nsl/Lower/` | `nsl-sema`, `nsl-dialect` (+ CIRCT) |
 | `nsl-driver` | 9 | `include/nsl/Driver/` | all of 1–8 |
+
+> **Note (2026-04-27, post-implementation patch).** An earlier draft of
+> this table listed `nsl-parse` at index 4 and `nsl-ast` at index 5 to
+> match a literal reading of `nsl_compiler_design.md` §3's row order.
+> That ordering would make `nsl-parse DEPENDS nsl-ast` an upward dep
+> (4 → 5) and violate Principle II. The implementation in
+> `cmake/AddNSLLibrary.cmake` resolves the conflict in favour of
+> Principle II — AST is layer 4, Parse is layer 5 — and this table
+> follows. `docs/design/nsl_compiler_design.md` §3 needs the same
+> swap; flagged for a follow-up coupling-audit run.
 
 ---
 
@@ -116,13 +126,17 @@ actual file inventory):
 | extension | comment_opener | comment_closer | example header line |
 |---|---|---|---|
 | `.md` | `<!--` | `-->` | `<!-- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception -->` |
-| `.cpp`, `.cc`, `.cxx`, `.h`, `.hpp` | `//` | (null) | `// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception` |
+| `.cpp`, `.cc`, `.cxx`, `.c`, `.h`, `.hpp`, `.hh` | `//` | (null) | `// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception` |
 | `.cmake`, `CMakeLists.txt` | `#` | (null) | `# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception` |
-| `.py`, `.sh` | `#` | (null) | `# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception` |
+| `.py`, `.sh`, `.bash` | `#` | (null) | `# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception` |
 | `.ebnf` | `(*` | `*)` | `(* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception *)` |
 | `.nsl` | `//` | (null) | `// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception` |
 | `.yml`, `.yaml`, `.toml` | `#` | (null) | `# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception` |
-| `.json` | (no comment syntax — fail-loud) | — | (must be on the exception list, e.g., `package-lock.json`) |
+| `.txt`, `.cfg`, `.lock` | `#` | (null) | `# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception` |
+| `.test`, `.td`, `.mlir` | `//` | (null) | `// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception` |
+| `.gitignore`, `.clang-format`, `.clang-tidy`, `.dockerignore`, `Dockerfile`, `Makefile` | `#` | (null) | `# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception` |
+| `.json` | (no comment syntax — fail-loud) | — | (must be on the exception list, e.g., `.specify/feature.json`) |
+| `.h.in` and other `.in`-suffixed templates | (resolves to underlying ext) | — | template files use the recipe of the suffix-stripped extension |
 
 **Files for which no recipe is registered MUST fail loudly** (spec
 FR-010); silent skip is forbidden.
@@ -130,11 +144,35 @@ FR-010); silent skip is forbidden.
 ### Entity 4b: `SPDXExceptionList`
 
 A version-controlled list of paths exempt from the SPDX check.
-**Empty at M0.** All current files in the repo (per audit:
-README.md, CONTRIBUTING.md, CLAUDE.md, docs/CLAUDE.md, docs/spec/*,
-docs/design/*, examples/*, LICENSE) either carry a header or are
-the LICENSE file itself. The exception list grows in later
-milestones if vendored third-party files arrive.
+**Format**: one entry per line. Entries ending with `/` are directory
+prefixes; entries without are exact file paths. `#`-prefixed lines
+and blank lines are ignored. Paths are repo-relative or absolute.
+
+**M0 contents** (per `scripts/spdx_exceptions.txt`):
+
+- `.specify/` — vendored Speckit tooling (templates, scripts,
+  manifests, JSON metadata). JSON has no comment syntax (per Entity 4
+  row "json"), and the speckit-managed YAML/MD files are authored
+  upstream without a project SPDX line.
+- `.claude/` — Claude Code project-level configuration
+  (agents/, commands/, skills/, settings.json). Claude-managed.
+- `.github/branch-protection.json` — single explicit JSON file
+  with the SPDX identifier embedded as a `_comment_top` key
+  inside the object.
+
+**Auto-exempt by basename** (no entry required): `LICENSE`, `.keep`,
+`.gitkeep`. **Auto-exempt by content**: zero-byte files.
+
+> **Note (2026-04-27, post-implementation patch).** The original draft
+> claimed the list was "empty at M0" because the audit at the time
+> only enumerated authentic project files (README.md, CONTRIBUTING.md,
+> CLAUDE.md, docs/, examples/, LICENSE — all of which either carry a
+> header or are auto-exempt). The audit missed the vendored Speckit
+> and Claude Code trees that ship without project SPDX, plus
+> `.specify/feature.json` whose JSON syntax precludes a comment.
+> Directory-prefix exception support (the trailing-`/` form) was
+> added to the script so the three entries above cover ~70 files
+> without expanding the list to per-file granularity.
 
 **Validation**: every path in the exception list MUST exist; stale
 entries fail the script (so the exception list cannot silently rot).

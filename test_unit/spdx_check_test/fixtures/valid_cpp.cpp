@@ -3,4 +3,6 @@
 // Valid C++ fixture for
 // scripts/check_spdx_test.py::test_valid_cpp_passes.
 
-int main() { return 0; }
+int main() {
+  return 0;
+}
