@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+# nslc dependency pin file
+# ========================
+#
+# Pins the vendored prebuilt LLVM + MLIR + CIRCT tarball this build
+# expects. CI cache key in .github/workflows/ci.yml derives from this
+# file's SHA, so any pin change invalidates caches and forces a fresh
+# download. See specs/001-m0-build-ci-scaffolding/research.md §2.
+#
+# Format: KEY=VALUE, one per line, '#' for comments.
+#
+# Initial host: a tarball checked into the project's `nslc-deps` GitHub
+# release. Migrate to CIRCT nightlies once those exist (research §2).
+
+LLVM_CIRCT_TARBALL_URL=https://github.com/REPLACE-OWNER/nslc-deps/releases/download/v0.0.0-placeholder/llvm-mlir-circt-linux-x86_64.tar.zst
+LLVM_CIRCT_TARBALL_SHA256=0000000000000000000000000000000000000000000000000000000000000000
+
+# CIRCT-pinned commit (informational; the prebuilt embeds this revision)
+CIRCT_GIT_REVISION=PLACEHOLDER
+
+# LLVM revision CIRCT was built against
+LLVM_GIT_REVISION=PLACEHOLDER

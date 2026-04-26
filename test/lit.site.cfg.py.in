@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+# test/lit.site.cfg.py.in — configure-time-substituted site config.
+#
+# CMake's configure_file(@ONLY) replaces the @VAR@ placeholders with
+# their build-time values, then lit's main config (lit.cfg.py) reads
+# the resulting variables off the `config` object.
+
+config.nslc_source_dir         = "@NSLC_SOURCE_DIR@"
+config.nslc_binary_dir         = "@NSLC_BINARY_DIR@"
+config.llvm_tools_binary_dir   = "@NSLC_LLVM_TOOLS_BINARY_DIR@"
+config.python_executable       = "@Python3_EXECUTABLE@"
+
+# Load the main config — note this file lives in the build dir so the
+# load path resolves back to the source tree.
+import lit.llvm
+lit.llvm.initialize(lit_config, config)
+lit_config.load_config(
+    config,
+    "@NSLC_SOURCE_DIR@/test/lit.cfg.py")

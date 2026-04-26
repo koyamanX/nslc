@@ -37,12 +37,12 @@ Single-project compiler layout per `plan.md` §Project Structure:
 
 **Purpose**: Project initialization and the empty directory skeleton every later phase drops files into.
 
-- [ ] T001 [P] Create root `.gitignore` excluding `build/`, `build1/`, `build2/`, `*.bak`, `*.swp`, `__pycache__/`, `.lit_test_times.txt`
-- [ ] T002 [P] Create `cmake/deps.lock` pinning the LLVM/MLIR/CIRCT prebuilt tarball URL + SHA-256 (research §2; one tarball checked into the project's `nslc-deps` GitHub release)
-- [ ] T003 Create top-level `CMakeLists.txt`: `cmake_minimum_required(VERSION 3.22)`, `project(nslc LANGUAGES CXX)`, `set(CMAKE_CXX_STANDARD 17)`, `set(CMAKE_CXX_STANDARD_REQUIRED ON)`, `set(CMAKE_CXX_EXTENSIONS OFF)`, default `CMAKE_BUILD_TYPE=Release`, option `NSL_BUILD_TESTS` (default ON)
-- [ ] T004 [P] Create per-layer header dirs with `.keep` files: `include/nsl/{Basic,Preprocess,Lex,Parse,AST,Sema,Dialect/NSL/IR,Lower,Driver}/.keep` (9 dirs)
-- [ ] T005 [P] Create per-layer source dirs (placeholder, will be populated with `CMakeLists.txt` in US1): `lib/{Basic,Preprocess,Lex,Parse,AST,Sema,Dialect/NSL/IR,Lower,Driver}/.keep`
-- [ ] T006 [P] Create per-layer test dirs (placeholder for `.lit-smoke.test`): `test/{Basic,Preprocess,Lex,Parse,AST,Sema,Dialect,Lower,Driver}/.keep`
+- [x] T001 [P] Create root `.gitignore` excluding `build/`, `build1/`, `build2/`, `*.bak`, `*.swp`, `__pycache__/`, `.lit_test_times.txt`
+- [x] T002 [P] Create `cmake/deps.lock` pinning the LLVM/MLIR/CIRCT prebuilt tarball URL + SHA-256 (research §2; one tarball checked into the project's `nslc-deps` GitHub release)
+- [x] T003 Create top-level `CMakeLists.txt`: `cmake_minimum_required(VERSION 3.22)`, `project(nslc LANGUAGES CXX)`, `set(CMAKE_CXX_STANDARD 17)`, `set(CMAKE_CXX_STANDARD_REQUIRED ON)`, `set(CMAKE_CXX_EXTENSIONS OFF)`, default `CMAKE_BUILD_TYPE=Release`, option `NSL_BUILD_TESTS` (default ON)
+- [x] T004 [P] Create per-layer header dirs with `.keep` files: `include/nsl/{Basic,Preprocess,Lex,Parse,AST,Sema,Dialect/NSL/IR,Lower,Driver}/.keep` (9 dirs)
+- [x] T005 [P] Create per-layer source dirs (placeholder, will be populated with `CMakeLists.txt` in US1): `lib/{Basic,Preprocess,Lex,Parse,AST,Sema,Dialect/NSL/IR,Lower,Driver}/.keep`
+- [x] T006 [P] Create per-layer test dirs (placeholder for `.lit-smoke.test`): `test/{Basic,Preprocess,Lex,Parse,AST,Sema,Dialect,Lower,Driver}/.keep`
 
 ---
 
@@ -52,15 +52,15 @@ Single-project compiler layout per `plan.md` §Project Structure:
 
 **⚠️ CRITICAL**: No user-story work can begin until this phase is complete.
 
-- [ ] T007 Create `cmake/NSLDeterminism.cmake` per research §4: set `CMAKE_C_ARCHIVE_CREATE` / `CMAKE_CXX_ARCHIVE_CREATE` to use `ar Drcs`, append linker flag `-Wl,--build-id=none`, append compile flags `-ffile-prefix-map=${CMAKE_SOURCE_DIR}=. -fmacro-prefix-map=${CMAKE_SOURCE_DIR}=. -frandom-seed=$<TARGET_OBJECTS:>` (FR-018, SC-005, Principle V)
-- [ ] T008 [P] Create `cmake/modules/` (initially empty `CMakeLists.txt` placeholder; `FindCIRCT.cmake` only if CIRCT's bundled config is insufficient — see research §2)
-- [ ] T009 Add to top-level `CMakeLists.txt`: `find_package(MLIR REQUIRED CONFIG)`, `find_package(CIRCT REQUIRED CONFIG)`, include `cmake/NSLDeterminism.cmake`, include `cmake/AddNSLLibrary.cmake` (research §2; depends T007)
-- [ ] T010 Create `lib/CMakeLists.txt` listing `add_subdirectory()` for all 9 layers in §3 order (Basic → Preprocess → Lex → AST → Parse → Sema → Dialect/NSL/IR → Lower → Driver)
-- [ ] T011 [P] Create `test/CMakeLists.txt` invoking `add_lit_testsuite(check-nslc "Running the NSLC regression tests" ${CMAKE_CURRENT_SOURCE_DIR})` per research §9
-- [ ] T012 [P] Create `test/lit.cfg.py`: define substitutions `%nslc`, `%FileCheck`, `%spdx_check`; add suffix list `['.test', '.nsl']`; root config only (per-layer `lit.local.cfg` deferred per research §9)
-- [ ] T013 [P] Create `test/lit.site.cfg.py.in` template with `@NSLC_BINARY_DIR@`, `@LLVM_TOOLS_BINARY_DIR@`, `@PYTHON_EXECUTABLE@` substitution slots
-- [ ] T014 [P] Create `test_unit/CMakeLists.txt`: `enable_testing()`, `find_package(GTest REQUIRED)`, `find_package(Python3 REQUIRED COMPONENTS Interpreter)`, `add_subdirectory()` placeholders for the three suite dirs added in US1/US2/US3
-- [ ] T015 Wire `add_subdirectory(lib)` + `add_subdirectory(tools)` + `add_subdirectory(test)` + `add_subdirectory(test_unit)` into top-level `CMakeLists.txt` (depends T010–T014)
+- [x] T007 Create `cmake/NSLDeterminism.cmake` per research §4: set `CMAKE_C_ARCHIVE_CREATE` / `CMAKE_CXX_ARCHIVE_CREATE` to use `ar Drcs`, append linker flag `-Wl,--build-id=none`, append compile flags `-ffile-prefix-map=${CMAKE_SOURCE_DIR}=. -fmacro-prefix-map=${CMAKE_SOURCE_DIR}=. -frandom-seed=$<TARGET_OBJECTS:>` (FR-018, SC-005, Principle V)
+- [x] T008 [P] Create `cmake/modules/` (initially empty `CMakeLists.txt` placeholder; `FindCIRCT.cmake` only if CIRCT's bundled config is insufficient — see research §2)
+- [x] T009 Add to top-level `CMakeLists.txt`: `find_package(MLIR REQUIRED CONFIG)`, `find_package(CIRCT REQUIRED CONFIG)`, include `cmake/NSLDeterminism.cmake`, include `cmake/AddNSLLibrary.cmake` (research §2; depends T007)
+- [x] T010 Create `lib/CMakeLists.txt` listing `add_subdirectory()` for all 9 layers in §3 order (Basic → Preprocess → Lex → AST → Parse → Sema → Dialect/NSL/IR → Lower → Driver)
+- [x] T011 [P] Create `test/CMakeLists.txt` invoking `add_lit_testsuite(check-nslc "Running the NSLC regression tests" ${CMAKE_CURRENT_SOURCE_DIR})` per research §9
+- [x] T012 [P] Create `test/lit.cfg.py`: define substitutions `%nslc`, `%FileCheck`, `%spdx_check`; add suffix list `['.test', '.nsl']`; root config only (per-layer `lit.local.cfg` deferred per research §9)
+- [x] T013 [P] Create `test/lit.site.cfg.py.in` template with `@NSLC_BINARY_DIR@`, `@LLVM_TOOLS_BINARY_DIR@`, `@PYTHON_EXECUTABLE@` substitution slots
+- [x] T014 [P] Create `test_unit/CMakeLists.txt`: `enable_testing()`, `find_package(GTest REQUIRED)`, `find_package(Python3 REQUIRED COMPONENTS Interpreter)`, `add_subdirectory()` placeholders for the three suite dirs added in US1/US2/US3
+- [x] T015 Wire `add_subdirectory(lib)` + `add_subdirectory(tools)` + `add_subdirectory(test)` + `add_subdirectory(test_unit)` into top-level `CMakeLists.txt` (depends T010–T014)
 
 **Checkpoint**: `cmake -S . -B build -G Ninja` configures cleanly with zero compile targets registered. The skeleton is ready for US1 to add the 9 libraries and the `nslc` driver.
 
