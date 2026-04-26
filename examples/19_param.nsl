@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 19_param.nsl — Top-level parameter (compile-time constant).
+//
+// Declares two top-level parameters, then uses them as widths and slice
+// indices.  The parameters are evaluated by the structural-expansion pass
+// before any hardware is generated; they NEVER become flip-flops.
+//
+// Semantic notes:
+//   • Ref §3.1 — top-level parameters live OUTSIDE any declare/module
+//     block, MUST carry an initializer, and serve as compile-time
+//     constants for widths, slice indices, generate bounds, etc.
+//   • S16 — note that 'param_int' / 'param_str' INSIDE a declare block
+//     ('declare X { param_int N; }') are connection-time parameters for
+//     external Verilog/VHDL submodules and behave differently — those
+//     receive their value at bind, not here.  In a pure-NSL flow you use
+//     the top-level form (this file) or '#define' instead.
+//   • S15 — bit-slice indices [hi:lo] must be compile-time constants;
+//     references to top-level params qualify and are resolved during
+//     elaboration.
+
+param_int W   = 8;              // top-level constant width   (Ref §3.1)
+param_int MSB = 7;              // top-level constant index   (== W-1)
+
+declare top_param {
+    input  in[8];               // could also write [W] once params are
+    output high_bit;            // resolved; literals are clearer here
+    output passthru[8];
+}
+
+module top_param {
+    high_bit = in[MSB];         // slice index = compile-time constant (S15)
+    passthru = in;              // straight-through wiring
+}

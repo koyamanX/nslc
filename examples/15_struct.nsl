@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 15_struct.nsl — User-defined 'struct' type and 'reg' instance.
+//
+// A 16-bit packet packs three fields {opcode[4], src[4], imm[8]}.  The
+// module receives a flat 16-bit input, latches it into a struct register,
+// and re-exposes each field individually on dedicated outputs.
+//
+// Semantic notes:
+//   • S18 — struct members pack with the EARLIER-DECLARED member in the
+//     MORE-significant bit positions:
+//
+//          MSB                                 LSB
+//          ┌────────┬────────┬────────────────┐
+//          │ opcode │  src   │      imm       │
+//          │ [4]    │  [4]   │      [8]       │
+//          └────────┴────────┴────────────────┘
+//          bit15..12 bit11..8     bit7..0
+//
+//     This MUST match Verilog packed-struct ordering for round-trip
+//     fidelity.
+//   • Ref §12 / Ref §4 — struct INSTANCE declarations introduce 'reg' or
+//     'wire' fields; here we use a struct reg ('packet_t reg pkt = 0;').
+//   • Field access is via the dot operator on the instance: 'pkt.opcode'.
+
+struct packet_t {
+    opcode[4];
+    src[4];
+    imm[8];
+};
+
+declare unpack16 {
+    input  in[16];
+    output op[4];
+    output src[4];
+    output imm[8];
+}
+
+module unpack16 {
+    packet_t reg pkt = 0;       // struct reg, all-zero reset
+
+    pkt := in;                  // bulk packed-load (S18 packing applies)
+    op  = pkt.opcode;
+    src = pkt.src;
+    imm = pkt.imm;
+}

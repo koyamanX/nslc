@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 14_memory.nsl — On-chip memory ('mem') with one read port and one
+// write port.
+//
+// 16 entries × 8 bits, all entries pre-initialised to zero.  When 'we' is
+// high, 'wd' is written into address 'wa'.  On every cycle 'rd' reflects
+// the entry at 'ra'.
+//
+// Semantic notes:
+//   • Ref §4 / S24 — 'mem ID[depth][width]' declares a memory.  An
+//     initializer list may supply fewer values than the depth; missing
+//     addresses are zero-filled.  Here a single '{0}' zero-fills all 16
+//     entries, demonstrating S24's defaulting rule.
+//   • S15 — 'wa' / 'ra' here are runtime indices, not bit-slice indices,
+//     so the compile-time-constant rule (S15) does NOT apply: memory
+//     addressing is a runtime read/write port, distinct from bit slicing.
+//   • S3  — memory writes use the clocked '[wa] := wd' form; memory reads
+//     are combinational and use '= mem_name[ra]' on the consuming wire.
+
+declare ram16x8 {
+    input  we;
+    input  wa[4], ra[4];
+    input  wd[8];
+    output rd[8];
+}
+
+module ram16x8 {
+    mem m[16][8] = {0};                 // 16 × 8-bit, all zero (S24)
+
+    if (we) m[wa] := wd;                // clocked write port (S3)
+    rd = m[ra];                         // combinational read port (S3)
+}

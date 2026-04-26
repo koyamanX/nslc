@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 16_bit_ops.nsl — NSL-specific bit-manipulation operators in a single
+// module:
+//
+//   • zero-extend:  N'(expr)
+//   • sign-extend:  N#expr
+//   • bit slice:    [hi:lo]
+//   • concat:       { e0, e1, ... }
+//
+// Inputs:
+//   – byte_in[8]  — an arbitrary 8-bit value
+//   – sign_in[4]  — a 4-bit signed nibble
+// Outputs:
+//   – z_ext[16]   — 'byte_in' zero-extended to 16 bits
+//   – s_ext[8]    — 'sign_in' sign-extended to 8 bits
+//   – hi[4]       — the upper nibble of 'byte_in'   (bit-slice)
+//   – lo[4]       — the lower nibble of 'byte_in'   (bit-slice)
+//   – swap[8]     — the two nibbles of byte_in swapped (concat)
+//
+// Semantic notes:
+//   • Ref §11 — N'(expr)  is ZERO-EXTEND: the value is widened to N bits
+//     by prepending zeros.  Always uses parentheses around the operand.
+//   • Ref §11 / N5 — N#expr is SIGN-EXTEND: replicate the operand's MSB
+//     into the new high bits.  '#' inside expression position is
+//     unambiguously sign-extend (NSL has no Verilog-style '#delay'); only
+//     line-leading "#line" survives the preprocessor seam.
+//   • S15 — bit-slice indices [hi:lo] MUST be compile-time constants;
+//     [hi:lo] with hi < lo reverses bit order, which is sometimes useful
+//     for endian-swap / reflection.
+//   • Ref §11 — '{ a, b }' is CONCAT: 'a' supplies the more-significant
+//     bits, 'b' the less-significant.  Width is the sum of operand widths.
+
+declare bit_ops {
+    input  byte_in[8];
+    input  sign_in[4];
+    output z_ext[16];
+    output s_ext[8];
+    output hi[4], lo[4];
+    output swap[8];
+}
+
+module bit_ops {
+    z_ext = 16'(byte_in);               // zero-extend (Ref §11)
+    s_ext =  8 # sign_in;               // sign-extend (Ref §11, N5)
+    hi    = byte_in[7:4];               // upper nibble (S15: const indices)
+    lo    = byte_in[3:0];               // lower nibble
+    swap  = { byte_in[3:0], byte_in[7:4] };  // nibble swap via concat
+}

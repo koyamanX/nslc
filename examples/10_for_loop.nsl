@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 10_for_loop.nsl — 'for' loop in seq form (C-style 3-clause).
+//
+// On a 'start' pulse the procedure 'sum_proc' adds the first 8 integers
+// (1 through 8) into 'acc' across 8 cycles, then commits the result and
+// terminates.
+//
+// Semantic notes:
+//   • S7 / S8 — 'for' is permitted ONLY inside a 'seq' block, which itself
+//     is permitted ONLY inside a func/proc body.  Both nesting rules apply
+//     here.
+//   • S9  — the for-loop variable MUST be a reg (not an integer), because
+//     a reg is what carries state across the cycles needed to step the
+//     loop.  'idx' below is the loop variable.
+//   • Ref §7 — for_header has two forms: C-style "init; cond; step" (used
+//     here) and ENUM "init, end_value".  Both are accepted.
+//   • S19 — each loop body executes in one clock; the condition check and
+//     loop-back transition each cost one additional clock per iteration.
+
+declare sum8 {
+    input  start;
+    output sum[7];
+    output done;
+}
+
+module sum8 {
+    proc_name sum_proc;
+    reg acc[7] = 0;
+    reg idx[4] = 0;             // 4-bit reg = loop variable (S9)
+    reg flag    = 0;            // 1-bit reg via S23 width-omitted form
+
+    if (start) { acc := 0; flag := 0; sum_proc(); }
+
+    proc sum_proc seq {
+        for (idx := 1; idx <= 4'd8; idx++) {
+            acc := acc + 7'(idx);
+        }
+        flag := 1;              // mark "done" for one cycle after the loop
+        finish;
+    }
+
+    sum  = acc;
+    done = flag;
+}

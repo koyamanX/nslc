@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 07_function.nsl — 'func_in' control terminal with a return-value port.
+//
+// The module exposes an externally-callable function 'add' that takes two
+// 8-bit inputs (declared via the func_in's dummy-arg list) and produces a
+// 9-bit sum on its return-value terminal.
+//
+// Semantic notes:
+//   • S4  — dummy-arg names listed after a 'func_in' identifier MUST be
+//     declared as 'input' terminals on the same declare block.  (For
+//     'func_out' they would be 'output's; for 'func_self' they would be
+//     'wire's.)
+//   • S5  — the return-value terminal direction is REVERSED: a func_in's
+//     return port must be 'output' (or inout); a func_out's would be
+//     'input'.  Here 'sum' is an output, paired with the func_in 'add'.
+//   • S22 — 'return <expr>;' is permitted ONLY inside a func body; the
+//     expression's width must match the return terminal's width.  The 9th
+//     bit accommodates carry-out from the 8-bit add.
+//   • Ref §11 — N'(expr) is the ZERO-EXTEND operator; we widen the 8-bit
+//     operand to 9 bits before adding so the result has carry headroom.
+
+declare adder8 {
+    input  x[8], y[8];          // dummy-args for 'add' (S4)
+    output sum[9];              // return-value terminal for 'add' (S5)
+    func_in add(x, y) : sum;    // declare external function 'add'
+}
+
+module adder8 {
+    func add { return 9'(x) + 9'(y); }   // S22 width-matching, zero-extend
+}

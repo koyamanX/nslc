@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 04_counter.nsl — 4-bit free-running counter with terminal-count flag.
+//
+// Increments 'cnt' every cycle.  When the count reaches its maximum (4'hF),
+// 'tc' pulses high for one cycle.
+//
+// Semantic notes:
+//   • S3  — 'cnt' is a reg, so we use ':=' for the clocked update.
+//   • S23 — 'reg cnt[4] = 0;' is a 4-bit reg with reset value 0.  (Without
+//     the '[4]' width, an initializer would default the reg to 1 bit per
+//     S23 — the explicit width here is required because cnt is 4 bits.)
+//   • Ref §5 — '++ cnt' is the prefix increment form; both prefix and
+//     postfix forms (cnt++) are accepted, with identical meaning at the
+//     statement level.
+//   • Ref §0 — the 'count' output is driven combinationally ('=') from the
+//     register; this is the canonical "register exposed as output" pattern.
+
+declare counter4 {
+    output count[4];    // 4-bit counter value
+    output tc;          // 1-bit terminal-count pulse
+}
+
+module counter4 {
+    reg cnt[4] = 0;     // 4-bit reg, post-reset value 0
+
+    cnt++;              // ':=' is implicit in '++' (clocked, Ref §5)
+    count = cnt;
+    tc    = (cnt == 4'hF);
+}

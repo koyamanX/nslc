@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 05_alu.nsl — 4-bit ALU dispatched by a 2-bit opcode using 'alt'.
+//
+// op = 0 → ADD,  op = 1 → SUB,  op = 2 → AND,  op = 3 → OR.
+//
+// Demonstrates priority-cased combinational logic via the 'alt' block.
+//
+// Semantic notes:
+//   • S13 — 'alt' is PRIORITY-cased: the FIRST case whose guard matches
+//     fires; later matches are suppressed.  Use 'alt' when guards are not
+//     mutually exclusive.  Compare with 'any' (07_alt_any.nsl) which fires
+//     EVERY matching case in parallel.
+//   • S13 / Ref §5 — every alt may carry an 'else:' default branch which
+//     fires when no earlier case matched.
+//   • N2  — '&' / '|' here are BINARY (bitwise) operators, distinguished
+//     from unary reduction-AND/OR by the presence of a left operand.
+//   • S3  — 'y' is an output and so receives the combinational '=' transfer
+//     in each case.  The whole alt is a single combinational mux.
+
+declare alu4 {
+    input  a[4], b[4];
+    input  op[2];
+    output y[4];
+}
+
+module alu4 {
+    alt {
+        op == 0: y = a + b;     // ADD
+        op == 1: y = a - b;     // SUB
+        op == 2: y = a & b;     // bitwise AND (N2)
+        op == 3: y = a | b;     // bitwise OR  (N2)
+        else   : y = 4'b0000;   // unreachable here, but kept for safety
+    }
+}

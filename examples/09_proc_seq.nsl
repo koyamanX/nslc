@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 09_proc_seq.nsl — Three-step sequential procedure using 'seq' + 'goto'.
+//
+// On a 'start' pulse, the procedure 'do_seq' runs three labelled steps,
+// each consuming exactly one clock, then terminates with 'finish;'.
+//
+// Semantic notes:
+//   • S7  — 'seq', 'while', 'for' may appear ONLY inside a func/proc body
+//     (not in common action description).  Here 'seq' is the root body of
+//     'proc do_seq'.
+//   • S19 — a single 'goto <label>' transition in a seq-block consumes
+//     ONE clock.  Three steps + 'finish;' therefore run in 3 cycles.
+//   • S25 — 'goto' has TWO target kinds: a label_name within a seq-block
+//     (this file) OR a state_name within a proc (see 13_fsm.nsl).  The
+//     analyzer disambiguates on enclosing context.
+//   • S21 — bare 'finish;' inside a proc body terminates the enclosing
+//     procedure; the same word inside a parent context would be the
+//     dotted '<inst>.finish()' method call.
+
+declare seq3 {
+    input  start;
+    output step[2];
+}
+
+module seq3 {
+    proc_name do_seq;           // declare a procedure instance
+    reg cur[2] = 0;             // visible step indicator
+
+    if (start) do_seq();        // launch the procedure on demand
+
+    proc do_seq seq {
+        label_name s0, s1, s2;  // three labels in the seq-block (S25)
+
+        s0: cur := 2'd0;        // step 1 — consumes one clock (S19)
+        s1: cur := 2'd1;        // step 2
+        s2: cur := 2'd2;        // step 3
+        finish;                 // bare-form terminator (S21)
+    }
+
+    step = cur;
+}

@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 06_alt_vs_any.nsl — Side-by-side contrast of 'alt' (priority) and 'any'
+// (parallel) blocks.
+//
+// Inputs are three flag bits; the module produces:
+//   – pri[2] : 2-bit priority encoder (highest set bit's index, alt block).
+//   – cnt[2] : population count of set bits        (any block + variable).
+//
+// Semantic notes:
+//   • S13 — 'alt' fires the FIRST matching case; 'any' fires EVERY matching
+//     case in parallel.  Both honour an optional 'else:' default.
+//   • S12 — partial assignment on the LHS (e.g. 'cnt[1:0] = ...') is legal
+//     ONLY for identifiers declared as 'variable'; wires and regs do not
+//     permit partial assignment.  We use a 2-bit variable for the popcount
+//     accumulator to satisfy this rule via successive partial updates —
+//     here, however, we accumulate by full-width re-assignment, which is
+//     also allowed for a variable.
+//   • Ref §4 — 'variable' is a procedural-style scratch object: writes are
+//     ordered within a single cycle's evaluation, then "freeze" until the
+//     next cycle.  Different from 'wire' (continuous), 'reg' (clocked).
+//   • S3  — 'variable' takes '=' (not ':='), like wire/output/inout.
+
+declare prio_pop {
+    input  in0, in1, in2;
+    output pri[2];
+    output cnt[2];
+}
+
+module prio_pop {
+    // ---------------- priority encoder via alt (FIRST match wins) ----
+    alt {
+        in2  : pri = 2'd2;
+        in1  : pri = 2'd1;
+        in0  : pri = 2'd0;
+        else : pri = 2'd0;
+    }
+
+    // ---------------- population count via any (ALL matches fire) ----
+    variable acc[2];
+    acc = 2'd0;             // default; variables get a base value each cycle
+    any {
+        in0 : acc = acc + 2'd1;
+        in1 : acc = acc + 2'd1;
+        in2 : acc = acc + 2'd1;
+    }
+    cnt = acc;
+}

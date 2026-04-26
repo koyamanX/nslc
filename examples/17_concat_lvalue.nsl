@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 17_concat_lvalue.nsl — Concat-LHS assignment '.{a, b, c} = expr;'.
+//
+// Splits an incoming 32-bit address into three sub-fields in a single
+// statement using the NSL "concat lvalue" form.  This is a common pattern
+// for bus-address decoding (e.g. cache tag/index/offset extraction).
+//
+// Address layout (matches struct packing, S18 — earlier on the LHS list
+// occupies the MORE-significant bits of the RHS):
+//
+//      [31:12] tag       (20 bits)
+//      [11:4]  index      (8 bits)
+//      [3:0]   offset     (4 bits)
+//
+// Semantic notes:
+//   • S12 — partial-bit assignment on the LHS is permitted ONLY for
+//     identifiers declared 'variable'.  The concat-lvalue '.{a, b, c} = x'
+//     is a FULL assignment to each named target, so it works for wires too;
+//     it is NOT the same as a partial assignment.
+//   • N3  — the leading '.' in '.{...}' is a TWO-CHARACTER lookahead
+//     token in the lexer ('.{' must be recognized as one composite cue),
+//     distinct from the member-access '.' used in 'a.b'.
+//   • Ref §5 Ex. 16 — real-world form mirrors this: ".{tag, index,
+//     blockoffset, byteoffset} = addr;"
+
+declare addr_split {
+    input  addr[32];
+    output tag[20];
+    output index[8];
+    output offset[4];
+}
+
+module addr_split {
+    .{ tag, index, offset } = addr;     // concat-lvalue form (N3)
+}

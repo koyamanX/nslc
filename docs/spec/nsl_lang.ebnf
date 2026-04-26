@@ -1,0 +1,1149 @@
+(* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception *)
+(* ============================================================================
+ * NSL (Next Synthesis Language) — Grammar in EBNF (Part 2 of 2)
+ *
+ * Companion file:  nsl_pp.ebnf  (Part 1 — the preprocessor)
+ *
+ * Sources:
+ *   NSL Reference Manual Ver. 1.4E          (Overtone Corporation, 2012)
+ *   NSL Tutorial (English)                  (IP ARCH, 2015-10-15)
+ *   NSL Tutorial — Basic structure          (IP ARCH, 2016-01-21)
+ *
+ *     https://www.overtone.co.jp/Document/NSL_Language_Reference_ver1.4E.pdf
+ *     https://www.overtone.co.jp/Document/NSLTUT20151006_E.pdf
+ *     https://www.overtone.co.jp/Document/NSL_Tutorial20160121.pdf
+ *
+ * Cross-checked against ~12,000 lines of open-source NSL:
+ *     koyamanX/rv32x_dev              (RISC-V RV32IMAC)
+ *     koyamanX/turboV                 (out-of-order RISC-V)
+ *     koyamanX/mmcspi
+ *     koyamanX/SDRAM_Controler
+ *     koyamanX/mips32_single_cycle
+ *     koyamanX/ahb_lite_nsl
+ *     koyamanX/cpu16
+ *
+ *
+ * ROLE OF THIS FILE
+ * -----------------
+ * This grammar describes the NSL language proper — what is parsed AFTER the
+ * preprocessor has run.  By the time the NSL parser sees the input:
+ *
+ *   – every  #include  has been substituted with the included file's tokens
+ *   – every  #define  / #undef  has updated the macro table
+ *   – every  #ifdef / #ifndef / #if  region has been resolved into a single
+ *     selected branch
+ *   – every  %IDENT%  reference has been replaced with a single identifier
+ *   – every compile-time  _int / _pow / _sin / …  helper has been evaluated
+ *     and replaced with its numeric result
+ *   – every float literal has been reduced to an integer
+ *
+ * The ONE preprocessor directive that may remain is  #line  — it is
+ * deliberately preserved across the seam so that source-location tracking
+ * survives macro expansion and  #include  boundaries.  See §2 and N14.
+ *
+ * Therefore this grammar contains NO preprocessor directives EXCEPT the
+ * line marker, NO  %IDENT%  production, NO compile-time helpers, and NO
+ * float type.  See nsl_pp.ebnf for those.
+ *
+ *
+ * NOTATION
+ * --------
+ *     rule = expression ;       (* definition                                *)
+ *     A | B                     (* alternation                               *)
+ *     [ A ]                     (* optional                                  *)
+ *     { A }                     (* zero or more                              *)
+ *     ( A )                     (* grouping                                  *)
+ *     "text"                    (* literal terminal                          *)
+ *     (* text *)                (* comment                                   *)
+ *
+ * Semantic constraints that cannot be expressed in pure EBNF — along with
+ * parser-implementer notes on lexing and disambiguation — are collected at
+ * the end of the file (sections "SEMANTIC CONSTRAINTS" and "PARSER NOTES").
+ * ============================================================================ *)
+
+
+(* ========== 1. Compilation unit (Ref §1) =================================== *)
+
+compilation_unit = { top_level_item } ;
+
+top_level_item   = struct_declaration
+                 | declare_block
+                 | module_block
+                 | top_level_parameter                      (* see §3.1   *)
+                 | line_marker                              (* see §2, N14 *)
+                 ;
+                 (* Preprocessor directives never reach this grammar — they
+                  * are line-based and resolved by the preprocessor pass
+                  * (nsl_pp.ebnf) before the NSL parser runs.  The sole
+                  * exception is  #line , parsed via line_marker .       *)
+
+
+(* ========== 2. Preprocessor seam =========================================== *)
+
+(* The NSL preprocessor (defined in  nsl_pp.ebnf ) runs first.  It produces
+ * a flat stream of NSL tokens that this grammar consumes.  By contract:
+ *
+ *   – No  #include / #define / #undef / #ifdef / #ifndef / #if / #else /
+ *     #endif  directive reaches this grammar.
+ *   – No  %IDENT%  splice reaches this grammar.
+ *   – No compile-time math helper ( _int , _pow , _sin , … ) reaches
+ *     this grammar.
+ *   – No float literal reaches this grammar.
+ *
+ * The ONE exception is the  #line  directive, which the preprocessor
+ * deliberately re-emits into its output so that this parser can mirror
+ * source-location tracking.  See note N14 for handling.
+ *
+ * The two grammars share one rule by reference:  number_literal  (defined
+ * in §13 below); the preprocessor uses it for compile-time integer values.
+ *
+ * For the preprocessor's own grammar see  nsl_pp.ebnf .                    *)
+
+(* The line-marker form that may appear between any two top-level items,
+ * module items, or statements.  Its only effect is to update the parser's
+ * source-location attribution for subsequent tokens.  It does NOT produce
+ * an AST node.  See note (N14).                                           *)
+
+line_marker = "#line" decimal_integer [ string_literal ] ;
+              (* decimal_integer and string_literal are defined in §13.    *)
+
+(* ========== 3. Struct type declaration (Ref §12) =========================== *)
+(* struct declarations in csr.h all use the "struct" keyword, e.g.  *
+ *     struct csr32_t {                                                       *
+ *         v[32];                                                             *
+ *     };                                                                     *)
+
+struct_declaration = "struct" identifier "{" { struct_member } "}" ";" ;
+
+struct_member      = identifier [ "[" constant_expression "]" ] ";" ;
+
+(* ========== 3.1 Top-level parameters ======================================= *)
+
+(* Top-level parameters live OUTSIDE any declare / module block and serve    *
+ * as compile-time constants usable in structural-expansion contexts         *
+ * (module-instance counts, width expressions, "#if" branches via            *
+ * comparison):                                                              *
+ *                                                                           *
+ *     param_str MODE = "SIM";      // global compile-time string            *
+ *     param_int N    = 8;          // global compile-time integer           *
+ *                                                                           *
+ * These are distinct from the param_int / param_str declared inside a       *
+ * "declare" header (§3) — those are connection-time parameters passed to    *
+ * a Verilog/VHDL submodule.  A top-level parameter MUST carry an            *
+ * initializer; a header-parameter may not (its value arrives at bind).     *)
+
+top_level_parameter = ( "param_int" identifier "=" constant_expression ";" )
+                    | ( "param_str" identifier "=" string_literal       ";" ) ;
+
+(* ========== 4. "declare" block (Ref §1, §2, §3, §13) ======================= *)
+
+declare_block = "declare" [ identifier ] [ modifier ] "{"
+                    { declare_item }
+                "}" ;
+
+modifier      = "interface" | "simulation" ;
+
+declare_item  = parameter_declaration
+              | io_structure_declaration
+              | line_marker                                  (* see §2, N14 *)
+              ;
+
+(* ----- Parameters (Ref §3) ----- *)
+
+parameter_declaration = param_kind identifier { "," identifier } ";" ;
+
+param_kind            = "param_int" | "param_str" ;
+
+(* ----- I/O structure elements (Ref §2) ----- *)
+
+io_structure_declaration = data_terminal_declaration
+                         | control_terminal_declaration
+                         ;
+
+data_terminal_declaration = data_direction signal_declarator
+                            { "," signal_declarator } ";" ;
+
+data_direction            = "input" | "output" | "inout" ;
+
+signal_declarator         = identifier [ "[" width_expression "]" ] ;
+
+control_terminal_declaration =
+      control_direction identifier
+      [ "(" [ dummy_arg_list ] ")" ]
+      [ ":" identifier ]                  (* return-value terminal, reversed dir *)
+      ";" ;
+
+control_direction = "func_in" | "func_out" ;
+
+dummy_arg_list    = identifier { "," identifier } ;
+
+(* ========== 5. "module" block (Ref §1, §4, §5) ============================= *)
+
+module_block = "module" identifier "{" { module_item } "}" ;
+
+module_item  = internal_declaration
+             | common_action_statement
+             | function_definition
+             | procedure_definition
+             | state_definition
+             | line_marker                                  (* see §2, N14 *)
+             ;
+             (* Conditional inclusion (#ifdef etc.) within a module body is
+              * resolved by the preprocessor (nsl_pp.ebnf §2.3); only the
+              * selected branch's items reach this grammar.  Surviving
+              * #line directives appear as line_marker .                 *)
+
+(* ========== 6. Internal structure elements (Ref §4) ======================== *)
+
+internal_declaration = internal_terminal_declaration
+                     | register_declaration
+                     | control_internal_declaration
+                     | submodule_declaration
+                     | procedure_name_declaration
+                     | state_name_declaration
+                     | first_state_declaration      (* tutorial NS17 *)
+                     | memory_declaration
+                     | struct_instance_declaration
+                     | integer_declaration
+                     | variable_declaration
+                     ;
+
+internal_terminal_declaration = "wire" signal_declarator
+                                { "," signal_declarator } ";" ;
+
+register_declaration         = "reg" register_declarator
+                               { "," register_declarator } ";" ;
+
+register_declarator          = identifier
+                               [ "[" width_expression "]" ]
+                               [ "=" constant_expression ] ;
+                               (* "reg flushing = 0;" — width may be
+                                  omitted (defaults to 1 bit) while still
+                                  supplying an initial value.                 *)
+
+control_internal_declaration = "func_self" identifier
+                               [ "(" [ dummy_arg_list ] ")" ]
+                               [ ":" identifier ]
+                               ";" ;
+
+submodule_declaration        = identifier submodule_instance
+                               { "," submodule_instance } ";" ;
+
+submodule_instance           = identifier
+                               [ "[" constant_expression "]" ]    (* array of instances *)
+                               [ "(" param_assignment_list ")" ] ;
+
+param_assignment_list        = param_assignment { "," param_assignment } ;
+
+param_assignment             = identifier "=" ( constant_expression
+                                              | string_literal ) ;
+
+(* both parenthesized and bare forms appear in the wild —           *
+ *     mul32.nsl:   proc_name idle();                                         *
+ *     div32.nsl:   proc_name idle;                                           *)
+
+procedure_name_declaration   = "proc_name" proc_declarator
+                               { "," proc_declarator } ";" ;
+
+proc_declarator              = identifier
+                               [ "(" [ identifier { "," identifier } ] ")" ] ;
+
+state_name_declaration       = "state_name" identifier
+                               { "," identifier } ";" ;
+
+(* tutorial (Japanese edition, 2016-01-21) Ch. 14, Example NS17:
+ *
+ *     proc p {
+ *         state_name st1, st2, st3;
+ *         first_state st1;                    // mark initial state
+ *         state st1 goto st2;
+ *         state st2 goto st3;
+ *         state st3 { goto st1; finish; }
+ *     }
+ *
+ *   The "first_state" declaration nominates WHICH of the previously-declared
+ *   state_name's is the power-on-reset entry state for the enclosing proc.
+ *   In the 2012 reference manual this behaviour is implicit: the FIRST name
+ *   in a state_name list is the initial state.  The 2016 tutorial makes it
+ *   explicit and required for the NS17 form.
+ *
+ *   The two conventions are NOT contradictory — if first_state is absent,
+ *   the implicit-first-name rule still applies.  Implementations SHOULD
+ *   accept both and flag a mismatch (first_state naming a state that
+ *   appears later in the list than the first declared name) as a semantic
+ *   warning.                                                                *)
+
+first_state_declaration      = "first_state" identifier ";" ;
+
+(* mem cache_tag_way0[256][20] = {0};  ← single init value; the     *
+ *     remaining addresses default to 0 (Ref §4).                             *)
+
+memory_declaration = "mem" identifier
+                     "[" constant_expression "]"
+                     "[" constant_expression "]"
+                     [ "=" "{" constant_expression
+                             { "," constant_expression } "}" ]
+                     ";" ;
+
+(* struct instances may be arrays with list-style
+ * initializers, exactly paralleling the submodule instance array syntax.
+ *
+ *     reservation_t reg reservation = 0;          // scalar, scalar init
+ *     something    reg anything[5];               // array of 5 instances
+ *     something    reg anything[5] = { 0, 2, 4 }; // array, first 3 init;
+ *                                                 // remaining default to 0
+ * (Ref §12; rv32x_dev load_store_unit.nsl:58.)                             *)
+
+struct_instance_declaration  = identifier ( "reg" | "wire" ) struct_inst_declarator
+                               { "," struct_inst_declarator } ";" ;
+
+struct_inst_declarator       = identifier
+                               [ "[" constant_expression "]" ]    (* array of instances *)
+                               [ "=" struct_init_value ] ;
+
+struct_init_value            = constant_expression
+                             | "{" constant_expression
+                                   { "," constant_expression } "}" ;
+
+integer_declaration          = "integer" identifier
+                               { "," identifier } ";" ;
+
+variable_declaration         = "variable" variable_declarator
+                               { "," variable_declarator } ";" ;
+
+variable_declarator          = identifier [ "[" width_expression "]" ] ;
+
+(* ========== 7. Function / Procedure / State bodies ========================= *)
+
+(* A "func" definition may use a DOTTED NAME to handle a submodule's         *
+ * func_out callback in the parent:                                          *
+ *                                                                           *
+ *     func ic.ready { rv32x.inst = ic.inst; rv32x.imem_ready(); }           *
+ *                                                                           *
+ * where  ic  is a submodule instance of a declare exposing "func_out       *
+ * ready()".  Dotted names are NOT accepted for  proc  or  state  defs.     *
+ *                                                                           *
+ * "func" is canonical; "function" appears in the reference's own examples  *
+ * 34 and 35 but not in any verified code.  Both are accepted here; see S26.*)
+
+function_definition  = ( "func" | "function" ) scoped_identifier
+                       action_statement ;
+
+procedure_definition = "proc"  identifier action_statement ;
+
+state_definition     = "state" identifier action_statement ;
+
+(* ========== 8. Action statements (Ref §5–§11) ============================== *)
+
+common_action_statement = action_statement ;
+
+action_statement = atomic_action ";"
+                 | block
+                 | conditional_if_statement
+                 | structural_generate
+                 | labeled_statement
+                 | goto_statement
+                 | return_statement                            
+                 | empty_statement                             
+                 ;
+
+empty_statement = ";" ;        (* "do-nothing" action — used e.g. in         *
+                                  any { c: ; }  as a no-op branch.           *)
+
+(* "return" inside a func body.  Examples:                                   *
+ *     return result[31:0];                                                  *
+ *     return if(forward_a) wdataa else ra;       conditional-expr form      *
+ *     return adder.exe(a, 0x00000004);            returns submodule output  *
+ *     return 32'b0;                                                         *
+ *                                                                           *
+ * The expression's type must match the enclosing func's return-value       *
+ * terminal; bare "return;" is valid only when the func has no return       *
+ * terminal.  See S22.                                                       *)
+
+return_statement = "return" [ expression ] ";" ;
+
+(* ----- Blocks (Ref §5 Table 5-2, §7 Table 5-3) ----- *)
+
+block = parallel_block
+      | alt_block
+      | any_block
+      | seq_block
+      | while_block       (* only valid inside a seq_block    *)
+      | for_block         (* only valid inside a seq_block    *)
+      ;
+
+parallel_block = "{" { parallel_block_item } "}" ;
+
+parallel_block_item = internal_declaration
+                    | action_statement
+                    | line_marker                            (* see §2, N14 *)
+                    ;
+
+alt_block = "alt" "{" { alt_case } [ else_case ] "}" ;
+
+alt_case  = expression ":" action_statement ;
+
+any_block = "any" "{" { any_case } [ else_case ] "}" ;
+
+any_case  = expression ":" action_statement ;
+
+else_case = "else" ":" action_statement ;
+
+conditional_if_statement = "if" "(" expression ")" action_statement
+                           [ "else" action_statement ] ;
+
+(* seq / while / for blocks accept internal_declaration items at the top of *
+ * their bodies, not just action statements:                                *
+ *                                                                          *
+ *     proc invalidate_cache seq {                                          *
+ *         reg  invalidate_cnt[9] = 0;          <- internal declaration     *
+ *         wire invalidate_index[8];            <- internal declaration     *
+ *         for(invalidate_cnt := 0; …; invalidate_cnt++) { … }              *
+ *         {  invalidate_done(); idle();  }                                 *
+ *     }                                                                    *)
+
+seq_block = "seq" "{" { seq_block_item } "}" ;
+
+seq_block_item = label_name_declaration
+               | internal_declaration                           
+               | action_statement
+               | line_marker                                 (* see §2, N14 *)
+               ;
+
+label_name_declaration = "label_name" identifier { "," identifier } ";" ;
+
+labeled_statement = identifier ":" ;
+                      (* label marker; the next seq_block_item is the action
+                         that runs when this label is reached.                *)
+
+goto_statement    = "goto" identifier ";" ;
+
+while_block = "while" "(" expression ")" "{" { seq_block_item } "}" ;
+
+(* tutorial Ch. 7 introduces an ENUMERATION form of for, distinct from
+ *      the C-style three-clause form (Ref §7):
+ *
+ *        C-STYLE :  for (init ;  condition ;  step ) { … }
+ *        ENUM    :  for (init ,  end_value )         { … }
+ *
+ *      In enum form the loop variable steps by ±1 from the init value to
+ *      the end_value inclusive (direction determined by comparison).
+ *      Example:  for (loop := 0 , 9 ) { … }                   (tut5)
+ *                for (i     := 9 , 0 ) { … }   // counts down
+ *
+ * tutorial Ch. 7 tut6 demonstrates that both init and step may be
+ *      COMPOUND action-blocks wrapped in { … }, allowing multiple
+ *      assignments per clause:
+ *
+ *        for ({loop:=0; lend:=value;}; loop<lend; loop++) { … }          *)
+
+for_block   = "for" "(" for_header ")" "{" { seq_block_item } "}" ;
+
+for_header  = for_init "," expression
+            | for_init ";" expression ";" for_step       (* C-style 3-clause *)
+            ;
+
+for_init    = single_for_init
+            | parallel_block ;
+
+for_step    = single_for_step
+            | parallel_block ;
+
+single_for_init = identifier ":=" expression ;
+
+single_for_step = increment_decrement
+                | identifier ":=" expression
+                ;
+
+(* ----- Structural generate (Ref §6) ----- *)
+(* btb.nsl:74  generate(i = 0; i < 32; i++) { … }                   *)
+
+structural_generate = "generate" "(" generate_init ";"
+                                     expression ";"
+                                     generate_step ")"
+                      action_statement ;
+
+generate_init = identifier "=" constant_expression ;
+
+generate_step = increment_decrement
+              | identifier "=" constant_expression
+              ;
+
+(* ========== 9. Atomic actions (Ref §5) ===================================== *)
+
+atomic_action = register_transfer
+              | wire_or_variable_transfer
+              | increment_decrement
+              | control_terminal_call
+              | bare_finish_statement     (* tutorial Ch. 11 bare form *)
+              | system_task
+              ;
+
+(* tutorial Ch. 11 tut14/tut15 and Ch. 15 fpadd all use the bare
+ *       keyword form "finish;" without parentheses to end the current
+ *       proc.  The parenthesized method form "finish();" (and the
+ *       cross-procedure form "<proc>.finish();") remain valid and are
+ *       parsed under control_terminal_call.  Both are accepted; semantic
+ *       meaning is identical.                                              *)
+
+bare_finish_statement = "finish" ;
+
+(* Transfers -------------------------------------------------------------- *)
+
+register_transfer         = lvalue ":=" expression ;
+wire_or_variable_transfer = lvalue "="  expression ;
+
+lvalue = concat_lvalue
+       | simple_lvalue
+       ;
+
+concat_lvalue = "." "{" lvalue { "," lvalue } "}" ;
+                                 (* Ref §5 Ex. 16.  Real-world form:         *
+                                    .{tag, index, blockoffset, byteoffset}   *
+                                      = addr;                                *)
+
+simple_lvalue = scoped_identifier [ bit_select_or_slice ] ;
+
+bit_select_or_slice = "[" expression [ ":" expression ] "]" ;
+
+scoped_identifier   = identifier { "." identifier } ;
+                                 (* Handles submodule-port access (SUB.port),*
+                                    struct-field access (pte.ppn1), and      *
+                                    procedure-control (proc.finish).         *)
+
+(* Increment / decrement (Ref §5) ---------------------------------------- *)
+
+increment_decrement = "++" identifier
+                    | "--" identifier
+                    | identifier "++"
+                    | identifier "--"
+                    ;
+
+(* Control terminal call (Ref §7, §8).  Examples:                          *
+ *     idle()                  internal control terminal, no args          *
+ *     calc(a, b)              with args                                   *
+ *     SUB.calc1(a, b)         on a submodule instance                     *
+ *     calc.finish()           built-in procedure terminator               *
+ *     finish()                bare form, only inside proc body            *)
+
+control_terminal_call = scoped_identifier "(" [ argument_list ] ")" ;
+
+argument_list = expression { "," expression } ;
+
+(* ========== 10. System tasks (Ref App. 2, corrected) ======================= *)
+(* System tasks use a LEADING UNDERSCORE, not the dollar sign that appears    *
+ * in the 2012 reference manual.  The reference's "$display" / "$readmemh"    *
+ * spellings are inaccurate; NSLCORE's real grammar uses "_display",          *
+ * "_readmemh", "_write", etc.  All real-world code agrees.                   *
+ *                                                                            *
+ * System tasks are only available inside modules whose "declare" block      *
+ * carries the "simulation" modifier.                                         *)
+
+system_task = display_task
+            | monitor_task
+            | write_task
+            | time_task
+            | finish_task_sys
+            | stop_task
+            | init_block
+            | delay_task
+            | readmem_task
+            ;
+
+display_task     = "_display"  "(" [ argument_list ] ")" ;
+monitor_task     = "_monitor"  "(" [ argument_list ] ")" ;
+write_task       = "_write"    "(" [ argument_list ] ")" ;
+
+(* Legacy "_time()" form — back-compat with Ref §0.  The tutorial spells     *
+ * _time as a parens-free system variable; see §11 system_variable.          *)
+time_task        = "_time"     "(" ")" ;
+
+(* _finish may take a format string plus values, e.g. _finish("%d", datao);  *
+ * empty "_finish()" is also valid.                                          *)
+finish_task_sys  = "_finish"   "(" [ argument_list ] ")" ;
+
+(* _stop is like _finish but only PAUSES the simulator — it can be resumed   *
+ * from a host debugger or shell.                                            *)
+stop_task        = "_stop"     "(" [ argument_list ] ")" ;
+
+(* tutorial Ch. 1 Table 1.1:
+ *   _init { … }  is a simulation-only sequential block that runs ONCE,
+ *   one clock after simulation start.  It may appear only at the top
+ *   level of a module whose declare carries the "simulation" modifier
+ *   (not nested inside any other block).  Within _init you may use
+ *   _delay(n) to pause for n clocks before the next action.                 *)
+init_block       = "_init" "{" { init_item } "}" ;
+
+init_item        = delay_task
+                 | atomic_action
+                 | compound_statement
+                 ;
+
+delay_task       = "_delay" "(" constant_expression ")" ;
+
+readmem_task     = ( "_readmemh" | "_readmemb" )
+                   "(" string_literal "," identifier ")" ;
+
+(* The leading-underscore form is how the tokenizer should recognize a system
+ * task.  A token of shape  _<letter-sequence>  is ALWAYS a system task and is
+ * never a valid NSL identifier (Ref §0 requires identifiers to start with a
+ * letter; first-char underscore is reserved for system tasks).               *
+ *                                                                            *
+ * Note: user-level  finish()  calls (for procedure control — see S21) are    *
+ * parsed as control_terminal_call, NOT as system_task.                       *)
+
+(* ========== 11. Expressions ================================================ *)
+(* Precedence follows Ref §0 Table 0-2 (low index = high precedence).         *
+ * The grammar is written bottom-up: outer rule = lowest precedence.          *)
+
+expression = conditional_expression ;
+
+conditional_expression = "if" "(" expression ")" logical_or_expr
+                              "else" logical_or_expr
+                       | logical_or_expr
+                       ;
+
+logical_or_expr  = logical_and_expr { "||" logical_and_expr } ;
+
+logical_and_expr = bitwise_or_expr  { "&&" bitwise_or_expr } ;
+
+bitwise_or_expr  = bitwise_xor_expr { "|"  bitwise_xor_expr } ;
+
+bitwise_xor_expr = bitwise_and_expr { "^"  bitwise_and_expr } ;
+
+bitwise_and_expr = equality_expr    { "&"  equality_expr } ;
+
+equality_expr    = relational_expr  { ( "==" | "!=" ) relational_expr } ;
+
+relational_expr  = shift_expr       { ( "<=" | ">=" | "<" | ">" ) shift_expr } ;
+
+shift_expr       = additive_expr    { ( "<<" | ">>" ) additive_expr } ;
+
+additive_expr    = multiplicative_expr { ( "+" | "-" ) multiplicative_expr } ;
+
+multiplicative_expr = unary_expr { "*" unary_expr } ;
+
+unary_expr = "~"  unary_expr                       (* bitwise NOT            *)
+           | "!"  unary_expr                       (* logical NOT            *)
+           | reduction_unary unary_expr            (* reduction AND/OR/XOR…  *)
+           | "+"  unary_expr                       (* unary plus (tolerant)  *)
+           | "-"  unary_expr                       (* unary minus            *)
+           | postfix_expr
+           ;
+
+reduction_unary = "&"  | "|"  | "^"
+                | "~&" | "~|" | "~^" ;
+
+postfix_expr = primary_expr { postfix_tail } ;
+
+postfix_tail = "[" expression "]"                       (* single bit            *)
+             | "[" expression ":" expression "]"        (* bit slice / reverse   *)
+             | "." identifier                            (* field / submodule port*)
+             | "(" [ argument_list ] ")"                 (* func_in call          *)
+             ;
+
+primary_expr = literal
+             | system_variable                    (* _random, _time *)
+             | struct_cast_expr                   (* (Type)(expr).m *)
+             | identifier
+             | "(" expression ")"
+             | concat_expression
+             | repeat_expression
+             | sign_extend_expression
+             | zero_extend_expression
+             | "++" identifier
+             | "--" identifier
+             | identifier "++"
+             | identifier "--"
+             ;
+
+(* tutorial Ch. 1 Table 1.1, Ch. 6 examples:
+ *      System VARIABLES are bare names (no parens) that evaluate to a
+ *      built-in signal at the point of use.
+ *
+ *        _random  returns a 32-bit pseudo-random value (each read is fresh).
+ *        _time    returns the 64-bit simulation time.
+ *
+ *      These are lexically system names (leading underscore) but appear in
+ *      expression position without parentheses — unlike _display/_finish
+ *      which are statement-form system tasks and require "(".
+ *
+ *      Usage:  if (_time >= 100) _finish("done");              (tut3)
+ *              a := N'(_random);                                (tut8)
+ *
+ *      Note: "_time()" with empty parens is also accepted as a system_task
+ *      (see §10) for back-compat with the reference manual.               *)
+
+system_variable = "_random" | "_time" ;
+
+(* tutorial Ch. 8 (pp. 37–38) + Ch. 15 fpadd:
+ *      STRUCT CAST is a C-style re-interpretation of an expression's bits
+ *      as a given struct type, enabling member access without a dedicated
+ *      intermediate instance.
+ *
+ *        (StructName)(expression) . member   [. member …]
+ *
+ *      Example (tut7 / fpadd):
+ *        workop      = (inst)(opreg).op;
+ *        wdiff[8:0]  = 9'((Ieee754Sp)(a).Exponent);
+ *
+ *      Cannot appear on the LHS of a transfer (casting is a pure read).
+ *      The grammar requires AT LEAST ONE ".member" to distinguish the
+ *      cast from an ordinary parenthesized expression pair.  Chained
+ *      member access is permitted for nested structs.                     *)
+
+struct_cast_expr = "(" identifier ")" "(" expression ")"
+                   "." identifier { "." identifier } ;
+
+concat_expression       = "{" expression { "," expression } "}" ;
+
+repeat_expression       = constant_expression "{" expression "}" ;
+
+sign_extend_expression  = constant_expression "#" primary_expr             (* N#sig   *)
+                        | constant_expression "#" "(" expression ")" ;     (* N#(sig) *)
+
+zero_extend_expression  = constant_expression "'" "(" expression ")" ;     (* N'(sig) *)
+
+(* ========== 12. Width / constant expressions =============================== *)
+(* Syntactically identical to full expressions, but semantically restricted
+ * to things the structural-expansion pass can evaluate to a constant integer. *)
+
+width_expression    = expression ;
+constant_expression = expression ;
+
+(* ========== 13. Lexical elements (Ref §0) ================================== *)
+
+literal        = number_literal | string_literal ;
+
+number_literal = verilog_style_number
+               | c_style_number
+               | decimal_integer
+               ;
+
+verilog_style_number = decimal_integer "'" radix_char value_run ;
+
+c_style_number       = "0" c_radix_char value_run ;
+
+radix_char   = "b" | "o" | "d" | "h" ;   (* bin, oct, dec, hex *)
+c_radix_char = "b" | "x" ;               (* bin, hex           *)
+
+(* number-literal values may contain the non-digit markers Z, X,
+ * U (and their lowercase variants) for Hi-Z, Indefinite, and Undriven
+ * respectively.  These are legal in Verilog-style and C-style number values.
+ * (Ref §0 "Value"; SDRAM_Controler/simulation/SDRAM_SIM.nsl:38 — 16'hZZZZ.)
+ *                                                                            *
+ * For a decimal literal ('d or plain), only digits (and _) are meaningful;   *
+ * the non-digit markers are legal only in 'b / 'o / 'h / 0b / 0x forms.     *)
+
+value_run        = value_digit { value_digit | "_" } ;
+value_digit      = hex_digit | "Z" | "X" | "U" | "z" | "x" | "u" ;
+
+decimal_integer  = digit { digit | "_" } ;
+
+identifier = letter { letter | digit | underscore } ;
+             (* "__" (two consecutive underscores) is PROHIBITED — Ref §0.
+                First character must be a letter.  A leading "_" identifies a
+                system-task name, not a regular identifier.                   *)
+
+string_literal = '"' { string_char } '"' ;
+string_char    = any_printable_except_dquote_and_newline
+               | "\\" escape_sequence ;
+
+escape_sequence = "n" | "t" | "r" | "\\" | '"' | "0" ;
+
+letter     = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H"
+           | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P"
+           | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X"
+           | "Y" | "Z"
+           | "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h"
+           | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p"
+           | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x"
+           | "y" | "z" ;
+
+digit      = "0" | "1" | "2" | "3" | "4"
+           | "5" | "6" | "7" | "8" | "9" ;
+
+hex_digit  = digit
+           | "a" | "b" | "c" | "d" | "e" | "f"
+           | "A" | "B" | "C" | "D" | "E" | "F" ;
+
+underscore = "_" ;
+
+(* ========== 14. Whitespace and comments ==================================== *)
+
+whitespace    = " " | "\t" | "\n" | "\r" ;
+
+comment       = line_comment | block_comment ;
+
+line_comment  = "//" { any_char_until_newline } ;
+
+block_comment = "/*" { any_char_not_starting_close } "*/" ;
+                                 (* NON-nestable per Ref §0 *)
+
+(* ========== 15. Reserved keywords (Ref App. 3, corrected & augmented) ====== *)
+(* Appendix 3 of the reference lists the reserved words below in the first    *
+ * group.  That list is INCOMPLETE — several words that are syntactically     *
+ * required (else, if, return, struct) are absent, and one word               *
+ * (first_state) was added only in the 2016 tutorial.  Both omissions are     *
+ * compensated for here.                                                      *)
+
+reserved_keyword =
+    (* ---- listed explicitly in Appendix 3 ---- *)
+      "alt"        | "any"       | "declare"
+    | "finish"                                                 (* also built-in method *)
+    | "for"        | "func"      | "func_in"
+    | "func_out"   | "func_self" | "generate"  | "goto"
+    | "inout"      | "input"     | "integer"   | "interface"
+    | "label"                                                  (* reserved; see N10 *)
+    | "label_name"
+    | "m_clock"                                                (* auto-synthesized clock *)
+    | "mem"        | "module"    | "output"
+    | "p_reset"                                                (* auto-synthesized reset *)
+    | "proc"       | "proc_name" | "reg"
+    | "seq"        | "state"     | "state_name"
+    | "variable"   | "while"     | "wire"
+    (* ---- practical additions required by the syntax but absent from App. 3 ---- *)
+    | "else"                                                   (* if/else, alt else, any else *)
+    | "first_state"                                            (* tutorial NS17         *)
+    | "function"                                               (* synonym of func; see S26    *)
+    | "if"                                                     (* expression and statement    *)
+    | "invoke"                                                 (* built-in procedure method   *)
+    | "param_int"  | "param_str"                               (* §3 and top-level parameters *)
+    | "parameter"                                              (* Verilog submodule header    *)
+    | "return"                                                 (* §9 / verified in code       *)
+    | "simulation"                                             (* declare modifier            *)
+    | "struct" ;                                               (* §12                         *)
+
+(* Lexically-reserved (prefix "_") system names — cannot be user identifiers. *
+ * These are recognized by the tokenizer, not by the keyword table.           *
+ *   Statements / tasks :  _display  _monitor  _write  _readmemh  _readmemb   *
+ *                         _finish   _stop     _init  _delay                  *
+ *   Variables          :  _random  _time                                     *
+ *   Preprocessor-only  :  _real _int _acos _asin _atan _atan2 _ceil _cos     *
+ *                         _cosh _exp _fabs _floor _fmod _log _log10 _pow     *
+ *                         _sin _sinh _sqrt _tan _tanh                        *)
+
+(* ============================================================================
+ *  SEMANTIC CONSTRAINTS NOT EXPRESSED IN THE GRAMMAR
+ * ============================================================================
+ *
+ *   (S1)  Identifiers: double underscore "__" is forbidden. (Ref §0)
+ *
+ *   (S2)  "wire" has no initial value; only "reg" and struct-instance-reg can
+ *         have "= init".                                         (Ref §4)
+ *
+ *   (S3)  "=" targets a wire / output / inout / variable / integer.
+ *         ":=" targets a reg (or reg struct instance) only.     (Ref §5)
+ *
+ *   (S4)  Dummy arguments of "func_in"  must be declared "input"  terminals.
+ *         Dummy arguments of "func_out" must be declared "output" terminals.
+ *         Dummy arguments of "func_self" must be declared "wire".
+ *                                                               (Ref §2, §4)
+ *
+ *   (S5)  The return-value terminal on a control terminal has REVERSED direction:
+ *             func_in  ... : <output_or_inout_terminal>   (returns via output)
+ *             func_out ... : <input_or_inout_terminal>    (returns via input)
+ *                                                               (Ref §2)
+ *
+ *   (S6)  "proc_name" arguments must be "reg" identifiers only. (Ref §4)
+ *
+ *   (S7)  "seq", "while", and "for" blocks may appear ONLY inside a function
+ *         or procedure body (never in common action description).
+ *                                                               (Ref §5 Table 5-3)
+ *
+ *   (S8)  "while" and "for" blocks may appear ONLY inside a "seq" block.
+ *                                                               (Ref §7)
+ *
+ *   (S9)  The for-loop variable in "for (r := init; cond; r++) { … }" must be
+ *         a reg (not an integer).                               (Ref §7)
+ *
+ *  (S10)  Loop variable of "generate" must be an "integer" variable.
+ *                                                               (Ref §6)
+ *
+ *  (S11)  A state_name declared inside a proc is scoped to that proc only.
+ *                                                               (Ref §4)
+ *
+ *  (S12)  Partial assignment on the LHS (e.g. v[3:0] = …) is legal ONLY
+ *         for identifiers declared as "variable"; "wire" and "reg" do not
+ *         permit partial assignment.                            (Ref §6,
+ *                                                                cache.nsl)
+ *
+ *  (S13)  In "alt" blocks, only the first matching case fires (priority);
+ *         in "any" blocks, all matching cases fire (parallel).  (Ref §5)
+ *
+ *  (S14)  "else" in a conditional EXPRESSION (not statement) is MANDATORY:
+ *         "if (c) a else b" must always include the else.       (Ref §5)
+ *
+ *  (S15)  Bit-slice indices [hi:lo] with hi < lo reverse the bit order;
+ *         indices must be compile-time constants.               (Ref §5)
+ *
+ *  (S16)  param_int / param_str declarations are meaningful ONLY for submodules
+ *         defined in Verilog/VHDL/SystemC. Pure-NSL modules carry no
+ *         parameters — use "#define" instead.                   (Ref §3)
+ *
+ *  (S17)  System tasks (_display, _monitor, _write, _time, _finish, _stop,
+ *         _readmemh, _readmemb, _init, _delay) may be used ONLY inside
+ *         modules whose declare{} block carries the "simulation" modifier.
+ *                                                                 (Ref App. 2)
+ *
+ *  (S18)  In a struct, earlier-declared members occupy the more-significant
+ *         bit positions of the packed layout.                   (Ref §12)
+ *
+ *  (S19)  A single goto transition in a seq-block consumes one clock.
+ *         A while/for block consumes one additional clock per condition check
+ *         and per loop-back transition.                          (Ref §7)
+ *
+ *  (S20)  "interface"-modified declare blocks specify explicit clock and reset
+ *         signal names; these must be honored when the module is instantiated
+ *         as a submodule.                                        (Ref §1, §13)
+ *
+ *  (S21)  Procedure instances expose built-in methods called with the same
+ *         syntax as ordinary control-terminal calls but part of the language,
+ *         not user-defined.  Two methods are known:
+ *
+ *           — finish()  — terminates an executing procedure.
+ *
+ *                • Inside the proc body: bare  finish();  terminates the
+ *                  enclosing procedure.
+ *
+ *                • From outside (in a func, in common action, in another
+ *                  proc):  <proc_inst>.finish();  force-terminates the named
+ *                  procedure.  Typically called from the module's reset func
+ *                  to bring every procedure to a known state.
+ *
+ *           — invoke() — starts / activates a procedure.  Same dispatch rules
+ *                        as finish():
+ *                          invoke();              bare form, inside a proc
+ *                          <proc_inst>.invoke();  from outside
+ *                        Semantically equivalent to the bare-name call form
+ *                        ("idle()") but written in method style at the call
+ *                        site for symmetry with .finish().
+ *
+ *         The grammar parses all of these as control_terminal_call.  The
+ *         semantic analyzer must:
+ *           (a) recognize  finish  and  invoke  as reserved procedure-method
+ *               names;
+ *           (b) allow bare  finish() / invoke()  only inside a  proc  body;
+ *           (c) require the dotted form <inst>.finish() / <inst>.invoke()
+ *               to resolve <inst> to a proc_name-declared procedure in the
+ *               enclosing module.
+ *
+ *  (S22)  "return" statements appear inside func bodies only. The return
+ *         expression's width must match the func's return-value terminal's
+ *         width (see S5). Bare "return;" (no value) is valid only when the
+ *         func has no return terminal.
+ *
+ *  (S23)  "reg" may be declared with an initializer but no explicit width,
+ *         in which case the register is 1 bit wide with the given init value:
+ *             reg flushing = 0;     ← 1-bit reg, initialized to 0
+ *
+ *  (S24)  A  mem  initializer may supply fewer values than the memory's depth:
+ *             mem cache_tag_way0[256][20] = {0};
+ *         The missing addresses are implicitly initialized to zero. (Ref §4)
+ *
+ *  (S25)  "goto" has TWO distinct target kinds, determined by context:
+ *
+ *           — Inside a  seq  block:   goto <label>   jumps to a label_name
+ *             declared and defined in the same seq block.  One-clock
+ *             transition.                                        (Ref §7)
+ *
+ *           — Inside a  state  body:  goto <state>   transitions to another
+ *             state_name declared in the same scope (parallel block or
+ *             enclosing proc).  The originating state stops.     (Ref §10)
+ *
+ *         The grammar parses both uses identically as  "goto" identifier ";".
+ *         The semantic analyzer must resolve the target based on enclosing
+ *         context and reject cross-kind references (e.g. jumping from a
+ *         seq-block to a state_name, or vice versa).
+ *
+ *  (S26)  "func" and "function" are treated as synonyms in the reference
+ *         manual (Description Examples 31/32 use "func", while 34/35 use
+ *         "function").  The canonical form is "func"; "function" is accepted
+ *         for reference-compatibility only and implementations may warn on
+ *         its use, emitting "func" in canonical output.
+ *
+ *  (S27)  CONTROL-TERMINAL NAMES AS 1-BIT VALUES.
+ *         When a func_in, func_out, func_self, or proc_name identifier
+ *         appears in expression position (RHS of an assignment, inside a
+ *         conditional, etc.) it evaluates to 1 iff the control signal is
+ *         active in the current cycle, and 0 otherwise.  No explicit cast
+ *         or call is required.  Examples:
+ *
+ *             if(~address_phase & ~address_phase_ext) { idle(); }
+ *                 // "address_phase" is a func_self, read as a 1-bit
+ *                 // signal indicating whether it fired this cycle.
+ *
+ *             debug_s = start;     // start is a proc_name
+ *             debug_i = ifetch;    // ifetch is a proc_name
+ *             debug_d = decode;    // decode is a proc_name
+ *                 // Each evaluates to 1 while the procedure is running,
+ *                 // 0 otherwise — useful as a debug probe.
+ *
+ *         Grammar impact: none — these names parse as primary_expr's
+ *         identifier form already.  The semantic analyzer must classify
+ *         each identifier reference and emit the appropriate 1-bit tap.
+ *
+ *  (S28)  first_state POSITIONING.
+ *         When a "first_state <n>;" declaration is present inside a
+ *         proc body, it MUST:
+ *           (a) reference a state_name declared in the same proc's
+ *               state_name list (or an enclosing declaration group);
+ *           (b) appear after that state_name list but before any "state"
+ *               body is opened;
+ *           (c) occur at most once per proc.
+ *
+ *         If absent, the initial state defaults to the first identifier
+ *         in the first state_name list of the proc (the Ref-§10
+ *         implicit-first-name rule).  If first_state names an identifier
+ *         that is neither the first state_name nor any declared one,
+ *         emit a semantic error.
+ *
+ *  (S29)  _init BLOCK PLACEMENT.
+ *         An _init { … } block may appear only at the top level of a
+ *         module whose declare carries the "simulation" modifier.  It
+ *         MUST NOT be nested inside another action block, nor inside a
+ *         func / proc / state body.  It executes exactly once, starting
+ *         one clock after simulation start.  _delay(n) is the only
+ *         construct allowed to advance _init's internal clock counter
+ *         without an accompanying action.
+ *
+ * ============================================================================
+ *  PARSER NOTES
+ * ============================================================================
+ *
+ *  (N1)  Conditional "if" is ambiguous between a statement form and an
+ *        expression form (Ref §0 Table 0-2, priority 11).  Disambiguation
+ *        rules:
+ *            - At statement position: "if" starts a conditional_if_statement.
+ *            - On the RHS of "=" / ":=" / inside an arg list / as part of a
+ *              larger expression: "if" starts a conditional_expression.
+ *            - "return" always admits both — "return if(c) a else b;" is
+ *              valid.
+ *
+ *  (N2)  The operators "&", "|", "^" are overloaded: in unary position they
+ *        are reduction ops, in binary position they are bitwise ops.  The
+ *        grammar disambiguates naturally by whether a left operand exists.
+ *
+ *  (N3)  The leading "." in concat_lvalue (e.g. ".{a,b,c} = x;") is distinct
+ *        from the member-access ".". Recognize ".{" as a two-character
+ *        lookahead token in the lexer rather than two single tokens, to avoid
+ *        grammar ambiguity.
+ *
+ *  (N4)  [moved to nsl_pp.ebnf — see the preprocessor file's notes (P1)
+ *        and (P12) for the line-orientation design and the pp/parser seam.]
+ *
+ *  (N5)  "#" INSIDE AN EXPRESSION IS THE SIGN-EXTENSION OPERATOR.
+ *        Within this grammar, "#" in operator position is unambiguously
+ *        the sign-extension operator (n#sig); NSL has no Verilog-style
+ *        "#delay".  By contract, the preprocessor (nsl_pp.ebnf) consumes
+ *        every line-starting "#" as a directive, so by the time the NSL
+ *        parser sees the token stream every remaining "#" is operator-
+ *        position — with one exception: the line-leading sequence
+ *        " #line " survives the seam as a source-location marker (see
+ *        N14).  The lexer must distinguish:
+ *
+ *          – "#line"  at start of a logical line  → line_marker
+ *          – "#"      anywhere else               → sign-extension op
+ *
+ *        See nsl_pp.ebnf note (P1) for the line-based contract and (P13)
+ *        for the seam-crossing rationale.
+ *
+ *  (N6)  Procedure-instance method access:
+ *           <proc_inst>.finish()        — terminates the procedure
+ *           <proc_inst>.invoke()        — starts the procedure
+ *         Both parse via  scoped_identifier "." identifier "(" … ")".  The
+ *         method names  finish  and  invoke  are RESERVED in method position
+ *         (after a dot on a proc instance).  Treat the dot-access namespace
+ *         on a proc instance as open — future NSL versions may add more
+ *         built-in methods — but report an error on unknown method names so
+ *         typos in user code are caught.
+ *
+ *  (N7)  A  func  definition may target a submodule's func_out by writing
+ *        a dotted function name:
+ *            func ic.ready { … }       // handler for ic's func_out "ready"
+ *        The scoped_identifier's first component must name a submodule
+ *        instance in the enclosing module; the second must name a
+ *        func_out declared on that submodule's template.  This is NOT an
+ *        ambiguity with submodule.port access on the LHS of a transfer —
+ *        distinguish by the leading  func  /  function  keyword.
+ *
+ *  (N8)  [moved to nsl_pp.ebnf — see notes (P3) on %IDENT% splicing.]
+ *
+ *  (N9)  [moved to nsl_pp.ebnf — see notes (P5)/(P10) on compile-time
+ *        math evaluation order, and §3.1 for the helper list.]
+ *
+ *  (N10) THE  label  RESERVED WORD.
+ *        Appendix 3 lists  label  as reserved, separately from  label_name.
+ *        The reference does not explain its usage and no real-world code
+ *        uses it.  It may be an older or alternate form of  label_name
+ *        (NSL's ancestor languages SFL and OCCAM used bare  label).  Treat
+ *        it as reserved for forward compatibility; warn if it appears in
+ *        user code.
+ *
+ *  (N11) TWO CLASSES OF UNDERSCORE-PREFIXED NAMES.
+ *        The tokenizer must distinguish three lexical niches for names
+ *        that begin with "_":
+ *
+ *          (a) System TASKS — invoked in STATEMENT position with a
+ *              parenthesized argument list:
+ *                  _display(…)  _monitor(…)  _write(…)  _finish(…)
+ *                  _stop(…)     _readmemh(…,…)  _readmemb(…,…)
+ *                  _delay(n)   [only inside _init]
+ *              Also: _init { … }, a bare simulation-only block.
+ *
+ *          (b) System VARIABLES — usable in EXPRESSION position with
+ *              NO parentheses:
+ *                  _random    32-bit fresh random each read
+ *                  _time      64-bit simulation time
+ *              (The parenthesized "_time()" form is also accepted as a
+ *              system task for back-compat with Ref §0.)
+ *
+ *          (c) Preprocessor math helpers — see nsl_pp.ebnf §3.1.
+ *
+ *        A user identifier cannot begin with "_" (Ref §0); any
+ *        underscore-leading token is unambiguously one of the above.
+ *
+ *  (N12) [moved to nsl_pp.ebnf — see §3.1 for the full helper list,
+ *        §3.2 for float-literal syntax, and notes (P5)/(P7) on the
+ *        helper return-type and float-to-integer reduction rules.]
+ *
+ *  (N13) [moved to nsl_pp.ebnf — see note (P8) on #include search
+ *        path semantics.]
+ *
+ *  (N14) THE  line_marker  RULE — SOURCE-LOCATION MARKER, NOT AN AST NODE.
+ *        The  #line  directive is the one preprocessor directive that
+ *        survives into the post-preprocess token stream.  Its semantic
+ *        effect is purely on diagnostic location attribution: after
+ *        encountering   #line N   or   #line N "F" , the parser:
+ *          (a) MUST set the current line counter so that the very next
+ *              line of input is reported as line N;
+ *          (b) IF the optional string_literal is present, MUST set the
+ *              current source-file name to F for diagnostics, AST node
+ *              source ranges, and any debug-info emitted by the back
+ *              end (e.g. SystemVerilog `line directives in ExportVerilog
+ *              output).  F's contents are interpreted with the same
+ *              backslash-escape rules as ordinary string literals.
+ *          (c) MUST NOT produce an AST node for the directive itself.
+ *              line_marker is a layout token that flows past the
+ *              parser into source-location bookkeeping.
+ *
+ *        Implementation guidance:
+ *          – The lexer should recognize the leading "#" + "line"
+ *            sequence at start of a logical line as a single
+ *            line-marker token sequence; in any other position, "#"
+ *            is the sign-extension operator (per N5).
+ *          – The parser's handling of  line_marker  in each item-list
+ *            position (top_level_item, declare_item, module_item,
+ *            parallel_block_item, seq_block_item) is identical: pop
+ *            the marker, update the SourceManager cursor, continue.
+ *          – When the canonical preprocessor (nsl_pp.ebnf) emits  #line ,
+ *            it always uses variant 1 ( #line N ) or variant 2
+ *            ( #line N "F" ); variant 3 (the macro-expanded form) is
+ *            normalized away at the seam.  A parser MAY still encounter
+ *            variant-3 syntax in user-supplied source if the
+ *            user-facing tool didn't run a normalizing preprocessor —
+ *            in that case the parser should accept variant 3 and
+ *            macro-expand it via the symbol table, or report an error
+ *            if no symbol table is available.
+ *
+ * ============================================================================ *)

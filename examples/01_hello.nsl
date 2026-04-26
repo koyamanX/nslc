@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 01_hello.nsl — Simulation "hello, world".
+//
+// Demonstrates the smallest NSL program that emits a simulator message and
+// terminates.  Source: NSL Tutorial (English) 2015-10-15, Ch. 1, tut1.
+//
+// Semantic notes:
+//   • S17 — system tasks (_display, _finish) require the enclosing module's
+//     declare{} to carry the "simulation" modifier.  Without it, the call
+//     would be a semantic error.
+//   • S29 — _init { ... } is permitted ONLY at the top level of a
+//     simulation module (not nested inside a func/proc/state body).  It runs
+//     exactly once, one clock after simulation start.
+//   • N11 — _display / _finish are system TASKS (statement form, parens
+//     required); _init is a bare simulation-only block (no parens).
+
+declare hello simulation { }
+
+module hello {
+    _init {
+        _display("Hello, NSL!");
+        _finish();
+    }
+}

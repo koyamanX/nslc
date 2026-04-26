@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 08_func_self.nsl — Internal control terminal via 'func_self'.
+//
+// 'func_self' declares a control terminal that is purely internal to the
+// module: it can be invoked from inside the module's body and observed as
+// a 1-bit "active this cycle" signal, but it is invisible at the port
+// boundary (so the declare carries no matching port for it).
+//
+// Here, 'tick' fires once every 4 cycles and is reflected onto the output
+// 'pulse' so the surrounding system can observe it.
+//
+// Semantic notes:
+//   • S4  — dummy-arg names of a 'func_self' MUST be declared as 'wire'.
+//     (The terminal here takes no args, so no dummies are listed.)
+//   • S27 — a control-terminal name in expression position evaluates to 1
+//     iff the signal is active this cycle, else 0.  We use this on the
+//     RHS to drive 'pulse' = 'tick'.
+//   • Ref §5 — 'tick();' is a control-terminal CALL (statement form);
+//     the trailing parens distinguish it from a value-position read.
+
+declare ticker {
+    output pulse;
+}
+
+module ticker {
+    reg cnt[2] = 0;
+    func_self tick;             // internal control terminal (S4: no dummies)
+
+    cnt++;                      // free-running 2-bit counter
+    if (cnt == 2'd3) tick();    // fire 'tick' on roll-over (statement form)
+
+    pulse = tick;               // S27: read tick as a 1-bit value
+}

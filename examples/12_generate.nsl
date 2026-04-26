@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 12_generate.nsl — Structural 'generate' loop (compile-time hardware
+// unroll).
+//
+// Builds an 8-bit ones-counter as 8 parallel adders, one per bit.  Each
+// loop iteration creates a SEPARATE piece of physical hardware; the loop
+// variable is a structural integer, not a runtime register.
+//
+// Semantic notes:
+//   • S10 — the 'generate' loop variable MUST be declared with the
+//     'integer' kind (compile-time only).  It is NOT a reg — never
+//     synthesized as a flip-flop.
+//   • Ref §6 — 'generate' is structural-expansion: at the elaboration
+//     pass the body is repeated once per integer value of the loop var,
+//     producing parallel hardware instead of sequential iterations.
+//   • S15 — bit-slice indices [hi:lo] must be compile-time constants;
+//     'i' qualifies because it is a structural integer.
+
+declare popcnt8 {
+    input  in[8];
+    output cnt[4];
+}
+
+module popcnt8 {
+    integer i;                          // structural loop var (S10)
+    wire    partial[4];
+
+    // Initialise partial sum, then add each bit of 'in' in a generated
+    // chain.  Each iteration creates one adder cell.
+    partial = 4'b0000;
+    generate (i = 0; i < 8; i++) {
+        // Each '+=' below is a fresh adder, instantiated 8 times by
+        // structural expansion (Ref §6, S15 for the constant index 'i').
+        partial = partial + 4'(in[i]);
+    }
+    cnt = partial;
+}

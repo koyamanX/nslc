@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 03_register.nsl — 8-bit synchronous register with synchronous reset.
+//
+// Captures 'din' on every rising edge of the auto-synthesized clock
+// 'm_clock', delivering it on 'dout' one cycle later.  The register's
+// initializer becomes the post-reset value driven by the auto-synthesized
+// reset 'p_reset'.
+//
+// Semantic notes:
+//   • Ref §0 / §15 — 'm_clock' and 'p_reset' are auto-synthesized; a
+//     non-interface module needs no explicit clock/reset port (compare with
+//     the 'interface' modifier — see S20).
+//   • S2  — only reg (and struct-reg) carry an initial value.  Wires never
+//     do; their value comes from a continuous assignment.
+//   • S3  — register transfers use ':=' (clocked semantics); wire transfers
+//     use '='.  Mixing the two is a Sema error.
+//   • S23 — a reg may be declared with an initializer but NO explicit
+//     width, in which case it is 1 bit wide.  Here we give it both:
+//     'reg q[8] = 0;' is an 8-bit register reset to 0.
+
+declare reg8 {
+    input  din[8];
+    output dout[8];
+}
+
+module reg8 {
+    reg q[8] = 0;       // 8-bit reg, reset value 0 (S23 width-required form)
+
+    q    := din;        // ':=' — clocked register transfer (S3)
+    dout = q;           // '=' — combinational drive of an output port (S3)
+}

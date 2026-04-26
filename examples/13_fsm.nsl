@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 13_fsm.nsl — Three-state finite-state machine using state_name +
+// first_state.
+//
+// States: IDLE → BUSY → DONE → IDLE (loop).  On 'start' from IDLE we
+// transition to BUSY; the next cycle moves to DONE; the cycle after that
+// returns to IDLE.  Each state body drives the observable 'st[2]' output
+// to its index.
+//
+// Semantic notes:
+//   • S11 — a state_name is scoped to its enclosing proc only.  External
+//     code cannot reference 'idle' / 'busy' / 'done' from outside; that is
+//     why we expose state via an output driven INSIDE each state body
+//     instead of via 'run.busy' style access (which is a Sema error).
+//   • S25 — 'goto <state>' inside a 'state' body transitions to a
+//     state_name in the same proc.  (The other 'goto' kind targets
+//     label_names inside seq-blocks; see 09_proc_seq.nsl.)
+//   • S28 — 'first_state <n>;' must (a) appear AFTER the state_name list
+//     and BEFORE any state body opens, (b) name a previously-declared
+//     state_name, (c) appear at most once per proc.  When 'first_state'
+//     is present the proc enters that state from power-on reset; without
+//     it, the implicit reset state is the first state_name in the list.
+
+declare fsm3 {
+    input  start;
+    output st[2];           // 0=idle, 1=busy, 2=done
+}
+
+module fsm3 {
+    proc_name run;
+
+    proc run {
+        state_name idle, busy, done;
+        first_state idle;                 // explicit reset state (S28)
+
+        state idle { st = 2'd0; if (start) goto busy; }
+        state busy { st = 2'd1; goto done; }   // S25, S19: 1-clock transition
+        state done { st = 2'd2; goto idle; }
+    }
+}

@@ -1,0 +1,559 @@
+(* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception *)
+(* ============================================================================
+ * NSL Preprocessor — Grammar in EBNF (Part 1 of 2)
+ *
+ * Companion file:  nsl_lang.ebnf  (Part 2 — the NSL language proper)
+ *
+ * Sources:
+ *   NSL Reference Manual Ver. 1.4E, Appendix 1   (Overtone Corp., 2012)
+ *   NSL Tutorial (English) Ch. 9                 (IP ARCH, 2015-10-15)
+ *
+ * Cross-checked against ~12,000 lines of open-source NSL (rv32x_dev,
+ * turboV, mmcspi, SDRAM_Controler, mips32_single_cycle, ahb_lite_nsl,
+ * cpu16).
+ *
+ *
+ * ROLE OF THIS FILE
+ * -----------------
+ * The NSL preprocessor runs first, line-by-line, over raw source text.
+ * Its output is a stream of tokens consumed by the main NSL parser
+ * (defined in nsl_lang.ebnf).  Conceptually:
+ *
+ *      .nsl source text
+ *           │
+ *           ▼
+ *      ┌─────────────────────┐       ┌──────────────────┐
+ *      │  Preprocessor       │──────▶│  NSL parser      │
+ *      │  (this file)        │       │  (nsl_lang.ebnf) │
+ *      └─────────────────────┘       └──────────────────┘
+ *           │                                 │
+ *           ▼                                 ▼
+ *      Expanded token stream            Abstract syntax tree
+ *
+ * Responsibilities of the preprocessor:
+ *
+ *   1.  Resolve  #include  directives by substituting the contents of
+ *       referenced files.
+ *   2.  Maintain a macro table built from  #define  /  #undef.
+ *   3.  Conditionally include text via  #ifdef / #ifndef / #if / #else /
+ *       #endif.
+ *   4.  Substitute  %IDENT%  occurrences inside identifiers and integer
+ *       expressions with the macro's replacement text.
+ *   5.  Evaluate compile-time arithmetic (including floating-point)
+ *       inside  #define  replacement text — using the helpers  _int(),
+ *       _pow(), _sin(), etc.
+ *   6.  Track source-file location through  #line  directives, both
+ *       updating its own cursor and re-emitting them across the seam
+ *       so the NSL parser can mirror the update.  See note (P13).
+ *   7.  Pass everything else through, untouched, to the NSL parser.
+ *
+ *
+ * NOTATION
+ * --------
+ *     rule = expression ;       (* definition                                *)
+ *     A | B                     (* alternation                               *)
+ *     [ A ]                     (* optional                                  *)
+ *     { A }                     (* zero or more                              *)
+ *     ( A )                     (* grouping                                  *)
+ *     "text"                    (* literal terminal                          *)
+ *     (* text *)                (* comment                                   *)
+ *
+ * Notes that cannot be expressed purely in EBNF (line-orientation,
+ * %IDENT% substitution rules, the compile-time math sub-grammar) are
+ * collected at the end of this file.
+ * ============================================================================ *)
+
+
+(* ========== 1. Top-level structure of preprocessor input =================== *)
+
+(* The preprocessor sees the source as a sequence of LINES.  Each line is
+ * either a directive (starting with '#' as the first non-whitespace
+ * character) or a non-directive line that is passed through (possibly
+ * with %IDENT% substitution and macro expansion).                            *)
+
+preprocessed_input    = { preprocessor_line } ;
+
+preprocessor_line     = directive_line
+                      | passthrough_line ;
+
+directive_line        = preprocessor_directive newline ;
+
+passthrough_line      = { passthrough_token } newline ;
+
+passthrough_token     = identifier_with_macros
+                      | percent_macro_ref
+                      | other_lexical_token ;
+                      (* The "other_lexical_token" category covers everything
+                       * that the NSL parser will later see — numbers,
+                       * operators, punctuation, strings, comments.  These
+                       * pass through verbatim except inside #if conditions. *)
+
+
+(* ========== 2. Preprocessor directives ===================================== *)
+
+preprocessor_directive = include_directive
+                       | define_directive
+                       | undef_directive
+                       | ifdef_directive
+                       | ifndef_directive
+                       | if_directive
+                       | line_directive ;
+
+
+(* ---------- 2.1 #include --------------------------------------------------- *)
+
+(* Two forms.  The semantics differ only in the file-search path:
+ *
+ *      #include "file"      search current directory / -I path list
+ *      #include <file>      search NSL_INCLUDE environment variable path
+ *
+ * Both forms textually substitute the file's tokens in place of the
+ * directive line.  Recursive includes terminate when an  #ifndef  guard
+ * suppresses the inner copy.                                                  *)
+
+include_directive  = "#include" ( quoted_include_path | angle_include_path ) ;
+
+quoted_include_path = "\"" any_char_until_quote "\"" ;
+
+angle_include_path  = "<" any_char_until_gt    ">" ;
+
+
+(* ---------- 2.2 #define and #undef ----------------------------------------- *)
+
+(* A  #define  may bind an identifier to a replacement text.  The replacement
+ * text extends from the token after the identifier to end-of-line.  The
+ * preprocessor supports object-like macros only — not function-like macros.
+ *
+ * Replacement text is re-tokenized lazily at every expansion site.  Because
+ * the replacement text may contain operators, %IDENT% references, and
+ * compile-time math helpers, its structure is described by  replacement_body
+ * below.                                                                     *)
+
+define_directive   = "#define" identifier [ replacement_body ] ;
+
+undef_directive    = "#undef"  identifier ;
+
+replacement_body   = { replacement_token } ;
+
+replacement_token  = identifier
+                   | percent_macro_ref
+                   | number_literal
+                   | float_literal              (* §3 — #define-only         *)
+                   | string_literal
+                   | preprocessor_helper_call   (* §3 — #define-only         *)
+                   | preprocessor_operator
+                   | "(" | ")" | "," | ";" ;
+
+preprocessor_operator = "+"  | "-"  | "*"  | "/"  | "%"
+                      | "==" | "!=" | "<=" | ">=" | "<" | ">"
+                      | "&&" | "||" | "!"
+                      | "&"  | "|"  | "^"  | "~"
+                      | "<<" | ">>" ;
+
+
+(* ---------- 2.3 Conditional inclusion -------------------------------------- *)
+
+(* #ifdef / #ifndef / #if select one of two regions of the source.  The
+ * selected region is emitted into the preprocessor's output stream; the
+ * unselected region is discarded entirely (its contents are not seen by
+ * the NSL parser).  Conditional regions may nest.                            *)
+
+ifdef_directive   = "#ifdef"  identifier
+                    conditional_region
+                    [ "#else" conditional_region ]
+                    "#endif" ;
+
+ifndef_directive  = "#ifndef" identifier
+                    conditional_region
+                    [ "#else" conditional_region ]
+                    "#endif" ;
+
+if_directive      = "#if" preprocessor_expression
+                    conditional_region
+                    [ "#else" conditional_region ]
+                    "#endif" ;
+
+(* A conditional region is a recursive subset of preprocessed_input. It
+ * may contain nested directives and ordinary passthrough lines.             *)
+
+conditional_region = { preprocessor_line } ;
+
+
+(* ---------- 2.4 #line ------------------------------------------------------ *)
+
+(* The "#line" directive overrides the preprocessor's notion of the current
+ * source-file name and line number for diagnostic purposes.  This is
+ * essential when:
+ *
+ *   – a tool generates NSL source from a higher-level description and
+ *     wants compiler diagnostics to point back at the original input
+ *     rather than the generated intermediate;
+ *
+ *   – the preprocessor itself is communicating across the seam (see P12)
+ *     to the NSL parser, telling it "the next token came from foo.nsl
+ *     line 42, not from this position in the expanded stream".
+ *
+ * Three syntactic variants are accepted, mirroring GCC cpp:
+ *
+ *     #line LINENUM
+ *     #line LINENUM "FILENAME"
+ *     #line ANYTHING-ELSE              (* macro-expanded then re-parsed   *)
+ *
+ * In the third form, the directive's tail is first subjected to macro
+ * expansion using the current macro table; the result must then match
+ * one of the first two forms or it is a preprocessor error.
+ *
+ * After processing a #line directive, the preprocessor:
+ *   (a) updates its internal cursor so the very next line of input is
+ *       reported as line LINENUM (and, if the FILENAME form is used, as
+ *       coming from FILENAME);
+ *   (b) emits the directive into its output token stream verbatim, so
+ *       the downstream NSL parser sees it and can update its own
+ *       location tracking — this is the ONE directive that survives the
+ *       seam.  See note (P13).                                            *)
+
+line_directive    = "#line" line_directive_body ;
+
+line_directive_body = line_directive_simple
+                    | line_directive_with_file
+                    | line_directive_macro ;
+
+line_directive_simple    = pp_decimal_integer ;
+
+line_directive_with_file = pp_decimal_integer string_literal ;
+
+line_directive_macro     = replacement_token { replacement_token } ;
+                  (* The token sequence is macro-expanded, then re-parsed
+                   * as either line_directive_simple or
+                   * line_directive_with_file.                            *)
+
+pp_decimal_integer       = decimal_digits ;
+                  (* A non-negative decimal integer constant.  Hex/binary
+                   * forms and Verilog-sized literals are NOT permitted
+                   * here — only plain base-10 digits.                    *)
+
+
+(* ========== 3. Compile-time expression sub-grammar ========================= *)
+
+(* This sub-grammar applies in two places:
+ *   (a) the "#if" condition;
+ *   (b) inside  #define  replacement bodies, particularly as the argument
+ *       to compile-time helper functions  _int(...) , _pow(...) , etc.
+ *
+ * It is NEVER used in NSL module / declare bodies.  At the boundary, when
+ * the preprocessor finishes evaluating an expression, the result is
+ * substituted as a numeric or string token in the output stream.            *)
+
+preprocessor_expression =
+        pp_logical_or_expr ;
+
+pp_logical_or_expr  = pp_logical_and_expr  { "||" pp_logical_and_expr } ;
+pp_logical_and_expr = pp_equality_expr     { "&&" pp_equality_expr     } ;
+pp_equality_expr    = pp_relational_expr   { ( "==" | "!=" ) pp_relational_expr } ;
+pp_relational_expr  = pp_additive_expr     { ( "<" | "<=" | ">" | ">=" ) pp_additive_expr } ;
+pp_additive_expr    = pp_multiplicative_expr { ( "+" | "-" ) pp_multiplicative_expr } ;
+pp_multiplicative_expr = pp_unary_expr     { ( "*" | "/" | "%" ) pp_unary_expr } ;
+pp_unary_expr       = [ "+" | "-" | "!" | "~" ] pp_primary_expr ;
+
+pp_primary_expr     = number_literal
+                    | float_literal
+                    | string_literal
+                    | identifier                    (* macro reference       *)
+                    | percent_macro_ref
+                    | preprocessor_helper_call
+                    | "(" preprocessor_expression ")" ;
+
+
+(* ---------- 3.1 Compile-time helper functions ------------------------------ *)
+
+(* The preprocessor recognizes a set of helper functions whose names begin
+ * with "_".  These helpers may appear ONLY inside  #define  replacement
+ * bodies (and, by extension, inside #if conditions through macro
+ * expansion).  They are evaluated at preprocess time and produce either an
+ * integer or a real-number value.
+ *
+ * They are forbidden in NSL module / declare bodies; the NSL parser must
+ * reject them in those contexts.  See note (P6) at the end of this file. *)
+
+preprocessor_helper_call = helper_name "(" pp_helper_args ")" ;
+
+pp_helper_args         = preprocessor_expression { "," preprocessor_expression } ;
+
+helper_name = "_int"   | "_real"  | "_pow"   | "_sqrt"
+            | "_sin"   | "_cos"   | "_tan"
+            | "_asin"  | "_acos"  | "_atan"
+            | "_sinh"  | "_cosh"  | "_tanh"
+            | "_log"   | "_log10" | "_exp"
+            | "_floor" | "_ceil"  | "_round"
+            | "_abs"   | "_min"   | "_max" ;
+
+
+(* ---------- 3.2 Float literals (preprocessor-only) ------------------------- *)
+
+(* Float literals exist only in this sub-grammar.  Two forms are accepted:
+ *   45.            (* trailing dot, integer-valued                          *)
+ *   180.0          (* decimal point with fractional part                    *)
+ *   0.5            (* zero-prefixed fraction                                *)
+ *   2.5e3          (* scientific notation                                   *)
+ *
+ * A bare integer is *not* a float literal — passing 8 to _pow expecting a
+ * float is a semantic error; the user must write 8.0 or  _real(8).
+ *
+ * The NSL language (Part 2) has no float type; floats are evaluated to
+ * concrete numeric tokens before reaching the NSL parser.                   *)
+
+float_literal = decimal_digits "." [ decimal_digits ] [ exponent_part ]
+              |              "." decimal_digits        [ exponent_part ]
+              | decimal_digits                          exponent_part ;
+
+exponent_part = ( "e" | "E" ) [ "+" | "-" ] decimal_digits ;
+
+
+(* ========== 4. Macro reference syntax ====================================== *)
+
+(* Two ways a macro is referenced:
+ *
+ *   (a) Bare identifier.  Inside  #if  conditions and inside  #define
+ *       replacement bodies, an identifier matching a defined macro is
+ *       expanded inline:
+ *
+ *           #define WIDTH 8
+ *           #if WIDTH > 4              (* expands to: #if 8 > 4   *)
+ *
+ *   (b) %IDENT% form.  A macro reference of the form  %NAME%  expands
+ *       inside identifiers, splicing the macro's replacement text directly
+ *       into the surrounding token text:
+ *
+ *           #define WIDTH 8
+ *           module fifo_%WIDTH% { ... }     (* becomes: module fifo_8 *)
+ *
+ *       This form is essential for parameterized module/declare names
+ *       and submodule instance names — it cannot be expressed as plain
+ *       macro expansion because the result is a single identifier token,
+ *       not a sequence of tokens.                                          *)
+
+percent_macro_ref       = "%" identifier "%" ;
+
+identifier_with_macros  = identifier_part { ( "%" identifier "%" ) identifier_part } ;
+                        (* e.g. fifo_%WIDTH%_%DEPTH%  →  one identifier
+                         *      after the preprocessor splices the values.  *)
+
+identifier_part         = identifier_chars ;
+                        (* identifier-character sequence between %…% blocks  *)
+
+
+(* ========== 5. Lexical elements used by the preprocessor =================== *)
+
+(* These are the lexical categories the preprocessor itself needs to
+ * recognize.  They overlap with — but do not duplicate — the NSL lexical
+ * grammar.  The preprocessor's lexer must distinguish:
+ *
+ *   – directive lines (start with '#' after optional whitespace)
+ *   – percent-macro-references (start with '%')
+ *   – everything else (passed through to NSL)
+ *
+ * For the full NSL lexical grammar see nsl_lang.ebnf §13.                  *)
+
+identifier         = identifier_chars ;
+
+identifier_chars   = letter_or_underscore { letter_or_digit_or_underscore } ;
+
+letter_or_underscore           = "A" | … | "Z" | "a" | … | "z" | "_" ;
+letter_or_digit_or_underscore  = letter_or_underscore | "0" | … | "9" ;
+
+decimal_digits     = digit { digit | "_" } ;
+
+digit              = "0" | "1" | … | "9" ;
+
+(* number_literal here is reused from NSL §13 (binary, octal, decimal,
+ * hex, with optional Verilog-style sized form).  The preprocessor needs
+ * to recognize integers as values; it does not need to interpret Z/X/U
+ * markers (those are passed through untouched).                            *)
+
+number_literal     = (* see nsl_lang.ebnf §13 *) ;
+
+string_literal     = "\"" { string_char | escape_sequence } "\"" ;
+
+string_char        = ? any character except '"' or backslash ? ;
+
+escape_sequence    = "\\" ( "n" | "t" | "r" | "\\" | "\"" | "0" ) ;
+
+newline            = ? line terminator ? ;
+
+any_char_until_gt     = ? any sequence of characters not containing '>' ? ;
+
+any_char_until_quote  = ? any sequence of characters not containing '"' ? ;
+
+other_lexical_token   = ? any token from nsl_lang.ebnf §13 that is
+                          neither '#' nor '%' nor a directive keyword ? ;
+
+
+(* ============================================================================
+ *  PREPROCESSOR NOTES
+ *
+ *  These cover behavior that EBNF cannot express directly: line-orientation,
+ *  the #define-vs-NSL boundary, the %IDENT% substitution rules, and edge
+ *  cases around helper functions.
+ * ============================================================================
+ *
+ *  (P1)  LINE-ORIENTATION.
+ *        Preprocessor directives are line-based: a "#" must be the first
+ *        non-whitespace character on a line, and the directive ends at the
+ *        end of that line (no line-continuation backslash is supported).
+ *        The NSL parser (nsl_lang.ebnf), in contrast, is free-form.
+ *        Implementations should therefore run a line-by-line preprocessor
+ *        pass first, producing a flat token stream, and only then invoke
+ *        the NSL parser on that stream.
+ *
+ *  (P2)  PASSTHROUGH SEMANTICS.
+ *        On a non-directive line, the preprocessor's job is minimal:
+ *          – Substitute every  %IDENT%  reference (after macro lookup).
+ *          – Otherwise emit the source verbatim, including comments and
+ *            whitespace.
+ *        Bare identifiers on passthrough lines are NOT macro-expanded —
+ *        macro substitution happens only inside  #define  replacement
+ *        bodies, in  #if  conditions, and at  %IDENT%  references.  This
+ *        matches the behavior observed in the verified corpus and is
+ *        narrower than C's preprocessor.
+ *
+ *  (P3)  %IDENT% SPLICING.
+ *        A  %IDENT%  reference inside an identifier produces a single
+ *        identifier token in the output:
+ *
+ *           #define W 8
+ *           reg buf_%W% [W];
+ *           ─────────────────
+ *           reg buf_8  [W];          (* the [W] form is a separate %IDENT%
+ *                                       case; without "%…%" it stays as
+ *                                       the identifier W. *)
+ *
+ *        Implementations must:
+ *          (a) recognize "%" + identifier + "%" as a single splice token;
+ *          (b) look up the identifier in the current macro table;
+ *          (c) splice the replacement text into the surrounding identifier
+ *              text;
+ *          (d) emit the result as ONE identifier token.
+ *
+ *        If the macro is not defined, this is a preprocessor error.
+ *
+ *  (P4)  #if CONDITIONS ARE EVALUATED, NOT JUST TEXTUALLY COMPARED.
+ *        Unlike C, NSL's  #if  takes a numeric expression (per the
+ *        sub-grammar in §3) and evaluates it at preprocess time.  A
+ *        non-zero result selects the "then" region.  String comparison is
+ *        not supported; use  #ifdef  for symbol presence.
+ *
+ *  (P5)  HELPERS RETURN INTEGERS OR REALS.
+ *        Each helper has a fixed return type.  _int returns an integer;
+ *        _pow / _sqrt / _sin / etc. return reals.  When a helper's result
+ *        is substituted into the output stream, it is rendered as either
+ *        a decimal integer literal or a float literal — chosen so that the
+ *        NSL parser sees a syntactically valid token.  Examples:
+ *
+ *           #define MEMDEPTH _int(_pow(2.0, DEPTH.0))
+ *           // when DEPTH=8:  _pow(2.0, 8.0) = 256.0 → _int → 256
+ *           // emitted as the integer literal "256"
+ *
+ *  (P6)  HELPERS ARE FORBIDDEN OUTSIDE #define.
+ *        Compile-time helper calls (_int, _pow, _sin, …) may appear only
+ *        inside  #define  replacement bodies and  #if  conditions.  They
+ *        must not appear inside NSL module or declare bodies.
+ *        Implementations should:
+ *          – allow them in the preprocessor's expression grammar;
+ *          – reject them at the NSL parser level if they survive the
+ *            preprocess pass.
+ *        After expansion, a helper invocation is replaced by its
+ *        evaluated numeric result, so a correctly-formed program never
+ *        passes a helper call to the NSL parser.
+ *
+ *  (P7)  FLOATS ARE PREPROCESS-TIME ONLY.
+ *        Float literals (e.g.  2.0 ,  45.  ,  0.5 ,  2.5e3 ) are part of
+ *        this sub-grammar only.  The NSL language proper (Part 2) has no
+ *        floating-point type or arithmetic.  Floats must be reduced to
+ *        integer values via  _int(...)  before being emitted into the
+ *        output token stream.
+ *
+ *  (P8)  #include SEARCH-PATH DISAMBIGUATION.
+ *        The two include forms have different file-search semantics:
+ *           #include "file"     → search current dir / -I path list
+ *           #include <file>     → search NSL_INCLUDE env-var path
+ *        Both forms insert the file's tokens textually.  The angle-form
+ *        is conventionally used for library/system headers; the
+ *        quote-form is used for project-local headers.  Beyond search
+ *        path, no semantic difference exists.
+ *
+ *  (P9)  NESTED CONDITIONALS.
+ *        #ifdef  /  #if  /  #ifndef  may nest arbitrarily.  An  #else
+ *        always pairs with the most recent open  #ifdef / #ifndef / #if.
+ *        Mismatched directives are preprocessor errors.  An "#endif"
+ *        without a matching opener, or end-of-file before "#endif", are
+ *        both errors.
+ *
+ *  (P10) ORDERING OF EXPANSION INSIDE #define.
+ *        Within a  #define  replacement body, the order of operations is:
+ *          1.  Recognize  %IDENT%  splices, look up the inner macro, and
+ *              splice in the replacement TEXT (not the value — splicing
+ *              is textual).
+ *          2.  Evaluate compile-time helper calls left-to-right.
+ *          3.  Reduce the resulting expression with the operator
+ *              precedence given in §3.
+ *        The final value (integer or real) becomes the macro's value for
+ *        future expansions and  #if  comparisons.
+ *
+ *  (P11) ONE-LINE LIMIT.
+ *        A directive ends at end-of-line.  There is no line-continuation
+ *        operator.  Multi-line directives are not part of the language.
+ *
+ *  (P12) BOUNDARY WITH NSL.
+ *        After this pass completes, the next pass sees only NSL tokens
+ *        plus, exceptionally,  #line  directives (see P13).  No  #include
+ *        / #define / #undef / #ifdef / #ifndef / #if / #else / #endif
+ *        directive, no  %IDENT%  reference, no  _int / _pow / …  helper
+ *        call, and no float literal should remain.  Anything that does
+ *        (other than a well-formed  #line ) is either a preprocessor bug
+ *        or an error in the user's source — in both cases the NSL parser
+ *        must reject it with a clear diagnostic.
+ *
+ *  (P13) THE  #line  DIRECTIVE CROSSES THE SEAM.
+ *        Unlike every other preprocessor directive,  #line  is meant to
+ *        survive into the output token stream so the downstream NSL
+ *        parser can update its own location tracking.  The preprocessor
+ *        therefore acts as both consumer and emitter for  #line :
+ *
+ *          – CONSUMER: the preprocessor parses the directive (per §2.4),
+ *            macro-expands the third "anything-else" variant, and resets
+ *            its own line-number / file-name cursor so its own
+ *            diagnostics for the next line of input cite the new
+ *            location.
+ *
+ *          – EMITTER: the preprocessor re-emits the (possibly
+ *            normalized) directive into its output stream, in the
+ *            two-token canonical form
+ *                "#line" pp_decimal_integer [ string_literal ]
+ *            so the NSL parser can mirror the location update without
+ *            having to know the macro table.
+ *
+ *        The NSL grammar (nsl_lang.ebnf) recognizes this directive as a
+ *        location-update marker; see N14 there.  Its presence does not
+ *        introduce any AST node — it only adjusts source-location
+ *        attribution for subsequent tokens.
+ *
+ *        Implementation guidance:
+ *
+ *          – When the preprocessor emits  #line , it should always emit
+ *            the canonical (variant 1 or 2) form, never variant 3.
+ *            Variant 3 is a USER-FACING convenience for hand-written or
+ *            generated NSL; it should be normalized away before crossing
+ *            the seam.
+ *
+ *          – At the very start of an  #include 'd file's expanded
+ *            content, the preprocessor should emit  #line 1 "filename" 
+ *            so that the NSL parser sees the include-site transition.
+ *            On return from an include, it should emit a similar marker
+ *            re-establishing the outer file's location.
+ *
+ *          – A well-formed  #line  with LINENUM = 0 is permitted; the
+ *            line counter for the next line of input becomes 1 (since
+ *            the directive's own line is numbered LINENUM and the next
+ *            line is LINENUM + 1).
+ *
+ * ============================================================================ *)

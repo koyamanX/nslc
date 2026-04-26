@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 20_simulation_tb.nsl — Self-contained simulation testbench using
+// _init / _delay / _display / _finish, plus the system variables
+// _random and _time.
+//
+// Drives an internal 4-bit register through a short stimulus sequence,
+// printing each step, then terminates the simulator.  Demonstrates the
+// full simulation-task vocabulary in a single file.
+//
+// Semantic notes:
+//   • S17 — every system task ('_display', '_finish', '_delay', etc.) is
+//     usable ONLY inside a module whose declare carries the 'simulation'
+//     modifier.  This file's declare therefore is 'declare tb simulation
+//     {}'.
+//   • S29 — the '_init { ... }' block must appear at module top level
+//     (not nested inside any other action block) and runs ONCE, one clock
+//     after simulation start.  '_delay(N)' is the only construct allowed
+//     to advance the _init clock counter without an accompanying action.
+//   • N11 — '_random' and '_time' are system VARIABLES used in expression
+//     position WITHOUT parentheses (in contrast to system TASKS like
+//     '_display(...)' which always require parens).  '_random' returns a
+//     fresh 32-bit value on every read; '_time' returns the 64-bit
+//     simulation time at the point of use.
+//   • S2 / S3 — 'reg r[4] = 0;' is a 4-bit reg with reset value 0; we use
+//     ':=' on each clocked update.
+
+declare tb simulation { }
+
+module tb {
+    reg r[4] = 0;
+
+    _init {
+        _display("[%0t] starting tb", _time);     // N11 — _time, no parens
+        _delay(1);
+        r := 4'd5;
+        _delay(1);
+        _display("[%0t] r = %d", _time, r);
+        _delay(1);
+        r := 4'(_random);                         // N11 — _random, no parens
+        _delay(1);
+        _display("[%0t] r = %d (random)", _time, r);
+        _finish();                                 // S17 — graceful exit
+    }
+}

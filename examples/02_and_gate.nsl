@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 02_and_gate.nsl — Pure combinational module: 1-bit AND gate.
+//
+// The smallest synthesizable example.  No registers, no clock-driven state;
+// the body is one continuous wire-transfer that holds for every cycle.
+//
+// Semantic notes:
+//   • Ref §1 — declare/module pairing: the declare names the external
+//     interface (one input pair, one output); the module of the same name
+//     supplies the body.
+//   • S2  — a wire/output has NO initial value; initialization is
+//     reg/struct-reg only.  The output gets its value from the assignment
+//     in the module body, evaluated combinationally.
+//   • S3  — '=' targets a wire/output/inout/variable/integer (combinational
+//     transfer); ':=' is reserved for reg (clocked transfer).  This module
+//     uses '=' because 'y' is an output port.
+//   • N2  — '&' here is BINARY (bitwise AND), distinguished from the unary
+//     reduction-AND form by the presence of a left operand.
+
+declare and_gate {
+    input  a, b;        // two 1-bit inputs (width omitted ⇒ 1 bit, Ref §0)
+    output y;           // one 1-bit output
+}
+
+module and_gate {
+    y = a & b;          // combinational: '=' (S3), bitwise '&' (N2)
+}

@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 18_proc_methods.nsl — Procedure built-in methods 'invoke()' and
+// 'finish()'.
+//
+// On 'go' we EXPLICITLY start the procedure 'work' from outside via
+// 'work.invoke()'.  On 'kill' we forcibly terminate it via 'work.finish()'.
+// (Inside the proc body the bare forms 'invoke();' and 'finish;' refer to
+// "this" procedure.)
+//
+// Semantic notes:
+//   • S21 / N6 — procedure instances expose two reserved built-in methods
+//     'invoke()' (start the procedure) and 'finish()' (terminate it).
+//     They are dispatched via dotted access on a proc_name instance:
+//
+//          <inst>.invoke();   <inst>.finish();
+//
+//     Inside the proc body the BARE forms — 'invoke();' and bare 'finish;'
+//     (or 'finish();') — refer to the enclosing procedure itself.
+//   • S27 — a proc_name in expression position evaluates to 1 while the
+//     procedure is running, 0 otherwise; we use this for 'busy'.
+//   • Ref §0 — the bare 'finish;' form (without parens) is the keyword
+//     statement; the parenthesized 'finish()' is the method call.  Both
+//     have identical semantic meaning when used inside the proc body.
+
+declare worker {
+    input  go;
+    input  kill;
+    output busy;
+}
+
+module worker {
+    proc_name work;
+
+    if (go)   work.invoke();    // S21: external start
+    if (kill) work.finish();    // S21: external force-terminate
+
+    proc work {
+        state_name s0, s1, s2;
+        first_state s0;
+
+        state s0 { goto s1; }
+        state s1 { goto s2; }
+        state s2 { finish; }    // S21: bare-form self-terminate
+    }
+
+    busy = work;                // S27: read 'work' as a 1-bit "running" flag
+}

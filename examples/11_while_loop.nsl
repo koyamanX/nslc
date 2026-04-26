@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// 11_while_loop.nsl — 'while' loop in seq form.
+//
+// On a 'start' pulse, count down from 'n' to zero using a single-clock
+// decrement.  When the loop terminates, 'done' is asserted for one cycle
+// and the procedure ends.
+//
+// Semantic notes:
+//   • S7 / S8 — 'while' (like 'for') may appear ONLY inside a 'seq' block,
+//     which itself may appear ONLY inside a func/proc body.
+//   • S19 — each evaluation of the loop condition consumes one clock; the
+//     loop-back transition consumes one more.  Total cycles = N · 2 + 1.
+//   • S9  — the variable controlling iteration is a reg ('cnt'), so it
+//     persists across the multiple cycles spent in the loop.
+
+declare countdown {
+    input  start;
+    input  n[4];
+    output done;
+}
+
+module countdown {
+    proc_name run;
+    reg cnt[4] = 0;
+    reg flag    = 0;
+
+    if (start) { cnt := n; flag := 0; run(); }
+
+    proc run seq {
+        while (cnt != 0) {
+            cnt := cnt - 1;     // single decrement per cycle (S19)
+        }
+        flag := 1;              // pulse 'done' for one cycle
+        finish;
+    }
+
+    done = flag;
+}
