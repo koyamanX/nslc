@@ -1,0 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Per-layer smoke fixture for nsl-dialect. Real dialect tests land at M4.
+
+// RUN: echo "smoke for nsl-dialect" | FileCheck %s
+// CHECK: smoke for nsl-dialect

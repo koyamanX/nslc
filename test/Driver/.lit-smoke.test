@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Per-layer smoke fixture for nsl-driver. The real driver smoke is
+// version.test in this directory; this `.lit-smoke.test` exists for
+// directory uniformity with the other 8 layers.
+
+// RUN: echo "smoke for nsl-driver" | FileCheck %s
+// CHECK: smoke for nsl-driver

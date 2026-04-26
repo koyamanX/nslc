@@ -76,34 +76,34 @@ Single-project compiler layout per `plan.md` §Project Structure:
 
 > **NOTE: Write these tests FIRST. They MUST be observed FAILING against the unchanged tree before any implementation task in this story begins.**
 
-- [ ] T016 [P] [US1] Create CMake test fixture `test_unit/add_nsl_library_test/valid_layer_name/CMakeLists.txt`: invokes `add_nsl_library(nsl-basic)`, asserts configure succeeds (contract `add_nsl_library.contract.md` §Test row 1)
-- [ ] T017 [P] [US1] Create CMake test fixture `test_unit/add_nsl_library_test/unknown_layer_name/CMakeLists.txt`: invokes `add_nsl_library(nsl-bogus)`; expected configure-time `FATAL_ERROR` containing the literal "§3 layer table" (contract row 2; CTest `WILL_FAIL`)
-- [ ] T018 [P] [US1] Create CMake test fixture `test_unit/add_nsl_library_test/downward_dep/CMakeLists.txt`: `add_nsl_library(nsl-lex DEPENDS nsl-basic)` succeeds (contract row 3)
-- [ ] T019 [P] [US1] Create CMake test fixture `test_unit/add_nsl_library_test/upward_dep/CMakeLists.txt`: `add_nsl_library(nsl-basic DEPENDS nsl-lex)` configure-FAILS with `index M ≥ N` diagnostic (contract row 4; `WILL_FAIL`)
-- [ ] T020 [P] [US1] Create CMake test fixture `test_unit/add_nsl_library_test/sibling_bypass/CMakeLists.txt`: `add_nsl_library(nsl-lex DEPENDS nsl-parse)` configure-FAILS (cyclic; contract row 5; `WILL_FAIL`)
-- [ ] T021 [P] [US1] Create CMake test fixture `test_unit/add_nsl_library_test/multi_header_basic/CMakeLists.txt`: `nsl-basic` declares both `SourceLocation.h` and `Diagnostic.h` in `HEADERS` (contract row 6)
-- [ ] T022 [P] [US1] Create CMake test fixture `test_unit/add_nsl_library_test/per_node_headers_ast/CMakeLists.txt`: `nsl-ast` declares `Decl.h`, `Stmt.h`, `Expr.h` in one `HEADERS` (contract row 7)
-- [ ] T023 [US1] Create `test_unit/add_nsl_library_test/CMakeLists.txt` registering all 7 fixtures via `add_test`, with CTest `WILL_FAIL TRUE` set on the four expected-failure cases (T017, T019, T020 — and T021/T022 are positive) (depends T016–T022)
-- [ ] T024 [P] [US1] Create lit fixture `test/Driver/version.test`: `RUN: %nslc --version | FileCheck %s` + `CHECK: {{^nslc [0-9A-Za-z._+-]+$}}` (contract `nslc-version.contract.md` §Test contract; FR-006; spec Q5)
-- [ ] T025 [P] [US1] Create per-layer smoke lit fixtures (9 files): `test/Basic/.lit-smoke.test`, `test/Preprocess/.lit-smoke.test`, `test/Lex/.lit-smoke.test`, `test/Parse/.lit-smoke.test`, `test/AST/.lit-smoke.test`, `test/Sema/.lit-smoke.test`, `test/Dialect/.lit-smoke.test`, `test/Lower/.lit-smoke.test`, `test/Driver/.lit-smoke.test` — each contains `RUN: echo "smoke for <layer>" | FileCheck %s` + `CHECK: smoke for <layer>` (FR-007)
+- [x] T016 [P] [US1] Create CMake test fixture `test_unit/add_nsl_library_test/valid_layer_name/CMakeLists.txt`: invokes `add_nsl_library(nsl-basic)`, asserts configure succeeds (contract `add_nsl_library.contract.md` §Test row 1)
+- [x] T017 [P] [US1] Create CMake test fixture `test_unit/add_nsl_library_test/unknown_layer_name/CMakeLists.txt`: invokes `add_nsl_library(nsl-bogus)`; expected configure-time `FATAL_ERROR` containing the literal "§3 layer table" (contract row 2; CTest `WILL_FAIL`)
+- [x] T018 [P] [US1] Create CMake test fixture `test_unit/add_nsl_library_test/downward_dep/CMakeLists.txt`: `add_nsl_library(nsl-lex DEPENDS nsl-basic)` succeeds (contract row 3)
+- [x] T019 [P] [US1] Create CMake test fixture `test_unit/add_nsl_library_test/upward_dep/CMakeLists.txt`: `add_nsl_library(nsl-basic DEPENDS nsl-lex)` configure-FAILS with `index M ≥ N` diagnostic (contract row 4; `WILL_FAIL`)
+- [x] T020 [P] [US1] Create CMake test fixture `test_unit/add_nsl_library_test/sibling_bypass/CMakeLists.txt`: `add_nsl_library(nsl-lex DEPENDS nsl-parse)` configure-FAILS (cyclic; contract row 5; `WILL_FAIL`)
+- [x] T021 [P] [US1] Create CMake test fixture `test_unit/add_nsl_library_test/multi_header_basic/CMakeLists.txt`: `nsl-basic` declares both `SourceLocation.h` and `Diagnostic.h` in `HEADERS` (contract row 6)
+- [x] T022 [P] [US1] Create CMake test fixture `test_unit/add_nsl_library_test/per_node_headers_ast/CMakeLists.txt`: `nsl-ast` declares `Decl.h`, `Stmt.h`, `Expr.h` in one `HEADERS` (contract row 7)
+- [x] T023 [US1] Create `test_unit/add_nsl_library_test/CMakeLists.txt` registering all 7 fixtures via `add_test`, with CTest `WILL_FAIL TRUE` set on the four expected-failure cases (T017, T019, T020 — and T021/T022 are positive) (depends T016–T022)
+- [x] T024 [P] [US1] Create lit fixture `test/Driver/version.test`: `RUN: %nslc --version | FileCheck %s` + `CHECK: {{^nslc [0-9A-Za-z._+-]+$}}` (contract `nslc-version.contract.md` §Test contract; FR-006; spec Q5)
+- [x] T025 [P] [US1] Create per-layer smoke lit fixtures (9 files): `test/Basic/.lit-smoke.test`, `test/Preprocess/.lit-smoke.test`, `test/Lex/.lit-smoke.test`, `test/Parse/.lit-smoke.test`, `test/AST/.lit-smoke.test`, `test/Sema/.lit-smoke.test`, `test/Dialect/.lit-smoke.test`, `test/Lower/.lit-smoke.test`, `test/Driver/.lit-smoke.test` — each contains `RUN: echo "smoke for <layer>" | FileCheck %s` + `CHECK: smoke for <layer>` (FR-007)
 
 ### Implementation for User Story 1
 
-- [ ] T026 [US1] Implement `cmake/AddNSLLibrary.cmake` per contract `add_nsl_library.contract.md` §Behavior: layer-table validation (citing `nsl_compiler_design.md §3` in error string), `add_library STATIC`, C++17 + PIC pin, `HEADERS` install via `FILE_SET`, `DEPENDS` dependency-direction guard with index check, `LINK_LIBS` external linkage, `EXCLUDE_FROM_LIBNSLFRONTEND` flag, aggregate-property `NSL_FRONTEND_LIBS` registration (depends T016–T023; observe T016/T018/T021/T022 PASS and T017/T019/T020 fail-as-expected)
-- [ ] T027 [P] [US1] Implement `cmake/NSLVersion.cmake`: `find_package(Git)`, `execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --always --dirty OUTPUT_VARIABLE NSLC_GIT_DESCRIBE OUTPUT_STRIP_TRAILING_WHITESPACE)` with `Git_FOUND` fallback to literal `unknown` (research §5; FR-006)
-- [ ] T028 [P] [US1] Create template `include/nsl/Driver/Version.h.in`: `#define NSLC_VERSION_STRING "@NSLC_GIT_DESCRIBE@"` (consumed by `configure_file` from T027)
-- [ ] T029 [P] [US1] Implement `tools/nslc/main.cpp` (≤60 lines) per contract `nslc-version.contract.md` §Implementation skeleton: include `nsl/Driver/Version.h`; `--version` / `-v` / `-V` print `nslc <NSLC_VERSION_STRING>\n` to stdout, exit 0; any other argv → exit 2 + usage line on stderr (FR-005, FR-006, SC-002)
-- [ ] T030 [P] [US1] Create `tools/nslc/CMakeLists.txt`: `configure_file(${CMAKE_SOURCE_DIR}/include/nsl/Driver/Version.h.in ${CMAKE_BINARY_DIR}/include/nsl/Driver/Version.h @ONLY)`; `add_executable(nslc main.cpp)`; `target_link_libraries(nslc PRIVATE nsl-driver)`; `set_target_properties(nslc PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)`
-- [ ] T031 [P] [US1] Create `tools/CMakeLists.txt`: `add_subdirectory(nslc)`
-- [ ] T032 [P] [US1] Create `lib/Basic/CMakeLists.txt`: `add_nsl_library(nsl-basic)` — no sources, no DEPENDS at M0 (FR-001 row 1)
-- [ ] T033 [P] [US1] Create `lib/Preprocess/CMakeLists.txt`: `add_nsl_library(nsl-preprocess DEPENDS nsl-basic)` (FR-001 row 2)
-- [ ] T034 [P] [US1] Create `lib/Lex/CMakeLists.txt`: `add_nsl_library(nsl-lex DEPENDS nsl-basic)` (FR-001 row 3)
-- [ ] T035 [P] [US1] Create `lib/AST/CMakeLists.txt`: `add_nsl_library(nsl-ast DEPENDS nsl-basic)` (FR-001 row 5; ordered before nsl-parse per data-model.md §entity 1)
-- [ ] T036 [P] [US1] Create `lib/Parse/CMakeLists.txt`: `add_nsl_library(nsl-parse DEPENDS nsl-lex nsl-ast)` (FR-001 row 4)
-- [ ] T037 [P] [US1] Create `lib/Sema/CMakeLists.txt`: `add_nsl_library(nsl-sema DEPENDS nsl-ast)` (FR-001 row 6)
-- [ ] T038 [P] [US1] Create `lib/Dialect/NSL/IR/CMakeLists.txt`: `add_nsl_library(nsl-dialect LINK_LIBS MLIRIR CIRCTHWDialect)` — no intra-NSL DEPENDS at M0 (FR-001 row 7; Principle III stock-CIRCT consumption)
-- [ ] T039 [P] [US1] Create `lib/Lower/CMakeLists.txt`: `add_nsl_library(nsl-lower DEPENDS nsl-sema nsl-dialect LINK_LIBS CIRCTHWDialect CIRCTComb CIRCTSeq CIRCTSV)` (FR-001 row 8)
-- [ ] T040 [P] [US1] Create `lib/Driver/CMakeLists.txt`: `add_nsl_library(nsl-driver HEADERS Version.h DEPENDS nsl-basic nsl-preprocess nsl-lex nsl-parse nsl-ast nsl-sema nsl-dialect nsl-lower)` and includes the configure-time-generated `Version.h` (FR-001 row 9)
+- [x] T026 [US1] Implement `cmake/AddNSLLibrary.cmake` per contract `add_nsl_library.contract.md` §Behavior: layer-table validation (citing `nsl_compiler_design.md §3` in error string), `add_library STATIC`, C++17 + PIC pin, `HEADERS` install via `FILE_SET`, `DEPENDS` dependency-direction guard with index check, `LINK_LIBS` external linkage, `EXCLUDE_FROM_LIBNSLFRONTEND` flag, aggregate-property `NSL_FRONTEND_LIBS` registration (depends T016–T023; observe T016/T018/T021/T022 PASS and T017/T019/T020 fail-as-expected)
+- [x] T027 [P] [US1] Implement `cmake/NSLVersion.cmake`: `find_package(Git)`, `execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --always --dirty OUTPUT_VARIABLE NSLC_GIT_DESCRIBE OUTPUT_STRIP_TRAILING_WHITESPACE)` with `Git_FOUND` fallback to literal `unknown` (research §5; FR-006)
+- [x] T028 [P] [US1] Create template `include/nsl/Driver/Version.h.in`: `#define NSLC_VERSION_STRING "@NSLC_GIT_DESCRIBE@"` (consumed by `configure_file` from T027)
+- [x] T029 [P] [US1] Implement `tools/nslc/main.cpp` (≤60 lines) per contract `nslc-version.contract.md` §Implementation skeleton: include `nsl/Driver/Version.h`; `--version` / `-v` / `-V` print `nslc <NSLC_VERSION_STRING>\n` to stdout, exit 0; any other argv → exit 2 + usage line on stderr (FR-005, FR-006, SC-002)
+- [x] T030 [P] [US1] Create `tools/nslc/CMakeLists.txt`: `configure_file(${CMAKE_SOURCE_DIR}/include/nsl/Driver/Version.h.in ${CMAKE_BINARY_DIR}/include/nsl/Driver/Version.h @ONLY)`; `add_executable(nslc main.cpp)`; `target_link_libraries(nslc PRIVATE nsl-driver)`; `set_target_properties(nslc PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)`
+- [x] T031 [P] [US1] Create `tools/CMakeLists.txt`: `add_subdirectory(nslc)`
+- [x] T032 [P] [US1] Create `lib/Basic/CMakeLists.txt`: `add_nsl_library(nsl-basic)` — no sources, no DEPENDS at M0 (FR-001 row 1)
+- [x] T033 [P] [US1] Create `lib/Preprocess/CMakeLists.txt`: `add_nsl_library(nsl-preprocess DEPENDS nsl-basic)` (FR-001 row 2)
+- [x] T034 [P] [US1] Create `lib/Lex/CMakeLists.txt`: `add_nsl_library(nsl-lex DEPENDS nsl-basic)` (FR-001 row 3)
+- [x] T035 [P] [US1] Create `lib/AST/CMakeLists.txt`: `add_nsl_library(nsl-ast DEPENDS nsl-basic)` (FR-001 row 5; ordered before nsl-parse per data-model.md §entity 1)
+- [x] T036 [P] [US1] Create `lib/Parse/CMakeLists.txt`: `add_nsl_library(nsl-parse DEPENDS nsl-lex nsl-ast)` (FR-001 row 4)
+- [x] T037 [P] [US1] Create `lib/Sema/CMakeLists.txt`: `add_nsl_library(nsl-sema DEPENDS nsl-ast)` (FR-001 row 6)
+- [x] T038 [P] [US1] Create `lib/Dialect/NSL/IR/CMakeLists.txt`: `add_nsl_library(nsl-dialect LINK_LIBS MLIRIR CIRCTHWDialect)` — no intra-NSL DEPENDS at M0 (FR-001 row 7; Principle III stock-CIRCT consumption)
+- [x] T039 [P] [US1] Create `lib/Lower/CMakeLists.txt`: `add_nsl_library(nsl-lower DEPENDS nsl-sema nsl-dialect LINK_LIBS CIRCTHWDialect CIRCTComb CIRCTSeq CIRCTSV)` (FR-001 row 8)
+- [x] T040 [P] [US1] Create `lib/Driver/CMakeLists.txt`: `add_nsl_library(nsl-driver HEADERS Version.h DEPENDS nsl-basic nsl-preprocess nsl-lex nsl-parse nsl-ast nsl-sema nsl-dialect nsl-lower)` and includes the configure-time-generated `Version.h` (FR-001 row 9)
 
 **Checkpoint**: `cmake -S . -B build -G Ninja && cmake --build build && ./build/bin/nslc --version && lit -v test/ && ctest --test-dir build` all green. **MVP complete — US1 deliverable demoable.**
 

@@ -1,0 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Per-layer smoke fixture for nsl-lex. Real lexer tests land at M1.
+
+// RUN: echo "smoke for nsl-lex" | FileCheck %s
+// CHECK: smoke for nsl-lex

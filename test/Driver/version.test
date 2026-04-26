@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/version.test — TDD seed for the `nslc --version` CLI
+// contract (FR-005, FR-006, SC-002; spec Q5).
+//
+// Per Principle VIII this fixture lands BEFORE tools/nslc/main.cpp;
+// it MUST be observed failing on the unchanged tree.
+
+// RUN: %nslc --version | FileCheck %s
+// CHECK: {{^nslc [0-9A-Za-z._+-]+$}}

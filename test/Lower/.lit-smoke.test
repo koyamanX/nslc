@@ -1,0 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Per-layer smoke fixture for nsl-lower. Real lowering tests land at M5/M6.
+
+// RUN: echo "smoke for nsl-lower" | FileCheck %s
+// CHECK: smoke for nsl-lower

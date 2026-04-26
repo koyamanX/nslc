@@ -1,0 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Per-layer smoke fixture for nsl-preprocess. Real layer tests land at M1+.
+
+// RUN: echo "smoke for nsl-preprocess" | FileCheck %s
+// CHECK: smoke for nsl-preprocess
