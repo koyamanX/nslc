@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/comments/nested_block_safe.test — boundary fixture for
+// the "block comments do NOT nest" rule from `lang.ebnf §14` line
+// 781. The opening `/*` finds the FIRST `*/` and ends the comment
+// there; the trailing ` end */` is now in NSL-token territory and
+// the lexer scans `end` as an identifier and the second `*/` as
+// punctuation tokens (`*` then `/`).
+//
+// This fixture pins the C-convention behavior so a future maintainer
+// who flips the lexer to nesting-aware would have to update the
+// CHECK lines — and would catch the spec departure in the same PR.
+
+// RUN: echo '/* /* */ end */' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_identifier	end	{{[^:]+}}:1:10:{{[0-9]+}}	{{[^:]+}}:1:10	[]
+// CHECK-NEXT: tk_star	*
+// CHECK-NEXT: tk_slash	/
+// CHECK-NEXT: tk_eof

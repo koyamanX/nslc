@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/comments/whitespace_only.test — buffer of whitespace per
+// `lang.ebnf §14` `whitespace = " " | "\t" | "\n" | "\r"`. The lexer
+// skips whitespace; only `tk_eof` appears.
+//
+// The fixture body is `\n\t \n` — two newlines, one tab, one space.
+
+// RUN: printf '\n\t \n' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK-NOT: tk_decimal_lit
+// CHECK-NOT: tk_identifier
+// CHECK-NOT: tk_string_lit
+// CHECK:     tk_eof

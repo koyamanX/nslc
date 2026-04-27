@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/include-stack/error-in-inner.test — FR-026
+// include-stack diagnostic notes (US3 / Phase 5 / T063).
+//
+// 3-file include chain: outer.nsl → middle.nsl → inner.nsl. The
+// innermost file contains a `%UNDEF%` reference to an undefined
+// macro, which the preprocessor reports per FR-037 P3 with the
+// locked string `undefined macro reference: '%UNDEF%'`.
+//
+// Per FR-026 + SC-006, the diagnostic MUST cite the inner file's
+// path:line:col AND include one `note: included from ...` line per
+// ancestor file in the include stack (innermost-first ordering per
+// `contracts/diagnostic-output.contract.md`).
+
+// RUN: echo '#include "middle.nsl"' > %t.nsl
+// RUN: not %nslc -emit=tokens -I %S/Inputs %t.nsl 2>&1 | FileCheck %s
+
+// CHECK: inner.nsl:7:1: error: undefined macro reference: '%UNDEF%'
+// CHECK: note: included from {{.*}}middle.nsl:4
+// CHECK: note: included from {{.*}}{{(t.nsl|tmp.nsl)}}:1

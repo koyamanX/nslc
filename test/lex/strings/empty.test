@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/strings/empty.test — boundary: empty string literal `""`.
+// Per `lang.ebnf §13` `string_literal = '"' { string_char } '"'`,
+// zero `string_char` repetitions are valid. Spelling is the two-
+// character `""`.
+
+// RUN: echo '""' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_string_lit	\"\"	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK-NEXT: tk_eof

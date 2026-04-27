@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/include-stack/error-in-inner.json.test — NDJSON
+// include-stack diagnostic shape (US3 / Phase 5 / T064).
+//
+// Same 3-file include chain as error-in-inner.test, but renders
+// diagnostics as NDJSON via `--diagnostic-format=json`. Per
+// `contracts/diagnostic-output.contract.md` "NDJSON format" section,
+// each line is a separate JSON object; the primary error has the
+// five mandatory fields; the include-stack notes are separate
+// objects with `severity:"note"` and an `included_from` field.
+
+// RUN: echo '#include "middle.nsl"' > %t.nsl
+// RUN: not %nslc --diagnostic-format=json -emit=tokens -I %S/Inputs %t.nsl 2>&1 | FileCheck %s
+
+// Primary error: five mandatory NDJSON fields, severity error.
+// CHECK: {"path":"{{.*}}inner.nsl","line":7,"col":1,"severity":"error","message":"undefined macro reference: '%UNDEF%'"}
+
+// Two include-stack notes (innermost first per the contract).
+// CHECK: {"path":"{{.*}}middle.nsl","line":4,"col":{{[0-9]+}},"severity":"note","message":"included from","included_from":{"path":"{{.*}}middle.nsl","line":4,"col":{{[0-9]+}}}}
+// CHECK: {"path":"{{.*}}{{(t.nsl|tmp.nsl)}}","line":1,"col":{{[0-9]+}},"severity":"note","message":"included from","included_from":{"path":"{{.*}}{{(t.nsl|tmp.nsl)}}","line":1,"col":{{[0-9]+}}}}

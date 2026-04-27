@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p06/pass.test — P6 helpers permitted INSIDE the
+// two valid contexts (`#define` body and `#if` condition) per
+// `docs/spec/nsl_pp.ebnf` §3 + the contract topic table in
+// `specs/002-m1-lex-preprocess/contracts/preprocessor-seam.contract.md`.
+//
+// Topic per the table: "helpers permitted in `#define` body and
+// `#if` condition".
+//
+// Two contexts exercised:
+//   1. `#define M _int(_pow(2.0, 4.0))`  — helpers in #define body.
+//   2. `#if _int(_pow(2.0, 4.0)) > 8`     — helpers in #if condition.
+//
+// Both are P6-permitted; the resulting tokens at the seam are
+// strictly the post-evaluation NSL content (P12). Helpers must NOT
+// cross the seam.
+//
+// The expression evaluates to integer `16`, which is `> 8`, so the
+// then-branch is selected.
+//
+// Tasks.md T042 + FR-017 + FR-018.
+//
+// **RED state**: the unchanged Phase-3 lexer tokenizes the helper
+// call bytes literally. Phase-4 turns this green.
+
+// RUN: echo '#define M _int(_pow(2.0, 4.0))' >  %t.nsl
+// RUN: echo '#if _int(_pow(2.0, 4.0)) > 8'   >> %t.nsl
+// RUN: echo 'reg x = %%M%%;'                 >> %t.nsl
+// RUN: echo '#endif'                         >> %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_reg{{[ \t]+}}reg
+// CHECK-NEXT: tk_identifier{{[ \t]+}}x
+// CHECK-NEXT: tk_assign{{[ \t]+}}=
+// CHECK-NEXT: tk_decimal_lit{{[ \t]+}}16
+// CHECK-NEXT: tk_semicolon{{[ \t]+}};
+// CHECK-NEXT: tk_eof
+
+// Helper identifiers MUST NOT survive into the seam (P12):
+// CHECK-NOT: tk_system_function{{[ \t]+}}_int
+// CHECK-NOT: tk_system_function{{[ \t]+}}_pow

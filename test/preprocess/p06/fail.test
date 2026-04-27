@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p06/fail.test — P6 violation: a compile-time
+// helper call appearing OUTSIDE both valid contexts (a `#define`
+// body and an `#if` condition) per FR-018 +
+// `docs/spec/nsl_pp.ebnf` notes section + the FR-037 locked-string
+// table in
+// `specs/002-m1-lex-preprocess/contracts/diagnostic-output.contract.md`.
+//
+// FR-037 P6 lock:
+//   `compile-time helper '_<NAME>' used outside #define / #if condition`
+//
+// For this fixture <NAME> is `pow` (the source spells the call
+// `_pow(...)`), so the rendered diagnostic is:
+//   error: compile-time helper '_pow' used outside #define / #if condition
+//
+// Per Constitution Principle VIII the failing fixture asserts the
+// EXACT diagnostic string. Renaming or weakening it later requires a
+// contract amendment in `contracts/diagnostic-output.contract.md`
+// PLUS this fixture's update in the same change.
+//
+// Source: a `_pow(...)` call sits on a passthrough line — neither
+// inside a `#define` body nor inside an `#if` condition. The
+// preprocessor MUST detect this at preprocess time and MUST NOT
+// allow the helper-call tokens to cross the seam (P12).
+//
+// **RED state**: against the unchanged Phase-3 tree the lexer
+// tokenizes `_pow` as `tk_system_function` and exits 0; no
+// preprocessor exists to detect the P6 violation. Phase-4 wires the
+// detection.
+
+// RUN: echo 'reg x = _pow(2.0, 4.0);' > %t.nsl
+// RUN: not %nslc -emit=tokens %t.nsl 2>&1 | FileCheck %s
+
+// FR-037 LOCKED STRING — exact match:
+// CHECK: error: compile-time helper '_pow' used outside #define / #if condition

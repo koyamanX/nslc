@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p04/pass.test — P4 `#if` integer evaluation per
+// `docs/spec/nsl_pp.ebnf` §2.3 + §3 and the contract topic table in
+// `specs/002-m1-lex-preprocess/contracts/preprocessor-seam.contract.md`.
+//
+// Topic per the table: `#if 2+3 > 0` selects then-branch.
+//
+// P4 truth test: a `#if <expr>` evaluates `<expr>` to a `PPValue`
+// (integer or real) per the helper-evaluator semantics; the truth
+// test is "non-zero" on either kind. **No string comparison** —
+// `#ifdef` is the symbol-presence form.
+//
+// This fixture exercises:
+//   * additive arithmetic (`2+3`) in an `#if` expression;
+//   * relational comparison (`> 0`) producing a 1/0 truth value;
+//   * `#if` ↔ `#else` ↔ `#endif` pairing (covered more fully in P9).
+//
+// Pass shape (then-branch selected; the `tk_identifier then_taken`
+// is what reaches the seam, NOT `else_taken`):
+//   #if 2+3 > 0
+//   then_taken
+//   #else
+//   else_taken
+//   #endif
+//
+// Tasks.md T040: pass-only — fail-cases are covered by P9
+// (mismatched conditional).
+//
+// **RED state**: against the unchanged Phase-3 tree the lexer sees
+// `#if 2+3 > 0` literally and tokenizes `#`/`if`/`2`/`+`/`3` etc.;
+// no branch is selected. Phase-4's `PPExpression` evaluator turns
+// it green.
+
+// RUN: echo '#if 2+3 > 0'   >  %t.nsl
+// RUN: echo 'then_taken'    >> %t.nsl
+// RUN: echo '#else'         >> %t.nsl
+// RUN: echo 'else_taken'    >> %t.nsl
+// RUN: echo '#endif'        >> %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:     tk_identifier{{[ \t]+}}then_taken
+// CHECK:     tk_eof
+// CHECK-NOT: tk_identifier{{[ \t]+}}else_taken

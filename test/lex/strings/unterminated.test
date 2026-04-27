@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/strings/unterminated.test — fail fixture for an
+// unterminated string literal. Per `lang.ebnf §13` a `string_char`
+// excludes literal newline; an opening `"` followed by EOL or EOF
+// without a closing `"` is a lex error.
+//
+// FR-037 + diagnostic-output.contract.md "Mandatory diagnostic-string
+// fixtures" lock the message text: `unterminated string literal`.
+// Renaming or weakening this string later requires a contract
+// amendment + this fixture's update in the same change.
+//
+// `not %nslc ...` makes lit expect a non-zero exit code; the
+// `nslc -emit=tokens` contract maps a lex error to exit 1 with the
+// diagnostic on stderr and NO tokens on stdout.
+
+// RUN: not %nslc -emit=tokens %s 2>&1 | FileCheck %s
+
+"hello
+// CHECK: error: unterminated string literal

@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/diag-format-json-smoke.test — `--diagnostic-format=json`
+// smoke test (US3 / Phase 5 / T066).
+//
+// Per /speckit-clarify Q2 (M1 ships smoke-only NDJSON; full schema
+// lock + per-kind round-trip + LSP consumer all defer to T3),
+// this fixture asserts ONLY the NDJSON shape: one valid JSON object
+// per line with the five mandatory fields per
+// `contracts/diagnostic-output.contract.md` research §9.
+// **No content equality** beyond the shape.
+
+// RUN: printf '"unterminated\n' > %t.nsl
+// RUN: not %nslc --diagnostic-format=json -emit=tokens %t.nsl 2>&1 | FileCheck %s
+
+// One NDJSON line with the five mandatory fields. The path/line/col
+// values can vary; we just assert the shape.
+// CHECK: {"path":"{{.*}}","line":{{[0-9]+}},"col":{{[0-9]+}},"severity":"error","message":"unterminated string literal"}

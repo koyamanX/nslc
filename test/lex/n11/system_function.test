@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/n11/system_function.test — N11 class (b) system VARIABLES
+// per `lang.ebnf` lines 1094–1099. Two are in scope at M1: `_random`
+// (32-bit fresh random per read) and `_time` (64-bit simulation
+// time). The lexer's enum name is `tk_system_function` per data-model
+// entity 7 (research §7) — the `function` framing reflects the
+// expression-position-without-parens reading: the value is *fetched*
+// by the read.
+
+// RUN: echo '_random' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_system_function	_random	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK-NEXT: tk_eof

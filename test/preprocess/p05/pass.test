@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p05/pass.test — P5 helper return types per
+// `docs/spec/nsl_pp.ebnf` §3 lines 282–288 + research §5 numeric
+// model + the contract topic table in
+// `specs/002-m1-lex-preprocess/contracts/preprocessor-seam.contract.md`.
+//
+// Topic per the table: `#define X _int(_pow(2.0, 8.0))` → `256`.
+//
+// P5 chain exercised:
+//   1. `_pow(2.0, 8.0)`  — both args real; returns real (256.0).
+//   2. `_int(256.0)`     — coerces real to integer via truncate-
+//                          toward-zero; returns 256.
+//   3. `%X%` at use site — splices the integer literal `256`.
+//
+// Per FR-019 + P7, the intermediate float MUST NOT cross the seam;
+// the `_int(...)` wrapper reduces it before substitution. Per P5,
+// the resulting token at the seam is a `tk_decimal_lit` with
+// spelling `256` — NOT `256.0`, NOT a `tk_*_lit` with a Z/X/U flag.
+//
+// This is also FR-017's "single source-of-truth" check for the
+// helper closed set: `_int` and `_pow` are both in
+// `include/nsl/Basic/HelperSet.def` (T005). Removing either entry
+// would fail to recognize the helper at preprocess time.
+//
+// Tasks.md T041 + spec.md US2 acceptance #3.
+//
+// **RED state**: against the unchanged Phase-3 tree the lexer sees
+// `_int(_pow(2.0,8.0))` literally and tokenizes `_int` as
+// `tk_system_function` (per N11 `_`-prefix dispatch), the parens as
+// punctuation, etc. The float `2.0` lexes as `tk_decimal_lit 2` +
+// `tk_dot` + `tk_decimal_lit 0` — there's no float lexer at M1
+// (correctly: floats are preprocess-only per P7). Phase-4's helper
+// evaluator turns it green.
+
+// RUN: echo '#define X _int(_pow(2.0, 8.0))' >  %t.nsl
+// RUN: echo 'reg buf = %%X%%;'               >> %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// At the use site `%X%` splices the integer literal 256.
+// CHECK:      tk_reg{{[ \t]+}}reg
+// CHECK-NEXT: tk_identifier{{[ \t]+}}buf
+// CHECK-NEXT: tk_assign{{[ \t]+}}=
+// CHECK-NEXT: tk_decimal_lit{{[ \t]+}}256
+// CHECK-NEXT: tk_semicolon{{[ \t]+}};
+// CHECK-NEXT: tk_eof
+
+// Floats and helper calls MUST NOT cross the seam (P7 + P12):
+// CHECK-NOT: tk_dot
+// CHECK-NOT: tk_system_function{{[ \t]+}}_int
+// CHECK-NOT: tk_system_function{{[ \t]+}}_pow

@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p02/pass.test — P2 narrower-than-C identifier
+// passthrough per `docs/spec/nsl_pp.ebnf` notes section, and the
+// "Validation tests" topic table in
+// `specs/002-m1-lex-preprocess/contracts/preprocessor-seam.contract.md`.
+//
+// Topic per the table: "passthrough: identifiers on non-directive
+// lines NOT macro-expanded (only `%IDENT%` and helper-call sites
+// are)". This is P2's narrower-than-C semantics: even though `module`
+// might be a `#define`'d macro name in some build configurations,
+// a bare-identifier reference on a passthrough line MUST NOT be
+// macro-expanded — only the explicit `%IDENT%` reference form (P3)
+// triggers expansion.
+//
+// Pass shape:
+//   line 1: `#define module foo`   — macro defining `module` to `foo`
+//   line 2: `module bar { }`       — bare `module` on a passthrough
+//                                    line; per P2 it stays as the
+//                                    keyword `tk_module`, NOT
+//                                    expanded to `foo`.
+//
+// This catches a "leaky C-cpp" implementation that walks every
+// passthrough line scanning each identifier through the macro
+// table — a P2 violation that would let `#define` redefine NSL
+// keywords.
+//
+// Tasks.md T038: pass-only — fail-case is N/A (invariant; you can't
+// "violate" P2 from source-level by writing a bare identifier).
+//
+// **RED state**: against the unchanged Phase-3 tree the lexer sees
+// `#define module foo` literally and tokenizes the directive bytes
+// — Phase-4 makes the column-0 `#define` consumption real.
+
+// RUN: echo '#define module foo' >  %t.nsl
+// RUN: echo 'module bar { }'     >> %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// Line 2 emits `tk_module` (the keyword), NOT `tk_identifier foo`.
+// CHECK:      tk_module{{[ \t]+}}module
+// CHECK-NEXT: tk_identifier{{[ \t]+}}bar
+// CHECK-NEXT: tk_lbrace{{[ \t]+}}{
+// CHECK-NEXT: tk_rbrace{{[ \t]+}}}
+// CHECK-NEXT: tk_eof
+
+// And the macro replacement TEXT (`foo`) must not have leaked into
+// the seam:
+// CHECK-NOT: tk_identifier{{[ \t]+}}foo

@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p10/pass.test — P10 expansion order inside
+// `#define` body per `docs/spec/nsl_pp.ebnf` notes section + the
+// contract topic table in
+// `specs/002-m1-lex-preprocess/contracts/preprocessor-seam.contract.md`.
+//
+// Topic per the table: "%IDENT% splice precedes helper eval inside
+// `#define` body".
+//
+// P10 ordered steps inside a `#define` body:
+//   1. `%IDENT%` splices first — look up the inner identifier in the
+//      MacroTable and splice the replacement TEXT (not the value).
+//   2. Helper calls evaluated left-to-right.
+//   3. Operator-precedence reduction per `pp.ebnf §3` precedence
+//      table.
+//
+// Source per tasks.md T046:
+//   `#define Y 3`
+//   `#define X _int(_pow(%Y%, 2.0))`
+//
+// Step-by-step expansion at `%X%` use site:
+//   step 1 (splice)  : body becomes `_int(_pow(3, 2.0))`
+//   step 2 (helpers) : `_pow(3, 2.0)` → 9.0 (real); `_int(9.0)` → 9
+//   step 3 (reduce)  : the lone `9` is the final integer value
+//
+// At the seam the use site emits `tk_decimal_lit 9`.
+//
+// Tasks.md T046 + FR-017 + spec.md US2 acceptance #3.
+//
+// **RED state**: the unchanged Phase-3 lexer tokenizes
+// `_int(_pow(%Y%,2.0))` literally; the `%Y%` lexes as
+// `tk_percent`/`tk_identifier`/`tk_percent`. Phase-4 turns it green.
+
+// RUN: echo '#define Y 3'                       >  %t.nsl
+// RUN: echo '#define X _int(_pow(%%Y%%, 2.0))'  >> %t.nsl
+// RUN: echo 'reg n = %%X%%;'                    >> %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_reg{{[ \t]+}}reg
+// CHECK-NEXT: tk_identifier{{[ \t]+}}n
+// CHECK-NEXT: tk_assign{{[ \t]+}}=
+// CHECK-NEXT: tk_decimal_lit{{[ \t]+}}9
+// CHECK-NEXT: tk_semicolon{{[ \t]+}};
+// CHECK-NEXT: tk_eof
+
+// No artifact of the intermediate expansion crosses the seam:
+// CHECK-NOT: tk_percent
+// CHECK-NOT: tk_dot
+// CHECK-NOT: tk_system_function{{[ \t]+}}_int
+// CHECK-NOT: tk_system_function{{[ \t]+}}_pow

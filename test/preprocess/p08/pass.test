@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p08/pass.test — P8 `#include` search-path
+// resolution per `docs/spec/nsl_pp.ebnf` notes section + the contract
+// topic table in
+// `specs/002-m1-lex-preprocess/contracts/preprocessor-seam.contract.md`.
+//
+// Topic per the table: "`#include "f"` resolves via `-I`;
+// `#include <f>` resolves via `NSL_INCLUDE`".
+//
+// Two search forms (P8):
+//   * Quote form `#include "widget.nsl"`  → searched in (1) directory
+//     of including file, (2) every `-I <dir>` argument, in
+//     registration order. **`-I` is consulted ONLY for quote-form**.
+//   * Angle form `#include <gadget.nsl>`  → searched in every
+//     `NSL_INCLUDE` colon-separated path entry. **`-I` is NOT
+//     consulted for angle-form**.
+//
+// Auxiliary files live under `Inputs/quote/` and `Inputs/angle/`,
+// which lit excludes from auto-discovery (test/lit.cfg.py
+// `config.excludes`). The driving `pass.test` is what lit runs.
+//
+// Pass shape: each include file declares a unique reg name
+// (`quote_marker` and `angle_marker`); both names cross the seam
+// after the preprocessor splices the include contents.
+//
+// Tasks.md T044. **NOTE per agent brief**: T044 will run RED until
+// the parallel `nsl-frontend-impl` agent's T061 wires the
+// `-I`/`NSL_INCLUDE` flags through to `lib/Driver/EmitTokens.cpp`'s
+// `Preprocessor` (currently the flags are accepted but ignored —
+// see `lib/Driver/EmitTokens.cpp` `(void)opts.include_paths`).
+
+// We point `-I` at the quote-form Inputs directory and pre-populate
+// `NSL_INCLUDE` with the angle-form Inputs directory. Both forms
+// then resolve from disjoint search roots.
+//
+// %S is lit's expansion to the directory containing this .test
+// file (so `%S/Inputs/quote` is the absolute path to the
+// quote-search root regardless of where lit was invoked).
+
+// RUN: echo '#include "widget.nsl"' >  %t.nsl
+// RUN: echo '#include <gadget.nsl>' >> %t.nsl
+// RUN: env NSL_INCLUDE=%S/Inputs/angle %nslc -I %S/Inputs/quote -emit=tokens %t.nsl | FileCheck %s
+
+// Plain (non-NEXT) check directives below tolerate intervening
+// tk_line_directive markers, which the preprocessor emits at each
+// #include enter/return per P13.
+// CHECK:      tk_reg{{[ \t]+}}reg
+// CHECK-NEXT: tk_identifier{{[ \t]+}}quote_marker
+// CHECK-NEXT: tk_semicolon{{[ \t]+}};
+// CHECK:      tk_reg{{[ \t]+}}reg
+// CHECK-NEXT: tk_identifier{{[ \t]+}}angle_marker
+// CHECK-NEXT: tk_semicolon{{[ \t]+}};
+
+// Neither `#include` directive crosses the seam (P12 boundary):
+// CHECK-NOT: tk_identifier{{[ \t]+}}include

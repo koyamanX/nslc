@@ -122,22 +122,63 @@ nslc input.nsl -emit=verilog        # equivalent to default
 
 Useful flags: `-I <dir>` for `#include` quote-form search paths; `-D NAME=value` for preprocessor defines; the `NSL_INCLUDE` environment variable for angle-form `#include` paths.
 
-## Building
-
-On a Linux x86_64 host with CMake ≥ 3.22, Ninja, GCC ≥ 9 (or Clang ≥ 10), Python ≥ 3.8, and a vendored prebuilt LLVM + MLIR + CIRCT install:
+> **Status by milestone.** As of **M1**, only `-emit=tokens` is
+> implemented end-to-end (lex + preprocess pipeline; full
+> `pp.ebnf` directive set + 22-helper compile-time evaluator).
+> `-emit=ast` lands at **M2**, `-emit=mlir` at **M5**, `-emit=hw`
+> at **M6**, and the default `-emit=verilog` at **M7**.
 
 ```bash
-cmake -S . -B build -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DMLIR_DIR=/path/to/llvm-install/lib/cmake/mlir \
-  -DCIRCT_DIR=/path/to/circt-install/lib/cmake/circt
-cmake --build build
-./build/bin/nslc --version          # smoke: prints `nslc <git-describe>`
-ctest --test-dir build --output-on-failure
-cd build && lit -v ../test
+# M1 quick check: see the post-preprocess token stream for a small
+# input. Run inside the dev container; output is tab-separated
+# `<kind>\t<spelling>\t<phys-loc>\t<virt-loc>\t<flags>` per
+# specs/002-m1-lex-preprocess/contracts/nslc-emit-tokens.contract.md.
+echo '#define WIDTH 8
+module hello { reg q[%WIDTH%]; }' > /tmp/hello.nsl
+docker run --rm -v "$PWD:/work" -v "/tmp:/tmp" -w /work \
+  ghcr.io/koyamanx/nsl-nslc:dev \
+  ./build-Release-gcc/bin/nslc -emit=tokens /tmp/hello.nsl
+# -> the `8` token shows up where `%WIDTH%` was, and the `#define`
+#    line is consumed by the preprocessor (P12 boundary).
 ```
 
-`scripts/ci.sh` is the single authoritative local-reproduction entry point — it runs the same six stages that GitHub Actions runs on every PR (Constitution Principle IX). Re-run any failing stage offline with `./scripts/ci.sh <stage>`. The full sequence is documented in [`specs/001-m0-build-ci-scaffolding/quickstart.md`](./specs/001-m0-build-ci-scaffolding/quickstart.md).
+## Building
+
+`nslc` builds inside the project's docker dev container —
+**`ghcr.io/koyamanx/nsl-nslc:dev`** — which ships `/opt/llvm` +
+`/opt/circt` pre-staged along with the full toolchain
+(`clang/gcc/cmake/ninja/lld/ccache/python3/lit/FileCheck/clang-format/clang-tidy`)
+and exports `MLIR_DIR` / `CIRCT_DIR` so cmake config "just works."
+The host is not a supported build environment.
+
+```bash
+docker run --rm -v "$PWD:/work" -w /work \
+  ghcr.io/koyamanx/nsl-nslc:dev \
+  sh -c '
+    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && \
+    cmake --build build && \
+    ./build/bin/nslc --version && \
+    ctest --test-dir build --output-on-failure && \
+    (cd build && lit -v ../test)
+  '
+```
+
+`scripts/ci.sh` is the single authoritative local-reproduction
+entry point — it runs the same six stages GitHub Actions runs on
+every PR (Constitution Principle IX) against the same image:
+
+```bash
+docker run --rm -v "$PWD:/work" -w /work \
+  ghcr.io/koyamanx/nsl-nslc:dev \
+  ./scripts/ci.sh <stage>          # build-matrix | static-checks | unit-tests | lowering-tests | all
+```
+
+`CONTRIBUTING.md` §3.11 has the full local-CI playbook including
+sustained-session patterns; `specs/001-m0-build-ci-scaffolding/quickstart.md`
+walks the M0 first-time setup. The four-stage image set under
+`.docker/` is rebuilt by `./scripts/docker-build.sh` only when the
+LLVM/CIRCT pins in `cmake/deps.lock` change; CI publishes via
+`.github/workflows/publish-images.yml`.
 
 ## Repository layout
 

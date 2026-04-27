@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/comments/single_line.test — `//` line comment per
+// `lang.ebnf §14` `line_comment = "//" { any_char_until_newline }`.
+// Comments are SKIPPED by the lexer (FR-010); only the token AFTER
+// the comment appears in the stream. Adjacent token source ranges
+// stay accurate per FR-012 — the trailing `42` is on physical line 2
+// at column 1.
+
+// RUN: printf '// this is a comment\n42\n' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_decimal_lit	42	{{[^:]+}}:2:1:{{[0-9]+}}	{{[^:]+}}:2:1	[]
+// CHECK-NEXT: tk_eof

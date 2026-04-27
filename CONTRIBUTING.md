@@ -247,6 +247,38 @@ GitHub Actions workflow at `.github/workflows/ci.yml` calls into
 the same dispatcher so divergence between local and remote runs is
 impossible (FR-021).
 
+**All build/test/dev commands MUST run inside the project's docker
+dev container** — `ghcr.io/koyamanx/nsl-nslc:dev` (~8.1 GB; pulled
+on first use). The container ships `/opt/llvm` + `/opt/circt` plus
+`clang/gcc/cmake/ninja/lld/ccache/python3/lit/FileCheck/clang-format/clang-tidy`
+pre-staged, with `MLIR_DIR` and `CIRCT_DIR` already exported. The
+host environment is NOT supported — running `cmake` / `ninja` /
+`scripts/ci.sh` directly on the host will fail at configure time
+because no LLVM/MLIR/CIRCT install is expected there. Every stage
+in `.github/workflows/ci.yml` runs against this exact image (see
+the `container: image:` directive on each job), so reproducing CI
+locally means using the same image.
+
+The canonical invocation is:
+
+```bash
+docker run --rm -v "$PWD:/work" -w /work \
+  ghcr.io/koyamanx/nsl-nslc:dev \
+  ./scripts/ci.sh <stage>
+```
+
+For sustained interactive work, launch a long-lived container and
+`exec` into it instead of `run --rm`'ing per command. If your shell
+session predates the user being added to the `docker` group,
+prefix with `sg docker -c "<command>"`.
+
+To rebuild the four-stage image set from `.docker/*/Dockerfile`
+(only when the LLVM / CIRCT pins in `cmake/deps.lock` change):
+`./scripts/docker-build.sh`. CI publishes via
+`.github/workflows/publish-images.yml`.
+
+Stage targets (run inside the container per the pattern above):
+
 ```bash
 ./scripts/ci.sh build-matrix             # stage 1 (Release × host by default)
 ./scripts/ci.sh build-matrix --matrix    # stage 1, fan out all 4 cells

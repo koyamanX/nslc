@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Generated from include/nsl/Lex/KeywordSet.def — DO NOT EDIT.
+// Regenerate with: python3 scripts/gen_keyword_fixtures.py
+//
+// Per-keyword lex fixture for `for` per Constitution Principle
+// VIII (TDD). One token + tk_eof; SPDX header per FR-010..012.
+//
+// The keyword is written to a temp file via lit's %t substitution
+// rather than embedded in this .test file, so the SPDX header /
+// CHECK lines do NOT enter the lex stream and the keyword is
+// guaranteed to land at line 1 col 1 offset 0.
+//
+// RUN: echo for > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_for_	for	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK-NEXT: tk_eof		{{[^:]+}}:2:1:4	{{[^:]+}}:2:1	[]

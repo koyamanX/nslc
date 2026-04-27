@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p08/Inputs/angle/gadget.nsl — auxiliary include
+// file for the P8 angle-form pass-fixture. The `Inputs/` directory
+// is excluded from lit's auto-discovery, so this file is only ever
+// loaded via `#include <gadget.nsl>` (resolved through the
+// `NSL_INCLUDE` env var per P8) from the driving `pass.test`.
+
+reg angle_marker;

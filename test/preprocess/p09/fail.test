@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p09/fail.test — P9 mismatched conditional fail-
+// cases per `docs/spec/nsl_pp.ebnf` notes section + the FR-037
+// locked-string table in
+// `specs/002-m1-lex-preprocess/contracts/diagnostic-output.contract.md`
+// + tasks.md T045.
+//
+// P9 has TWO violatable rules, both with FR-037-locked message
+// strings. We exercise BOTH in this one fixture using
+// FileCheck's `--check-prefix`:
+//
+//   FR-037 P9 lock #1:
+//     `'#endif' without matching '#if' / '#ifdef' / '#ifndef'`
+//   FR-037 P9 lock #2:
+//     `unterminated #if at end of file`
+//
+// Per Constitution Principle VIII the failing fixture asserts the
+// EXACT diagnostic strings. Renaming or weakening either later
+// requires a contract amendment in
+// `contracts/diagnostic-output.contract.md` PLUS this fixture's
+// update in the same change.
+//
+// **RED state**: the unchanged Phase-3 tree's lexer tokenizes the
+// conditional directives literally and exits 0; no preprocessor
+// exists to detect the mismatch. Phase-4's conditional stack
+// raises both diagnostics.
+
+// ---- CASE 1: extra #endif (no matching opener) ---------------------
+// Just a stray `#endif` with no preceding `#if`/`#ifdef`/`#ifndef`.
+//
+// RUN: echo '#endif' > %t.nsl
+// RUN: not %nslc -emit=tokens %t.nsl 2>&1 | FileCheck %s --check-prefix=EXTRA
+
+// FR-037 LOCKED STRING #1 — exact match:
+// EXTRA: error: '#endif' without matching '#if' / '#ifdef' / '#ifndef'
+
+// ---- CASE 2: unterminated #if at EOF -------------------------------
+// `#if 1` opens a region that's never closed.
+//
+// RUN: echo '#if 1'      >  %t.nsl
+// RUN: echo 'never_seen' >> %t.nsl
+// RUN: not %nslc -emit=tokens %t.nsl 2>&1 | FileCheck %s --check-prefix=UNTERM
+
+// FR-037 LOCKED STRING #2 — exact match:
+// UNTERM: error: unterminated #if at end of file

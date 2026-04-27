@@ -1,0 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Middle include in the 3-file chain. Pulls in inner.nsl which
+// contains the deliberate error.
+#include "inner.nsl"

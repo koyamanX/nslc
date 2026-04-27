@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Innermost include in the 3-file chain (outer → middle → inner).
+// Deliberate error on line 5 col 1: undefined %UNDEF% reference
+// (FR-037 P3 locked diagnostic).
+reg ok;
+
+%UNDEF%

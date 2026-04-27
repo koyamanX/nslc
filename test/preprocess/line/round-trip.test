@@ -1,0 +1,88 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/line/round-trip.test — `#line` round-trip golden
+// per FR-035 + `docs/spec/nsl_pp.ebnf` §2.4 + the contract section
+// "`#line` round-trip semantics (P13, FR-020, FR-021, FR-035)" in
+// `specs/002-m1-lex-preprocess/contracts/preprocessor-seam.contract.md`.
+//
+// Three input variants from `pp.ebnf §2.4`:
+//   1. `#line <decimal-int>`
+//   2. `#line <decimal-int> <string-literal>`
+//   3. `#line <anything-else>` — macro-expanded; result MUST be
+//      re-parsed as variant 1 or 2 (P13 emitter rule "always emit
+//      the canonical form").
+//
+// Two canonical output forms (the only ones permitted to cross the
+// seam):
+//   1. `#line <decimal-int>`
+//   2. `#line <decimal-int> <string-literal>`
+//
+// Round-trip invariants asserted here (per FR-035):
+//   * Each input directive emits exactly one canonical `#line`
+//     marker into the output stream (the lexer kind is
+//     `tk_line_directive` — see test/lex/n5/line_marker.test).
+//   * Subsequent tokens report post-`#line` virtual coordinates via
+//     the `<virt-loc>` column of the `-emit=tokens` schema.
+//   * Variant 3 input normalizes to variant 1 or 2 at the seam.
+//
+// We exercise variants **1 and 2** in this fixture. Variant 3 is
+// covered by a separate `--check-prefix` block guarded by the
+// implementer's variant-3 support state — the `nsl-frontend-impl`
+// agent's Phase-4 work decides whether variant 3 is supported in
+// this iteration. If variant 3 is deferred, the implementer
+// removes the V3 RUN/CHECK block; doing so requires a contract
+// amendment in `preprocessor-seam.contract.md` because P13's third
+// variant is part of pp.ebnf §2.4 (the agent brief flagged this
+// ambiguity for escalation).
+//
+// Tasks.md T050 + FR-035 + SC-003 + spec.md US2 acceptance scenarios
+// 8 + 9.
+//
+// **RED state**: the unchanged Phase-3 lexer recognizes `#line`
+// (per ecfee46) but does NOT update the SourceManager virtual-line
+// table; <virt-loc> still reports the physical path. Phase-4 wires
+// it through `SourceManager::addLineDirective()`.
+
+// ---- VARIANT 1: `#line <decimal-int>` ------------------------------
+// `#line 200` resets the line counter; the path stays as the
+// physical temp-file path.
+//
+// RUN: echo '#line 200'      >  %t.nsl
+// RUN: echo 'reg v1_after;'  >> %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s --check-prefix=V1
+
+// V1: tk_line_directive
+// V1: tk_reg{{[ \t]+}}reg{{[ \t]+}}{{[^:]+}}:2:1:{{[0-9]+}}{{[ \t]+}}{{[^:]+}}:200:1
+// V1: tk_identifier{{[ \t]+}}v1_after{{[ \t]+}}{{[^:]+}}:2:5:{{[0-9]+}}{{[ \t]+}}{{[^:]+}}:200:5
+
+// ---- VARIANT 2: `#line <decimal-int> <string-literal>` -------------
+// `#line 200 "alias.v"` resets BOTH the line counter and the virtual
+// path. Subsequent <virt-loc> reports `alias.v:200:…`.
+//
+// RUN: echo '#line 200 "alias.v"' >  %t.nsl
+// RUN: echo 'reg v2_after;'       >> %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s --check-prefix=V2
+
+// V2: tk_line_directive
+// V2: tk_reg{{[ \t]+}}reg{{[ \t]+}}{{[^:]+}}:2:1:{{[0-9]+}}{{[ \t]+}}alias.v:200:1
+// V2: tk_identifier{{[ \t]+}}v2_after{{[ \t]+}}{{[^:]+}}:2:5:{{[0-9]+}}{{[ \t]+}}alias.v:200:5
+
+// ---- VARIANT 3: `#line <anything-else>` (macro-expanded) -----------
+// `#line %LN%` where `%LN%` macro-expands to `300 "macro.v"`. Per
+// P13 emitter rule the OUTPUT is one canonical `#line 300
+// "macro.v"` — the variant-3 form never crosses the seam.
+//
+// **Subject to P13 variant-3 support**: see contract section
+// "Three input variants" — P13 mandates variant 3 normalization.
+// If the parallel Phase-4 implementer chooses to defer variant 3,
+// they must amend `preprocessor-seam.contract.md` and remove this
+// block. Until then it stays.
+//
+// RUN: echo '#define LN 300 "macro.v"' >  %t.nsl
+// RUN: echo '#line %%LN%%'             >> %t.nsl
+// RUN: echo 'reg v3_after;'            >> %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s --check-prefix=V3
+
+// V3: tk_line_directive
+// V3: tk_reg{{[ \t]+}}reg{{[ \t]+}}{{[^:]+}}:3:1:{{[0-9]+}}{{[ \t]+}}macro.v:300:1
+// V3: tk_identifier{{[ \t]+}}v3_after{{[ \t]+}}{{[^:]+}}:3:5:{{[0-9]+}}{{[ \t]+}}macro.v:300:5

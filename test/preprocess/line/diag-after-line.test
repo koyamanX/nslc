@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/line/diag-after-line.test — virtual-coordinate
+// resolution for diagnostics post-#line (US3 / Phase 5 / T065).
+//
+// The preprocessor consumes `#line 1000 "synth.nsl"`, registers the
+// override on the SourceManager, then a deliberate error two input
+// lines later raises a diagnostic. Per FR-027 + Principle IV +
+// scenario 8 of US2, the rendered `path:line:col` MUST cite the
+// post-`#line` virtual coordinates: `synth.nsl:1002:1`.
+//
+// Constraints:
+//   * `#line 1000 "synth.nsl"` on physical line 1 of the input.
+//   * Physical line 2 is empty (consumed; virtual line 1000).
+//   * Physical line 3 has the `%UNDEF%` error → virtual line 1001.
+//
+// The off-by-one between the directive line and "the next input
+// line" follows pp.ebnf P13 + spec acceptance scenario 8: the
+// FIRST line AFTER the directive is line N, the second-after is
+// N+1. (The conflicting LINENUM=0 parenthetical in P13 is a known
+// spec contradiction flagged in Track B's Open Question #1; this
+// fixture honors the scenario-8 anchor.)
+
+// `\045` is the octal escape for `%` — using printf's `%%` collides
+// with lit's `%`-substitution layer, so we drop down to the byte
+// escape to write a literal `%` char into the temp file.
+// RUN: printf '#line 1000 "synth.nsl"\n\n\045UNDEF\045\n' > %t.nsl
+// RUN: not %nslc -emit=tokens %t.nsl 2>&1 | FileCheck %s
+
+// CHECK: synth.nsl:1001:{{[0-9]+}}: error: undefined macro reference: '%UNDEF%'

@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/numbers/hex_lowercase_z.test — case-folding boundary: the
+// `value_digit` production accepts both upper-case and lower-case
+// `Z`/`X`/`U` markers per `lang.ebnf §13` line 739. The token's
+// spelling preserves the original case (`z`); the [Z] flag is
+// case-normalized.
+
+// RUN: echo '0xfz' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_hex_lit	0xfz	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[Z]
+// CHECK-NEXT: tk_eof
