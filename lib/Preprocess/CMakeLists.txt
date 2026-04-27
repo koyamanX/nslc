@@ -11,12 +11,14 @@ add_nsl_library(nsl-preprocess
   DirectiveParser.cpp
   MacroTable.cpp
   HelperEvaluator.cpp
+  MacroExpander.cpp
   PPExpression.cpp
   IdentSplicer.cpp
   HEADERS
     ${CMAKE_SOURCE_DIR}/include/nsl/Preprocess/Preprocessor.h
     ${CMAKE_SOURCE_DIR}/include/nsl/Preprocess/MacroTable.h
     ${CMAKE_SOURCE_DIR}/include/nsl/Preprocess/HelperEvaluator.h
+    ${CMAKE_SOURCE_DIR}/include/nsl/Preprocess/MacroExpander.h
   DEPENDS
     nsl-basic
   LINK_LIBS

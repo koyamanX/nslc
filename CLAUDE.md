@@ -32,6 +32,7 @@ References to `lang.ebnf §X` are sections in
 | Preprocessor: `#ifdef`/`#ifndef`/`#if`/`#else`/`#endif` | pp.ebnf §2.3 | M1 | — | — |
 | Preprocessor: `#line` (crosses the seam) | pp.ebnf §2.4; P13; lang.ebnf N14 | M1 (emit); M2 (consume); preserved through every later stage per Principle IV | — | — |
 | Preprocessor: `%IDENT%` macro splicing | pp.ebnf §4; P3 | M1 | M5 (residue-free check) | — |
+| Preprocessor: bare-macro textual substitution + recursion bound | pp.ebnf P10 (amended in 003-macro-textual-concat) | M1 (`MacroExpander` pre-pass; 256-level cycle bound; FR-007 locked diagnostic) | — | — |
 | Compile-time helpers `_int`/`_pow`/`_sin`/… | pp.ebnf §3 | M1 (preprocessor parse + eval per pp.ebnf P5/P6/P7/P12); M3 separately delivers the NSL-language Sema constant evaluator for `Sn` constraints (S15 bit-slice indices etc.) — that's a different evaluator from the preprocessor's | — | — |
 | Compilation unit + `struct` types | lang.ebnf §§1, 3 | M2; M3 (S18) | M4 (struct layout) | M6 |
 | Top-level parameters | lang.ebnf §3.1; S16 | M2; M3 | M4 (param attrs) | M6 (param propagation) |
