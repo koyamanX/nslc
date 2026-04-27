@@ -54,6 +54,7 @@ RECIPES_BY_EXT: dict[str, tuple[str, Optional[str]]] = {
     ".test":   ("//",   None),  # lit fixtures
     ".lock":   ("#",    None),  # cmake/deps.lock and friends
     ".td":     ("//",   None),  # MLIR/LLVM TableGen
+    ".def":    ("//",   None),  # X-macro single-source-of-truth headers
     ".mlir":   ("//",   None),  # MLIR text format (M4+)
     ".txt":    ("#",    None),  # plain-text config (spdx_exceptions.txt etc.)
     ".cfg":    ("#",    None),  # config files (.lit configs etc.)
