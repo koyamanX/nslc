@@ -108,7 +108,7 @@ void IncludeSearchPath::populateAngleFromEnv() {
          "IncludeSearchPath::populateAngleFromEnv called more than once");
   angle_env_populated_ = true;
   const char *env = std::getenv("NSL_INCLUDE");
-  if (!env) {
+  if (env == nullptr) {
     return;
   }
   llvm::StringRef rest(env);

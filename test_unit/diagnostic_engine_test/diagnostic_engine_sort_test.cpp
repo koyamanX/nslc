@@ -27,7 +27,7 @@ namespace {
 
 std::vector<char> bytesOf(const char *s) {
   std::vector<char> out;
-  while (*s) {
+  while (*s != 0) {
     out.push_back(*s++);
   }
   return out;

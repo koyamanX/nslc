@@ -39,7 +39,7 @@ void MacroTable::redefine(llvm::StringRef name, llvm::StringRef body,
   std::string key = name.str();
   auto it = entries_.find(key);
   if (it == entries_.end()) {
-    if (out_previous_loc) {
+    if (out_previous_loc != nullptr) {
       *out_previous_loc = SourceRange();
     }
     MacroDef def;
@@ -49,7 +49,7 @@ void MacroTable::redefine(llvm::StringRef name, llvm::StringRef body,
     entries_.insert({std::move(key), std::move(def)});
     return;
   }
-  if (out_previous_loc) {
+  if (out_previous_loc != nullptr) {
     *out_previous_loc = it->second.defining_loc;
   }
   it->second.body = body.str();

@@ -221,7 +221,7 @@ SourceManager::resolveVirtual(SourceLocation loc) const {
   const LineDirective *active = nullptr;
   for (const auto &d : b.line_overrides) {
     if (d.origin_offset <= loc.offset()) {
-      if (!active || d.origin_offset > active->origin_offset) {
+      if ((active == nullptr) || d.origin_offset > active->origin_offset) {
         active = &d;
       }
     } else {
@@ -232,7 +232,7 @@ SourceManager::resolveVirtual(SourceLocation loc) const {
 
   auto [phys_line, phys_col] = getLineCol(loc);
 
-  if (!active) {
+  if (active == nullptr) {
     return VirtualLoc{llvm::StringRef(b.path), phys_line, phys_col};
   }
 

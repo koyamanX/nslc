@@ -121,7 +121,7 @@ void writeJsonObject(llvm::raw_ostream &os, const SourceManager &sm,
   writeJsonString(os, severityName(d.severity));
   os << ",\"message\":";
   writeJsonString(os, d.message);
-  if (included_from) {
+  if (included_from != nullptr) {
     auto vinc = sm.resolveVirtual(*included_from);
     os << ",\"included_from\":{";
     os << "\"path\":";

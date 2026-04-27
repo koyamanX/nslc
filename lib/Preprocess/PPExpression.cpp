@@ -460,7 +460,7 @@ private:
     ++pos_; // consume closing '%'
 
     const MacroDef *def = owner_.macros_.lookup(name);
-    if (!def) {
+    if (def == nullptr) {
       // FR-037 locked diagnostic for P3 — emitted here in expression
       // context too so `#if %X% > 0` with undefined %X% raises the
       // same canonical text as a passthrough-line use.
@@ -648,7 +648,7 @@ private:
 
     // Bare identifier — look up as a macro.
     const MacroDef *def = owner_.macros_.lookup(name);
-    if (!def) {
+    if (def == nullptr) {
       // Per pp.ebnf §3.x bare identifiers in expression context are
       // macro references (lines 261–262). An unknown identifier is
       // an error.
@@ -747,7 +747,7 @@ bool PPExpression::reduceDefineBody(llvm::StringRef body, SourceLocation loc,
   MacroExpander expander(macros_, diag_);
   std::string substituted = expander.expand(trimmed, SourceRange(loc, loc));
   Parser p(*this, substituted, loc);
-  if (out_value) {
+  if (out_value != nullptr) {
     *out_value = p.parseTop();
   } else {
     (void)p.parseTop();

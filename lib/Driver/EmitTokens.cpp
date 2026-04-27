@@ -92,13 +92,13 @@ std::string renderFlags(uint16_t flags) {
     out += name;
     first = false;
   };
-  if (flags & Token::NF_HasZ) {
+  if ((flags & Token::NF_HasZ) != 0) {
     add("Z");
   }
-  if (flags & Token::NF_HasX) {
+  if ((flags & Token::NF_HasX) != 0) {
     add("X");
   }
-  if (flags & Token::NF_HasU) {
+  if ((flags & Token::NF_HasU) != 0) {
     add("U");
   }
   out += "]";

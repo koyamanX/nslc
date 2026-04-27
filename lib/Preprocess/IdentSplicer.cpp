@@ -116,7 +116,7 @@ std::string IdentSplicer::splice(llvm::StringRef line,
         // Recognized %NAME% form.
         llvm::StringRef name = line.substr(name_begin, j - name_begin);
         const MacroDef *def = macros_.lookup(name);
-        if (def) {
+        if (def != nullptr) {
           // Per P10 step 1 + spec scenario 3: if the macro body
           // contains a helper call or float literal, REDUCE it via
           // PPExpression and splice the rendered VALUE. Otherwise

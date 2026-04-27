@@ -75,7 +75,7 @@ description: "Tasks for 004-clang-tidy-cleanup — retire CI static-checks debt"
 
 **Bool-conversion block**:
 
-- [ ] T010 [US1] `readability-implicit-bool-conversion` (27 sites, 5 in `tools/nslc/main.cpp`): preserve the 60-line cap on `tools/nslc/main.cpp` per Principle II. Same fix shape. Commit; expect `778 → 751`.
+- [X] T010 [US1] `readability-implicit-bool-conversion` (27 sites, 5 in `tools/nslc/main.cpp`): preserve the 60-line cap on `tools/nslc/main.cpp` per Principle II. Same fix shape. Commit; expect `778 → 751`.
 
 **Const-correctness block** (biggest single category — split per-directory per `research.md` §3 step 5 to keep per-commit diff reviewable):
 

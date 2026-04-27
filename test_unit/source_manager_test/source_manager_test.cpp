@@ -27,7 +27,7 @@ namespace {
 
 std::vector<char> bytesOf(const char *literal) {
   std::vector<char> out;
-  while (*literal) {
+  while (*literal != 0) {
     out.push_back(*literal++);
   }
   return out;
@@ -180,7 +180,7 @@ TEST_F(SourceManagerTest, IncludeStackPushPopOrder) {
 TEST_F(SourceManagerTest, LoadFileIdempotent) {
   // Write a temp file in $TMPDIR (writable in sandbox).
   const char *tmpdir = std::getenv("TMPDIR");
-  std::string base = tmpdir ? tmpdir : "/tmp";
+  std::string base = (tmpdir != nullptr) ? tmpdir : "/tmp";
   std::string path = base + "/nslc_sm_test_load.nsl";
   {
     std::ofstream out(path);
