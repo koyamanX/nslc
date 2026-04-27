@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p12/pass.test — P12 full-pipeline boundary
+// invariant per `docs/spec/nsl_pp.ebnf` notes section + the contract
+// topic table in
+// `specs/002-m1-lex-preprocess/contracts/preprocessor-seam.contract.md`.
+//
+// Topic per the table: "full pipeline: NSL tokens + `#line` only
+// crosses the seam".
+//
+// P12 is an aggregate seam invariant — after the preprocessor
+// finishes, the output token stream contains EXACTLY:
+//   1. NSL tokens per `lang.ebnf §13–15`.
+//   2. Canonical `#line` directives (variant 1 or 2 per P13).
+//   3. Whitespace and comments (filtered before the lexer's
+//      consumer sees them).
+//
+// The following MUST NOT cross the seam:
+//   - `#include`, `#define`, `#undef`, `#ifdef`, `#ifndef`, `#if`,
+//     `#else`, `#endif`
+//   - `%IDENT%` references (resolved by P3)
+//   - Compile-time helper calls (resolved by P6)
+//   - Float literals (resolved by P7)
+//   - Variant-3 `#line` form (normalized to canonical by P13)
+//
+// This fixture exercises a full input combining `#define`,
+// `%IDENT%`, helper calls, and `#if` — all preprocessor-internal —
+// and asserts the seam contains ONLY NSL tokens (and a `tk_eof`).
+//
+// Source:
+//   `#define DEPTH 8`
+//   `#define MEMSIZE _int(_pow(2.0, %DEPTH%.0))`     <-- 2^8 = 256 → 256
+//   `#if MEMSIZE > 0`
+//   `mem ram[MEMSIZE];`                                <-- after splice: `mem ram[256];`
+//   `#endif`
+//
+// Tasks.md T048. Fail-case is covered by P6 + P7 (helper-at-seam
+// and float-at-seam are the violatable P12 sub-rules).
+//
+// **NOTE**: the pp.ebnf §3 grammar does not document `int.0` as a
+// legal helper-arg form (research §5 says integer args are widened
+// to long double automatically). We use `%DEPTH%.0` only for
+// readability; the implementation should treat `8.0` as a real
+// regardless of how it got there. If the implementer prefers the
+// stricter form `_real(%DEPTH%)` instead of `%DEPTH%.0` they are
+// free to update this fixture accordingly — the P12 invariant under
+// test is "no helpers/floats/%-refs at the seam", not the precise
+// helper-arg syntax.
+//
+// **RED state**: the unchanged Phase-3 lexer tokenizes the
+// directives + helpers + %DEPTH% literally. Phase-4 turns it green.
+
+// RUN: echo '#define DEPTH 8'                            >  %t.nsl
+// RUN: echo '#define MEMSIZE _int(_pow(2.0, %%DEPTH%%.0))' >> %t.nsl
+// RUN: echo '#if %%MEMSIZE%% > 0'                        >> %t.nsl
+// RUN: echo 'mem ram[%%MEMSIZE%%];'                      >> %t.nsl
+// RUN: echo '#endif'                                     >> %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// At the seam: only `mem ram[256];`.
+// CHECK:      tk_mem{{[ \t]+}}mem
+// CHECK-NEXT: tk_identifier{{[ \t]+}}ram
+// CHECK-NEXT: tk_lbracket{{[ \t]+}}[
+// CHECK-NEXT: tk_decimal_lit{{[ \t]+}}256
+// CHECK-NEXT: tk_rbracket{{[ \t]+}}]
+// CHECK-NEXT: tk_semicolon{{[ \t]+}};
+// CHECK-NEXT: tk_eof
+
+// Forbidden artifacts MUST NOT cross the seam (the P12 invariant):
+// CHECK-NOT: tk_percent
+// CHECK-NOT: tk_dot
+// CHECK-NOT: tk_system_function{{[ \t]+}}_int
+// CHECK-NOT: tk_system_function{{[ \t]+}}_pow
+// CHECK-NOT: tk_identifier{{[ \t]+}}DEPTH
+// CHECK-NOT: tk_identifier{{[ \t]+}}MEMSIZE
+// CHECK-NOT: tk_identifier{{[ \t]+}}define
+// CHECK-NOT: tk_identifier{{[ \t]+}}include
+// CHECK-NOT: tk_identifier{{[ \t]+}}endif
