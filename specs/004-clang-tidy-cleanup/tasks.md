@@ -166,7 +166,7 @@ description: "Tasks for 004-clang-tidy-cleanup — retire CI static-checks debt"
 
 ## Dependencies & Story Completion Order
 
-```
+```text
 Phase 1 (Setup, T001 — baseline capture)
     │
     ▼

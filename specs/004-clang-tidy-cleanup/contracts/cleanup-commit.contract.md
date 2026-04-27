@@ -67,7 +67,7 @@ The commit MUST satisfy the schema in `data-model.md` Entity 3:
 - A `git bisect` across the feature branch lands on a buildable, lit-
   green, ctest-green tree at every intermediate commit (SC-005).
 - No commit re-enables a globally-suppressed category in `.clang-tidy`
-  via `// NOLINTNEXTLINE` (data-model.md Entity 5 invariant).
+  via `// NOLINTNEXTLINE` (data-model.md §5 cross-entity invariant).
 
 ## Verification
 

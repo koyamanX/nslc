@@ -164,7 +164,7 @@ offending file and category.
   future PR that introduces a single new warning fails CI with a clear
   signal. The mechanism MAY be a `.clang-tidy` config tightening, a
   dedicated baseline file, or both — implementation choice deferred to
-  `/speckit-plan`. The chosen mechanism MUST NOT require manual list
+  `specs/004-clang-tidy-cleanup/plan.md`. The chosen mechanism MUST NOT require manual list
   upkeep on every PR.
 - **FR-007**: Existing test fixtures (lit + ctest) MUST remain green
   throughout. The cleanup MUST NOT change observable lexer/parser/

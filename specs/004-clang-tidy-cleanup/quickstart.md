@@ -78,7 +78,7 @@ sg docker -c 'docker run --rm -it \
       include/ lib/ tools/ test_unit/
 
     # Re-format the touched files (clang-tidy doesn't reformat)
-    git ls-files -m | xargs clang-format -i
+    git ls-files -m | xargs -r clang-format -i
 
     # Verify the gate is happier
     /work/scripts/ci.sh static-checks 2>&1 | tail -3

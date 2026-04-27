@@ -36,11 +36,12 @@ Prior history:
   - 1.1.1 (2026-04-25): Audit-driven clarification + cross-doc fixes.
   - 1.2.0 (2026-04-25): Added External Integrations section
     (CodeRabbit, Linear).
-  - 1.5.0 (2026-04-27): Principle IX transitional clause retired
-    (CI online: `./scripts/ci.sh static-checks` exits 0 on master
-    after feature 004-clang-tidy-cleanup landed).
   - 1.3.0 (2026-04-25): C++17 carve-out collapsed; Principle VI
     Delivery + Reference-VCDs sub-bullets added.
+  - 1.4.0 (2026-04-26): Linear scope narrowed to feature-track work
+    items (bug reports moved to GitHub Issues canonical); P-LIN
+    team-prefix placeholder resolved; documentation/process audit
+    fixes bundled.
 
 Modified principles:
   - II. Layered Library Architecture — `nsl-opt` reclassified as a

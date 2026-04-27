@@ -75,7 +75,7 @@ violations and tail-end categories).
 specs/004-clang-tidy-cleanup/
 ├── plan.md              # This file
 ├── research.md          # Phase 0 output (per-category fix-vs-suppress dispositions)
-├── data-model.md        # Phase 1 output (.clang-tidy config schema, baseline mechanism)
+├── data-model.md        # Phase 1 output (.clang-tidy config schema, suppression/invariant model)
 ├── quickstart.md        # Phase 1 output (developer-facing how-to-run-tidy)
 ├── contracts/           # Phase 1 output (per-PR commit-message contract, suppression-rationale contract)
 ├── checklists/
@@ -114,9 +114,9 @@ dispositions and rationale comments. The constitution edit
 in its own commit per SC-005's "≥ 4 commits, bisectable" requirement.
 
 The plan deliberately does NOT add a baseline-file mechanism (e.g.,
-`.clang-tidy-baseline.txt`); per `/speckit-plan` Phase 0 research below,
-the chosen regression-prevention mechanism is config tightening alone
-(no per-PR list upkeep, satisfying FR-006's last sentence).
+`.clang-tidy-baseline.txt`); per `research.md` §2 below, the chosen
+regression-prevention mechanism is config tightening alone (no
+per-PR list upkeep, satisfying FR-006's last sentence).
 
 ## Complexity Tracking
 

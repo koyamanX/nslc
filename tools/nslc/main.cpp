@@ -34,11 +34,11 @@ int main(int argc, char **argv) {
       stage = a + 6;
     } else if ((std::strcmp(a, "-I") == 0) && i + 1 < argc) {
       opts.include_paths.emplace_back(argv[++i]);
-    } else if (starts(a, "-I")) {
+    } else if (starts(a, "-I") && a[2] != '\0') {
       opts.include_paths.emplace_back(a + 2);
     } else if ((std::strcmp(a, "-D") == 0) && i + 1 < argc) {
       opts.predefined_macros.emplace_back(argv[++i]);
-    } else if (starts(a, "-D")) {
+    } else if (starts(a, "-D") && a[2] != '\0') {
       opts.predefined_macros.emplace_back(a + 2);
     } else if (std::strcmp(a, "--diagnostic-format=json") == 0) {
       opts.diagnostic_json = true;
