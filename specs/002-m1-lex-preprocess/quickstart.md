@@ -21,15 +21,28 @@ git checkout 002-m1-lex-preprocess
 
 ## 2. Configure and build
 
-The configure step is identical to M0:
+All build/test commands run inside the project's docker dev
+container — **`ghcr.io/koyamanx/nsl-nslc:dev`** — which ships
+`/opt/llvm` + `/opt/circt` pre-staged with `MLIR_DIR` / `CIRCT_DIR`
+already exported. The host is not a supported build environment.
+See `CONTRIBUTING.md` §3.11 for the full local-CI playbook.
 
 ```bash
-cmake -S . -B build -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DMLIR_DIR=/path/to/llvm-install/lib/cmake/mlir \
-  -DCIRCT_DIR=/path/to/circt-install/lib/cmake/circt
-cmake --build build
+docker run --rm -v "$PWD:/work" -w /work \
+  ghcr.io/koyamanx/nsl-nslc:dev \
+  sh -c '
+    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && \
+    cmake --build build
+  '
 ```
+
+> **Sections 3–9 below** assume each `./build/bin/nslc …` /
+> `ctest …` / `lit …` / `./scripts/ci.sh …` invocation runs
+> *inside the same dev container*. For sustained interactive work
+> launch a long-lived container and `exec` into it, e.g.:
+> `docker run --name nslc-dev -d -v "$PWD:/work" -w /work
+> ghcr.io/koyamanx/nsl-nslc:dev sleep infinity` then
+> `docker exec -it nslc-dev <cmd>` for each step.
 
 After M1 the build produces:
 - `build/lib/Basic/libnsl-basic.a` — `SourceManager`, `Diagnostic`,
