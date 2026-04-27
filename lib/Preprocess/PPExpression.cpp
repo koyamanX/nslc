@@ -6,12 +6,13 @@
 
 #include "PPExpression.h"
 
+#include "nsl/Basic/Diagnostic.h"
+#include "nsl/Basic/SourceLocation.h"
 #include "nsl/Preprocess/HelperEvaluator.h"
 #include "nsl/Preprocess/MacroExpander.h"
 #include "nsl/Preprocess/MacroTable.h"
 
-#include "nsl/Basic/Diagnostic.h"
-#include "nsl/Basic/SourceLocation.h"
+#include "llvm/ADT/StringRef.h"
 
 #include <cctype>
 #include <cmath>
@@ -21,8 +22,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "llvm/ADT/StringRef.h"
 
 namespace nsl::preprocess {
 
@@ -52,7 +51,9 @@ SourceRange rangeAt(SourceLocation base, std::size_t begin, std::size_t end) {
   return SourceRange(b, e);
 }
 
-bool isDigit(char c) { return c >= '0' && c <= '9'; }
+bool isDigit(char c) {
+  return c >= '0' && c <= '9';
+}
 bool isHexDigit(char c) {
   return isDigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
@@ -86,8 +87,7 @@ public:
     PPValue v = parseLogicalOr();
     skipWS();
     if (pos_ < text_.size()) {
-      report("unexpected trailing characters in compile-time expression",
-             pos_);
+      report("unexpected trailing characters in compile-time expression", pos_);
     }
     return v;
   }
@@ -157,8 +157,7 @@ private:
   }
   bool peek2(char a, char b) {
     skipWS();
-    return pos_ + 1 < text_.size() && text_[pos_] == a &&
-           text_[pos_ + 1] == b;
+    return pos_ + 1 < text_.size() && text_[pos_] == a && text_[pos_ + 1] == b;
   }
 
   // ---- precedence ladder ----
@@ -424,8 +423,8 @@ private:
     }
 
     // Number (decimal/hex/binary; floats handled inside parseNumber).
-    if (isDigit(c) || (c == '.' && pos_ + 1 < text_.size() &&
-                       isDigit(text_[pos_ + 1]))) {
+    if (isDigit(c) ||
+        (c == '.' && pos_ + 1 < text_.size() && isDigit(text_[pos_ + 1]))) {
       return parseNumber();
     }
 
@@ -521,12 +520,10 @@ private:
         ++pos_;
         consumeWhile(isDigit);
       }
-      if (pos_ < text_.size() &&
-          (text_[pos_] == 'e' || text_[pos_] == 'E')) {
+      if (pos_ < text_.size() && (text_[pos_] == 'e' || text_[pos_] == 'E')) {
         is_float = true;
         ++pos_;
-        if (pos_ < text_.size() &&
-            (text_[pos_] == '+' || text_[pos_] == '-')) {
+        if (pos_ < text_.size() && (text_[pos_] == '+' || text_[pos_] == '-')) {
           ++pos_;
         }
         consumeWhile(isDigit);
@@ -688,8 +685,7 @@ private:
       // Parser construction.
       return PPValue(int64_t{0});
     }
-    report("unresolved macro '" + name.str() +
-               "' in compile-time expression",
+    report("unresolved macro '" + name.str() + "' in compile-time expression",
            begin);
     return PPValue(int64_t{0});
   }
@@ -720,8 +716,7 @@ PPValue PPExpression::parse(llvm::StringRef text, SourceLocation loc) {
   // parser then sees the fully-substituted character stream so
   // adjacent-substitution cases like `DEPTH.0` → `8.0` work.
   MacroExpander expander(macros_, diag_);
-  std::string substituted =
-      expander.expand(text, SourceRange(loc, loc));
+  std::string substituted = expander.expand(text, SourceRange(loc, loc));
   Parser p(*this, substituted, loc);
   return p.parseTop();
 }
@@ -735,9 +730,8 @@ bool PPExpression::reduceDefineBody(llvm::StringRef body, SourceLocation loc,
                    body[b] == '\n')) {
     ++b;
   }
-  while (e > b &&
-         (body[e - 1] == ' ' || body[e - 1] == '\t' ||
-          body[e - 1] == '\r' || body[e - 1] == '\n')) {
+  while (e > b && (body[e - 1] == ' ' || body[e - 1] == '\t' ||
+                   body[e - 1] == '\r' || body[e - 1] == '\n')) {
     --e;
   }
   if (b == e) {
@@ -750,8 +744,7 @@ bool PPExpression::reduceDefineBody(llvm::StringRef body, SourceLocation loc,
   // P5 example work: `_int(_pow(2.0, DEPTH.0))` becomes
   // `_int(_pow(2.0, 8.0))` when DEPTH is `#define`d as `8`.
   MacroExpander expander(macros_, diag_);
-  std::string substituted =
-      expander.expand(trimmed, SourceRange(loc, loc));
+  std::string substituted = expander.expand(trimmed, SourceRange(loc, loc));
   Parser p(*this, substituted, loc);
   if (out_value) {
     *out_value = p.parseTop();

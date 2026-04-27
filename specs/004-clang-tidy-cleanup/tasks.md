@@ -30,7 +30,7 @@ description: "Tasks for 004-clang-tidy-cleanup — retire CI static-checks debt"
 
 **Purpose**: Capture the master-HEAD baseline so every subsequent task has a measurable RED-state count.
 
-- [ ] T001 Sanity-verify the M1+M3 baseline is green inside `ghcr.io/koyamanx/nsl-nslc:dev`. Run `cmake --build build-Release-host && ctest --test-dir build-Release-host && cmake --build build-Release-host --target check-nslc`; expect 118/118 lit + 129/129 ctest passing on master HEAD `73e49ae`. Capture the `static-checks` warning count: `./scripts/ci.sh static-checks 2>&1 | grep "warnings treated as errors"` should report **927**.
+- [X] T001 Sanity-verify the M1+M3 baseline is green inside `ghcr.io/koyamanx/nsl-nslc:dev`. Run `cmake --build build-Release-host && ctest --test-dir build-Release-host && cmake --build build-Release-host --target check-nslc`; expect 118/118 lit + 129/129 ctest passing on master HEAD `73e49ae`. Capture the `static-checks` warning count: `./scripts/ci.sh static-checks 2>&1 | grep "warnings treated as errors"` should report **927**.
 
 **Checkpoint**: Baseline counts captured. Every subsequent commit's metadata (per `contracts/cleanup-commit.contract.md`) cites the running total.
 
@@ -42,7 +42,7 @@ description: "Tasks for 004-clang-tidy-cleanup — retire CI static-checks debt"
 
 **⚠️ CRITICAL**: All Phase 3 user-story work depends on this phase being complete.
 
-- [ ] T002 Run `clang-format -i` across the entire source tree (`include/`, `lib/`, `tools/`, `test_unit/`, plus the relevant CMake support files if `.clang-format` covers them). Verify SPDX header preservation per FR-008 (`scripts/check_spdx.py --all` reports `295/0/128`). Run lit + ctest; expect GREEN. Commit per `contracts/cleanup-commit.contract.md` schema with `<scope>=tree`, `<category>=clang-format`, `<count>=325`.
+- [X] T002 Run `clang-format -i` across the entire source tree (`include/`, `lib/`, `tools/`, `test_unit/`, plus the relevant CMake support files if `.clang-format` covers them). Verify SPDX header preservation per FR-008 (`scripts/check_spdx.py --all` reports `295/0/128`). Run lit + ctest; expect GREEN. Commit per `contracts/cleanup-commit.contract.md` schema with `<scope>=tree`, `<category>=clang-format`, `<count>=325`.
 
 **Checkpoint**: Tree is canonically formatted. Subsequent per-category commits won't fight the formatter.
 

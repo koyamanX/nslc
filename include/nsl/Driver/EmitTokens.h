@@ -16,11 +16,11 @@
 #ifndef NSL_DRIVER_EMITTOKENS_H
 #define NSL_DRIVER_EMITTOKENS_H
 
-#include <string>
-#include <vector>
-
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
+
+#include <string>
+#include <vector>
 
 namespace nsl::driver {
 

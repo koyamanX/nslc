@@ -20,14 +20,14 @@
 
 #include "nsl/Basic/SourceLocation.h"
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/Support/raw_ostream.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/Support/raw_ostream.h"
 
 namespace nsl {
 

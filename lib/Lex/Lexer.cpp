@@ -23,21 +23,20 @@
 
 #include "nsl/Lex/Lexer.h"
 
+#include "NumberLiteral.h"
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Basic/SourceManager.h"
 #include "nsl/Lex/KeywordSet.h"
 #include "nsl/Lex/Token.h"
 
-#include "NumberLiteral.h"
+#include "llvm/ADT/StringRef.h"
 
 #include <cstdint>
 #include <cstring>
 #include <deque>
 #include <memory>
 #include <utility>
-
-#include "llvm/ADT/StringRef.h"
 
 namespace nsl {
 
@@ -51,7 +50,9 @@ bool isIdentBody(char c) {
   return isIdentStart(c) || (c >= '0' && c <= '9') || c == '_';
 }
 
-bool isDecDigit(char c) { return c >= '0' && c <= '9'; }
+bool isDecDigit(char c) {
+  return c >= '0' && c <= '9';
+}
 
 bool isWhitespace(char c) {
   return c == ' ' || c == '\t' || c == '\r' || c == '\n';
@@ -64,8 +65,8 @@ bool isWhitespace(char c) {
 TokenKind classifyUnderscoreName(llvm::StringRef text) {
   // (a) System tasks (statement position, `_NAME(...)` form).
   static constexpr const char *kTasks[] = {
-      "_display", "_monitor", "_write",    "_finish",  "_stop",
-      "_readmemh", "_readmemb", "_delay",  "_init",
+      "_display",  "_monitor",  "_write", "_finish", "_stop",
+      "_readmemh", "_readmemb", "_delay", "_init",
   };
   for (const char *t : kTasks) {
     if (text == llvm::StringRef(t)) {
@@ -194,8 +195,7 @@ public:
         // Unterminated: newline closes the string-scan attempt.
         // FR-037 / diagnostic-output.contract.md mandates this exact
         // message text.
-        diag.report(Severity::Error,
-                    SourceLocation::make(fid, begin),
+        diag.report(Severity::Error, SourceLocation::make(fid, begin),
                     "unterminated string literal");
         llvm::StringRef text = buf.substr(begin, cur - begin);
         return Token(TokenKind::tk_unknown, makeRange(begin, cur), text);
@@ -246,8 +246,8 @@ public:
                    buf.substr(begin, 1));
     }
     cur = r.end;
-    return Token(r.kind, makeRange(begin, cur),
-                 buf.substr(begin, cur - begin), r.flags);
+    return Token(r.kind, makeRange(begin, cur), buf.substr(begin, cur - begin),
+                 r.flags);
   }
 
   /// One- or two-character punctuation lookup. Caller has already

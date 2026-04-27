@@ -19,14 +19,14 @@
 
 #include "nsl/Basic/SourceLocation.h"
 
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ErrorOr.h"
+
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/ErrorOr.h"
 
 namespace nsl {
 
@@ -105,7 +105,8 @@ public:
   void addLineDirective(SourceLocation at, uint32_t virtual_line,
                         llvm::StringRef virtual_path);
 
-  // ------------------ Include-stack tracking (for diagnostics) ------------------
+  // ------------------ Include-stack tracking (for diagnostics)
+  // ------------------
 
   /// Push a new include frame. `include_directive_loc` is the
   /// `SourceLocation` of the `#include` directive that resolved to

@@ -11,10 +11,10 @@
 
 #include "nsl/Basic/SourceLocation.h"
 
+#include "llvm/ADT/StringRef.h"
+
 #include <string>
 #include <utility>
-
-#include "llvm/ADT/StringRef.h"
 
 namespace nsl::preprocess {
 

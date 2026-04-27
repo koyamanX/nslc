@@ -11,13 +11,13 @@
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Basic/SourceManager.h"
 
+#include "llvm/Support/raw_ostream.h"
+
+#include "gtest/gtest.h"
 #include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
-
-#include "gtest/gtest.h"
-#include "llvm/Support/raw_ostream.h"
 
 using nsl::DiagnosticEngine;
 using nsl::FileID;
@@ -59,7 +59,8 @@ TEST(DiagnosticEngineTextTest, EmitsCanonicalFormat) {
   std::string first_line;
   std::getline(lines, first_line);
 
-  EXPECT_TRUE(std::regex_match(first_line, line_regex)) << "first_line: " << first_line;
+  EXPECT_TRUE(std::regex_match(first_line, line_regex))
+      << "first_line: " << first_line;
   EXPECT_NE(first_line.find("a.nsl:2:1: error: unterminated string literal"),
             std::string::npos)
       << "first_line: " << first_line;

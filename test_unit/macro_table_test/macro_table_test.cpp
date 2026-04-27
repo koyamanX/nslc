@@ -45,33 +45,31 @@
 //     bool   contains(llvm::StringRef name) const;
 //     const MacroEntry* lookup(llvm::StringRef name) const;
 //     // Insertion-ordered iteration per FR-039.
-//     using const_iterator = /* MapVector<StringRef,MacroEntry>::const_iterator */;
-//     const_iterator begin() const;
-//     const_iterator end()   const;
-//     size_t size() const;
+//     using const_iterator = /* MapVector<StringRef,MacroEntry>::const_iterator
+//     */; const_iterator begin() const; const_iterator end()   const; size_t
+//     size() const;
 //   };
 //   } // namespace nsl
-
-#include "nsl/Preprocess/MacroTable.h"
 
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Basic/SourceManager.h"
+#include "nsl/Preprocess/MacroTable.h"
 
+#include "llvm/ADT/StringRef.h"
+
+#include "gtest/gtest.h"
 #include <algorithm>
 #include <string>
 #include <vector>
 
-#include "gtest/gtest.h"
-#include "llvm/ADT/StringRef.h"
-
 using nsl::DiagnosticEngine;
 using nsl::FileID;
-using nsl::preprocess::MacroTable;
+using nsl::Severity;
 using nsl::SourceLocation;
 using nsl::SourceManager;
 using nsl::SourceRange;
-using nsl::Severity;
+using nsl::preprocess::MacroTable;
 
 namespace {
 
@@ -155,7 +153,7 @@ TEST(MacroTableTest, UndefRemovesEntry) {
 
   mt.undef("A");
   EXPECT_FALSE(mt.defined("A"));
-  EXPECT_TRUE (mt.defined("B"));
+  EXPECT_TRUE(mt.defined("B"));
   EXPECT_EQ(mt.size(), 1u);
 }
 
@@ -281,11 +279,11 @@ TEST(MacroTableTest, PredefinedMacrosLandFirstInOrder) {
   MacroTable mt;
 
   // Step 1: simulate driver applying -D flags in order.
-  mt.insert("D1_FIRST",  "1", syntheticRange(sm, f));
+  mt.insert("D1_FIRST", "1", syntheticRange(sm, f));
   mt.insert("D2_SECOND", "2", syntheticRange(sm, f));
 
   // Step 2: simulate source #define directives.
-  mt.insert("SRC_FIRST",  "X", syntheticRange(sm, f));
+  mt.insert("SRC_FIRST", "X", syntheticRange(sm, f));
   mt.insert("SRC_SECOND", "Y", syntheticRange(sm, f));
 
   std::vector<std::string> seen;
@@ -310,14 +308,14 @@ TEST(MacroTableTest, LookupRejectsPrefixOnlyMatch) {
   FileID f = makeBuf(sm);
   MacroTable mt;
 
-  mt.insert("FOO",     "1", syntheticRange(sm, f));
+  mt.insert("FOO", "1", syntheticRange(sm, f));
   mt.insert("FOO_BAR", "2", syntheticRange(sm, f));
 
-  EXPECT_NE(mt.lookup("FOO"),     nullptr);
+  EXPECT_NE(mt.lookup("FOO"), nullptr);
   EXPECT_NE(mt.lookup("FOO_BAR"), nullptr);
   EXPECT_EQ(mt.lookup("FOO_BAZ"), nullptr);
-  EXPECT_EQ(mt.lookup("FO"),      nullptr);
-  EXPECT_EQ(mt.lookup(""),        nullptr);
+  EXPECT_EQ(mt.lookup("FO"), nullptr);
+  EXPECT_EQ(mt.lookup(""), nullptr);
 }
 
 } // namespace

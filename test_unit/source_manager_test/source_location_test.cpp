@@ -9,9 +9,8 @@
 
 #include "nsl/Basic/SourceLocation.h"
 
-#include <cstdint>
-
 #include "gtest/gtest.h"
+#include <cstdint>
 
 using nsl::FileID;
 using nsl::SourceLocation;
@@ -135,14 +134,24 @@ TEST(SourceRangeDeathTest, RejectsCrossFileEndpoints) {
   FileID f2(2);
   SourceLocation a = SourceLocation::make(f1, 0);
   SourceLocation b = SourceLocation::make(f2, 0);
-  EXPECT_DEATH({ SourceRange r(a, b); (void)r; }, ".*");
+  EXPECT_DEATH(
+      {
+        SourceRange r(a, b);
+        (void)r;
+      },
+      ".*");
 }
 
 TEST(SourceRangeDeathTest, RejectsBeginAfterEnd) {
   FileID fid(1);
   SourceLocation a = SourceLocation::make(fid, 100);
   SourceLocation b = SourceLocation::make(fid, 50);
-  EXPECT_DEATH({ SourceRange r(a, b); (void)r; }, ".*");
+  EXPECT_DEATH(
+      {
+        SourceRange r(a, b);
+        (void)r;
+      },
+      ".*");
 }
 
 TEST(SourceRangeTest, InvalidIfEitherEndpointInvalid) {

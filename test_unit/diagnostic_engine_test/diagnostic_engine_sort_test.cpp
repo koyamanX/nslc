@@ -10,11 +10,11 @@
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Basic/SourceManager.h"
 
-#include <string>
-#include <vector>
+#include "llvm/Support/raw_ostream.h"
 
 #include "gtest/gtest.h"
-#include "llvm/Support/raw_ostream.h"
+#include <string>
+#include <vector>
 
 using nsl::DiagnosticEngine;
 using nsl::FileID;
@@ -42,8 +42,8 @@ std::string render(DiagnosticEngine &diag, DiagnosticEngine::Format fmt) {
 
 TEST(DiagnosticEngineSortTest, SortsByLocationAtRenderTime) {
   SourceManager sm;
-  FileID fid = sm.addBufferInMemory("s.nsl",
-                                    bytesOf("aaaa\nbbbb\ncccc\ndddd\neeee\n"));
+  FileID fid =
+      sm.addBufferInMemory("s.nsl", bytesOf("aaaa\nbbbb\ncccc\ndddd\neeee\n"));
   DiagnosticEngine diag(sm);
 
   // Emit out of order: B, A, C (B first, then earlier A, then later C).
@@ -65,8 +65,7 @@ TEST(DiagnosticEngineSortTest, SortsByLocationAtRenderTime) {
 
 TEST(DiagnosticEngineSortTest, RenderAllIsIdempotent) {
   SourceManager sm;
-  FileID fid = sm.addBufferInMemory("s.nsl",
-                                    bytesOf("aa\nbb\ncc\ndd\nee\n"));
+  FileID fid = sm.addBufferInMemory("s.nsl", bytesOf("aa\nbb\ncc\ndd\nee\n"));
   DiagnosticEngine diag(sm);
   diag.report(Severity::Error, SourceLocation::make(fid, 3), "X");
   diag.report(Severity::Warning, SourceLocation::make(fid, 0), "Y");

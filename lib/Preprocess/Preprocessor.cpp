@@ -27,14 +27,17 @@
 #include "nsl/Preprocess/Preprocessor.h"
 
 #include "DirectiveParser.h"
-#include "nsl/Preprocess/HelperEvaluator.h"
 #include "IdentSplicer.h"
-#include "nsl/Preprocess/MacroTable.h"
 #include "PPExpression.h"
-
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Basic/SourceManager.h"
+#include "nsl/Preprocess/HelperEvaluator.h"
+#include "nsl/Preprocess/MacroTable.h"
+
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ErrorOr.h"
 
 #include <cassert>
 #include <cstddef>
@@ -47,10 +50,6 @@
 #include <system_error>
 #include <utility>
 #include <vector>
-
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/ErrorOr.h"
 
 namespace nsl::preprocess {
 
@@ -187,8 +186,8 @@ public:
     /// We rebuild on each frame so an `#if` started in one file
     /// can't span an `#include`.
     struct CondFrame {
-      bool currently_emitting;       ///< Are we in the active branch?
-      bool any_branch_taken;         ///< Has any branch in this if/else been emitted?
+      bool currently_emitting; ///< Are we in the active branch?
+      bool any_branch_taken;   ///< Has any branch in this if/else been emitted?
       /// True iff this is an `#if 0` style frame whose lexically
       /// enclosing branch was not emitting (suppression cascades).
       bool parent_suppressed;
@@ -228,10 +227,9 @@ public:
   /// SourceLocation for a given byte offset within the active frame.
   SourceLocation locFor(const Frame &f, std::size_t offset) const {
     return SourceLocation::make(
-        f.fid, static_cast<uint32_t>(
-                   offset >= SourceLocation::kMaxOffset
-                       ? SourceLocation::kMaxOffset - 1
-                       : offset));
+        f.fid, static_cast<uint32_t>(offset >= SourceLocation::kMaxOffset
+                                         ? SourceLocation::kMaxOffset - 1
+                                         : offset));
   }
 
   // -------------------------------------------------------------------------
@@ -256,7 +254,8 @@ public:
   }
 
   void emitLineForFrame(const Frame &f) {
-    emitLineDirective(static_cast<uint32_t>(f.physical_line), sm.getPath(f.fid));
+    emitLineDirective(static_cast<uint32_t>(f.physical_line),
+                      sm.getPath(f.fid));
   }
 
   // -------------------------------------------------------------------------
@@ -494,9 +493,9 @@ public:
     }
     // Resolve via search path.
     llvm::ErrorOr<std::string> resolved =
-        d.include_is_angle ? search.findAngle(d.include_filename)
-                           : search.findQuote(d.include_filename,
-                                              dirOf(sm.getPath(f.fid)));
+        d.include_is_angle
+            ? search.findAngle(d.include_filename)
+            : search.findQuote(d.include_filename, dirOf(sm.getPath(f.fid)));
     if (!resolved) {
       diag.report(Severity::Error, locFor(f, d.line_begin_offset),
                   "could not find include: '" + d.include_filename + "'");
@@ -599,9 +598,8 @@ public:
       std::size_t this_line_phys = f.physical_line;
       ++f.physical_line;
 
-      ParsedDirective pd =
-          classifyLine(line, static_cast<uint32_t>(line_begin),
-                       static_cast<uint32_t>(line_end));
+      ParsedDirective pd = classifyLine(line, static_cast<uint32_t>(line_begin),
+                                        static_cast<uint32_t>(line_end));
 
       // Conditional gating: directives ALWAYS run (we need #else /
       // #endif even inside a suppressed branch); passthrough lines
@@ -625,8 +623,8 @@ public:
           output += term;
           break;
         }
-        std::string spliced = splicer.splice(
-            line, locFor(f, static_cast<uint32_t>(line_begin)));
+        std::string spliced =
+            splicer.splice(line, locFor(f, static_cast<uint32_t>(line_begin)));
         // P12 boundary check: the helper-evaluator shouldn't be
         // reachable on passthrough lines (per P6 helpers are only
         // valid inside #define / #if). Detect a residue helper call
@@ -771,13 +769,14 @@ public:
         while (j < text.size() && (text[j] == ' ' || text[j] == '\t')) {
           ++j;
         }
-        if (j < text.size() && text[j] == '(' && lookupHelper(name, nullptr, nullptr)) {
+        if (j < text.size() && text[j] == '(' &&
+            lookupHelper(name, nullptr, nullptr)) {
           // FR-037 locked diagnostic.
           std::string msg = "compile-time helper '";
           msg += name.str();
           msg += "' used outside #define / #if condition";
-          diag.report(Severity::Error,
-                      locFor(f, line_offset_in_buffer + b), msg);
+          diag.report(Severity::Error, locFor(f, line_offset_in_buffer + b),
+                      msg);
         }
         continue;
       }
@@ -866,8 +865,7 @@ public:
           }
         }
         if (is_float) {
-          diag.report(Severity::Error,
-                      locFor(f, line_offset_in_buffer + b),
+          diag.report(Severity::Error, locFor(f, line_offset_in_buffer + b),
                       "float literal cannot cross the preprocessor seam");
         }
         continue;
@@ -882,8 +880,7 @@ public:
 // -----------------------------------------------------------------------------
 
 Preprocessor::Preprocessor(
-    SourceManager &sm, DiagnosticEngine &diag,
-    const IncludeSearchPath &search,
+    SourceManager &sm, DiagnosticEngine &diag, const IncludeSearchPath &search,
     llvm::ArrayRef<std::pair<std::string, std::string>> predefined_macros)
     : impl_(std::make_unique<Impl>(sm, diag, search, predefined_macros)) {}
 

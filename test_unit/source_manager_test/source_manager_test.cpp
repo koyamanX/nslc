@@ -7,17 +7,17 @@
 // `specs/002-m1-lex-preprocess/data-model.md`. Authored RED before
 // `include/nsl/Basic/SourceManager.h` exists.
 
-#include "nsl/Basic/SourceManager.h"
 #include "nsl/Basic/SourceLocation.h"
+#include "nsl/Basic/SourceManager.h"
 
+#include "llvm/Support/ErrorOr.h"
+#include "llvm/Support/raw_ostream.h"
+
+#include "gtest/gtest.h"
 #include <cstdio>
 #include <fstream>
 #include <string>
 #include <vector>
-
-#include "gtest/gtest.h"
-#include "llvm/Support/ErrorOr.h"
-#include "llvm/Support/raw_ostream.h"
 
 using nsl::FileID;
 using nsl::SourceLocation;
@@ -131,8 +131,7 @@ TEST_F(SourceManagerTest, AddLineDirectiveAndResolveVirtual) {
 }
 
 TEST_F(SourceManagerTest, AddLineDirectiveReusesPathOnEmptyArg) {
-  FileID fid = sm.addBufferInMemory("/virt/a.nsl",
-                                    bytesOf("a\nb\nc\nd\n"));
+  FileID fid = sm.addBufferInMemory("/virt/a.nsl", bytesOf("a\nb\nc\nd\n"));
   // Empty virtual_path = reuse current path.
   sm.addLineDirective(SourceLocation::make(fid, 2), 50, "");
   auto v = sm.resolveVirtual(SourceLocation::make(fid, 2));
@@ -142,21 +141,20 @@ TEST_F(SourceManagerTest, AddLineDirectiveReusesPathOnEmptyArg) {
 
 TEST(SourceManagerDeathTest, AddLineDirectiveRequiresStrictlyIncreasingOffset) {
   SourceManager sm;
-  FileID fid = sm.addBufferInMemory("/virt/a.nsl",
-                                    bytesOf("a\nb\nc\nd\n"));
+  FileID fid = sm.addBufferInMemory("/virt/a.nsl", bytesOf("a\nb\nc\nd\n"));
   sm.addLineDirective(SourceLocation::make(fid, 2), 100, "x.v");
   // Re-inserting at the same or lower offset must abort.
-  EXPECT_DEATH({ sm.addLineDirective(SourceLocation::make(fid, 2), 200, "y.v"); },
-               ".*");
-  EXPECT_DEATH({ sm.addLineDirective(SourceLocation::make(fid, 1), 200, "y.v"); },
-               ".*");
+  EXPECT_DEATH(
+      { sm.addLineDirective(SourceLocation::make(fid, 2), 200, "y.v"); }, ".*");
+  EXPECT_DEATH(
+      { sm.addLineDirective(SourceLocation::make(fid, 1), 200, "y.v"); }, ".*");
 }
 
 TEST_F(SourceManagerTest, IncludeStackPushPopOrder) {
-  FileID outer = sm.addBufferInMemory("/virt/outer.nsl",
-                                      bytesOf("#include \"middle\"\n"));
-  FileID middle = sm.addBufferInMemory("/virt/middle.nsl",
-                                       bytesOf("#include \"inner\"\n"));
+  FileID outer =
+      sm.addBufferInMemory("/virt/outer.nsl", bytesOf("#include \"middle\"\n"));
+  FileID middle =
+      sm.addBufferInMemory("/virt/middle.nsl", bytesOf("#include \"inner\"\n"));
   FileID inner = sm.addBufferInMemory("/virt/inner.nsl", bytesOf("err\n"));
 
   // outer at offset 0 directly includes middle.
@@ -202,7 +200,8 @@ TEST_F(SourceManagerTest, LoadFileIdempotent) {
 }
 
 TEST_F(SourceManagerTest, LoadFileMissingReturnsError) {
-  llvm::ErrorOr<FileID> r = sm.loadFile("/no/such/path/please/nslc/missing.nsl");
+  llvm::ErrorOr<FileID> r =
+      sm.loadFile("/no/such/path/please/nslc/missing.nsl");
   EXPECT_FALSE(static_cast<bool>(r));
 }
 

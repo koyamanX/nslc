@@ -35,15 +35,15 @@
 #include "nsl/Lex/Token.h"
 #include "nsl/Preprocess/Preprocessor.h"
 
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ErrorOr.h"
+#include "llvm/Support/raw_ostream.h"
+
 #include <cstdint>
 #include <string>
 #include <system_error>
 #include <utility>
 #include <vector>
-
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/ErrorOr.h"
-#include "llvm/Support/raw_ostream.h"
 
 namespace nsl::driver {
 
@@ -152,9 +152,8 @@ int emitTokens(llvm::StringRef input_path, const EmitTokensOptions &opts,
   // If preprocessing errored (or yielded an error result), surface
   // diagnostics and return 1.
   if (diag.hasError() || !pp_out) {
-    diag.renderAll(err, opts.diagnostic_json
-                            ? DiagnosticEngine::Format::JSON
-                            : DiagnosticEngine::Format::Text);
+    diag.renderAll(err, opts.diagnostic_json ? DiagnosticEngine::Format::JSON
+                                             : DiagnosticEngine::Format::Text);
     return 1;
   }
 
@@ -229,8 +228,7 @@ int emitTokens(llvm::StringRef input_path, const EmitTokensOptions &opts,
       // means the line AFTER the directive is `synth.v:100`.
       uint32_t at_off = static_cast<uint32_t>(off);
       sm.addLineDirective(SourceLocation::make(synth_fid, at_off),
-                          static_cast<uint32_t>(ln),
-                          llvm::StringRef(vpath));
+                          static_cast<uint32_t>(ln), llvm::StringRef(vpath));
     }
   }
 
@@ -248,9 +246,8 @@ int emitTokens(llvm::StringRef input_path, const EmitTokensOptions &opts,
   }
 
   if (diag.hasError()) {
-    diag.renderAll(err, opts.diagnostic_json
-                            ? DiagnosticEngine::Format::JSON
-                            : DiagnosticEngine::Format::Text);
+    diag.renderAll(err, opts.diagnostic_json ? DiagnosticEngine::Format::JSON
+                                             : DiagnosticEngine::Format::Text);
     return 1;
   }
 
@@ -268,9 +265,8 @@ int emitTokens(llvm::StringRef input_path, const EmitTokensOptions &opts,
   // Even on success we render any non-error diagnostics (warnings /
   // notes) to stderr; routing matches diagnostic-output.contract.md.
   if (diag.numWarnings() > 0) {
-    diag.renderAll(err, opts.diagnostic_json
-                            ? DiagnosticEngine::Format::JSON
-                            : DiagnosticEngine::Format::Text);
+    diag.renderAll(err, opts.diagnostic_json ? DiagnosticEngine::Format::JSON
+                                             : DiagnosticEngine::Format::Text);
   }
   return 0;
 }

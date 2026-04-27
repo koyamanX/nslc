@@ -8,17 +8,19 @@
 
 #include "nsl/Basic/SourceLocation.h"
 
+#include "llvm/ADT/StringRef.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <string>
-
-#include "llvm/ADT/StringRef.h"
 
 namespace nsl::preprocess {
 
 namespace {
 
-bool isWS(char c) { return c == ' ' || c == '\t'; }
+bool isWS(char c) {
+  return c == ' ' || c == '\t';
+}
 bool isIdentStart(char c) {
   return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_';
 }
@@ -131,9 +133,8 @@ ParsedDirective classifyLine(llvm::StringRef line, uint32_t line_begin,
     d.body = line.substr(j).str();
     // Trim trailing whitespace off the body (including any '\r' for
     // CRLF safety).
-    while (!d.body.empty() &&
-           (d.body.back() == ' ' || d.body.back() == '\t' ||
-            d.body.back() == '\r')) {
+    while (!d.body.empty() && (d.body.back() == ' ' || d.body.back() == '\t' ||
+                               d.body.back() == '\r')) {
       d.body.pop_back();
     }
     return d;

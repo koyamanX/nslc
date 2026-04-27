@@ -18,15 +18,14 @@
 #ifndef NSL_LIB_PREPROCESS_IDENTSPLICER_H
 #define NSL_LIB_PREPROCESS_IDENTSPLICER_H
 
-#include "nsl/Preprocess/MacroTable.h"
 #include "PPExpression.h"
-
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
-
-#include <string>
+#include "nsl/Preprocess/MacroTable.h"
 
 #include "llvm/ADT/StringRef.h"
+
+#include <string>
 
 namespace nsl::preprocess {
 

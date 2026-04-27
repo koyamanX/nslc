@@ -35,7 +35,8 @@ namespace nsl::basic::detail {
 #define NSL_ABORT(cond, msg)                                                   \
   do {                                                                         \
     if (!(cond)) {                                                             \
-      ::nsl::basic::detail::abortWithMessage(#cond, __FILE__, __LINE__, (msg));\
+      ::nsl::basic::detail::abortWithMessage(#cond, __FILE__, __LINE__,        \
+                                             (msg));                           \
     }                                                                          \
   } while (false)
 

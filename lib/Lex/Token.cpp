@@ -39,7 +39,7 @@ llvm::StringRef toString(TokenKind k) {
   case TokenKind::tk_unused_underscore:
     return "tk_unused_underscore";
 
-  // Reserved keywords from KeywordSet.def — single source of truth.
+    // Reserved keywords from KeywordSet.def — single source of truth.
 #define KEYWORD(name, spelling)                                                \
   case TokenKind::tk_##name:                                                   \
     return "tk_" #name;

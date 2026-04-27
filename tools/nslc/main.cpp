@@ -6,10 +6,10 @@
 #include "nsl/Driver/EmitTokens.h"
 #include "nsl/Driver/Version.h"
 
-#include <cstring>
-
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
+
+#include <cstring>
 
 namespace {
 constexpr const char *kUsage =

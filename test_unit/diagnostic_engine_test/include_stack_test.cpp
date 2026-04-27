@@ -12,11 +12,11 @@
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Basic/SourceManager.h"
 
-#include <string>
-#include <vector>
+#include "llvm/Support/raw_ostream.h"
 
 #include "gtest/gtest.h"
-#include "llvm/Support/raw_ostream.h"
+#include <string>
+#include <vector>
 
 using nsl::DiagnosticEngine;
 using nsl::FileID;

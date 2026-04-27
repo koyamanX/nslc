@@ -121,9 +121,7 @@ public:
   SourceLocation end() const noexcept { return end_; }
 
   /// Length in bytes (0 for an empty range).
-  uint32_t length() const noexcept {
-    return end_.offset() - begin_.offset();
-  }
+  uint32_t length() const noexcept { return end_.offset() - begin_.offset(); }
 
   /// True iff `loc` is `>= begin()` and `< end()` and lives in the
   /// same `FileID`.
@@ -139,9 +137,7 @@ public:
 
   /// True iff both endpoints are valid (and, by construction, live
   /// in the same file).
-  bool isValid() const noexcept {
-    return begin_.isValid() && end_.isValid();
-  }
+  bool isValid() const noexcept { return begin_.isValid() && end_.isValid(); }
 
 private:
   SourceLocation begin_;

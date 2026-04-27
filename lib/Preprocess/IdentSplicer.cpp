@@ -12,15 +12,14 @@
 
 #include "IdentSplicer.h"
 
-#include "nsl/Preprocess/MacroTable.h"
-
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
+#include "nsl/Preprocess/MacroTable.h"
+
+#include "llvm/ADT/StringRef.h"
 
 #include <cstdint>
 #include <string>
-
-#include "llvm/ADT/StringRef.h"
 
 namespace nsl::preprocess {
 
@@ -88,8 +87,7 @@ std::string IdentSplicer::splice(llvm::StringRef line,
       out.push_back(c);
       out.push_back('*');
       i += 2;
-      while (i + 1 < line.size() &&
-             !(line[i] == '*' && line[i + 1] == '/')) {
+      while (i + 1 < line.size() && !(line[i] == '*' && line[i + 1] == '/')) {
         out.push_back(line[i]);
         ++i;
       }
@@ -140,8 +138,7 @@ std::string IdentSplicer::splice(llvm::StringRef line,
                     needs_reduction = true;
                     break;
                   }
-                  if (!((c >= 'a' && c <= 'z') ||
-                        (c >= 'A' && c <= 'Z') ||
+                  if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
                         (c >= '0' && c <= '9') || c == '_')) {
                     break;
                   }

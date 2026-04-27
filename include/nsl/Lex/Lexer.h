@@ -30,11 +30,11 @@
 #include "nsl/Basic/SourceManager.h"
 #include "nsl/Lex/Token.h"
 
+#include "llvm/ADT/StringRef.h"
+
 #include <cstdint>
 #include <deque>
 #include <memory>
-
-#include "llvm/ADT/StringRef.h"
 
 namespace nsl {
 

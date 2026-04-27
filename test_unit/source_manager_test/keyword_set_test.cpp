@@ -26,16 +26,16 @@
 //     empty-string keyword in `lang.ebnf §15`, so the recognizer
 //     must fall through to the identifier default.
 
-#include "nsl/Lex/Token.h"
 #include "nsl/Lex/KeywordSet.h"
+#include "nsl/Lex/Token.h"
 
-#include <string>
-
-#include "gtest/gtest.h"
 #include "llvm/ADT/StringRef.h"
 
-using nsl::TokenKind;
+#include "gtest/gtest.h"
+#include <string>
+
 using nsl::classifyKeyword;
+using nsl::TokenKind;
 
 namespace {
 
@@ -48,9 +48,9 @@ namespace {
 // macro here lets us iterate every entry without hand-listing 42 of
 // them; if the .def grows or shrinks, this suite tracks automatically.
 
-TEST(KeywordSetTest, EveryEntryResolvesToItsKeywordKind) {
-#define KEYWORD(name, spelling) \
-  EXPECT_EQ(classifyKeyword(llvm::StringRef(spelling)), TokenKind::tk_##name) \
+TEST(KeywordSetTest, EveryEntryResolvesToItsKeywordKind){
+#define KEYWORD(name, spelling)                                                \
+  EXPECT_EQ(classifyKeyword(llvm::StringRef(spelling)), TokenKind::tk_##name)  \
       << "spelling=\"" << spelling << "\" expected tk_" #name;
 #include "nsl/Lex/KeywordSet.def"
 #undef KEYWORD
@@ -85,8 +85,7 @@ TEST(KeywordSetTest, PrefixIsNotEquality_state2) {
 
 TEST(KeywordSetTest, SuffixIsNotEquality_xreg) {
   // Identifier ENDING with a keyword text — also a plain identifier.
-  EXPECT_EQ(classifyKeyword(llvm::StringRef("xreg")),
-            TokenKind::tk_identifier);
+  EXPECT_EQ(classifyKeyword(llvm::StringRef("xreg")), TokenKind::tk_identifier);
 }
 
 // -----------------------------------------------------------------------------
@@ -96,8 +95,7 @@ TEST(KeywordSetTest, SuffixIsNotEquality_xreg) {
 // -----------------------------------------------------------------------------
 
 TEST(KeywordSetTest, ExactMatch_module) {
-  EXPECT_EQ(classifyKeyword(llvm::StringRef("module")),
-            TokenKind::tk_module);
+  EXPECT_EQ(classifyKeyword(llvm::StringRef("module")), TokenKind::tk_module);
 }
 
 TEST(KeywordSetTest, ExactMatch_if_uses_trailing_underscore_enum) {
@@ -109,8 +107,7 @@ TEST(KeywordSetTest, ExactMatch_if_uses_trailing_underscore_enum) {
 TEST(KeywordSetTest, ExactMatch_function_synonym_of_func) {
   // S26: `func` ≡ `function`. The lexer classifies them as DISTINCT
   // kinds (`tk_func` vs `tk_function`); sema collapses the synonym.
-  EXPECT_EQ(classifyKeyword(llvm::StringRef("func")),
-            TokenKind::tk_func);
+  EXPECT_EQ(classifyKeyword(llvm::StringRef("func")), TokenKind::tk_func);
   EXPECT_EQ(classifyKeyword(llvm::StringRef("function")),
             TokenKind::tk_function);
 }
@@ -120,8 +117,7 @@ TEST(KeywordSetTest, ExactMatch_function_synonym_of_func) {
 // -----------------------------------------------------------------------------
 
 TEST(KeywordSetTest, EmptyStringIsIdentifier) {
-  EXPECT_EQ(classifyKeyword(llvm::StringRef("")),
-            TokenKind::tk_identifier);
+  EXPECT_EQ(classifyKeyword(llvm::StringRef("")), TokenKind::tk_identifier);
 }
 
 // -----------------------------------------------------------------------------

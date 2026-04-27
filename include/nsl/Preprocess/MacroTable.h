@@ -19,12 +19,12 @@
 
 #include "nsl/Basic/SourceLocation.h"
 
-#include <map>
-#include <string>
-
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+
+#include <map>
+#include <string>
 
 namespace nsl::preprocess {
 

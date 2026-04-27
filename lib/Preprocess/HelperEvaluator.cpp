@@ -11,6 +11,9 @@
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringRef.h"
+
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -19,9 +22,6 @@
 #include <string>
 #include <utility>
 #include <variant>
-
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/StringRef.h"
 
 namespace nsl::preprocess {
 
@@ -118,7 +118,8 @@ constexpr std::size_t kHelperCount = sizeof(kHelpers) / sizeof(kHelpers[0]);
 
 } // namespace
 
-bool lookupHelper(llvm::StringRef name, int *out_arity, bool *out_returns_real) {
+bool lookupHelper(llvm::StringRef name, int *out_arity,
+                  bool *out_returns_real) {
   for (std::size_t i = 0; i < kHelperCount; ++i) {
     if (name == llvm::StringRef(kHelpers[i].name)) {
       if (out_arity) {
@@ -299,8 +300,7 @@ PPValue HelperEvaluator::evalMax(PPValue a, PPValue b) {
 // -----------------------------------------------------------------------------
 
 PPValue HelperEvaluator::invoke(llvm::StringRef name,
-                                llvm::ArrayRef<PPValue> args,
-                                SourceRange loc) {
+                                llvm::ArrayRef<PPValue> args, SourceRange loc) {
   // Single-arg helpers.
   auto unary = [&](PPValue (HelperEvaluator::*fn)(PPValue)) {
     return (this->*fn)(args[0]);

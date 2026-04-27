@@ -8,16 +8,18 @@
 
 #include "nsl/Lex/Token.h"
 
-#include <cstdint>
-
 #include "llvm/ADT/StringRef.h"
+
+#include <cstdint>
 
 namespace nsl::detail {
 
 namespace {
 
 /// True iff `c` is a base-10 digit.
-bool isDecDigit(char c) { return c >= '0' && c <= '9'; }
+bool isDecDigit(char c) {
+  return c >= '0' && c <= '9';
+}
 
 /// True iff `c` is a base-16 digit (0-9, a-f, A-F).
 bool isHexDigit(char c) {

@@ -52,28 +52,27 @@
 //   };
 //   } // namespace nsl
 
-#include "nsl/Preprocess/HelperEvaluator.h"
-
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Basic/SourceManager.h"
+#include "nsl/Preprocess/HelperEvaluator.h"
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringRef.h"
+
+#include "gtest/gtest.h"
 #include <cmath>
 #include <cstdint>
 #include <string>
 #include <vector>
 
-#include "gtest/gtest.h"
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/StringRef.h"
-
 using nsl::DiagnosticEngine;
 using nsl::FileID;
-using nsl::preprocess::HelperEvaluator;
-using nsl::preprocess::PPValue;
 using nsl::Severity;
 using nsl::SourceLocation;
 using nsl::SourceManager;
+using nsl::preprocess::HelperEvaluator;
+using nsl::preprocess::PPValue;
 
 namespace {
 
@@ -91,8 +90,12 @@ nsl::SourceRange syntheticLoc(SourceManager &sm, FileID f) {
 }
 
 // Convenience constructors for the failsoft tests below.
-PPValue I(int64_t v)     { return PPValue(v); }
-PPValue R(long double v) { return PPValue(v); }
+PPValue I(int64_t v) {
+  return PPValue(v);
+}
+PPValue R(long double v) {
+  return PPValue(v);
+}
 
 // True iff diag has at least one error-severity diagnostic whose
 // message contains `needle`. (The exact wording per research §10 is
@@ -116,17 +119,15 @@ bool hasError(const DiagnosticEngine &diag, llvm::StringRef needle) {
                                     long double eps = 1e-12L) {
   if (!got.isReal()) {
     return ::testing::AssertionFailure()
-           << "expected real-valued PPValue; got integer "
-           << got.toInt();
+           << "expected real-valued PPValue; got integer " << got.toInt();
   }
   long double g = got.toReal();
   long double diff = fabsl(g - want);
   if (diff > eps) {
     return ::testing::AssertionFailure()
            << "real value " << static_cast<double>(g) << " differs from "
-           << static_cast<double>(want) << " by "
-           << static_cast<double>(diff) << " (> " << static_cast<double>(eps)
-           << ")";
+           << static_cast<double>(want) << " by " << static_cast<double>(diff)
+           << " (> " << static_cast<double>(eps) << ")";
   }
   return ::testing::AssertionSuccess();
 }
@@ -136,11 +137,12 @@ bool hasError(const DiagnosticEngine &diag, llvm::StringRef needle) {
 // =============================================================
 
 TEST(HelperEvaluatorTest, IntCoercesRealToInteger_TruncTowardZero) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r1 = h.invoke("_int", {R(2.7L)},  syntheticLoc(sm, f));
+  PPValue r1 = h.invoke("_int", {R(2.7L)}, syntheticLoc(sm, f));
   ASSERT_TRUE(r1.isInt());
   EXPECT_EQ(r1.toInt(), 2);
 
@@ -151,7 +153,8 @@ TEST(HelperEvaluatorTest, IntCoercesRealToInteger_TruncTowardZero) {
 }
 
 TEST(HelperEvaluatorTest, IntPassesIntegerThrough) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -161,7 +164,8 @@ TEST(HelperEvaluatorTest, IntPassesIntegerThrough) {
 }
 
 TEST(HelperEvaluatorTest, RealWidensIntegerToReal) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -171,7 +175,8 @@ TEST(HelperEvaluatorTest, RealWidensIntegerToReal) {
 }
 
 TEST(HelperEvaluatorTest, RealPassesRealThrough) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -184,7 +189,8 @@ TEST(HelperEvaluatorTest, RealPassesRealThrough) {
 // =============================================================
 
 TEST(HelperEvaluatorTest, PowBasic) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -193,7 +199,8 @@ TEST(HelperEvaluatorTest, PowBasic) {
 }
 
 TEST(HelperEvaluatorTest, PowIntegerArgsWiden) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -202,7 +209,8 @@ TEST(HelperEvaluatorTest, PowIntegerArgsWiden) {
 }
 
 TEST(HelperEvaluatorTest, SqrtBasic) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -211,7 +219,8 @@ TEST(HelperEvaluatorTest, SqrtBasic) {
 }
 
 TEST(HelperEvaluatorTest, SqrtNegativeIsDomainError_FailsoftZero) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -228,7 +237,8 @@ TEST(HelperEvaluatorTest, SqrtNegativeIsDomainError_FailsoftZero) {
 // =============================================================
 
 TEST(HelperEvaluatorTest, SinZero) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -237,7 +247,8 @@ TEST(HelperEvaluatorTest, SinZero) {
 }
 
 TEST(HelperEvaluatorTest, CosZero) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -246,7 +257,8 @@ TEST(HelperEvaluatorTest, CosZero) {
 }
 
 TEST(HelperEvaluatorTest, TanZero) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -259,7 +271,8 @@ TEST(HelperEvaluatorTest, TanZero) {
 // =============================================================
 
 TEST(HelperEvaluatorTest, AsinZero) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -268,7 +281,8 @@ TEST(HelperEvaluatorTest, AsinZero) {
 }
 
 TEST(HelperEvaluatorTest, AsinOutOfRangeIsDomainError_FailsoftZero) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -280,7 +294,8 @@ TEST(HelperEvaluatorTest, AsinOutOfRangeIsDomainError_FailsoftZero) {
 }
 
 TEST(HelperEvaluatorTest, AcosOne) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -289,7 +304,8 @@ TEST(HelperEvaluatorTest, AcosOne) {
 }
 
 TEST(HelperEvaluatorTest, AcosOutOfRangeIsDomainError_FailsoftZero) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -300,7 +316,8 @@ TEST(HelperEvaluatorTest, AcosOutOfRangeIsDomainError_FailsoftZero) {
 }
 
 TEST(HelperEvaluatorTest, AtanZero) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -313,7 +330,8 @@ TEST(HelperEvaluatorTest, AtanZero) {
 // =============================================================
 
 TEST(HelperEvaluatorTest, SinhZero) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -322,7 +340,8 @@ TEST(HelperEvaluatorTest, SinhZero) {
 }
 
 TEST(HelperEvaluatorTest, CoshZero) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -331,7 +350,8 @@ TEST(HelperEvaluatorTest, CoshZero) {
 }
 
 TEST(HelperEvaluatorTest, TanhZero) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -344,7 +364,8 @@ TEST(HelperEvaluatorTest, TanhZero) {
 // =============================================================
 
 TEST(HelperEvaluatorTest, LogOneIsZero) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -353,7 +374,8 @@ TEST(HelperEvaluatorTest, LogOneIsZero) {
 }
 
 TEST(HelperEvaluatorTest, LogZeroIsDomainError_FailsoftZero) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -365,7 +387,8 @@ TEST(HelperEvaluatorTest, LogZeroIsDomainError_FailsoftZero) {
 }
 
 TEST(HelperEvaluatorTest, LogNegativeIsDomainError_FailsoftZero) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -376,7 +399,8 @@ TEST(HelperEvaluatorTest, LogNegativeIsDomainError_FailsoftZero) {
 }
 
 TEST(HelperEvaluatorTest, Log10TenIsOne) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -385,7 +409,8 @@ TEST(HelperEvaluatorTest, Log10TenIsOne) {
 }
 
 TEST(HelperEvaluatorTest, Log10ZeroIsDomainError_FailsoftZero) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -396,7 +421,8 @@ TEST(HelperEvaluatorTest, Log10ZeroIsDomainError_FailsoftZero) {
 }
 
 TEST(HelperEvaluatorTest, ExpZero) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -409,7 +435,8 @@ TEST(HelperEvaluatorTest, ExpZero) {
 // =============================================================
 
 TEST(HelperEvaluatorTest, FloorPositiveFractional) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -418,7 +445,8 @@ TEST(HelperEvaluatorTest, FloorPositiveFractional) {
 }
 
 TEST(HelperEvaluatorTest, FloorNegativeFractional) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -427,7 +455,8 @@ TEST(HelperEvaluatorTest, FloorNegativeFractional) {
 }
 
 TEST(HelperEvaluatorTest, CeilPositiveFractional) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -436,7 +465,8 @@ TEST(HelperEvaluatorTest, CeilPositiveFractional) {
 }
 
 TEST(HelperEvaluatorTest, CeilNegativeFractional) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -445,7 +475,8 @@ TEST(HelperEvaluatorTest, CeilNegativeFractional) {
 }
 
 TEST(HelperEvaluatorTest, RoundHalfPositive) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -462,7 +493,8 @@ TEST(HelperEvaluatorTest, RoundHalfPositive) {
 //  integer; mixed inputs widen to real."
 
 TEST(HelperEvaluatorTest, AbsIntegerStaysInteger) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -472,7 +504,8 @@ TEST(HelperEvaluatorTest, AbsIntegerStaysInteger) {
 }
 
 TEST(HelperEvaluatorTest, AbsRealStaysReal) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -481,7 +514,8 @@ TEST(HelperEvaluatorTest, AbsRealStaysReal) {
 }
 
 TEST(HelperEvaluatorTest, MinTwoIntegersStaysInteger) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -491,7 +525,8 @@ TEST(HelperEvaluatorTest, MinTwoIntegersStaysInteger) {
 }
 
 TEST(HelperEvaluatorTest, MaxTwoIntegersStaysInteger) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -502,7 +537,8 @@ TEST(HelperEvaluatorTest, MaxTwoIntegersStaysInteger) {
 
 TEST(HelperEvaluatorTest, MinMixedKindWidensToReal) {
   // Mixed integer + real → result is real per research §5.
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -511,7 +547,8 @@ TEST(HelperEvaluatorTest, MinMixedKindWidensToReal) {
 }
 
 TEST(HelperEvaluatorTest, MaxMixedKindWidensToReal) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -520,7 +557,8 @@ TEST(HelperEvaluatorTest, MaxMixedKindWidensToReal) {
 }
 
 TEST(HelperEvaluatorTest, MinTwoRealsStaysReal) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -545,7 +583,8 @@ TEST(HelperEvaluatorTest, MinTwoRealsStaysReal) {
 // arity-mismatch is therefore not a unit-level invariant of the
 // evaluator. Disabled below; coverage lives at the parse layer.
 TEST(HelperEvaluatorTest, DISABLED_ArityMismatch_Min_TooFew) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -559,7 +598,8 @@ TEST(HelperEvaluatorTest, DISABLED_ArityMismatch_Min_TooFew) {
 }
 
 TEST(HelperEvaluatorTest, DISABLED_ArityMismatch_Sin_TooMany) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
@@ -582,40 +622,41 @@ TEST(HelperEvaluatorTest, DISABLED_ArityMismatch_Sin_TooMany) {
 // for known names").
 
 TEST(HelperEvaluatorTest, EveryDefEntryIsRecognized) {
-  SourceManager sm; DiagnosticEngine diag(sm);
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
   HelperEvaluator h(diag);
 
   // Domain-safe args per group:
   //   group 1 (int/real coercion + pow + sqrt)
-  h.invoke("_int",   {R(1.0L)},                syntheticLoc(sm, f));
-  h.invoke("_real",  {I(1)},                   syntheticLoc(sm, f));
-  h.invoke("_pow",   {R(2.0L), R(3.0L)},       syntheticLoc(sm, f));
-  h.invoke("_sqrt",  {R(4.0L)},                syntheticLoc(sm, f));
+  h.invoke("_int", {R(1.0L)}, syntheticLoc(sm, f));
+  h.invoke("_real", {I(1)}, syntheticLoc(sm, f));
+  h.invoke("_pow", {R(2.0L), R(3.0L)}, syntheticLoc(sm, f));
+  h.invoke("_sqrt", {R(4.0L)}, syntheticLoc(sm, f));
   //   group 2 (trig)
-  h.invoke("_sin",   {R(0.0L)},                syntheticLoc(sm, f));
-  h.invoke("_cos",   {R(0.0L)},                syntheticLoc(sm, f));
-  h.invoke("_tan",   {R(0.0L)},                syntheticLoc(sm, f));
+  h.invoke("_sin", {R(0.0L)}, syntheticLoc(sm, f));
+  h.invoke("_cos", {R(0.0L)}, syntheticLoc(sm, f));
+  h.invoke("_tan", {R(0.0L)}, syntheticLoc(sm, f));
   //   group 3 (inverse trig — domain-safe args)
-  h.invoke("_asin",  {R(0.0L)},                syntheticLoc(sm, f));
-  h.invoke("_acos",  {R(1.0L)},                syntheticLoc(sm, f));
-  h.invoke("_atan",  {R(0.0L)},                syntheticLoc(sm, f));
+  h.invoke("_asin", {R(0.0L)}, syntheticLoc(sm, f));
+  h.invoke("_acos", {R(1.0L)}, syntheticLoc(sm, f));
+  h.invoke("_atan", {R(0.0L)}, syntheticLoc(sm, f));
   //   group 4 (hyperbolic)
-  h.invoke("_sinh",  {R(0.0L)},                syntheticLoc(sm, f));
-  h.invoke("_cosh",  {R(0.0L)},                syntheticLoc(sm, f));
-  h.invoke("_tanh",  {R(0.0L)},                syntheticLoc(sm, f));
+  h.invoke("_sinh", {R(0.0L)}, syntheticLoc(sm, f));
+  h.invoke("_cosh", {R(0.0L)}, syntheticLoc(sm, f));
+  h.invoke("_tanh", {R(0.0L)}, syntheticLoc(sm, f));
   //   group 5 (log/exp — domain-safe)
-  h.invoke("_log",   {R(1.0L)},                syntheticLoc(sm, f));
-  h.invoke("_log10", {R(1.0L)},                syntheticLoc(sm, f));
-  h.invoke("_exp",   {R(0.0L)},                syntheticLoc(sm, f));
+  h.invoke("_log", {R(1.0L)}, syntheticLoc(sm, f));
+  h.invoke("_log10", {R(1.0L)}, syntheticLoc(sm, f));
+  h.invoke("_exp", {R(0.0L)}, syntheticLoc(sm, f));
   //   group 6 (rounding)
-  h.invoke("_floor", {R(0.5L)},                syntheticLoc(sm, f));
-  h.invoke("_ceil",  {R(0.5L)},                syntheticLoc(sm, f));
-  h.invoke("_round", {R(0.5L)},                syntheticLoc(sm, f));
+  h.invoke("_floor", {R(0.5L)}, syntheticLoc(sm, f));
+  h.invoke("_ceil", {R(0.5L)}, syntheticLoc(sm, f));
+  h.invoke("_round", {R(0.5L)}, syntheticLoc(sm, f));
   //   group 7 (kind-preserving)
-  h.invoke("_abs",   {I(-1)},                  syntheticLoc(sm, f));
-  h.invoke("_min",   {I(1), I(2)},             syntheticLoc(sm, f));
-  h.invoke("_max",   {I(1), I(2)},             syntheticLoc(sm, f));
+  h.invoke("_abs", {I(-1)}, syntheticLoc(sm, f));
+  h.invoke("_min", {I(1), I(2)}, syntheticLoc(sm, f));
+  h.invoke("_max", {I(1), I(2)}, syntheticLoc(sm, f));
 
   // After 22 calls with valid args + arity, no errors should have
   // been raised.

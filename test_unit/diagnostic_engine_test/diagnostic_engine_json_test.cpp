@@ -11,13 +11,13 @@
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Basic/SourceManager.h"
 
+#include "llvm/Support/JSON.h"
+#include "llvm/Support/raw_ostream.h"
+
+#include "gtest/gtest.h"
 #include <sstream>
 #include <string>
 #include <vector>
-
-#include "gtest/gtest.h"
-#include "llvm/Support/JSON.h"
-#include "llvm/Support/raw_ostream.h"
 
 using nsl::DiagnosticEngine;
 using nsl::FileID;
@@ -139,8 +139,8 @@ TEST(DiagnosticEngineJsonTest, NoTrailingContextLinesInJson) {
       continue;
     }
     auto parsed = llvm::json::parse(line);
-    ASSERT_TRUE(static_cast<bool>(parsed)) << "non-JSON line in NDJSON output: "
-                                           << line;
+    ASSERT_TRUE(static_cast<bool>(parsed))
+        << "non-JSON line in NDJSON output: " << line;
     ++json_line_count;
   }
   EXPECT_EQ(json_line_count, 1u);

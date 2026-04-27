@@ -25,10 +25,10 @@
 
 #include "nsl/Preprocess/MacroExpander.h"
 
+#include "llvm/ADT/StringRef.h"
+
 #include <cctype>
 #include <string>
-
-#include "llvm/ADT/StringRef.h"
 
 namespace nsl::preprocess {
 
@@ -78,13 +78,11 @@ std::size_t scanStringEnd(llvm::StringRef text, std::size_t off) {
 MacroExpander::MacroExpander(MacroTable &macros, DiagnosticEngine &diag)
     : macros_(macros), diag_(diag) {}
 
-std::string MacroExpander::expand(llvm::StringRef text,
-                                  SourceRange use_loc) {
+std::string MacroExpander::expand(llvm::StringRef text, SourceRange use_loc) {
   return expandImpl(text, use_loc, /*depth=*/0);
 }
 
-std::string MacroExpander::expandImpl(llvm::StringRef text,
-                                      SourceRange use_loc,
+std::string MacroExpander::expandImpl(llvm::StringRef text, SourceRange use_loc,
                                       unsigned depth) {
   std::string out;
   out.reserve(text.size());
@@ -133,8 +131,7 @@ std::string MacroExpander::expandImpl(llvm::StringRef text,
               i = end;
               continue;
             }
-            std::string substituted =
-                expandImpl(def->body, use_loc, depth + 1);
+            std::string substituted = expandImpl(def->body, use_loc, depth + 1);
             out.append(substituted);
             i = end;
             continue;
@@ -172,8 +169,7 @@ std::string MacroExpander::expandImpl(llvm::StringRef text,
           i = end;
           continue;
         }
-        std::string substituted =
-            expandImpl(def->body, use_loc, depth + 1);
+        std::string substituted = expandImpl(def->body, use_loc, depth + 1);
         out.append(substituted);
         i = end;
         continue;

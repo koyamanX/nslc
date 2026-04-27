@@ -9,6 +9,10 @@
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Basic/SourceManager.h"
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/raw_ostream.h"
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -16,10 +20,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/raw_ostream.h"
 
 namespace nsl {
 
@@ -245,7 +245,8 @@ SourceManager &DiagnosticEngine::sourceManager() const noexcept {
 // -----------------------------------------------------------------------------
 
 DiagnosticEngine::Builder &
-DiagnosticEngine::Builder::addFixIt(SourceRange range, std::string replacement) {
+DiagnosticEngine::Builder::addFixIt(SourceRange range,
+                                    std::string replacement) {
   engine_->appendFixItAt(index_, FixItHint{range, std::move(replacement)});
   return *this;
 }
@@ -254,13 +255,11 @@ DiagnosticEngine::Builder &DiagnosticEngine::Builder::addIncludedFromNotes() {
   SourceManager &sm = engine_->sourceManager();
   // The diagnostic's loc tells us which file we're currently in; the
   // include stack frames trace the ancestry up to the original input.
-  SourceLocation parent_loc =
-      engine_->impl_->diags[index_].loc;
+  SourceLocation parent_loc = engine_->impl_->diags[index_].loc;
   if (!parent_loc.isValid()) {
     return *this;
   }
-  std::vector<SourceLocation> stack =
-      sm.getIncludeStackFor(parent_loc.file());
+  std::vector<SourceLocation> stack = sm.getIncludeStackFor(parent_loc.file());
   for (const SourceLocation &include_site : stack) {
     Diagnostic note;
     note.severity = Severity::Note;

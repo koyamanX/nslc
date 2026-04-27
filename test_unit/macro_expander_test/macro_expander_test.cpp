@@ -11,18 +11,17 @@
 // exists). Constitution Principle VIII RED-state evidence per
 // spec FR-015.
 
-#include "nsl/Preprocess/MacroExpander.h"
-
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Basic/SourceManager.h"
+#include "nsl/Preprocess/MacroExpander.h"
 #include "nsl/Preprocess/MacroTable.h"
 
-#include <string>
-#include <vector>
+#include "llvm/ADT/StringRef.h"
 
 #include "gtest/gtest.h"
-#include "llvm/ADT/StringRef.h"
+#include <string>
+#include <vector>
 
 using nsl::DiagnosticEngine;
 using nsl::FileID;
@@ -254,9 +253,8 @@ TEST(MacroExpanderTest, MutualCycleEmitsLockedDiagnostic) {
   (void)expander.expand("A", syntheticLoc(sm, f));
   EXPECT_TRUE(diag.hasError());
   // Either A or B is named in the diagnostic; both are valid.
-  bool named =
-      diagHasError(diag, "recursive macro expansion: A") ||
-      diagHasError(diag, "recursive macro expansion: B");
+  bool named = diagHasError(diag, "recursive macro expansion: A") ||
+               diagHasError(diag, "recursive macro expansion: B");
   EXPECT_TRUE(named);
 }
 
@@ -292,8 +290,7 @@ TEST(MacroExpanderTest, PercentSpliceConcatenatesAdjacentDot) {
   mt.insert("DEPTH", "8", syntheticLoc(sm, f));
 
   MacroExpander expander(mt, diag);
-  std::string result =
-      expander.expand("%DEPTH%.0", syntheticLoc(sm, f));
+  std::string result = expander.expand("%DEPTH%.0", syntheticLoc(sm, f));
   EXPECT_EQ(result, "8.0");
 }
 
@@ -307,8 +304,7 @@ TEST(MacroExpanderTest, UndefinedPercentSpliceLeftAsIs) {
   MacroTable mt;
 
   MacroExpander expander(mt, diag);
-  std::string result =
-      expander.expand("%UNDEF%", syntheticLoc(sm, f));
+  std::string result = expander.expand("%UNDEF%", syntheticLoc(sm, f));
   EXPECT_EQ(result, "%UNDEF%");
   EXPECT_FALSE(diag.hasError());
 }

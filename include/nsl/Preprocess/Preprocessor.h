@@ -29,15 +29,15 @@
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Basic/SourceManager.h"
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ErrorOr.h"
+
 #include <cstddef>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/ErrorOr.h"
 
 namespace nsl::preprocess {
 
@@ -72,8 +72,8 @@ public:
   ///      `#include` directive).
   ///   2. Each `-I` directory in registration order.
   /// Returns the resolved absolute path or an error if not found.
-  llvm::ErrorOr<std::string>
-  findQuote(llvm::StringRef filename, llvm::StringRef including_dir) const;
+  llvm::ErrorOr<std::string> findQuote(llvm::StringRef filename,
+                                       llvm::StringRef including_dir) const;
 
   /// Resolve an angle-form `#include <filename>`. Search order: each
   /// entry in the `NSL_INCLUDE`-derived path list, in registration
@@ -102,10 +102,10 @@ public:
   /// @param predefined_macros   `(name, body)` pairs from `-D` flags;
   ///                            inserted before any source-defined
   ///                            macro per data-model entity 11.
-  Preprocessor(SourceManager &sm, DiagnosticEngine &diag,
-               const IncludeSearchPath &search,
-               llvm::ArrayRef<std::pair<std::string, std::string>>
-                   predefined_macros);
+  Preprocessor(
+      SourceManager &sm, DiagnosticEngine &diag,
+      const IncludeSearchPath &search,
+      llvm::ArrayRef<std::pair<std::string, std::string>> predefined_macros);
 
   ~Preprocessor();
 
