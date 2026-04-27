@@ -4,7 +4,7 @@
 #
 # Per Constitution Principle VI, lit + FileCheck is mandatory for the
 # lowering and end-to-end stages; it is also the smoke-fixture driver
-# for every layer's `.lit-smoke.test` (FR-007).
+# for every layer's `smoke.test` (FR-007).
 #
 # Layout per research.md §9: one root config (test/lit.cfg.py) + an
 # auto-generated lit.site.cfg.py via configure_file. Per-layer

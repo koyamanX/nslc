@@ -141,16 +141,17 @@ stage_static_checks() {
       break
     fi
   done
-  if [[ -n "${tidy_build_dir}" ]]; then
-    local tidy_files
-    tidy_files="$("${_git[@]}" ls-files '*.cpp' || true)"
-    if [[ -n "${tidy_files}" ]]; then
-      log "  clang-tidy -p ${tidy_build_dir}"
-      # shellcheck disable=SC2086
-      clang-tidy -p "${tidy_build_dir}" ${tidy_files} || rc=$?
-    fi
-  else
-    log "  (skipping clang-tidy: no compile_commands.json in build-* dirs — run \`./scripts/ci.sh build-matrix\` first)"
+  if [[ -z "${tidy_build_dir}" ]]; then
+    die "clang-tidy needs compile_commands.json in build-*; run" \
+        "\`./scripts/ci.sh build-matrix\` first"
+  fi
+  local tidy_files
+  tidy_files="$("${_git[@]}" ls-files '*.cpp' || true)"
+  if [[ -n "${tidy_files}" ]]; then
+    log "  clang-tidy --warnings-as-errors=* -p ${tidy_build_dir}"
+    # shellcheck disable=SC2086
+    clang-tidy --warnings-as-errors='*' -p "${tidy_build_dir}" ${tidy_files} \
+      || rc=$?
   fi
 
   # 3. SPDX-header presence check, full-repo scan (FR-010, spec Q4).

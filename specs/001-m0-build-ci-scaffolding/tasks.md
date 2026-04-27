@@ -42,7 +42,7 @@ Single-project compiler layout per `plan.md` §Project Structure:
 - [x] T003 Create top-level `CMakeLists.txt`: `cmake_minimum_required(VERSION 3.22)`, `project(nslc LANGUAGES CXX)`, `set(CMAKE_CXX_STANDARD 17)`, `set(CMAKE_CXX_STANDARD_REQUIRED ON)`, `set(CMAKE_CXX_EXTENSIONS OFF)`, default `CMAKE_BUILD_TYPE=Release`, option `NSL_BUILD_TESTS` (default ON)
 - [x] T004 [P] Create per-layer header dirs with `.keep` files: `include/nsl/{Basic,Preprocess,Lex,Parse,AST,Sema,Dialect/NSL/IR,Lower,Driver}/.keep` (9 dirs)
 - [x] T005 [P] Create per-layer source dirs (placeholder, will be populated with `CMakeLists.txt` in US1): `lib/{Basic,Preprocess,Lex,Parse,AST,Sema,Dialect/NSL/IR,Lower,Driver}/.keep`
-- [x] T006 [P] Create per-layer test dirs (placeholder for `.lit-smoke.test`): `test/{Basic,Preprocess,Lex,Parse,AST,Sema,Dialect,Lower,Driver}/.keep`
+- [x] T006 [P] Create per-layer test dirs (placeholder for `smoke.test`): `test/{Basic,Preprocess,Lex,Parse,AST,Sema,Dialect,Lower,Driver}/.keep`
 
 ---
 
@@ -85,7 +85,7 @@ Single-project compiler layout per `plan.md` §Project Structure:
 - [x] T022 [P] [US1] Create CMake test fixture `test_unit/add_nsl_library_test/per_node_headers_ast/CMakeLists.txt`: `nsl-ast` declares `Decl.h`, `Stmt.h`, `Expr.h` in one `HEADERS` (contract row 7)
 - [x] T023 [US1] Create `test_unit/add_nsl_library_test/CMakeLists.txt` registering all 7 fixtures via `add_test`, with CTest `WILL_FAIL TRUE` set on the four expected-failure cases (T017, T019, T020 — and T021/T022 are positive) (depends T016–T022)
 - [x] T024 [P] [US1] Create lit fixture `test/Driver/version.test`: `RUN: %nslc --version | FileCheck %s` + `CHECK: {{^nslc [0-9A-Za-z._+-]+$}}` (contract `nslc-version.contract.md` §Test contract; FR-006; spec Q5)
-- [x] T025 [P] [US1] Create per-layer smoke lit fixtures (9 files): `test/Basic/.lit-smoke.test`, `test/Preprocess/.lit-smoke.test`, `test/Lex/.lit-smoke.test`, `test/Parse/.lit-smoke.test`, `test/AST/.lit-smoke.test`, `test/Sema/.lit-smoke.test`, `test/Dialect/.lit-smoke.test`, `test/Lower/.lit-smoke.test`, `test/Driver/.lit-smoke.test` — each contains `RUN: echo "smoke for <layer>" | FileCheck %s` + `CHECK: smoke for <layer>` (FR-007)
+- [x] T025 [P] [US1] Create per-layer smoke lit fixtures (9 files): `test/Basic/smoke.test`, `test/Preprocess/smoke.test`, `test/Lex/smoke.test`, `test/Parse/smoke.test`, `test/AST/smoke.test`, `test/Sema/smoke.test`, `test/Dialect/smoke.test`, `test/Lower/smoke.test`, `test/Driver/smoke.test` — each contains `RUN: echo "smoke for <layer>" | FileCheck %s` + `CHECK: smoke for <layer>` (FR-007)
 
 ### Implementation for User Story 1
 
@@ -113,7 +113,7 @@ Single-project compiler layout per `plan.md` §Project Structure:
 
 **Goal**: Six-stage CI pipeline (Build matrix → Static checks → Unit/layer → Lowering → End-to-end → Formal) runs on every PR and push to `main`. `scripts/ci.sh` is the authoritative local-reproduction entry point and is mirrored byte-for-byte by `.github/workflows/ci.yml`. Branch protection enforces required-checks for everyone including admins. Two CI runs on the same SHA produce byte-identical artifacts.
 
-**Independent Test**: Open a PR with deliberate breakage (e.g., remove a `CHECK:` from a `.lit-smoke.test`). Observe CI marking the run red at the right stage with a path-resolved diagnostic. Run `./scripts/ci.sh <stage>` locally, observe the same failure. Restore. Observe CI green and the merge gate releases. Compare artifact bytes between two CI runs on the same SHA — `diff -r build1/lib build2/lib && diff -r build1/bin build2/bin` exits 0.
+**Independent Test**: Open a PR with deliberate breakage (e.g., remove a `CHECK:` from a `smoke.test`). Observe CI marking the run red at the right stage with a path-resolved diagnostic. Run `./scripts/ci.sh <stage>` locally, observe the same failure. Restore. Observe CI green and the merge gate releases. Compare artifact bytes between two CI runs on the same SHA — `diff -r build1/lib build2/lib && diff -r build1/bin build2/bin` exits 0.
 
 ### Tests for User Story 2 (MANDATORY per Constitution Principle VIII) ⚠️
 
@@ -180,8 +180,8 @@ Single-project compiler layout per `plan.md` §Project Structure:
 - [x] T069 [P] Append "Local CI reproduction" sub-section to `CONTRIBUTING.md` documenting the `./scripts/ci.sh` stage-name dispatch, the `--matrix` flag, the wired-but-empty stage status, and the spec-Q3 named-reason bypass requirement (FR-017, FR-021)
 - [x] T070 [P] Update SPECKIT START/END markers in root `CLAUDE.md` to point at [`specs/001-m0-build-ci-scaffolding/plan.md`](./plan.md) (already partial — verify and finalize)
 - [x] T071 Run `./scripts/ci.sh all` end-to-end on a clean clone per [`quickstart.md`](./quickstart.md); capture stdout + per-stage exit codes; verify SC-001..SC-008 are observable (build < documented time; `nslc --version` < 100 ms per SC-002; determinism gate green per SC-005; reviewer-locatable failure per SC-007)
-- [ ] T072 [P] Run the `nsl-coupling-audit` agent against the working tree to verify Principle VII spec ↔ design coupling — the M0 row in [`docs/CLAUDE.md`](../../docs/CLAUDE.md) and the language-feature roll-up in [`CLAUDE.md`](../../CLAUDE.md) §1 must reflect the new build artifacts; resolve any findings before merge
-- [ ] T073 Run the `nsl-constitution-review` agent against the branch (Principle V/VI/VII/VIII/IX gate per merge protocol); resolve any blocking findings before merge
+- [x] T072 [P] Run the `nsl-coupling-audit` agent against the working tree to verify Principle VII spec ↔ design coupling — the M0 row in [`docs/CLAUDE.md`](../../docs/CLAUDE.md) and the language-feature roll-up in [`CLAUDE.md`](../../CLAUDE.md) §1 must reflect the new build artifacts; resolve any findings before merge
+- [x] T073 Run the `nsl-constitution-review` agent against the branch (Principle V/VI/VII/VIII/IX gate per merge protocol); resolve any blocking findings before merge
 
 ---
 
@@ -235,7 +235,7 @@ Task T020: test_unit/add_nsl_library_test/sibling_bypass/CMakeLists.txt
 Task T021: test_unit/add_nsl_library_test/multi_header_basic/CMakeLists.txt
 Task T022: test_unit/add_nsl_library_test/per_node_headers_ast/CMakeLists.txt
 Task T024: test/Driver/version.test
-Task T025: test/{Basic,Preprocess,Lex,Parse,AST,Sema,Dialect,Lower,Driver}/.lit-smoke.test
+Task T025: test/{Basic,Preprocess,Lex,Parse,AST,Sema,Dialect,Lower,Driver}/smoke.test
 ```
 
 ### US1 — All 9 per-layer CMakeLists files after T026 lands
@@ -292,7 +292,7 @@ With multiple developers:
 ## Notes
 
 - **Principle VIII (Test-First)** is non-negotiable. Every test task MUST land in a separate commit from its corresponding implementation task, and the test commit MUST be observed failing on the unchanged tree (CI red on the test commit + green on the impl commit demonstrates this; alternatively local `ctest` / `lit` / `pytest` red→green sequence is auditable in `git log`).
-- **Principle VI (Test discipline)** mandates per-layer smoke fixtures (T025) using lit + FileCheck — no substitutes accepted. The 9 `.lit-smoke.test` fixtures land at M0 so all later milestones drop layer-specific tests in by file placement (FR-007).
+- **Principle VI (Test discipline)** mandates per-layer smoke fixtures (T025) using lit + FileCheck — no substitutes accepted. The 9 `smoke.test` fixtures land at M0 so all later milestones drop layer-specific tests in by file placement (FR-007).
 - **Principle V (Determinism)** is enforced by T007 (NSLDeterminism.cmake), T041 (CTest gate), T047 (`check_determinism.sh`), and T050 (CI stage 1 last step). Any regression in any of these four is a Principle V violation and a merge blocker.
 - **Principle IX wired-but-empty rule**: stages 5/6 (`end-to-end`, `formal`) ship `if: false` + sticky-comment per research §8 (T050) and MUST NOT appear in `branch-protection.json` `contexts` until M7/M8 (T051) — otherwise GitHub blocks every PR on a never-firing check.
 - **Spec Q3 named-reason bypass**: the only legal bypass of the merge gate is GitHub's repo-admin "merge without waiting for required checks" override, recorded with a named reason in the PR description. T052 documents this; T051 wires `enforce_admins: true` to make it the *only* available bypass surface.

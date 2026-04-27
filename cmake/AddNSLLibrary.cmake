@@ -94,11 +94,34 @@ function(add_nsl_library name)
         "docs/design/nsl_compiler_design.md §3. (External libraries "
         "belong in LINK_LIBS, not DEPENDS.)")
     endif()
+    if(NOT TARGET ${_dep})
+      message(FATAL_ERROR
+        "add_nsl_library(${name}): DEPENDS '${_dep}' must name a "
+        "previously-declared add_nsl_library target; the misspelled "
+        "or out-of-order entry would otherwise only fail at link time. "
+        "Order add_subdirectory()s in lib/CMakeLists.txt so producers "
+        "precede consumers.")
+    endif()
     if(NOT _dep_idx LESS _idx)
       message(FATAL_ERROR
         "add_nsl_library: layer '${name}' (index ${_idx}) cannot "
         "depend on '${_dep}' (index ${_dep_idx} ≥ ${_idx}) — see "
         "docs/design/nsl_compiler_design.md §3.")
+    endif()
+  endforeach()
+
+  # Reject internal nsl-* layers placed in LINK_LIBS — they must go
+  # through DEPENDS so the dependency-direction guard above fires.
+  # Without this check, a layer could bypass Principle II by listing
+  # a higher-index nsl-layer in LINK_LIBS.
+  foreach(_link_lib IN LISTS NSL_LINK_LIBS)
+    _nsl_layer_index(_link_idx ${_link_lib})
+    if(NOT _link_idx EQUAL -1)
+      message(FATAL_ERROR
+        "add_nsl_library(${name}): LINK_LIBS '${_link_lib}' is an "
+        "internal nsl-layer; use DEPENDS instead so the layer-"
+        "direction guard (Principle II) applies. LINK_LIBS is for "
+        "external targets like MLIR/CIRCT only.")
     endif()
   endforeach()
 

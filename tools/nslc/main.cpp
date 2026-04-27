@@ -29,6 +29,9 @@ int main(int argc, char **argv) {
     std::printf("nslc %s\n", NSLC_VERSION_STRING);
     return 0;
   }
-  std::fputs(kUsage, stderr);
+  // cert-err33-c: discarding fputs's return value is intentional —
+  // we are already exiting with a non-zero status, and a usage write
+  // failure does not change that outcome.
+  static_cast<void>(std::fputs(kUsage, stderr));
   return 2;
 }

@@ -39,26 +39,43 @@ fi
 # to actual deliverable artifacts.
 
 failed=0
-declare -a checked=()
 
-_compare_one() {
-  local rel="$1"
-  if ! cmp -s "${build1}/${rel}" "${build2}/${rel}"; then
+# Enumerate from BOTH build dirs so an artifact present in one tree
+# but missing from the other is flagged. Enumerating only build1 (an
+# earlier draft) would let an extra .a in build2 silently pass the
+# gate, which violates the byte-identical artifact contract.
+_artifacts_in() {
+  local root="$1"
+  ( cd "${root}" 2>/dev/null && \
+      { find lib -type f -name '*.a' 2>/dev/null
+        find bin -type f          2>/dev/null; } | sort )
+}
+
+mapfile -t artifacts1 < <(_artifacts_in "${build1}")
+mapfile -t artifacts2 < <(_artifacts_in "${build2}")
+
+if [[ "$(printf '%s\n' "${artifacts1[@]}")" \
+   != "$(printf '%s\n' "${artifacts2[@]}")" ]]; then
+  printf 'determinism gate: artifact set mismatch (%s vs %s)\n' \
+    "${build1}" "${build2}" >&2
+  diff <(printf '%s\n' "${artifacts1[@]}") \
+       <(printf '%s\n' "${artifacts2[@]}") >&2 || true
+  failed=1
+fi
+
+# Compare every artifact that appears in either set, byte-for-byte.
+declare -A seen=()
+for rel in "${artifacts1[@]}" "${artifacts2[@]}"; do
+  [[ -z "${rel}" || -n "${seen[${rel}]:-}" ]] && continue
+  seen[${rel}]=1
+  if [[ ! -f "${build1}/${rel}" || ! -f "${build2}/${rel}" ]]; then
+    printf 'asymmetric: %s exists in only one tree\n' "${rel}" >&2
+    failed=1
+  elif ! cmp -s "${build1}/${rel}" "${build2}/${rel}"; then
     printf 'non-deterministic: %s\n' "${rel}" >&2
     failed=1
   fi
-  checked+=("${rel}")
-}
-
-# Static-library archives.
-while IFS= read -r rel; do
-  _compare_one "${rel}"
-done < <(cd "${build1}" && find lib -type f -name '*.a' 2>/dev/null | sort)
-
-# bin/ executables (nslc plus anything later milestones add).
-while IFS= read -r rel; do
-  _compare_one "${rel}"
-done < <(cd "${build1}" && find bin -type f 2>/dev/null | sort)
+done
 
 if [[ ${failed} -ne 0 ]]; then
   printf 'determinism gate: FAILED (%s vs %s)\n' "${build1}" "${build2}" >&2
@@ -66,4 +83,4 @@ if [[ ${failed} -ne 0 ]]; then
 fi
 
 printf 'determinism gate: identical — %d artifact(s) byte-equal (%s vs %s)\n' \
-  "${#checked[@]}" "${build1}" "${build2}"
+  "${#seen[@]}" "${build1}" "${build2}"

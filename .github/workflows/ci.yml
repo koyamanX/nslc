@@ -26,17 +26,15 @@ permissions:
   pull-requests: write   # for the wired-but-empty sticky comment
 
 env:
-  # The container image consumed by every real-work job. Hardcoded
-  # lowercase owner because (a) ghcr.io requires lowercase in the
-  # image path, and (b) GitHub Actions expressions do not have a
-  # `lowercase` filter applicable to `container.image`. Forks should
-  # update both this value and the corresponding registry namespace
-  # in `.github/workflows/publish-images.yml`.
+  # Documents the canonical container image. NOT consumed by
+  # `container.image` (GitHub Actions does not allow `env` context
+  # there — see comment on each job's container directive). The
+  # literal lowercase form `ghcr.io/koyamanx/nsl-nslc:dev` is
+  # hardcoded in each `container.image` instead. This env entry exists
+  # for run-context shell steps that may want the image string.
   #
   # Floating `:dev` tag — bumped atomically by publish-images.yml when
   # any docker-stack input changes (.docker/** or cmake/deps.lock).
-  # Pin to an immutable per-SHA tag (e.g. :llvm-2b43da5a) in a
-  # follow-up commit if reproducibility of a single CI run matters.
   NSLC_IMAGE: ghcr.io/koyamanx/nsl-nslc:dev
 
 jobs:
@@ -53,7 +51,12 @@ jobs:
     name: build-matrix (${{ matrix.build_type }}, ${{ matrix.compiler }})
     runs-on: ubuntu-22.04                # research §7: pinned, never `latest`
     container:
-      image: ${{ env.NSLC_IMAGE }}
+      # Hardcoded literal — GitHub Actions does NOT support the `env`
+      # context in `jobs.<id>.container.image` (only github / needs /
+      # strategy / matrix / vars / inputs are allowed there). Forks
+      # should update both this string and the registry namespace in
+      # `.github/workflows/publish-images.yml`.
+      image: ghcr.io/koyamanx/nsl-nslc:dev
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -87,7 +90,12 @@ jobs:
     runs-on: ubuntu-22.04
     needs: build-matrix
     container:
-      image: ${{ env.NSLC_IMAGE }}
+      # Hardcoded literal — GitHub Actions does NOT support the `env`
+      # context in `jobs.<id>.container.image` (only github / needs /
+      # strategy / matrix / vars / inputs are allowed there). Forks
+      # should update both this string and the registry namespace in
+      # `.github/workflows/publish-images.yml`.
+      image: ghcr.io/koyamanx/nsl-nslc:dev
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -111,7 +119,12 @@ jobs:
     runs-on: ubuntu-22.04
     needs: build-matrix
     container:
-      image: ${{ env.NSLC_IMAGE }}
+      # Hardcoded literal — GitHub Actions does NOT support the `env`
+      # context in `jobs.<id>.container.image` (only github / needs /
+      # strategy / matrix / vars / inputs are allowed there). Forks
+      # should update both this string and the registry namespace in
+      # `.github/workflows/publish-images.yml`.
+      image: ghcr.io/koyamanx/nsl-nslc:dev
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -134,7 +147,12 @@ jobs:
     runs-on: ubuntu-22.04
     needs: build-matrix
     container:
-      image: ${{ env.NSLC_IMAGE }}
+      # Hardcoded literal — GitHub Actions does NOT support the `env`
+      # context in `jobs.<id>.container.image` (only github / needs /
+      # strategy / matrix / vars / inputs are allowed there). Forks
+      # should update both this string and the registry namespace in
+      # `.github/workflows/publish-images.yml`.
+      image: ghcr.io/koyamanx/nsl-nslc:dev
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}

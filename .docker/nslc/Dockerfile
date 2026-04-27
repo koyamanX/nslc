@@ -3,6 +3,13 @@ FROM nsl/circt:dev
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+# `lit` is a Python module the LLVM build's `LLVM_INSTALL_UTILS=ON`
+# does NOT install (it ships only the C++ helpers FileCheck, count,
+# not, split-file). Pin via PyPI to a stable LLVM-18 release so docker
+# image builds are deterministic — if a newer lit changes test-runner
+# semantics we want to bump it explicitly with a deps.lock change.
+ARG LIT_VERSION=18.1.8
+
 # Toolchain for building, testing, and linting nslc.
 # clang / cmake / ninja / lld / ccache / python3 come from nsl/base:dev;
 # lit / FileCheck / not / count / split-file / yaml2obj / obj2yaml are
@@ -27,7 +34,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libgtest-dev libgmock-dev \
       python3-pytest python3-yaml \
       gdb less \
- && python3 -m pip install --break-system-packages --no-cache-dir lit \
+ && python3 -m pip install --break-system-packages --no-cache-dir \
+      "lit==${LIT_VERSION}" \
  && rm -rf /var/lib/apt/lists/*
 
 # Mount point for the nslc source tree.

@@ -217,10 +217,15 @@ passing.
 **Build skeleton (M0):**
 
 - **FR-001**: The build system MUST produce nine static library
-  archives, exactly matching the layer table in
-  `docs/design/nsl_compiler_design.md` §3 (`nsl-basic`, `nsl-preprocess`,
-  `nsl-lex`, `nsl-parse`, `nsl-ast`, `nsl-sema`, `nsl-dialect`,
-  `nsl-lower`, `nsl-driver`).
+  archives in the layer order enforced by `add_nsl_library`'s
+  downward-only dependency guard (Principle II): `nsl-basic`,
+  `nsl-preprocess`, `nsl-lex`, `nsl-ast`, `nsl-parse`, `nsl-sema`,
+  `nsl-dialect`, `nsl-lower`, `nsl-driver`. (The `docs/design/
+  nsl_compiler_design.md` §3 table is the canonical source; an
+  earlier draft of this FR listed `nsl-parse` before `nsl-ast`,
+  which would make Parse's `DEPENDS nsl-ast` an upward dep and
+  violate Principle II — the order above is the implementation
+  order. See `data-model.md` §entity 1 note.)
 - **FR-002**: A reusable build macro named `add_nsl_library` (per the
   M0 row of `README.md` §Roadmap) MUST be the sole mechanism by which
   a library declares itself to the build system. Adding a library after

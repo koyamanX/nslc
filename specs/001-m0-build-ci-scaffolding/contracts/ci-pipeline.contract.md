@@ -79,7 +79,7 @@ Steps:
 2. `ctest --test-dir build --output-on-failure` (runs the GoogleTest
    suites under `test_unit/`).
 3. `cd build && lit -v ../test` (runs the per-layer smoke fixtures
-   under `test/<Layer>/.lit-smoke.test`).
+   under `test/<Layer>/smoke.test`).
 
 ### Stage 4 — `lowering-tests` (1 cell, blocks-merge)
 

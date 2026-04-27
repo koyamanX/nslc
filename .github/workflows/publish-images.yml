@@ -184,6 +184,8 @@ jobs:
     name: nsl-nslc
     runs-on: ubuntu-22.04
     needs: circt
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
     steps:
       - uses: actions/checkout@v4
 
@@ -228,9 +230,11 @@ jobs:
     runs-on: ubuntu-22.04
     needs: nslc
     container:
-      # Hardcoded lowercase owner — matches ci.yml's NSLC_IMAGE.
-      # Forks should update both refs together (see ci.yml comment).
-      image: ghcr.io/koyamanx/nsl-nslc:dev
+      # Pin to the immutable per-SHA tag the nslc job pushed in this
+      # workflow run. Pulling `:dev` instead would let a concurrent
+      # publish race silently substitute a different image and pass
+      # the smoke against the wrong artifact.
+      image: ${{ needs.nslc.outputs.image }}:sha-${{ github.sha }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}

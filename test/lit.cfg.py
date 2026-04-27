@@ -9,6 +9,7 @@
 # extensibility).
 
 import os
+import shlex
 
 import lit.formats
 
@@ -41,11 +42,17 @@ nslc_bin   = getattr(config, "nslc_binary_dir", "")
 nslc_src   = getattr(config, "nslc_source_dir", "")
 python     = getattr(config, "python_executable", "python3")
 
+# Substitutions land verbatim inside RUN: shell commands, so paths
+# are shell-quoted to survive contributors who clone into a
+# whitespace-bearing path or use a Python interpreter at one.
 if nslc_bin:
-    config.substitutions.append(("%nslc", os.path.join(nslc_bin, "bin", "nslc")))
+    config.substitutions.append(
+        ("%nslc", shlex.quote(os.path.join(nslc_bin, "bin", "nslc"))))
 if llvm_tools:
-    config.substitutions.append(("%FileCheck", os.path.join(llvm_tools, "FileCheck")))
+    config.substitutions.append(
+        ("%FileCheck", shlex.quote(os.path.join(llvm_tools, "FileCheck"))))
 if nslc_src:
     config.substitutions.append(
         ("%spdx_check",
-         f"{python} {os.path.join(nslc_src, 'scripts', 'check_spdx.py')}"))
+         f"{shlex.quote(python)} "
+         f"{shlex.quote(os.path.join(nslc_src, 'scripts', 'check_spdx.py'))}"))

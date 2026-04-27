@@ -149,15 +149,28 @@ already matches).
 ## 8. Two-build determinism gate (FR-018, SC-005, plan §research §4)
 
 ```bash
-cmake -S . -B build1 -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build1
-cmake -S . -B build2 -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build2
-diff -r build1/lib build2/lib && diff -r build1/bin build2/bin
+export MLIR_DIR=/path/to/llvm-install/lib/cmake/mlir
+export CIRCT_DIR=/path/to/circt-install/lib/cmake/circt
+
+cmake -S . -B build1 -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DMLIR_DIR="$MLIR_DIR" -DCIRCT_DIR="$CIRCT_DIR" && cmake --build build1
+cmake -S . -B build2 -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DMLIR_DIR="$MLIR_DIR" -DCIRCT_DIR="$CIRCT_DIR" && cmake --build build2
+
+./scripts/check_determinism.sh build1 build2
 ```
 
-Expected: `diff` exits 0 with no output. Any byte divergence is a
-non-determinism leak per Principle V; the CI build-matrix stage's
-last step performs this comparison automatically (on the
-`Release × gcc` cell to keep cost bounded).
+`scripts/check_determinism.sh` enumerates artifacts (`lib/**/*.a`
+plus everything under `bin/`) from BOTH build dirs, fails on any
+asymmetric file set, and `cmp`-compares each pair byte-for-byte.
+The set-comparison step catches a build-2 producing extra outputs
+that a one-sided check would silently miss.
+
+Expected: the script exits 0 with `determinism gate: identical —
+N artifact(s) byte-equal`. Any byte divergence is a non-determinism
+leak per Principle V; the CI build-matrix stage's last step performs
+the same comparison automatically (on the `Release × gcc` cell to
+keep cost bounded).
 
 ---
 

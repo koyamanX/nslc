@@ -136,14 +136,14 @@ nslc/
 │   ├── lit.cfg.py                           # NEW — root lit config (substitutions: %nslc, %FileCheck, %spdx_check)
 │   ├── lit.site.cfg.py.in                   # NEW — configure-time substitution (NSLC_BINARY_DIR, etc.)
 │   ├── Driver/version.test                  # NEW — `RUN: %nslc --version \| FileCheck %s` (TDD seed for FR-006)
-│   ├── Basic/.lit-smoke.test                # NEW — per-layer smoke (the conventional "this layer's lit dir is wired" probe)
-│   ├── Preprocess/.lit-smoke.test           # NEW
-│   ├── Lex/.lit-smoke.test                  # NEW
-│   ├── Parse/.lit-smoke.test                # NEW
-│   ├── AST/.lit-smoke.test                  # NEW
-│   ├── Sema/.lit-smoke.test                 # NEW
-│   ├── Dialect/.lit-smoke.test              # NEW
-│   └── Lower/.lit-smoke.test                # NEW
+│   ├── Basic/smoke.test                # NEW — per-layer smoke (the conventional "this layer's lit dir is wired" probe)
+│   ├── Preprocess/smoke.test           # NEW
+│   ├── Lex/smoke.test                  # NEW
+│   ├── Parse/smoke.test                # NEW
+│   ├── AST/smoke.test                  # NEW
+│   ├── Sema/smoke.test                 # NEW
+│   ├── Dialect/smoke.test              # NEW
+│   └── Lower/smoke.test                # NEW
 ├── test_unit/                               # NEW — GoogleTest unit tests (separate from lit tree)
 │   ├── CMakeLists.txt                       # NEW
 │   ├── spdx_check_test/                     # NEW — fixture-driven tests for scripts/check_spdx.py (TDD seed for FR-010..012)

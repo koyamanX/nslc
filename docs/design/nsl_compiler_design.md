@@ -138,8 +138,8 @@ The compiler is split into nine libraries, each a static C++ library with a sing
 | 1 | `nsl-basic` | `nsl/Basic/SourceLocation.h`, `Diagnostic.h` | — |
 | 2 | `nsl-preprocess` | `nsl/Preprocess/Preprocessor.h` | `nsl-basic` |
 | 3 | `nsl-lex` | `nsl/Lex/Lexer.h`, `Token.h` | `nsl-basic` |
-| 4 | `nsl-parse` | `nsl/Parse/Parser.h` | `nsl-lex`, `nsl-ast` |
-| 5 | `nsl-ast` | `nsl/AST/*.h` (one per node kind) | `nsl-basic` |
+| 4 | `nsl-ast` | `nsl/AST/*.h` (one per node kind) | `nsl-basic` |
+| 5 | `nsl-parse` | `nsl/Parse/Parser.h` | `nsl-lex`, `nsl-ast` |
 | 6 | `nsl-sema` | `nsl/Sema/Sema.h`, `SymbolTable.h`, `TypeSystem.h` | `nsl-ast` |
 | 7 | `nsl-dialect` | `nsl/Dialect/NSL/IR/*.h` (tablegen-generated) | MLIR, CIRCT |
 | 8 | `nsl-lower` | `nsl/Lower/ASTToMLIR.h`, `NSLToCIRCT.h`, `Passes.h` | `nsl-sema`, `nsl-dialect`, CIRCT |

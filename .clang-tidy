@@ -23,13 +23,31 @@ Checks: >
   portability-*,
   readability-*,
   -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-avoid-c-arrays,
   -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-vararg,
   -llvm-header-guard,
+  -modernize-avoid-c-arrays,
   -modernize-use-trailing-return-type,
   -readability-identifier-length,
   -readability-magic-numbers
+# Rationale for the cppcoreguidelines/modernize disables:
+# - macro-usage: NSLC_VERSION_STRING is a configure_file() output;
+#   constexpr is not a viable replacement for build-time substitution.
+# - avoid-c-arrays / pro-bounds-array-to-pointer-decay /
+#   pro-bounds-pointer-arithmetic: `int main(int, char**)` and
+#   `argv[i]` are canonical and required by the standard.
+# - pro-type-vararg: `std::printf` is the LLVM/CIRCT idiom; std::print
+#   waits on C++23+ toolchain support across the CIRCT-pinned LLVM.
 
-WarningsAsErrors: ''
+# Treat every enabled clang-tidy diagnostic as a hard error. Combined
+# with `clang-tidy --warnings-as-errors=*` in scripts/ci.sh:stage_static_checks,
+# any check listed in `Checks:` above that fires on any source file
+# fails the static-checks CI stage (FR-008 strict-gate intent).
+WarningsAsErrors: '*'
 
 HeaderFilterRegex: '(include|lib|tools|test_unit)/.*\.(h|hpp)$'
 

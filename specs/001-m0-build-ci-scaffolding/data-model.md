@@ -23,7 +23,7 @@ Represents one of the nine compiler-track static library archives
 
 | Field | Type | Validation | Source |
 |---|---|---|---|
-| `name` | string, kebab-case | MUST be one of the 9 names from `docs/design/nsl_compiler_design.md` §3 (`nsl-basic`, `nsl-preprocess`, `nsl-lex`, `nsl-parse`, `nsl-ast`, `nsl-sema`, `nsl-dialect`, `nsl-lower`, `nsl-driver`). | spec FR-001 |
+| `name` | string, kebab-case | MUST be one of the 9 names from `docs/design/nsl_compiler_design.md` §3, in implementation order: `nsl-basic`, `nsl-preprocess`, `nsl-lex`, `nsl-ast`, `nsl-parse`, `nsl-sema`, `nsl-dialect`, `nsl-lower`, `nsl-driver`. | spec FR-001 |
 | `layer_index` | integer 1..9 | MUST match the row index in the §3 table (drives dependency-direction validation in `add_nsl_library`). | Principle II |
 | `header_dir` | path | MUST equal `include/nsl/<Layer>/` where `<Layer>` is the §3-table layer column (e.g., `include/nsl/Basic/`). | Principle II header convention |
 | `headers` | list of paths under `header_dir` | At M0, empty (just `.keep`). For `nsl-basic`: `SourceLocation.h`, `Diagnostic.h` (per §3 multiplicity exception). For `nsl-ast`: per-node-kind headers (Principle II "AST exception"). | Principle II |
@@ -50,11 +50,12 @@ Represents one of the nine compiler-track static library archives
 > this table listed `nsl-parse` at index 4 and `nsl-ast` at index 5 to
 > match a literal reading of `nsl_compiler_design.md` §3's row order.
 > That ordering would make `nsl-parse DEPENDS nsl-ast` an upward dep
-> (4 → 5) and violate Principle II. The implementation in
-> `cmake/AddNSLLibrary.cmake` resolves the conflict in favour of
-> Principle II — AST is layer 4, Parse is layer 5 — and this table
-> follows. `docs/design/nsl_compiler_design.md` §3 needs the same
-> swap; flagged for a follow-up coupling-audit run.
+> (4 → 5) and violate Principle II. The conflict was resolved in
+> favour of Principle II in two atomic places: `cmake/AddNSLLibrary.cmake`
+> (the layer-index lookup) and `docs/design/nsl_compiler_design.md`
+> §3 (rows 4 and 5 swapped in this PR). spec.md FR-001 was patched
+> in lockstep. AST is layer 4, Parse is layer 5; all three sources now
+> agree.
 
 ---
 
@@ -71,7 +72,7 @@ Represents one of the per-library test directories rooted at
 | `directory` | path | MUST equal `test/<Layer>/`. | Principle VI; LLVM/CIRCT convention |
 | `library_ref` | `LibrarySkeleton.name` or null (E2E) | Each unit-level test layer points at its library. | Principle VI |
 | `driver` | enum `{lit-filecheck, gtest}` | Lowering and end-to-end MUST be `lit-filecheck` (Principle VI mandate). Lex/Parse/Sema/Dialect MAY use `gtest` for unit tests; their lit smoke fixture is still mandatory at M0. | Principle VI per-layer accepted-drivers list |
-| `m0_smoke_fixture` | path | MUST exist at M0; convention `test/<Layer>/.lit-smoke.test` for layers without other fixtures yet. | spec FR-007 |
+| `m0_smoke_fixture` | path | MUST exist at M0; convention `test/<Layer>/smoke.test` for layers without other fixtures yet. | spec FR-007 |
 | `at_m0_status` | enum `{wired-with-smoke, wired-but-empty}` | All 9 layers + E2E start at M0 as `wired-with-smoke` *except* the End-to-End directory which is `wired-but-empty` until M7 (P-VEN + P-VCD lands). | spec FR-007, FR-015 |
 
 ---

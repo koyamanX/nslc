@@ -71,11 +71,14 @@ build_nslc() {
 }
 
 target="${1:-all}"
+# Each leaf target chains its prerequisites so a clean Docker daemon
+# can run e.g. `./scripts/docker-build.sh nslc` and end up with the
+# full four-stage chain. Layers cache as expected on a re-run.
 case "${target}" in
   base)      build_base ;;
-  llvm-mlir) build_llvm_mlir ;;
-  circt)     build_circt ;;
-  nslc)      build_nslc ;;
+  llvm-mlir) build_base && build_llvm_mlir ;;
+  circt)     build_base && build_llvm_mlir && build_circt ;;
+  nslc)      build_base && build_llvm_mlir && build_circt && build_nslc ;;
   all)       build_base && build_llvm_mlir && build_circt && build_nslc ;;
   *)
     echo "docker-build.sh: unknown target '${target}'" >&2

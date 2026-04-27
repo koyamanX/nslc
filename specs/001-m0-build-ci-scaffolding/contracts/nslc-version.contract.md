@@ -35,7 +35,15 @@ time (research §5). Concrete forms:
 | At a tag (clean) | `nslc <tag>\n` (e.g., `nslc v1.0.0`) |
 | Post-tag commits, clean | `nslc <tag>-<n>-g<sha>\n` |
 | Post-tag commits, dirty | `nslc <tag>-<n>-g<sha>-dirty\n` |
-| Source-tarball build (no `.git/`) | `nslc unknown\n` (CMake fallback when `Git_FOUND` is false) |
+| `git describe` fails or returns empty (no `.git/`, no commits, no tags discoverable, broken repo, etc.) | `nslc unknown\n` |
+
+The `unknown` fallback fires whenever ANY of the following holds:
+`find_package(Git)` could not locate a `git` binary; `${CMAKE_SOURCE_DIR}/.git`
+does not exist (typical of source-tarball builds); the `git describe`
+invocation itself returns a non-zero status; or `git describe` returns
+the empty string. `cmake/NSLVersion.cmake` checks the `RESULT_VARIABLE`
+of `execute_process` together with the captured output — a successful
+exit with empty output also degrades to `unknown`.
 
 ## Test contract (lit + FileCheck — TDD seed)
 

@@ -15,12 +15,32 @@ python3 scripts/check_spdx.py [--exceptions <path>] --all      # equivalent to p
 
 | Flag | Meaning | Default |
 |---|---|---|
-| `--exceptions <path>` | Path to the version-controlled exception list (one path per line, `#` for comments). | `scripts/spdx_exceptions.txt` |
+| `--exceptions <path>` | Path to the version-controlled exception list. Format: one entry per line, `#` for comments. Trailing-slash entries are directory prefixes (every tracked file under that directory is EXEMPT). Plain entries are exact paths. | `scripts/spdx_exceptions.txt` |
 | `--all` | Convenience: run on the output of `git ls-files`. | (off; explicit file list required otherwise) |
 | `<file>...` | Files to check. Relative paths resolved against repo root. | (required unless `--all`) |
 
 CI uses: `python3 scripts/check_spdx.py --all` (spec Q4: full-repo
 scan on every PR + push).
+
+### Reconciling `--all` with files that have no SPDX recipe
+
+The recipe table (data-model.md §entity 4) marks `.json` as
+fail-loud — JSON has no comment syntax that could carry an SPDX
+identifier without breaking parsers. Several JSON files (e.g.
+`.specify/feature.json`, `.github/branch-protection.json`) and
+entire vendored toolchain trees (`.specify/`, `.claude/`) are
+nonetheless tracked in this repo. For `--all` to ever pass cleanly,
+those paths MUST be on the exception list. The shipped
+`scripts/spdx_exceptions.txt` contains:
+
+- `.specify/` (directory prefix) — vendored Speckit tooling.
+- `.claude/` (directory prefix) — Claude Code project config.
+- `.github/branch-protection.json` (exact path) — JSON-no-recipe.
+
+`LICENSE`, `.keep`, and `.gitkeep` are auto-exempt by basename and
+do not require a list entry. Zero-byte files are auto-exempt by
+content. See `data-model.md` §entity 4b for the canonical
+post-implementation state of this list.
 
 ## Per-file algorithm
 
