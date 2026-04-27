@@ -260,13 +260,14 @@ TEST(MacroExpanderTest, MutualCycleEmitsLockedDiagnostic) {
   EXPECT_TRUE(named);
 }
 
-TEST(MacroExpanderTest, PercentSpliceLeftAlone) {
-  // `%Y%` is a P3 splice marker, not a bare identifier. The
-  // MacroExpander must NOT substitute `Y` inside `%Y%` — that's
-  // IdentSplicer / parsePercentMacroRef's job. Leaving the
-  // `%Y%` form intact is what makes nested macro bodies like
-  // `_int(_pow(%Y%, 2.0))` survive a textual-substitution pre-pass
-  // unmolested.
+TEST(MacroExpanderTest, PercentSpliceTextuallySubstituted) {
+  // Per amended pp.ebnf P10 (003-macro-textual-concat): `%IDENT%`
+  // splices undergo textual substitution alongside bare-identifier
+  // references in step 1. With `#define Y 3` the entire `%Y%`
+  // span (3 chars including the surrounding `%`s) is replaced by
+  // the body text "3", so `_int(_pow(%Y%, 2.0))` becomes
+  // `_int(_pow(3, 2.0))`. This is what makes the canonical P5
+  // example work for both bare-`DEPTH.0` AND `%DEPTH%.0` forms.
   SourceManager sm;
   DiagnosticEngine diag(sm);
   FileID f = makeBuf(sm);
@@ -276,7 +277,40 @@ TEST(MacroExpanderTest, PercentSpliceLeftAlone) {
   MacroExpander expander(mt, diag);
   std::string result =
       expander.expand("_int(_pow(%Y%, 2.0))", syntheticLoc(sm, f));
-  EXPECT_EQ(result, "_int(_pow(%Y%, 2.0))");
+  EXPECT_EQ(result, "_int(_pow(3, 2.0))");
+}
+
+TEST(MacroExpanderTest, PercentSpliceConcatenatesAdjacentDot) {
+  // `%DEPTH%.0` with `#define DEPTH 8` substitutes textually to
+  // `8.0` — the same adjacency rule that applies to bare-`DEPTH.0`
+  // applies to `%DEPTH%.0` per amended P10. This is the
+  // CodeRabbit-flagged case the M1-vintage skip-rule got wrong.
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
+  FileID f = makeBuf(sm);
+  MacroTable mt;
+  mt.insert("DEPTH", "8", syntheticLoc(sm, f));
+
+  MacroExpander expander(mt, diag);
+  std::string result =
+      expander.expand("%DEPTH%.0", syntheticLoc(sm, f));
+  EXPECT_EQ(result, "8.0");
+}
+
+TEST(MacroExpanderTest, UndefinedPercentSpliceLeftAsIs) {
+  // Undefined `%UNDEF%` is passed through verbatim so the
+  // downstream `parsePercentMacroRef` / `IdentSplicer` surfaces
+  // the canonical FR-037 diagnostic at its native site.
+  SourceManager sm;
+  DiagnosticEngine diag(sm);
+  FileID f = makeBuf(sm);
+  MacroTable mt;
+
+  MacroExpander expander(mt, diag);
+  std::string result =
+      expander.expand("%UNDEF%", syntheticLoc(sm, f));
+  EXPECT_EQ(result, "%UNDEF%");
+  EXPECT_FALSE(diag.hasError());
 }
 
 } // namespace

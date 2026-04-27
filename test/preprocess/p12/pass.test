@@ -29,9 +29,9 @@
 //
 // Source:
 //   `#define DEPTH 8`
-//   `#define MEMSIZE _int(_pow(2.0, %DEPTH%.0))`     <-- 2^8 = 256 → 256
-//   `#if MEMSIZE > 0`
-//   `mem ram[MEMSIZE];`                                <-- after splice: `mem ram[256];`
+//   `#define MEMSIZE _int(_pow(2.0, DEPTH.0))`        <-- 2^8 = 256 → 256
+//   `#if %MEMSIZE% > 0`
+//   `mem ram[%MEMSIZE%];`                              <-- after splice: `mem ram[256];`
 //   `#endif`
 //
 // Tasks.md T048. Fail-case is covered by P6 + P7 (helper-at-seam

@@ -231,7 +231,7 @@ After Phase 1 design (data-model.md, contracts/, quickstart.md):
 | Principle | Status post-design | Notes |
 |---|---|---|
 | I. Spec Authoritative | ✅ | The pp.ebnf P10 amendment text is drafted in `data-model.md` §entity 1 ("substitution algorithm"). |
-| II. Layered Library | ✅ | `MacroExpander.{h,cpp}` private to `lib/Preprocess/`; no new public headers; no new layer crossings. Driver `tools/nslc/main.cpp` unchanged. |
+| II. Layered Library | ✅ | `MacroExpander.h` published at `include/nsl/Preprocess/` (matching the M1 `MacroTable.h` / `HelperEvaluator.h` precedent so the gtest suite can `#include` it directly); `.cpp` stays in `lib/Preprocess/`. No new layer crossings. Driver `tools/nslc/main.cpp` unchanged. |
 | III. Stock CIRCT | ✅ | N/A. |
 | IV. Source-Locating Diagnostics | ✅ | Use-site SourceLocation propagation per §2. Synthetic-buffer pattern reuses M1's `addBufferInMemory` mechanism. |
 | V. Inspectable Deterministic | ✅ | Substitution pre-pass is pure function of (input text, macro table); macro-table iteration insertion-ordered (M1 FR-039 inherited). |

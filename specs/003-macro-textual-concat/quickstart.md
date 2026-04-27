@@ -49,7 +49,7 @@ EOF
 Expected — the `%MEMDEPTH%` use site emits the integer literal
 `256`:
 
-```
+```text
 tk_reg          reg     /tmp/p5.nsl:4:1:N    /tmp/p5.nsl:4:1   []
 tk_identifier   ram     /tmp/p5.nsl:4:5:N    /tmp/p5.nsl:4:5   []
 tk_lbracket     [       /tmp/p5.nsl:4:8:N    /tmp/p5.nsl:4:8   []
@@ -103,7 +103,8 @@ Expected:
 - exit code `1`
 - stdout EMPTY (no tokens; partial output forbidden on error)
 - stderr contains exactly the locked diagnostic:
-  ```
+
+  ```text
   /tmp/cycle.nsl:3:N:N: error: recursive macro expansion: A
   ```
 
@@ -115,17 +116,19 @@ GoogleTest unit suite for `MacroExpander`:
 ctest --test-dir build --output-on-failure -R macro_expander
 ```
 
-Expected: ~5 test cases pass.
+Expected: all `macro_expander_test` cases pass.
 
-lit + FileCheck regression for the 3 new fixtures:
+lit + FileCheck regression for the 5 new fixtures:
 
 ```bash
 cd build && lit -v ../test/preprocess/p05/textual-concat.pass.test \
+                  ../test/preprocess/p05/adjacency-no-whitespace.pass.test \
+                  ../test/preprocess/p05/adjacency-with-whitespace.fail.test \
                   ../test/preprocess/p10/recursive-expansion.pass.test \
                   ../test/preprocess/p10/cycle.fail.test
 ```
 
-Expected: 3/3 PASS.
+Expected: 5/5 PASS.
 
 ## 7. Verify no M1 regressions (SC-005)
 
@@ -136,7 +139,7 @@ ctest --output-on-failure
 
 Expected:
 
-- lit: 113 (M1) + 3 (this feature) = **116/116 PASS**
+- lit: 113 (M1) + 5 (this feature) = **118/118 PASS**
 - ctest: all green (the M1 + this feature's gtest suites)
 
 ## 8. Determinism check (FR-016, SC-003)

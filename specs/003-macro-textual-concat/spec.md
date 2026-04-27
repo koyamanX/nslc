@@ -237,7 +237,7 @@ yields the integer literal `8`.
 - **FR-012**: A new fixture `test/preprocess/p10/cycle.fail.test`
   MUST exercise the cycle detection (FR-006 + FR-007). The
   CHECK line cites the FR-007-locked diagnostic string verbatim.
-- **FR-013**: The unit suite at `test_unit/helper_evaluator_test/`
+- **FR-013**: The unit suite at `test_unit/macro_expander_test/`
   MUST gain coverage for the textual-substitution behavior of
   the helper-call argument list (US1 acceptance scenario 1, at
   the unit level).

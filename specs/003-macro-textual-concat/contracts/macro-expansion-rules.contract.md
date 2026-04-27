@@ -53,7 +53,7 @@ The "no whitespace insertion" rule is identical to pp.ebnf P3's
 The expander recognizes identifiers using the same character set
 as `lang.ebnf §13`:
 
-```
+```text
 identifier = [A-Za-z_][A-Za-z0-9_]*
 ```
 
@@ -75,7 +75,7 @@ the closed-set helper names.
 Substituted body text is itself scanned for further macro
 references and substituted recursively:
 
-```
+```nsl
 #define A B
 #define B C
 #define C 8
@@ -97,7 +97,7 @@ FR-022's `#include` cycle bound for consistency).
 When the depth limit is exceeded, the expander emits the
 **FR-007-locked diagnostic**:
 
-```
+```text
 <path>:<line>:<col>: error: recursive macro expansion: <NAME>
 ```
 
@@ -131,7 +131,7 @@ Per the M1 FR-037 discipline, the **cycle-detection fail-fixture**
 (`test/preprocess/p10/cycle.fail.test`) MUST cite the exact
 diagnostic message string. The locked text:
 
-```
+```text
 recursive macro expansion: <NAME>
 ```
 

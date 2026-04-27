@@ -101,11 +101,18 @@ std::string MacroExpander::expandImpl(llvm::StringRef text,
       continue;
     }
 
-    // Skip `%IDENT%` splice markers verbatim — these are P3 splice
-    // references handled by IdentSplicer / PPExpression's own
-    // parsePercentMacroRef(), NOT by textual substitution. If the
-    // `%...%` form is malformed (no closing `%`), pass the lone `%`
-    // through and resume scanning at the next character.
+    // `%IDENT%` splice markers — textually substitute per amended
+    // pp.ebnf P10 step 1 (003-macro-textual-concat): replace the
+    // entire `%IDENT%` span (incl. the surrounding `%`s) with the
+    // referenced macro's body TEXT. The recursion guard applies the
+    // same way as for bare identifiers; substituted text is itself
+    // re-scanned via `expandImpl(def->body, …)` so chains like
+    // `#define X %Y%` followed by `#define Y 8` reduce in one pass.
+    // An undefined `%UNDEF%` is left in place so the downstream
+    // `parsePercentMacroRef` (or `IdentSplicer`) can surface the
+    // FR-037 diagnostic at its canonical site. A malformed `%`
+    // (no identifier or no closing `%`) is passed through so the
+    // expression parser can use it as the modulo operator.
     if (c == '%') {
       std::size_t j = i + 1;
       if (j < text.size() && isIdentStart(text[j])) {
@@ -114,8 +121,27 @@ std::string MacroExpander::expandImpl(llvm::StringRef text,
           ++name_end;
         }
         if (name_end < text.size() && text[name_end] == '%') {
-          // Well-formed %IDENT% — emit verbatim.
+          llvm::StringRef name = text.substr(j, name_end - j);
           std::size_t end = name_end + 1;
+          const MacroDef *def = macros_.lookup(name);
+          if (def != nullptr) {
+            if (depth >= kMaxExpansionDepth) {
+              diag_.report(Severity::Error, use_loc.begin(),
+                           std::string("recursive macro expansion: ") +
+                               name.str());
+              out.append(text.data() + i, end - i);
+              i = end;
+              continue;
+            }
+            std::string substituted =
+                expandImpl(def->body, use_loc, depth + 1);
+            out.append(substituted);
+            i = end;
+            continue;
+          }
+          // Undefined `%IDENT%` — emit verbatim so the canonical
+          // diagnostic is produced by the downstream `%IDENT%`
+          // consumer (FR-037).
           out.append(text.data() + i, end - i);
           i = end;
           continue;

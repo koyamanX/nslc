@@ -88,8 +88,10 @@ private:
   at the closing `"`.
 
 **Lifecycle**: created on demand by `PPExpression::parse()` and by
-`IdentSplicer::splice()`; lives only for the duration of one
-expression evaluation. Cheap to construct.
+`PPExpression::reduceDefineBody()` (the two entry points that feed
+expression text — from `#if` conditions and from `#define`-body
+reduction triggered from `IdentSplicer::splice()`); lives only for
+the duration of one expression evaluation. Cheap to construct.
 
 ## Entity 2 — `MacroTable` (no changes)
 

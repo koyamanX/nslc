@@ -43,9 +43,11 @@ namespace nsl::preprocess {
 /// - `expand` is a pure function of `(text, macros, diag)`.
 /// - Recursion depth is bounded by `kMaxExpansionDepth = 256`.
 ///   Exceeding the bound emits the FR-007 locked diagnostic
-///   `recursive macro expansion: <NAME>` at `use_loc` and
-///   returns the original (unsubstituted) text — failsoft
-///   continuation per data-model entity 1.
+///   `recursive macro expansion: <NAME>` at `use_loc` and the
+///   triggering identifier is left unsubstituted at its position
+///   in the output. Other (non-cyclic) identifiers earlier or
+///   later in the same `text` continue to substitute normally —
+///   the fail-soft is identifier-level, not whole-text.
 /// - A defined macro's body is substituted **textually** at the
 ///   identifier's character span. Adjacent characters are NOT
 ///   separated by inserted whitespace.
@@ -60,9 +62,13 @@ public:
 
   MacroExpander(MacroTable &macros, DiagnosticEngine &diag);
 
-  /// Expand bare-identifier macro references in `text`. Returns
-  /// the substituted text. On cycle detection emits the FR-007
-  /// locked diagnostic at `use_loc` and returns `text` unchanged.
+  /// Expand bare-identifier macro references and `%IDENT%` splices
+  /// in `text` (per amended pp.ebnf P10). Returns the substituted
+  /// text. Cycle detection is identifier-level fail-soft: the
+  /// triggering identifier is left unsubstituted in the output
+  /// (so partial substitution of OTHER, non-cyclic identifiers in
+  /// the same `text` is preserved) and the FR-007 locked diagnostic
+  /// `recursive macro expansion: <NAME>` is emitted at `use_loc`.
   std::string expand(llvm::StringRef text, SourceRange use_loc);
 
 private:

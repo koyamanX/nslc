@@ -119,7 +119,7 @@ description: "Tasks for 003-macro-textual-concat — bare-macro textual concaten
 
 - [X] T022 [US3] Extend `lib/Preprocess/MacroExpander.cpp`'s `expandImpl()` with the depth counter (per research §4): pass `depth` parameter through recursive calls; if `depth > kMaxExpansionDepth` (256), emit the FR-007 locked diagnostic via `diag_.report(Severity::Error, use_loc, "recursive macro expansion: " + name)` and return the unsubstituted text (failsoft per data-model entity 1).
 - [X] T023 [US3] Build inside container; run T019 + T020 + T021. **Observe GREEN** including the FR-007 locked diagnostic match in T020.
-- [X] T024 [US3] Run the full M1 + this-feature lit + ctest corpus inside the container. Expect **116/116 lit** (113 M1 + 3 new) + **all ctest green** (M1's 66 + this feature's expanded macro_expander_test). SC-005 (no M1 regressions) verified.
+- [X] T024 [US3] Run the full M1 + this-feature lit + ctest corpus inside the container. Expect **118/118 lit** (113 M1 + 5 new) + **all ctest green** (M1's 114 + this feature's expanded macro_expander_test). SC-005 (no M1 regressions) verified.
 
 **Checkpoint**: All 3 user stories complete. The feature works end-to-end.
 
