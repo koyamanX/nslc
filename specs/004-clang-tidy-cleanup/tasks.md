@@ -136,9 +136,9 @@ description: "Tasks for 004-clang-tidy-cleanup — retire CI static-checks debt"
 
 ### Implementation for User Story 3
 
-- [ ] T024 [US3] Open a throwaway test branch off the post-Phase-4 HEAD; introduce a single deliberate `cppcoreguidelines-init-variables` warning (e.g., add `int foo;` inside an existing `.cpp` file). Push and observe CI: the `static-checks` stage MUST fail with the warning category and source location reported in the log (per US3 acceptance scenario 1 + SC-006).
-- [ ] T025 [US3] On the same throwaway branch, add a `// NOLINTNEXTLINE(cppcoreguidelines-init-variables) probe-only test, never merged` comment above the introduced line. Push and observe CI: the `static-checks` stage MUST pass (per US3 acceptance scenario 2). Verifies the documented escape hatch.
-- [ ] T026 [US3] Discard the throwaway branch (`git push origin :<probe-branch>`). The probe is verification only — it does not land on master. Document the verification result in the PR description for the main `004-clang-tidy-cleanup` branch.
+- [X] T024 [US3] Open a throwaway test branch off the post-Phase-4 HEAD; introduce a single deliberate `cppcoreguidelines-init-variables` warning (e.g., add `int foo;` inside an existing `.cpp` file). Push and observe CI: the `static-checks` stage MUST fail with the warning category and source location reported in the log (per US3 acceptance scenario 1 + SC-006).
+- [X] T025 [US3] On the same throwaway branch, add a `// NOLINTNEXTLINE(cppcoreguidelines-init-variables) probe-only test, never merged` comment above the introduced line. Push and observe CI: the `static-checks` stage MUST pass (per US3 acceptance scenario 2). Verifies the documented escape hatch.
+- [X] T026 [US3] Discard the throwaway branch (`git push origin :<probe-branch>`). The probe is verification only — it does not land on master. Document the verification result in the PR description for the main `004-clang-tidy-cleanup` branch.
 
 **Checkpoint**: Regression-prevention mechanism verified. All 3 user stories complete.
 
@@ -150,15 +150,15 @@ description: "Tasks for 004-clang-tidy-cleanup — retire CI static-checks debt"
 
 ### Final checks
 
-- [ ] T027 [P] Run `python3 scripts/check_spdx.py --all` — every modified file's SPDX header is intact (FR-008). Expect `295/0/128` or higher (whatever the baseline + any new file count).
-- [ ] T028 [P] Verify SC-005: `git rev-list --count master..HEAD` reports ≥ 4 commits (likely 12-15 given the per-directory const-correctness splits). Run `git bisect-friendly` sanity: pick 2 random commits in the feature-branch range, check out each, run `cmake --build build-Release-host` + `ctest --test-dir build-Release-host`; both must build clean and pass.
-- [ ] T029 [P] SC roll-up: write a one-paragraph PR-comment summary citing each of SC-001..SC-006 and the corresponding evidence (commit SHA range for SC-005, awk grep result for SC-004, per-stage exit codes for SC-001, etc.).
-- [ ] T030 [P] Verify FR-009: `grep -rn "TODO\|FIXME\|XXX\|HACK" --include="*.cpp" --include="*.h" --include="*.cmake" --include="CMakeLists.txt" include/ lib/ tools/ cmake/` returns empty. The cleanup MUST NOT introduce any TODO/FIXME workarounds (suppressions live in `.clang-tidy` global config or `// NOLINTNEXTLINE` per-site, never as TODO markers).
+- [X] T027 [P] Run `python3 scripts/check_spdx.py --all` — every modified file's SPDX header is intact (FR-008). Expect `295/0/128` or higher (whatever the baseline + any new file count).
+- [X] T028 [P] Verify SC-005: `git rev-list --count master..HEAD` reports ≥ 4 commits (likely 12-15 given the per-directory const-correctness splits). Run `git bisect-friendly` sanity: pick 2 random commits in the feature-branch range, check out each, run `cmake --build build-Release-host` + `ctest --test-dir build-Release-host`; both must build clean and pass.
+- [X] T029 [P] SC roll-up: write a one-paragraph PR-comment summary citing each of SC-001..SC-006 and the corresponding evidence (commit SHA range for SC-005, awk grep result for SC-004, per-stage exit codes for SC-001, etc.).
+- [X] T030 [P] Verify FR-009: `grep -rn "TODO\|FIXME\|XXX\|HACK" --include="*.cpp" --include="*.h" --include="*.cmake" --include="CMakeLists.txt" include/ lib/ tools/ cmake/` returns empty. The cleanup MUST NOT introduce any TODO/FIXME workarounds (suppressions live in `.clang-tidy` global config or `// NOLINTNEXTLINE` per-site, never as TODO markers).
 
 ### Agent-driven audits
 
-- [ ] T031 [P] Spawn `nsl-coupling-audit` agent (READ-ONLY) on the working tree. Expect **0 blocking findings**. The cleanup is style/correctness only; no spec/design coupling surface should change.
-- [ ] T032 [P] Spawn `nsl-constitution-review` agent (READ-ONLY). Expect zero blocking findings; reaffirm Principles I (no spec change), VI (test-first preserved via per-commit lit+ctest gates), IX (transitional clause retired in T022).
+- [X] T031 [P] Spawn `nsl-coupling-audit` agent (READ-ONLY) on the working tree. Expect **0 blocking findings**. The cleanup is style/correctness only; no spec/design coupling surface should change.
+- [X] T032 [P] Spawn `nsl-constitution-review` agent (READ-ONLY). Expect zero blocking findings; reaffirm Principles I (no spec change), VI (test-first preserved via per-commit lit+ctest gates), IX (transitional clause retired in T022).
 
 **Checkpoint**: PR-ready. Static-checks GREEN, constitution close-out clean, regression-prevention verified, agent audits clean.
 

@@ -388,6 +388,7 @@ invariants. A green CI run is the precondition for merge to `main`.
 - **Release artifacts.** Tagged releases MUST publish reproducible
   binaries and source tarballs from CI; no human-built artifacts are
   attached to releases.
+
 **Rationale.** The audited-project regression (Principle VI), the
 determinism guarantee (Principle V), and the spec/design coupling
 (Principle VII) are too large to enforce by hand at every change. CI is
