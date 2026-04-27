@@ -145,15 +145,17 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `004-clang-tidy-cleanup` — retire 927 clang-tidy
-warnings-as-errors on master so CI's `static-checks` stage goes green
-and Constitution Principle IX's transitional clause can be retired.
-For technologies, project structure, per-category dispositions, and
+**Active feature**: `005-m2-parser` — land the `nsl-ast` (4) and
+`nsl-parse` (5) static libraries plus the `nslc -emit=ast` driver
+flag, completing the M-track parser milestone. Full multi-error
+recovery (clangd-style, per /speckit-clarify Q1) and text-only
+S-expression-style AST dump (per /speckit-clarify Q2). For
+technologies, project structure, AST entity catalog, and
 quickstart, read the current plan:
-[`specs/004-clang-tidy-cleanup/plan.md`](./specs/004-clang-tidy-cleanup/plan.md).
-Companion artifacts: [`spec.md`](./specs/004-clang-tidy-cleanup/spec.md),
-[`research.md`](./specs/004-clang-tidy-cleanup/research.md),
-[`data-model.md`](./specs/004-clang-tidy-cleanup/data-model.md),
-[`contracts/`](./specs/004-clang-tidy-cleanup/contracts/),
-[`quickstart.md`](./specs/004-clang-tidy-cleanup/quickstart.md).
+[`specs/005-m2-parser/plan.md`](./specs/005-m2-parser/plan.md).
+Companion artifacts: [`spec.md`](./specs/005-m2-parser/spec.md),
+[`research.md`](./specs/005-m2-parser/research.md),
+[`data-model.md`](./specs/005-m2-parser/data-model.md),
+[`contracts/`](./specs/005-m2-parser/contracts/),
+[`quickstart.md`](./specs/005-m2-parser/quickstart.md).
 <!-- SPECKIT END -->
