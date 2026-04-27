@@ -46,7 +46,7 @@ FileID makeBuf(SourceManager &sm) {
 SourceRange syntheticLoc(SourceManager &sm, FileID f) {
   SourceLocation b = SourceLocation::make(f, 0);
   SourceLocation e = SourceLocation::make(f, 1);
-  return SourceRange(b, e);
+  return {b, e};
 }
 
 bool diagHasError(const DiagnosticEngine &diag, llvm::StringRef needle) {

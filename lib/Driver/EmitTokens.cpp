@@ -226,7 +226,7 @@ int emitTokens(llvm::StringRef input_path, const EmitTokensOptions &opts,
       // 8: "the very next line of input is reported as line LINENUM"
       // — so `virtual_line == ln` (NOT `ln+1`). `#line 100 "synth.v"`
       // means the line AFTER the directive is `synth.v:100`.
-      uint32_t at_off = static_cast<uint32_t>(off);
+      auto at_off = static_cast<uint32_t>(off);
       sm.addLineDirective(SourceLocation::make(synth_fid, at_off),
                           static_cast<uint32_t>(ln), llvm::StringRef(vpath));
     }

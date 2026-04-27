@@ -59,7 +59,7 @@ void buildLineOffsetsIfNeeded(const Buffer &b) {
   for (size_t i = 0; i < visible; ++i) {
     if (b.bytes[i] == '\n') {
       // Line i+2 starts at offset i+1.
-      uint32_t next = static_cast<uint32_t>(i + 1);
+      auto next = static_cast<uint32_t>(i + 1);
       b.line_offsets.push_back(next);
     }
   }
@@ -115,7 +115,7 @@ public:
     buf->bytes = std::move(bytes);
 
     NSL_ABORT(buffers.size() <= 255, "FileID exhausted: 256-file limit");
-    uint8_t id = static_cast<uint8_t>(buffers.size());
+    auto id = static_cast<uint8_t>(buffers.size());
     buffers.push_back(std::move(buf));
     return FileID(id);
   }
@@ -160,7 +160,7 @@ llvm::StringRef SourceManager::getBuffer(FileID f) const {
   Buffer &b = impl_->buffer(f);
   // Visible bytes exclude the NUL sentinel.
   size_t visible = b.bytes.empty() ? 0 : b.bytes.size() - 1;
-  return llvm::StringRef(b.bytes.data(), visible);
+  return {b.bytes.data(), visible};
 }
 
 llvm::StringRef SourceManager::getPath(FileID f) const {
@@ -196,7 +196,7 @@ llvm::StringRef SourceManager::getLine(SourceLocation loc) const {
   size_t visible = b.bytes.empty() ? 0 : b.bytes.size() - 1;
   // End of line: next line offset minus 1 (the '\n'), or the
   // visible end of the buffer for the last line.
-  size_t line_end;
+  size_t line_end = 0;
   if (line_idx + 1 < b.line_offsets.size()) {
     // Subtract one to exclude the '\n' at the end of this line.
     line_end = static_cast<size_t>(b.line_offsets[line_idx + 1]) - 1U;
@@ -207,7 +207,7 @@ llvm::StringRef SourceManager::getLine(SourceLocation loc) const {
   // ends just past it), trim. The line_offsets builder appends an
   // entry for "after newline", so for "abc\n" line_offsets = [0,4]
   // and line_idx==0 picks line_end=3 correctly via the if-branch.
-  return llvm::StringRef(b.bytes.data() + line_start, line_end - line_start);
+  return {b.bytes.data() + line_start, line_end - line_start};
 }
 
 SourceManager::VirtualLoc

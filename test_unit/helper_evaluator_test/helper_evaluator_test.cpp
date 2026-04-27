@@ -86,7 +86,7 @@ FileID makeBuf(SourceManager &sm) {
 nsl::SourceRange syntheticLoc(SourceManager &sm, FileID f) {
   SourceLocation b = SourceLocation::make(f, 0);
   SourceLocation e = SourceLocation::make(f, 1);
-  return nsl::SourceRange(b, e);
+  return {b, e};
 }
 
 // Convenience constructors for the failsoft tests below.

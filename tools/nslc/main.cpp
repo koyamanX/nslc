@@ -53,8 +53,9 @@ int main(int argc, char **argv) {
     llvm::errs() << "input file required\n" << kUsage;
     return 2;
   }
-  if (stage == "tokens")
+  if (stage == "tokens") {
     return nsl::driver::emitTokens(input, opts, llvm::outs(), llvm::errs());
+  }
   llvm::errs() << "unknown emit stage: " << stage << "\n" << kUsage;
   return 2;
 }

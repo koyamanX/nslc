@@ -34,7 +34,7 @@ bool isIdentBody(char c) {
 
 SourceLocation locAt(SourceLocation base, std::size_t delta) {
   if (!base.isValid()) {
-    return SourceLocation();
+    return {};
   }
   uint32_t off = base.offset() + static_cast<uint32_t>(delta);
   if (off >= SourceLocation::kMaxOffset) {

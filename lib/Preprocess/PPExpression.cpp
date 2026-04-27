@@ -33,7 +33,7 @@ namespace {
 /// offending byte.
 SourceLocation locAt(SourceLocation base, std::size_t delta) {
   if (!base.isValid()) {
-    return SourceLocation();
+    return {};
   }
   uint32_t off = base.offset() + static_cast<uint32_t>(delta);
   if (off >= SourceLocation::kMaxOffset) {
@@ -46,9 +46,9 @@ SourceRange rangeAt(SourceLocation base, std::size_t begin, std::size_t end) {
   SourceLocation b = locAt(base, begin);
   SourceLocation e = locAt(base, end);
   if (!b.isValid() || !e.isValid()) {
-    return SourceRange();
+    return {};
   }
-  return SourceRange(b, e);
+  return {b, e};
 }
 
 bool isDigit(char c) {
@@ -65,12 +65,15 @@ bool isIdentBody(char c) {
 }
 
 int hexDigitValue(char c) {
-  if (c >= '0' && c <= '9')
+  if (c >= '0' && c <= '9') {
     return c - '0';
-  if (c >= 'a' && c <= 'f')
+  }
+  if (c >= 'a' && c <= 'f') {
     return 10 + (c - 'a');
-  if (c >= 'A' && c <= 'F')
+  }
+  if (c >= 'A' && c <= 'F') {
     return 10 + (c - 'A');
+  }
   return -1;
 }
 
@@ -198,7 +201,7 @@ private:
       if (peek2('=', '=')) {
         match2('=', '=');
         PPValue r = parseRelational();
-        bool result;
+        bool result = false;
         if (v.isInt() && r.isInt()) {
           result = v.toInt() == r.toInt();
         } else {
@@ -208,7 +211,7 @@ private:
       } else if (peek2('!', '=')) {
         match2('!', '=');
         PPValue r = parseRelational();
-        bool result;
+        bool result = false;
         if (v.isInt() && r.isInt()) {
           result = v.toInt() != r.toInt();
         } else {
@@ -228,7 +231,7 @@ private:
       if (peek2('<', '=')) {
         match2('<', '=');
         PPValue r = parseAdditive();
-        bool result;
+        bool result = false;
         if (v.isInt() && r.isInt()) {
           result = v.toInt() <= r.toInt();
         } else {
@@ -238,7 +241,7 @@ private:
       } else if (peek2('>', '=')) {
         match2('>', '=');
         PPValue r = parseAdditive();
-        bool result;
+        bool result = false;
         if (v.isInt() && r.isInt()) {
           result = v.toInt() >= r.toInt();
         } else {
@@ -248,7 +251,7 @@ private:
       } else if (peek('<') && !peek2('<', '<')) {
         match('<');
         PPValue r = parseAdditive();
-        bool result;
+        bool result = false;
         if (v.isInt() && r.isInt()) {
           result = v.toInt() < r.toInt();
         } else {
@@ -258,7 +261,7 @@ private:
       } else if (peek('>') && !peek2('>', '>')) {
         match('>');
         PPValue r = parseAdditive();
-        bool result;
+        bool result = false;
         if (v.isInt() && r.isInt()) {
           result = v.toInt() > r.toInt();
         } else {

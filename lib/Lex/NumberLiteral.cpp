@@ -181,7 +181,7 @@ NumberScanResult scanNumber(llvm::StringRef buf, uint32_t cur) {
         // markers as illegal naturally because `consumeValueRun` for
         // base 10 would never accept them — handle this by routing
         // base 10 through the decimal-only loop.
-        uint32_t end;
+        uint32_t end = 0;
         if (r.base == 10) {
           uint32_t p = pos + 2;
           while (p < buf.size() && (isDecDigit(buf[p]) || buf[p] == '_')) {

@@ -471,8 +471,8 @@ public:
     //
     // (Note: the secondary parenthetical in P13 about "LINENUM = 0 -> 1"
     // contradicts the primary text + scenario 8; we follow scenario 8.)
-    uint32_t at_off = static_cast<uint32_t>(d.line_end_offset);
-    uint32_t virtual_line = static_cast<uint32_t>(line_no);
+    auto at_off = static_cast<uint32_t>(d.line_end_offset);
+    auto virtual_line = static_cast<uint32_t>(line_no);
 
     // Register with the SourceManager so subsequent diagnostics
     // resolve to the new (path, line) per Principle IV.

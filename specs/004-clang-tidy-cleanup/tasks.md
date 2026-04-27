@@ -64,10 +64,10 @@ description: "Tasks for 004-clang-tidy-cleanup — retire CI static-checks debt"
 
 - [X] T003 [US1] `llvm-include-order` (12 sites) — **no-op**: the clang-format sweep in T002 already reordered the include blocks; post-T002 there are 0 llvm-include-order warnings remaining. No commit needed.
 - [X] T004 [US1] `readability-uppercase-literal-suffix` (59 sites): `run-clang-tidy -checks='-*,readability-uppercase-literal-suffix' -fix`. Verify GREEN. Commit; expect `915 → 856`.
-- [ ] T005 [US1] `readability-braces-around-statements` (4 sites): same shape. Commit; expect `856 → 852`.
-- [ ] T006 [US1] `modernize-use-auto` (6 sites): same shape. Commit; expect `852 → 846`.
-- [ ] T007 [US1] `modernize-return-braced-init-list` (24 sites): same shape. Commit; expect `846 → 822`.
-- [ ] T008 [US1] `cppcoreguidelines-init-variables` (9 sites): same shape. Commit; expect `822 → 813`.
+- [X] T005 [US1] `readability-braces-around-statements` (4 sites): same shape. Commit; expect `856 → 852`.
+- [X] T006 [US1] `modernize-use-auto` (6 sites): same shape. Commit; expect `852 → 846`.
+- [X] T007 [US1] `modernize-return-braced-init-list` (24 sites): same shape. Commit; expect `846 → 822`.
+- [X] T008 [US1] `cppcoreguidelines-init-variables` (9 sites): same shape. Commit; expect `822 → 813`.
 
 **Include-cleaner block** — done after the format sweep so reordered includes don't fight the cleaner:
 

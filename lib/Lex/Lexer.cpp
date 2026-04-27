@@ -105,8 +105,7 @@ public:
   /// Wrap `(begin, end)` byte offsets into a `SourceRange` rooted at
   /// `fid`. End is exclusive; `length() == end - begin`.
   SourceRange makeRange(uint32_t begin, uint32_t end) const {
-    return SourceRange(SourceLocation::make(fid, begin),
-                       SourceLocation::make(fid, end));
+    return {SourceLocation::make(fid, begin), SourceLocation::make(fid, end)};
   }
 
   /// Skip ASCII whitespace and `//` line / `/* … */` block comments.
@@ -174,7 +173,7 @@ public:
     } else {
       kind = classifyKeyword(text);
     }
-    return Token(kind, makeRange(begin, cur), text);
+    return {kind, makeRange(begin, cur), text};
   }
 
   /// Scan a string literal. The opening `"` is at `cur`. Honors the
@@ -189,7 +188,7 @@ public:
       if (c == '"') {
         ++cur;
         llvm::StringRef text = buf.substr(begin, cur - begin);
-        return Token(TokenKind::tk_string_lit, makeRange(begin, cur), text);
+        return {TokenKind::tk_string_lit, makeRange(begin, cur), text};
       }
       if (c == '\n') {
         // Unterminated: newline closes the string-scan attempt.
@@ -198,7 +197,7 @@ public:
         diag.report(Severity::Error, SourceLocation::make(fid, begin),
                     "unterminated string literal");
         llvm::StringRef text = buf.substr(begin, cur - begin);
-        return Token(TokenKind::tk_unknown, makeRange(begin, cur), text);
+        return {TokenKind::tk_unknown, makeRange(begin, cur), text};
       }
       if (c == '\\' && cur + 1 < buf.size()) {
         // Skip the escaped character; classification of which escapes
@@ -214,7 +213,7 @@ public:
     diag.report(Severity::Error, SourceLocation::make(fid, begin),
                 "unterminated string literal");
     llvm::StringRef text = buf.substr(begin, cur - begin);
-    return Token(TokenKind::tk_unknown, makeRange(begin, cur), text);
+    return {TokenKind::tk_unknown, makeRange(begin, cur), text};
   }
 
   /// Scan a `#line ...` directive that survives the preprocessor →
@@ -229,7 +228,7 @@ public:
       ++cur;
     }
     llvm::StringRef text = buf.substr(begin, cur - begin);
-    return Token(TokenKind::tk_line_directive, makeRange(begin, cur), text);
+    return {TokenKind::tk_line_directive, makeRange(begin, cur), text};
   }
 
   /// Scan a numeric literal starting at `cur`. Delegates to the
@@ -242,12 +241,12 @@ public:
       // it does, advance one byte and emit `tk_unknown` rather than
       // looping forever.
       ++cur;
-      return Token(TokenKind::tk_unknown, makeRange(begin, cur),
-                   buf.substr(begin, 1));
+      return {TokenKind::tk_unknown, makeRange(begin, cur),
+              buf.substr(begin, 1)};
     }
     cur = r.end;
-    return Token(r.kind, makeRange(begin, cur), buf.substr(begin, cur - begin),
-                 r.flags);
+    return {r.kind, makeRange(begin, cur), buf.substr(begin, cur - begin),
+            r.flags};
   }
 
   /// One- or two-character punctuation lookup. Caller has already
@@ -261,11 +260,11 @@ public:
     // Two-char operators first to win precedence.
     auto emit2 = [&](TokenKind k) -> Token {
       cur += 2;
-      return Token(k, makeRange(begin, cur), buf.substr(begin, 2));
+      return {k, makeRange(begin, cur), buf.substr(begin, 2)};
     };
     auto emit1 = [&](TokenKind k) -> Token {
       ++cur;
-      return Token(k, makeRange(begin, cur), buf.substr(begin, 1));
+      return {k, makeRange(begin, cur), buf.substr(begin, 1)};
     };
 
     switch (c) {
@@ -361,8 +360,8 @@ public:
       // can choose to escalate. M1 does not diagnose individual
       // unknown bytes (the parser at M2 will).
       ++cur;
-      return Token(TokenKind::tk_unknown, makeRange(begin, cur),
-                   buf.substr(begin, 1));
+      return {TokenKind::tk_unknown, makeRange(begin, cur),
+              buf.substr(begin, 1)};
     }
   }
 
@@ -380,8 +379,8 @@ public:
   Token nextImpl() {
     skipWhitespaceAndComments();
     if (cur >= buf.size()) {
-      uint32_t end = static_cast<uint32_t>(buf.size());
-      return Token(TokenKind::tk_eof, makeRange(end, end), llvm::StringRef());
+      auto end = static_cast<uint32_t>(buf.size());
+      return {TokenKind::tk_eof, makeRange(end, end), llvm::StringRef()};
     }
 
     // N5 disambiguation: `#line` at start of line is the line-marker
