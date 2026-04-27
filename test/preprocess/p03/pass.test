@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p03/pass.test — P3 `%IDENT%` splice per
+// `docs/spec/nsl_pp.ebnf` §4 lines 312–343 and the "Validation
+// tests" topic table in
+// `specs/002-m1-lex-preprocess/contracts/preprocessor-seam.contract.md`.
+//
+// Topic per the table: `#define W 8` then `reg buf_%W% [W];`.
+//
+// Pass shape (P3 spec example, also called out by FR-016 and the US2
+// acceptance scenario 5):
+//   line 1: `#define W 8`           — macro W → 8
+//   line 2: `reg buf_%W% [W];`      — `%W%` splices the replacement
+//                                     TEXT `8` into the surrounding
+//                                     identifier; `[W]` keeps `W` as
+//                                     a bare identifier per the P3
+//                                     commentary "bare identifier
+//                                     passthrough" (covered by P2).
+//
+// Result tokens at the seam:
+//   tk_reg         "reg"
+//   tk_identifier  "buf_8"     ← single token via in-identifier splice
+//   tk_lbracket    "["
+//   tk_identifier  "W"         ← bare identifier — passthrough (P2)
+//   tk_rbracket    "]"
+//   tk_semicolon   ";"
+//
+// Tasks.md T039 + FR-016 + spec.md US2 acceptance #5.
+//
+// **RED state**: the unchanged Phase-3 tree's lexer tokenizes
+// `buf_%W%` per its own §13 identifier rules (which do NOT include
+// `%`) — the `%` would lex as `tk_percent` or `tk_unknown`.
+// Phase-4's `IdentSplicer` makes this work.
+
+// RUN: echo '#define W 8'        >  %t.nsl
+// RUN: echo 'reg buf_%%W%% [W];' >> %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_reg{{[ \t]+}}reg
+// CHECK-NEXT: tk_identifier{{[ \t]+}}buf_8
+// CHECK-NEXT: tk_lbracket{{[ \t]+}}[
+// CHECK-NEXT: tk_identifier{{[ \t]+}}W
+// CHECK-NEXT: tk_rbracket{{[ \t]+}}]
+// CHECK-NEXT: tk_semicolon{{[ \t]+}};
+// CHECK-NEXT: tk_eof
+
+// `%W%` itself MUST NOT cross the P12 seam:
+// CHECK-NOT: tk_percent
