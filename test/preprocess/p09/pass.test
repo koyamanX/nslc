@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p09/pass.test — P9 nested conditional pairing per
+// `docs/spec/nsl_pp.ebnf` §2.3 + the contract topic table in
+// `specs/002-m1-lex-preprocess/contracts/preprocessor-seam.contract.md`.
+//
+// Topic per the table: "nested `#ifdef`/`#endif` correctly paired".
+//
+// P9 invariant: `#else` always pairs with the most recent unmatched
+// opener; `#endif` closes the most recent unmatched opener. Nesting
+// is unbounded (FR-015).
+//
+// This fixture matches spec.md US2 acceptance scenario #4 (`#ifdef A
+// … #if B+1 … #else … #endif … #endif` with `A` defined and `B`
+// defined as `0` — selects the inner `#else`).
+//
+// Pass shape:
+//   #ifdef A          -- A defined via -D, then-branch entered
+//   #if B+1           -- B defined as 0, so B+1 == 1 (truthy);
+//                        WAIT — that's the THEN side; we want to
+//                        exercise the `#else` of the inner. So we
+//                        write `#if B-1` instead — B-1 == -1, but
+//                        the truthy test is "non-zero"; -1 IS truthy.
+//                        We want a falsy expression: `#if B` —
+//                        evaluates to 0, so the inner #else is taken.
+//   inner_then
+//   #else
+//   inner_else        -- this is what crosses the seam
+//   #endif
+//   outer_taken       -- this is what crosses the seam (still in #ifdef A)
+//   #endif
+//
+// Tasks.md T045. Predefined macros land via `-D` per FR-030 +
+// `tools/nslc/main.cpp`.
+//
+// **RED state**: the unchanged Phase-3 tree's lexer tokenizes
+// `#ifdef`/`#if`/`#else`/`#endif` literally; no preprocessor exists
+// to handle the conditional stack. Phase-4 turns it green.
+
+// RUN: echo '#ifdef A'        >  %t.nsl
+// RUN: echo '#if B'           >> %t.nsl
+// RUN: echo 'inner_then'      >> %t.nsl
+// RUN: echo '#else'           >> %t.nsl
+// RUN: echo 'inner_else'      >> %t.nsl
+// RUN: echo '#endif'          >> %t.nsl
+// RUN: echo 'outer_taken'     >> %t.nsl
+// RUN: echo '#endif'          >> %t.nsl
+// RUN: %nslc -emit=tokens -D A=1 -D B=0 %t.nsl | FileCheck %s
+
+// CHECK:      tk_identifier{{[ \t]+}}inner_else
+// CHECK-NEXT: tk_identifier{{[ \t]+}}outer_taken
+// CHECK-NEXT: tk_eof
+
+// The inner-then identifier MUST NOT cross the seam:
+// CHECK-NOT: tk_identifier{{[ \t]+}}inner_then
