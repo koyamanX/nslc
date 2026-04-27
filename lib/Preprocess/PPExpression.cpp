@@ -78,7 +78,8 @@ int hexDigitValue(char c) {
 class PPExpression::Parser {
 public:
   Parser(PPExpression &owner, llvm::StringRef text, SourceLocation base)
-      : owner_(owner), text_(text), base_(base) {}
+      : owner_(owner), text_(text), base_(base),
+        initial_error_count_(owner.diag_.numErrors()) {}
 
   PPValue parseTop() {
     skipWS();
@@ -97,6 +98,11 @@ private:
   SourceLocation base_;
   std::size_t pos_ = 0;
   bool errored_ = false;
+  // Snapshot of the diagnostic-engine error count at Parser
+  // construction. Used to detect whether errors were emitted DURING
+  // this Parser's lifetime (e.g. by MacroExpander pre-pass cycle
+  // detection) without misattributing unrelated earlier errors.
+  std::size_t initial_error_count_;
   // Storage for MacroExpander-substituted bodies of macros referenced
   // recursively from this Parser. The sub-Parser constructed inside
   // parseIdentOrHelper / parsePercentMacroRef holds a StringRef into
@@ -472,9 +478,12 @@ private:
     // identifiers are first run through MacroExpander so cycles trip
     // the depth bound (kMaxExpansionDepth = 256) instead of segfaulting
     // through unbounded Parser → parseTop → parseIdentOrHelper recursion.
+    // The use_loc points at the actual `%IDENT%` reference (begin..pos_)
+    // so any FR-007 cycle diagnostic is attributed to the use site,
+    // not the start of the enclosing expression.
     MacroExpander expander(owner_.macros_, owner_.diag_);
     expanded_bodies_.push_back(
-        expander.expand(def->body, SourceRange(base_, base_)));
+        expander.expand(def->body, rangeAt(base_, begin, pos_)));
     Parser sub(owner_, expanded_bodies_.back(), base_);
     return sub.parseTop();
   }
@@ -668,9 +677,15 @@ private:
     // longer correct: it would re-trigger the cycle through Parser
     // recursion, which is unbounded and segfaults. Emit an unresolved
     // error and return the safe default.
-    if (owner_.diag_.hasError()) {
-      // A cycle diagnostic from MacroExpander is already on the
-      // diagnostic queue; don't pile on a second one.
+    if (owner_.diag_.numErrors() > initial_error_count_) {
+      // A diagnostic was emitted during this Parser's lifetime —
+      // typically the FR-007 cycle diagnostic from MacroExpander's
+      // pre-pass on the input text. Suppress the cascading
+      // "unresolved macro" report so we don't pile on a second
+      // (less informative) error for the same root cause. Earlier
+      // unrelated errors (from prior directives or files) do NOT
+      // trigger this branch because we snapshot the count at
+      // Parser construction.
       return PPValue(int64_t{0});
     }
     report("unresolved macro '" + name.str() +

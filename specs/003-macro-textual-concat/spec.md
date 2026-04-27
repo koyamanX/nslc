@@ -202,8 +202,14 @@ yields the integer literal `8`.
 - **FR-006**: A recursion cycle is detected via a per-expansion
   call-stack depth bound of **256 levels** (matching the M1
   FR-022 include-cycle bound for consistency). Exceeding the
-  bound raises a diagnostic and aborts the current expression
-  evaluation.
+  bound emits the FR-007-locked diagnostic and continues
+  identifier-level fail-soft: the triggering identifier is
+  left unsubstituted at its position in the output, while
+  earlier and later (non-cyclic) identifiers in the same input
+  text continue to substitute normally. The downstream
+  expression parser then surfaces a cascade-suppressed
+  "unresolved macro" error for the leftover identifier; the
+  preprocessor as a whole does not abort.
 - **FR-007**: The cycle-diagnostic message text is **locked** at
   `recursive macro expansion: <NAME>` per the FR-037-locked
   diagnostic-string discipline established in M1. The

@@ -20,8 +20,8 @@ description: "Tasks for 003-macro-textual-concat — bare-macro textual concaten
 
 ## Path Conventions
 
-- All work confined to `lib/Preprocess/` (M1 layer 2) + `test/preprocess/` + `test_unit/` + `docs/spec/nsl_pp.ebnf` (P10 amendment).
-- No new public headers; no new layers; no driver-flag changes; `tools/nslc/main.cpp` unchanged (60-line cap preserved per Principle II).
+- All work confined to `lib/Preprocess/` (M1 layer 2) + `include/nsl/Preprocess/` (the new `MacroExpander.h` follows the M1 `MacroTable.h` / `HelperEvaluator.h` precedent — public so the gtest suite can `#include` it directly) + `test/preprocess/` + `test_unit/` + `docs/spec/nsl_pp.ebnf` (P10 amendment).
+- One new public header (`include/nsl/Preprocess/MacroExpander.h`); no new layers; no driver-flag changes; `tools/nslc/main.cpp` unchanged (60-line cap preserved per Principle II).
 
 ---
 
@@ -65,11 +65,11 @@ description: "Tasks for 003-macro-textual-concat — bare-macro textual concaten
 
 ### Implementation for User Story 1
 
-- [X] T008 [US1] Implement `lib/Preprocess/MacroExpander.h` per data-model entity 1: class `MacroExpander` with `kMaxExpansionDepth = 256` constant, constructor taking `MacroTable&` + `DiagnosticEngine&`, public `expand(StringRef, SourceRange)` method, private `expandImpl(...)` recursive helper. SPDX header on line 1.
+- [X] T008 [US1] Implement `include/nsl/Preprocess/MacroExpander.h` per data-model entity 1: public class `MacroExpander` with `kMaxExpansionDepth = 256` constant, constructor taking `MacroTable&` + `DiagnosticEngine&`, public `expand(StringRef, SourceRange)` method, private `expandImpl(...)` recursive helper. SPDX header on line 1. (Public so the gtest suite can `#include` it directly, matching the M1 `MacroTable.h` / `HelperEvaluator.h` precedent.)
 - [X] T009 [US1] Implement `lib/Preprocess/MacroExpander.cpp` (basic textual substitution; cycle detection arrives in US3): walk the input character stream left-to-right, lex identifiers via the same `[A-Za-z_][A-Za-z0-9_]*` regex used by `nsl-lex`, look up each identifier in the `MacroTable`, replace its character span with the macro body's text, resume scanning at the start of the substituted text (so recursion happens naturally). Skip identifier scanning inside `"..."` string literals. Per research §1's pre-pass design.
 - [X] T010 [US1] Wire `MacroExpander` into `lib/Preprocess/PPExpression.cpp`: add a `MacroExpander` member field; in `parse()`, call `expander.expand(input_text, loc)` once before tokenizing. The expression parser then sees the already-substituted character stream. Per research §3 / data-model entity 1 invariants. ~10-line edit.
 - [X] T011 [US1] Wire `MacroExpander` into `lib/Preprocess/IdentSplicer.cpp` so `#define` bodies that mix `%IDENT%` + bare identifiers BOTH undergo textual substitution per FR-009. The existing `%IDENT%` splice path stays; the new `MacroExpander` call augments it. ~5-line edit.
-- [X] T012 [US1] Edit `lib/Preprocess/CMakeLists.txt` — add `MacroExpander.cpp` to the `add_nsl_library(nsl-preprocess SOURCES ...)` list. Private header `MacroExpander.h` does NOT go in the `HEADERS` install set (private to `lib/Preprocess/` per data-model entity 1).
+- [X] T012 [US1] Edit `lib/Preprocess/CMakeLists.txt` — add `MacroExpander.cpp` to the `add_nsl_library(nsl-preprocess SOURCES ...)` list AND `include/nsl/Preprocess/MacroExpander.h` to the `HEADERS` set so the public header installs alongside the M1 `MacroTable.h` / `HelperEvaluator.h`.
 - [X] T013 [US1] Build inside the container; run T005 + T006. **Observe GREEN.** US1's MVP test passes; macro_expander_test's basic cases pass.
 - [X] T014 [US1] Determinism check: run `nslc -emit=tokens` on the US1 fixture twice; diff stdout; expect empty (FR-016 / SC-005's "no M1 regression").
 
@@ -117,7 +117,7 @@ description: "Tasks for 003-macro-textual-concat — bare-macro textual concaten
 
 ### Implementation for User Story 3
 
-- [X] T022 [US3] Extend `lib/Preprocess/MacroExpander.cpp`'s `expandImpl()` with the depth counter (per research §4): pass `depth` parameter through recursive calls; if `depth > kMaxExpansionDepth` (256), emit the FR-007 locked diagnostic via `diag_.report(Severity::Error, use_loc, "recursive macro expansion: " + name)` and return the unsubstituted text (failsoft per data-model entity 1).
+- [X] T022 [US3] Extend `lib/Preprocess/MacroExpander.cpp`'s `expandImpl()` with the depth counter (per research §4): pass `depth` parameter through recursive calls; if `depth >= kMaxExpansionDepth` (256), emit the FR-007 locked diagnostic via `diag_.report(Severity::Error, use_loc, "recursive macro expansion: " + name)` and return the unsubstituted text (failsoft per data-model entity 1).
 - [X] T023 [US3] Build inside container; run T019 + T020 + T021. **Observe GREEN** including the FR-007 locked diagnostic match in T020.
 - [X] T024 [US3] Run the full M1 + this-feature lit + ctest corpus inside the container. Expect **118/118 lit** (113 M1 + 5 new) + **all ctest green** (M1's 114 + this feature's expanded macro_expander_test). SC-005 (no M1 regressions) verified.
 

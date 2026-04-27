@@ -78,21 +78,26 @@ specs/003-macro-textual-concat/
 nslc/
 ├── docs/spec/nsl_pp.ebnf                    # MODIFIED — P10 paragraph clarification (~3-line edit;
 │                                            #  preserves the file's 559-line count per SC-006)
+├── include/nsl/Preprocess/
+│   └── MacroExpander.h                      # NEW (public) — textual-substitution + cycle-detection API;
+│                                            #  follows the M1 MacroTable.h / HelperEvaluator.h precedent
 ├── lib/Preprocess/
-│   ├── MacroExpander.h                      # NEW (private) — textual-substitution + cycle-detection API
-│   ├── MacroExpander.cpp                    # NEW (private) — implementation; ~150 lines
+│   ├── MacroExpander.cpp                    # NEW — implementation; ~170 lines
 │   ├── PPExpression.cpp                     # MODIFIED — call MacroExpander before tokenize/parse;
-│   │                                        #  ~10 lines changed, no new public symbols
-│   ├── IdentSplicer.cpp                     # MODIFIED — call MacroExpander to handle bare-ident
-│   │                                        #  forms inside #define body; ~5-line edit
-│   └── CMakeLists.txt                       # MODIFIED — add MacroExpander.cpp to SOURCES
+│   │                                        #  the legacy recursive sub-Parser path through
+│   │                                        #  parseIdentOrHelper is replaced with a depth-bounded
+│   │                                        #  MacroExpander pre-pass that scopes the cycle check
+│   │                                        #  by snapshotting numErrors() at Parser construction
+│   └── CMakeLists.txt                       # MODIFIED — add MacroExpander.cpp to SOURCES + HEADERS
 ├── test/preprocess/
 │   ├── p05/textual-concat.pass.test         # NEW — canonical pp.ebnf P5 example (US1)
+│   ├── p05/adjacency-no-whitespace.pass.test  # NEW — adjacency edge case (US2)
+│   ├── p05/adjacency-with-whitespace.fail.test # NEW — adjacency edge case (US2)
 │   ├── p10/recursive-expansion.pass.test    # NEW — 3-level chain (US3)
 │   └── p10/cycle.fail.test                  # NEW — FR-007 locked-diagnostic fail-case (US3)
 ├── test_unit/macro_expander_test/           # NEW directory — gtest unit suite
 │   ├── CMakeLists.txt                       # NEW — registers the suite (mirrors M1's per-suite pattern)
-│   └── macro_expander_test.cpp              # NEW — ~5 test cases per FR-013
+│   └── macro_expander_test.cpp              # NEW — 15 test cases per FR-013
 └── test_unit/CMakeLists.txt                 # MODIFIED — add `macro_expander_test` to the foreach() list
 ```
 
@@ -105,7 +110,7 @@ test/preprocess/p12/pass.test                # OPTIONAL revert from M1's _real(%
 
 These reverts are an indicator that the M1 workaround surface has fully closed. They MAY be deferred to a follow-up PR if desired.
 
-**Structure Decision**: Single small directory delta — 2 new private headers/sources in `lib/Preprocess/`, 3 new lit fixtures, 1 new gtest unit suite. Continues M1's pattern. No new public headers, no new layers, no new driver flags. The feature is **strictly additive** to M1: a single new internal class (`MacroExpander`) wired into existing entry points (`PPExpression::parse()`, `IdentSplicer::splice()`).
+**Structure Decision**: Single small directory delta — 1 new public header in `include/nsl/Preprocess/` (matching the M1 `MacroTable.h` / `HelperEvaluator.h` precedent so the gtest suite can `#include` it), 1 new source in `lib/Preprocess/`, 5 new lit fixtures, 1 new gtest unit suite. Continues M1's pattern. No new layers, no new driver flags. The feature is **strictly additive** to M1: a single new class (`MacroExpander`) wired into the two `PPExpression` expression entry points (`parse()` and `reduceDefineBody()`); the legacy recursive sub-Parser path through `parseIdentOrHelper` is replaced with the depth-bounded `MacroExpander` pre-pass.
 
 ## Complexity Tracking
 
