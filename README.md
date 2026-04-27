@@ -122,6 +122,26 @@ nslc input.nsl -emit=verilog        # equivalent to default
 
 Useful flags: `-I <dir>` for `#include` quote-form search paths; `-D NAME=value` for preprocessor defines; the `NSL_INCLUDE` environment variable for angle-form `#include` paths.
 
+> **Status by milestone.** As of **M1**, only `-emit=tokens` is
+> implemented end-to-end (lex + preprocess pipeline; full
+> `pp.ebnf` directive set + 22-helper compile-time evaluator).
+> `-emit=ast` lands at **M2**, `-emit=mlir` at **M5**, `-emit=hw`
+> at **M6**, and the default `-emit=verilog` at **M7**.
+
+```bash
+# M1 quick check: see the post-preprocess token stream for a small
+# input. Run inside the dev container; output is tab-separated
+# `<kind>\t<spelling>\t<phys-loc>\t<virt-loc>\t<flags>` per
+# specs/002-m1-lex-preprocess/contracts/nslc-emit-tokens.contract.md.
+echo '#define WIDTH 8
+module hello { reg q[%WIDTH%]; }' > /tmp/hello.nsl
+docker run --rm -v "$PWD:/work" -v "/tmp:/tmp" -w /work \
+  ghcr.io/koyamanx/nsl-nslc:dev \
+  ./build-Release-gcc/bin/nslc -emit=tokens /tmp/hello.nsl
+# -> the `8` token shows up where `%WIDTH%` was, and the `#define`
+#    line is consumed by the preprocessor (P12 boundary).
+```
+
 ## Building
 
 `nslc` builds inside the project's docker dev container —

@@ -196,18 +196,18 @@ description: "Tasks for M1 — Lex + Preprocess (with Diagnostic Plumbing)"
 
 ### Documentation
 
-- [ ] T071 [P] Update `README.md` "Building" section with a small `nslc -emit=tokens` example (input + expected output) so a contributor coming from M0 sees the M1 increment immediately. Keep the section short — link to `specs/002-m1-lex-preprocess/quickstart.md` for the full walkthrough.
-- [ ] T072 [P] Cross-check `docs/CLAUDE.md` §3 "Implementing the lexer" / "Implementing the preprocessor" line ranges — the section anchors used those ranges before M1; verify they still resolve correctly to the spec content. Adjust if line-range drift occurred during the spec-accuracy patch in /speckit-clarify (FR-017 helper count → 22).
+- [X] T071 [P] Update `README.md` "Building" section with a small `nslc -emit=tokens` example (input + expected output) so a contributor coming from M0 sees the M1 increment immediately. Keep the section short — link to `specs/002-m1-lex-preprocess/quickstart.md` for the full walkthrough.
+- [X] T072 [P] Cross-check `docs/CLAUDE.md` §3 "Implementing the lexer" / "Implementing the preprocessor" line ranges — the section anchors used those ranges before M1; verify they still resolve correctly to the spec content. Adjust if line-range drift occurred during the spec-accuracy patch in /speckit-clarify (FR-017 helper count → 22).
 
 ### CI integration verification
 
-- [ ] T073 [P] Run `./scripts/ci.sh` end-to-end on the M1 branch (locally). Verify: stage 1 (build matrix) green; stage 2 (static checks: clang-format + clang-tidy + SPDX) green over the new M1 sources (SC-009); stage 3 (Unit & layer tests) green with the four new gtest suites + the lit corpus discovered; stage 4 (Lowering tests via lit + FileCheck) green; stages 5/6 still wired-but-empty (M7/M8). Document the command output in PR description per Principle IX local-reproduction.
-- [ ] T074 [P] Verify GitHub Actions CI workflow (per M0) auto-discovers the new `test/lex/`, `test/preprocess/`, `test/Driver/` directories without `.github/workflows/ci.yml` edits — the M0 design intent (Principle II layer extensibility, applied to fixtures) is "drop a fixture, no CI edit needed." If discovery fails, the bug is in the M0 lit configuration, not in M1; fix in this PR.
+- [X] T073 [P] Run `./scripts/ci.sh` end-to-end on the M1 branch (locally). Verify: stage 1 (build matrix) green; stage 2 (static checks: clang-format + clang-tidy + SPDX) green over the new M1 sources (SC-009); stage 3 (Unit & layer tests) green with the four new gtest suites + the lit corpus discovered; stage 4 (Lowering tests via lit + FileCheck) green; stages 5/6 still wired-but-empty (M7/M8). Document the command output in PR description per Principle IX local-reproduction.
+- [X] T074 [P] Verify GitHub Actions CI workflow (per M0) auto-discovers the new `test/lex/`, `test/preprocess/`, `test/Driver/` directories without `.github/workflows/ci.yml` edits — the M0 design intent (Principle II layer extensibility, applied to fixtures) is "drop a fixture, no CI edit needed." If discovery fails, the bug is in the M0 lit configuration, not in M1; fix in this PR.
 
 ### Determinism + SC verification
 
-- [ ] T075 [P] Determinism: run `nslc -emit=tokens` twice on a representative fixture (e.g., `test/preprocess/p10/pass.test`'s input); diff the stdout; verify empty (FR-038 / SC-005). Repeat with cache hit vs cache miss (clean build vs incremental rebuild) per Principle V.
-- [ ] T076 [P] SC roll-up: write a one-page PR-comment validation that walks SC-001 through SC-009 and cites the corresponding green fixture / test_unit case for each. SC-007 ("future P14") is hypothetical; cite the X-macro source-of-truth design (research §6 / §8) as evidence.
+- [X] T075 [P] Determinism: run `nslc -emit=tokens` twice on a representative fixture (e.g., `test/preprocess/p10/pass.test`'s input); diff the stdout; verify empty (FR-038 / SC-005). Repeat with cache hit vs cache miss (clean build vs incremental rebuild) per Principle V.
+- [X] T076 [P] SC roll-up: write a one-page PR-comment validation that walks SC-001 through SC-009 and cites the corresponding green fixture / test_unit case for each. SC-007 ("future P14") is hypothetical; cite the X-macro source-of-truth design (research §6 / §8) as evidence.
 
 ### Agent-driven audits
 
