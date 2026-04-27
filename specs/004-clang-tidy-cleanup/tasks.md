@@ -120,9 +120,9 @@ description: "Tasks for 004-clang-tidy-cleanup — retire CI static-checks debt"
 
 ### Implementation for User Story 2
 
-- [ ] T021 [US2] Read the current Principle IX section of `.specify/memory/constitution.md` carefully. Identify the transitional-clause paragraph + any "Pipeline stages" / "Governance" cross-references that point at the transitional clause. Per `data-model.md` Entity 2: the steady-state rule text MUST remain BYTE-IDENTICAL; the close-out commit is a pure deletion of the transitional paragraph + lockstep removal of the cross-references.
-- [ ] T022 [US2] Edit `.specify/memory/constitution.md` to remove the transitional clause from Principle IX and update the Governance / Pipeline-stages cross-references to drop their "transitional clause" pointers. Verify with `awk '/^### Principle IX/{p=1} p && /^### /{if (NR>1 && !/Principle IX/) p=0} p' .specify/memory/constitution.md | grep -c "transitional"` returning exactly **0** (per quickstart.md §6 + SC-004).
-- [ ] T023 [US2] Verify the gate is still green: `./scripts/ci.sh all` exits 0 inside the container. The constitution edit is doc-only; it MUST not affect any code or test outcome. Commit per `contracts/cleanup-commit.contract.md` with `<count>=0` (the doc-only commit is the explicit exception in the contract).
+- [X] T021 [US2] Read the current Principle IX section of `.specify/memory/constitution.md` carefully. Identify the transitional-clause paragraph + any "Pipeline stages" / "Governance" cross-references that point at the transitional clause. Per `data-model.md` Entity 2: the steady-state rule text MUST remain BYTE-IDENTICAL; the close-out commit is a pure deletion of the transitional paragraph + lockstep removal of the cross-references.
+- [X] T022 [US2] Edit `.specify/memory/constitution.md` to remove the transitional clause from Principle IX and update the Governance / Pipeline-stages cross-references to drop their "transitional clause" pointers. Verify with `awk '/^### Principle IX/{p=1} p && /^### /{if (NR>1 && !/Principle IX/) p=0} p' .specify/memory/constitution.md | grep -c "transitional"` returning exactly **0** (per quickstart.md §6 + SC-004).
+- [X] T023 [US2] Verify the gate is still green: `./scripts/ci.sh all` exits 0 inside the container. The constitution edit is doc-only; it MUST not affect any code or test outcome. Commit per `contracts/cleanup-commit.contract.md` with `<count>=0` (the doc-only commit is the explicit exception in the contract).
 
 **Checkpoint**: Constitution close-out done. SC-004 verified.
 
