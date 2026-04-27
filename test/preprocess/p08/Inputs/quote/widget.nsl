@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p08/Inputs/quote/widget.nsl — auxiliary include
+// file for the P8 quote-form pass-fixture. The `Inputs/` directory
+// is excluded from lit's auto-discovery (see test/lit.cfg.py
+// `config.excludes`), so this file is only ever loaded via
+// `#include "widget.nsl"` from the driving `pass.test`.
+
+reg quote_marker;

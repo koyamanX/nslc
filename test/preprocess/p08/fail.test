@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p08/fail.test — P8 search-path failure: an
+// `#include` whose target file is not findable in any configured
+// search root raises a generic "could not find include" diagnostic.
+//
+// Per the contract row in
+// `specs/002-m1-lex-preprocess/contracts/preprocessor-seam.contract.md`:
+//   "search-path failure raises generic 'could not find include'"
+//
+// This diagnostic string is **NOT** in the FR-037 locked-string
+// table — `diagnostic-output.contract.md`'s "Mandatory diagnostic-
+// string fixtures" only locks P3, P6, P7, P9, and lex-unterminated.
+// We assert the SHAPE (`error: ...could not find...include...` per
+// SC-004 regex) but not the precise message text — leaving the
+// implementer freedom to tune wording without a contract amendment.
+//
+// **RED state**: against the unchanged Phase-3 tree the lexer
+// tokenizes `#include "missing.nsl"` literally. Phase-4's
+// `IncludeSearchPath` resolves the lookup; on failure it raises the
+// diagnostic.
+
+// RUN: echo '#include "this_file_does_not_exist.nsl"' > %t.nsl
+// RUN: not %nslc -emit=tokens %t.nsl 2>&1 | FileCheck %s
+
+// SC-004 regex shape (path:line:col: error: ...) without locking the
+// message text:
+// CHECK: error: {{.*}}could not find{{.*}}include
