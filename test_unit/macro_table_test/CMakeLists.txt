@@ -22,9 +22,16 @@ endforeach()
 if(_have_sources)
   include(GoogleTest)
   add_executable(macro_table_test ${_macro_table_sources})
+  # Phase-4 wiring (T051): MacroTable lives in `nsl-preprocess`. The
+  # link is set up here even though `nsl-preprocess` is currently a
+  # M0-anchor-TU skeleton (no real symbols) — that's the intended
+  # FR-036 RED state per Constitution Principle VIII. The parallel
+  # `nsl-frontend-impl` agent's MacroTable.cpp lands the symbols and
+  # the suite turns green.
   target_link_libraries(macro_table_test
     PRIVATE
       nsl-basic
+      nsl-preprocess
       GTest::gtest_main)
   gtest_discover_tests(macro_table_test
     PROPERTIES TIMEOUT 30)
