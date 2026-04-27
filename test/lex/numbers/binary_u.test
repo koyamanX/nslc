@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/numbers/binary_u.test — C-style binary literal with `U`
+// digit per `lang.ebnf §13`.
+
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+0b1U
+// CHECK:      tk_binary_lit	0b1U	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[U]
+// CHECK-NEXT: tk_eof

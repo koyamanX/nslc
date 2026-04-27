@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/numbers/verilog_hex_z.test — Verilog-style hex literal
+// with all-`Z` value-run, matching the SDRAM_Controler reference
+// example cited in `lang.ebnf §13` line 733: `16'hZZZZ`.
+
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+16'hZZZZ
+// CHECK:      tk_hex_lit	16'hZZZZ	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[Z]
+// CHECK-NEXT: tk_eof

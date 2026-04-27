@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/numbers/hex_mixed_zxu.test — boundary: a single literal
+// with all three Z/X/U markers. Flags column lists each present
+// marker exactly once. Comma-separation is convention (no spec lock
+// for the flag-column delimiter); if the implementation chooses a
+// different separator, this fixture must be regenerated alongside
+// the contract amendment.
+
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+0xZXU
+// CHECK:      tk_hex_lit	0xZXU	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[Z,X,U]
+// CHECK-NEXT: tk_eof
