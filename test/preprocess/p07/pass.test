@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p07/pass.test — P7 float reduction per
+// `docs/spec/nsl_pp.ebnf` notes (P7 = floats are preprocess-time
+// only) + research §5 numeric model + the contract topic table in
+// `specs/002-m1-lex-preprocess/contracts/preprocessor-seam.contract.md`.
+//
+// Topic per the table: "float in `#define` body reduced via
+// `_int(...)` before substitution".
+//
+// Pass shape: a `#define` whose body computes a real value, then
+// reduces it to integer via `_int(...)` before substitution. The
+// integer literal is what crosses the seam — the intermediate float
+// stays preprocess-internal.
+//
+// Source:
+//   `#define HALF _int(_real(8) / 2.0)`
+// Helper chain:
+//   * `_real(8)`        → 8.0 (real).
+//   * `_real(8) / 2.0`  → 4.0 (real).
+//   * `_int(4.0)`       → 4 (integer; truncate-toward-zero).
+//
+// At the use site `%HALF%` splices `4` — integer literal, no
+// `tk_dot` and no fractional digits cross.
+//
+// Tasks.md T043.
+//
+// **RED state**: the unchanged Phase-3 lexer tokenizes
+// `_real`/`_int` as `tk_system_function`, the `/` as
+// `tk_slash`, and the `2.0` as `tk_decimal_lit 2 / tk_dot /
+// tk_decimal_lit 0` (no float lexer at M1). Phase-4 turns it green.
+
+// RUN: echo '#define HALF _int(_real(8) / 2.0)' >  %t.nsl
+// RUN: echo 'reg h = %%HALF%%;'                 >> %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_reg{{[ \t]+}}reg
+// CHECK-NEXT: tk_identifier{{[ \t]+}}h
+// CHECK-NEXT: tk_assign{{[ \t]+}}=
+// CHECK-NEXT: tk_decimal_lit{{[ \t]+}}4
+// CHECK-NEXT: tk_semicolon{{[ \t]+}};
+// CHECK-NEXT: tk_eof
+
+// No float artifact crosses the seam (P7 + P12):
+// CHECK-NOT: tk_dot
+// CHECK-NOT: tk_decimal_lit{{[ \t]+}}2
+// CHECK-NOT: tk_decimal_lit{{[ \t]+}}8

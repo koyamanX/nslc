@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p07/fail.test — P7 violation: a float literal
+// produced by a `#define` body crosses the preprocessor → lexer
+// seam without a `_int(...)` reduction. Per FR-019 + the FR-037
+// locked-string table in
+// `specs/002-m1-lex-preprocess/contracts/diagnostic-output.contract.md`,
+// this is detected at the seam and emits:
+//
+// FR-037 P7 lock:  `float literal cannot cross the preprocessor seam`
+//
+// Per Constitution Principle VIII the failing fixture asserts the
+// EXACT diagnostic string. Renaming or weakening it later requires a
+// contract amendment in `contracts/diagnostic-output.contract.md`
+// PLUS this fixture's update in the same change.
+//
+// Source: a `#define` body whose final reduction is a real-typed
+// `PPValue` (not `_int(...)`-coerced); the substitution into
+// `reg x = %F%` would emit a float literal token, which the
+// preprocessor MUST reject at the seam (P12 invariant: no float
+// literals at the seam).
+//
+// **RED state**: against the unchanged Phase-3 tree the lexer
+// tokenizes `_real(8)/2.0` literally and exits 0 (the float source
+// bytes lex per §13 as integer + dot + integer; no preprocessor
+// exists). Phase-4 wires the seam check.
+
+// RUN: echo '#define F _real(8) / 2.0' > %t.nsl
+// RUN: echo 'reg x = %%F%%;'           >> %t.nsl
+// RUN: not %nslc -emit=tokens %t.nsl 2>&1 | FileCheck %s
+
+// FR-037 LOCKED STRING — exact match:
+// CHECK: error: float literal cannot cross the preprocessor seam
