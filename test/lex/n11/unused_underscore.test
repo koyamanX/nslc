@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/n11/unused_underscore.test — N11 third lexical niche per
+// `lang.ebnf` line 1101. An underscore-prefixed name that is not in
+// classes (a) or (b) — and not a `pp.ebnf §3.1` preprocessor helper
+// either — is reserved for forward compatibility. The lexer
+// classifies it as `tk_unused_underscore` per data-model entity 7;
+// downstream sema (M3) MAY surface a warning naming "reserved for
+// future use" but the lexer accepts the token.
+//
+// `_xyzzy` is a deliberately-fictional name that cannot collide with
+// any current N11 (a)/(b) entry or `pp.ebnf §3.1` helper.
+
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+_xyzzy
+// CHECK:      tk_unused_underscore	_xyzzy	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK-NEXT: tk_eof
