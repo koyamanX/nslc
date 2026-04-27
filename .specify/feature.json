@@ -1,3 +1,3 @@
 {
-  "feature_directory": "specs/003-macro-textual-concat"
+  "feature_directory": "specs/004-clang-tidy-cleanup"
 }

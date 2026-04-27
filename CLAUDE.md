@@ -145,14 +145,15 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `003-macro-textual-concat` — bare-macro textual
-concatenation in preprocessor `#define` body and `#if` condition
-contexts (research-§12 #4 follow-up from M1). For technologies,
-project structure, shell commands, contracts, and quickstart, read
-the current plan: [`specs/003-macro-textual-concat/plan.md`](./specs/003-macro-textual-concat/plan.md).
-Companion artifacts: [`spec.md`](./specs/003-macro-textual-concat/spec.md),
-[`research.md`](./specs/003-macro-textual-concat/research.md),
-[`data-model.md`](./specs/003-macro-textual-concat/data-model.md),
-[`contracts/`](./specs/003-macro-textual-concat/contracts/),
-[`quickstart.md`](./specs/003-macro-textual-concat/quickstart.md).
+**Active feature**: `004-clang-tidy-cleanup` — retire 927 clang-tidy
+warnings-as-errors on master so CI's `static-checks` stage goes green
+and Constitution Principle IX's transitional clause can be retired.
+For technologies, project structure, per-category dispositions, and
+quickstart, read the current plan:
+[`specs/004-clang-tidy-cleanup/plan.md`](./specs/004-clang-tidy-cleanup/plan.md).
+Companion artifacts: [`spec.md`](./specs/004-clang-tidy-cleanup/spec.md),
+[`research.md`](./specs/004-clang-tidy-cleanup/research.md),
+[`data-model.md`](./specs/004-clang-tidy-cleanup/data-model.md),
+[`contracts/`](./specs/004-clang-tidy-cleanup/contracts/),
+[`quickstart.md`](./specs/004-clang-tidy-cleanup/quickstart.md).
 <!-- SPECKIT END -->
