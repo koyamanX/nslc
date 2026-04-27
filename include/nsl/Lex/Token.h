@@ -27,9 +27,9 @@
 
 #include "nsl/Basic/SourceLocation.h"
 
-#include <cstdint>
-
 #include "llvm/ADT/StringRef.h"
+
+#include <cstdint>
 
 namespace nsl {
 
@@ -55,39 +55,54 @@ enum class TokenKind : uint16_t {
   tk_octal_lit,
 
   // ----- _-prefix system names (per parser-note N11) -----
-  tk_system_task,        ///< `_display`, `_finish`, `_init`, ...
-  tk_system_function,    ///< `_random`, `_time` (no-parens system var)
-  tk_unused_underscore,  ///< Any other reserved-but-unused `_`-prefix
+  tk_system_task,       ///< `_display`, `_finish`, `_init`, ...
+  tk_system_function,   ///< `_random`, `_time` (no-parens system var)
+  tk_unused_underscore, ///< Any other reserved-but-unused `_`-prefix
 
-  // ----- Reserved keywords (one enumerator per entry in §15) -----
-  // Generated from include/nsl/Lex/KeywordSet.def.
+// ----- Reserved keywords (one enumerator per entry in §15) -----
+// Generated from include/nsl/Lex/KeywordSet.def.
 #define KEYWORD(name, spelling) tk_##name,
 #include "nsl/Lex/KeywordSet.def"
 #undef KEYWORD
 
   // ----- Punctuation / operators (data-model entity 7) -----
-  tk_lparen, tk_rparen, tk_lbrace, tk_rbrace, tk_lbracket, tk_rbracket,
-  tk_comma, tk_semicolon, tk_colon, tk_dot,
-  tk_assign,        ///< `=`
-  tk_assign_seq,    ///< `:=` (S3 sequential assignment)
-  tk_plus, tk_minus, tk_star, tk_slash, tk_percent,
-  tk_amp, tk_pipe, tk_caret, tk_tilde,
-  tk_logical_and,   ///< `&&`
-  tk_logical_or,    ///< `||`
-  tk_logical_not,   ///< `!`
-  tk_equal,         ///< `==`
-  tk_not_equal,     ///< `!=`
+  tk_lparen,
+  tk_rparen,
+  tk_lbrace,
+  tk_rbrace,
+  tk_lbracket,
+  tk_rbracket,
+  tk_comma,
+  tk_semicolon,
+  tk_colon,
+  tk_dot,
+  tk_assign,     ///< `=`
+  tk_assign_seq, ///< `:=` (S3 sequential assignment)
+  tk_plus,
+  tk_minus,
+  tk_star,
+  tk_slash,
+  tk_percent,
+  tk_amp,
+  tk_pipe,
+  tk_caret,
+  tk_tilde,
+  tk_logical_and, ///< `&&`
+  tk_logical_or,  ///< `||`
+  tk_logical_not, ///< `!`
+  tk_equal,       ///< `==`
+  tk_not_equal,   ///< `!=`
   tk_less,
   tk_less_equal,
   tk_greater,
   tk_greater_equal,
-  tk_shift_left,    ///< `<<`
-  tk_shift_right,   ///< `>>`
+  tk_shift_left,  ///< `<<`
+  tk_shift_right, ///< `>>`
   tk_question,
   tk_at,
-  tk_hash_sign_extend,        ///< `#` in expression position (N5)
-  tk_apostrophe_zero_extend,  ///< `'` (zero-extend)
-  tk_dot_lbrace,              ///< `.{` (N3)
+  tk_hash_sign_extend,       ///< `#` in expression position (N5)
+  tk_apostrophe_zero_extend, ///< `'` (zero-extend)
+  tk_dot_lbrace,             ///< `.{` (N3)
 
   // ----- Preprocessor seam markers (P13) -----
   /// `#line N "file"` passed through to the M2 parser.
@@ -116,9 +131,9 @@ public:
   /// later milestones (e.g., `tk_string_lit` raw vs cooked at M5).
   enum NumericFlag : uint16_t {
     NF_Plain = 0,
-    NF_HasZ  = 1u << 0,
-    NF_HasX  = 1u << 1,
-    NF_HasU  = 1u << 2,
+    NF_HasZ = 1U << 0,
+    NF_HasX = 1U << 1,
+    NF_HasU = 1U << 2,
   };
 
   /// Default-construct an `tk_unknown` token (sentinel).
@@ -129,10 +144,10 @@ public:
         uint16_t flags = NF_Plain) noexcept
       : kind_(kind), flags_(flags), range_(range), spelling_(spelling) {}
 
-  TokenKind kind() const noexcept { return kind_; }
-  SourceRange range() const noexcept { return range_; }
-  llvm::StringRef spelling() const noexcept { return spelling_; }
-  uint16_t flags() const noexcept { return flags_; }
+  [[nodiscard]] TokenKind kind() const noexcept { return kind_; }
+  [[nodiscard]] SourceRange range() const noexcept { return range_; }
+  [[nodiscard]] llvm::StringRef spelling() const noexcept { return spelling_; }
+  [[nodiscard]] uint16_t flags() const noexcept { return flags_; }
 
 private:
   TokenKind kind_ = TokenKind::tk_unknown;

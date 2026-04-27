@@ -23,21 +23,19 @@
 
 #include "nsl/Lex/Lexer.h"
 
+#include "NumberLiteral.h"
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Basic/SourceManager.h"
 #include "nsl/Lex/KeywordSet.h"
 #include "nsl/Lex/Token.h"
 
-#include "NumberLiteral.h"
+#include "llvm/ADT/StringRef.h"
 
 #include <cstdint>
 #include <cstring>
 #include <deque>
 #include <memory>
-#include <utility>
-
-#include "llvm/ADT/StringRef.h"
 
 namespace nsl {
 
@@ -51,7 +49,9 @@ bool isIdentBody(char c) {
   return isIdentStart(c) || (c >= '0' && c <= '9') || c == '_';
 }
 
-bool isDecDigit(char c) { return c >= '0' && c <= '9'; }
+bool isDecDigit(char c) {
+  return c >= '0' && c <= '9';
+}
 
 bool isWhitespace(char c) {
   return c == ' ' || c == '\t' || c == '\r' || c == '\n';
@@ -64,8 +64,8 @@ bool isWhitespace(char c) {
 TokenKind classifyUnderscoreName(llvm::StringRef text) {
   // (a) System tasks (statement position, `_NAME(...)` form).
   static constexpr const char *kTasks[] = {
-      "_display", "_monitor", "_write",    "_finish",  "_stop",
-      "_readmemh", "_readmemb", "_delay",  "_init",
+      "_display",  "_monitor",  "_write", "_finish", "_stop",
+      "_readmemh", "_readmemb", "_delay", "_init",
   };
   for (const char *t : kTasks) {
     if (text == llvm::StringRef(t)) {
@@ -103,16 +103,15 @@ public:
 
   /// Wrap `(begin, end)` byte offsets into a `SourceRange` rooted at
   /// `fid`. End is exclusive; `length() == end - begin`.
-  SourceRange makeRange(uint32_t begin, uint32_t end) const {
-    return SourceRange(SourceLocation::make(fid, begin),
-                       SourceLocation::make(fid, end));
+  [[nodiscard]] SourceRange makeRange(uint32_t begin, uint32_t end) const {
+    return {SourceLocation::make(fid, begin), SourceLocation::make(fid, end)};
   }
 
   /// Skip ASCII whitespace and `//` line / `/* … */` block comments.
   /// Maintains `at_line_start` across newlines.
   void skipWhitespaceAndComments() {
     while (cur < buf.size()) {
-      char c = buf[cur];
+      char const c = buf[cur];
       if (c == '\n') {
         ++cur;
         at_line_start = true;
@@ -123,7 +122,7 @@ public:
         continue;
       }
       if (c == '/' && cur + 1 < buf.size()) {
-        char n = buf[cur + 1];
+        char const n = buf[cur + 1];
         if (n == '/') {
           // Line comment: consume up to (not including) the '\n'.
           cur += 2;
@@ -137,7 +136,7 @@ public:
           // Non-nestable per lang.ebnf §14 line 781.
           cur += 2;
           while (cur + 1 < buf.size() &&
-                 !(buf[cur] == '*' && buf[cur + 1] == '/')) {
+                 (buf[cur] != '*' || buf[cur + 1] != '/')) {
             if (buf[cur] == '\n') {
               at_line_start = true;
             }
@@ -160,20 +159,16 @@ public:
   /// Scan an identifier or keyword starting at `cur` (caller has
   /// confirmed `isIdentStart(buf[cur])` or `buf[cur] == '_'`).
   Token scanIdentifierOrKeyword() {
-    uint32_t begin = cur;
-    bool starts_with_underscore = (buf[cur] == '_');
+    uint32_t const begin = cur;
+    bool const starts_with_underscore = (buf[cur] == '_');
     ++cur;
     while (cur < buf.size() && isIdentBody(buf[cur])) {
       ++cur;
     }
-    llvm::StringRef text = buf.substr(begin, cur - begin);
-    TokenKind kind;
-    if (starts_with_underscore) {
-      kind = classifyUnderscoreName(text);
-    } else {
-      kind = classifyKeyword(text);
-    }
-    return Token(kind, makeRange(begin, cur), text);
+    llvm::StringRef const text = buf.substr(begin, cur - begin);
+    TokenKind const kind = starts_with_underscore ? classifyUnderscoreName(text)
+                                                  : classifyKeyword(text);
+    return {kind, makeRange(begin, cur), text};
   }
 
   /// Scan a string literal. The opening `"` is at `cur`. Honors the
@@ -181,24 +176,23 @@ public:
   /// `\t`, `\r`, `\\`, `\"`, `\0`). Newlines inside the literal are
   /// not permitted (they trigger the unterminated diagnostic).
   Token scanString() {
-    uint32_t begin = cur;
+    uint32_t const begin = cur;
     ++cur; // consume opening `"`
     while (cur < buf.size()) {
-      char c = buf[cur];
+      char const c = buf[cur];
       if (c == '"') {
         ++cur;
-        llvm::StringRef text = buf.substr(begin, cur - begin);
-        return Token(TokenKind::tk_string_lit, makeRange(begin, cur), text);
+        llvm::StringRef const text = buf.substr(begin, cur - begin);
+        return {TokenKind::tk_string_lit, makeRange(begin, cur), text};
       }
       if (c == '\n') {
         // Unterminated: newline closes the string-scan attempt.
         // FR-037 / diagnostic-output.contract.md mandates this exact
         // message text.
-        diag.report(Severity::Error,
-                    SourceLocation::make(fid, begin),
+        diag.report(Severity::Error, SourceLocation::make(fid, begin),
                     "unterminated string literal");
-        llvm::StringRef text = buf.substr(begin, cur - begin);
-        return Token(TokenKind::tk_unknown, makeRange(begin, cur), text);
+        llvm::StringRef const text = buf.substr(begin, cur - begin);
+        return {TokenKind::tk_unknown, makeRange(begin, cur), text};
       }
       if (c == '\\' && cur + 1 < buf.size()) {
         // Skip the escaped character; classification of which escapes
@@ -213,8 +207,8 @@ public:
     // Hit EOF without finding closing quote.
     diag.report(Severity::Error, SourceLocation::make(fid, begin),
                 "unterminated string literal");
-    llvm::StringRef text = buf.substr(begin, cur - begin);
-    return Token(TokenKind::tk_unknown, makeRange(begin, cur), text);
+    llvm::StringRef const text = buf.substr(begin, cur - begin);
+    return {TokenKind::tk_unknown, makeRange(begin, cur), text};
   }
 
   /// Scan a `#line ...` directive that survives the preprocessor →
@@ -224,30 +218,30 @@ public:
   /// (but not including) the next newline; the inner content is
   /// preserved for the M2 parser to re-parse.
   Token scanLineDirective() {
-    uint32_t begin = cur;
+    uint32_t const begin = cur;
     while (cur < buf.size() && buf[cur] != '\n') {
       ++cur;
     }
-    llvm::StringRef text = buf.substr(begin, cur - begin);
-    return Token(TokenKind::tk_line_directive, makeRange(begin, cur), text);
+    llvm::StringRef const text = buf.substr(begin, cur - begin);
+    return {TokenKind::tk_line_directive, makeRange(begin, cur), text};
   }
 
   /// Scan a numeric literal starting at `cur`. Delegates to the
   /// pure-function `scanNumber` recognizer.
   Token scanNumberToken() {
-    uint32_t begin = cur;
-    detail::NumberScanResult r = detail::scanNumber(buf, cur);
+    uint32_t const begin = cur;
+    detail::NumberScanResult const r = detail::scanNumber(buf, cur);
     if (r.end == begin) {
       // Defensive: should not happen given caller pre-check, but if
       // it does, advance one byte and emit `tk_unknown` rather than
       // looping forever.
       ++cur;
-      return Token(TokenKind::tk_unknown, makeRange(begin, cur),
-                   buf.substr(begin, 1));
+      return {TokenKind::tk_unknown, makeRange(begin, cur),
+              buf.substr(begin, 1)};
     }
     cur = r.end;
-    return Token(r.kind, makeRange(begin, cur),
-                 buf.substr(begin, cur - begin), r.flags);
+    return {r.kind, makeRange(begin, cur), buf.substr(begin, cur - begin),
+            r.flags};
   }
 
   /// One- or two-character punctuation lookup. Caller has already
@@ -255,17 +249,17 @@ public:
   /// what should be a punctuation token.
   Token scanPunctuation() {
     uint32_t begin = cur;
-    char c = buf[cur];
-    char n = (cur + 1 < buf.size()) ? buf[cur + 1] : '\0';
+    char const c = buf[cur];
+    char const n = (cur + 1 < buf.size()) ? buf[cur + 1] : '\0';
 
     // Two-char operators first to win precedence.
     auto emit2 = [&](TokenKind k) -> Token {
       cur += 2;
-      return Token(k, makeRange(begin, cur), buf.substr(begin, 2));
+      return {k, makeRange(begin, cur), buf.substr(begin, 2)};
     };
     auto emit1 = [&](TokenKind k) -> Token {
       ++cur;
-      return Token(k, makeRange(begin, cur), buf.substr(begin, 1));
+      return {k, makeRange(begin, cur), buf.substr(begin, 1)};
     };
 
     switch (c) {
@@ -361,14 +355,14 @@ public:
       // can choose to escalate. M1 does not diagnose individual
       // unknown bytes (the parser at M2 will).
       ++cur;
-      return Token(TokenKind::tk_unknown, makeRange(begin, cur),
-                   buf.substr(begin, 1));
+      return {TokenKind::tk_unknown, makeRange(begin, cur),
+              buf.substr(begin, 1)};
     }
   }
 
   /// Peek past whitespace from a cursor `p` without consuming. Used
   /// by N5 to look one non-whitespace char ahead of `#` for a digit.
-  uint32_t peekPastSpaces(uint32_t p) const {
+  [[nodiscard]] uint32_t peekPastSpaces(uint32_t p) const {
     while (p < buf.size() && (buf[p] == ' ' || buf[p] == '\t')) {
       ++p;
     }
@@ -380,8 +374,8 @@ public:
   Token nextImpl() {
     skipWhitespaceAndComments();
     if (cur >= buf.size()) {
-      uint32_t end = static_cast<uint32_t>(buf.size());
-      return Token(TokenKind::tk_eof, makeRange(end, end), llvm::StringRef());
+      auto end = static_cast<uint32_t>(buf.size());
+      return {TokenKind::tk_eof, makeRange(end, end), llvm::StringRef()};
     }
 
     // N5 disambiguation: `#line` at start of line is the line-marker
@@ -394,7 +388,7 @@ public:
       // Match `#line` literally: cur..cur+4 == "#line", cur+5 is space.
       if (cur + 5 < buf.size() && buf.substr(cur + 1, 4) == "line" &&
           (buf[cur + 5] == ' ' || buf[cur + 5] == '\t')) {
-        uint32_t look = peekPastSpaces(cur + 5);
+        uint32_t const look = peekPastSpaces(cur + 5);
         if (look < buf.size() && isDecDigit(buf[look])) {
           Token t = scanLineDirective();
           // The directive consumed up to (not including) '\n'; the
@@ -411,7 +405,7 @@ public:
     // the flag for the rest of the line.
     at_line_start = false;
 
-    char c = buf[cur];
+    char const c = buf[cur];
     if (isIdentStart(c) || c == '_') {
       return scanIdentifierOrKeyword();
     }

@@ -6,19 +6,23 @@
 
 #include "nsl/Basic/SourceManager.h"
 
-#include <algorithm>
 #include "AssertImpl.h"
+#include "nsl/Basic/SourceLocation.h"
+
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ErrorOr.h"
+
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <fstream>
+#include <ios>
 #include <iterator>
 #include <memory>
 #include <string>
 #include <system_error>
 #include <utility>
 #include <vector>
-
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/ErrorOr.h"
 
 namespace nsl {
 
@@ -35,8 +39,8 @@ struct LineDirective {
 };
 
 struct Buffer {
-  std::string path;                  // path label (canonical when loadFile)
-  std::vector<char> bytes;           // NUL-terminated for safety
+  std::string path;        // path label (canonical when loadFile)
+  std::vector<char> bytes; // NUL-terminated for safety
   // Lazy: built on first (line, col) query. Each entry is the byte
   // offset of the first character of line (i+1). line_offsets[0] == 0.
   mutable std::vector<uint32_t> line_offsets;
@@ -58,7 +62,7 @@ void buildLineOffsetsIfNeeded(const Buffer &b) {
   for (size_t i = 0; i < visible; ++i) {
     if (b.bytes[i] == '\n') {
       // Line i+2 starts at offset i+1.
-      uint32_t next = static_cast<uint32_t>(i + 1);
+      auto next = static_cast<uint32_t>(i + 1);
       b.line_offsets.push_back(next);
     }
   }
@@ -92,14 +96,14 @@ public:
     buffers.push_back(nullptr);
   }
 
-  Buffer *bufferOrNull(FileID f) const {
+  [[nodiscard]] Buffer *bufferOrNull(FileID f) const {
     if (!f.isValid() || f.raw() >= buffers.size()) {
       return nullptr;
     }
     return buffers[f.raw()].get();
   }
 
-  Buffer &buffer(FileID f) const {
+  [[nodiscard]] Buffer &buffer(FileID f) const {
     Buffer *b = bufferOrNull(f);
     NSL_ABORT(b, "FileID out of range");
     return *b;
@@ -114,7 +118,7 @@ public:
     buf->bytes = std::move(bytes);
 
     NSL_ABORT(buffers.size() <= 255, "FileID exhausted: 256-file limit");
-    uint8_t id = static_cast<uint8_t>(buffers.size());
+    auto id = static_cast<uint8_t>(buffers.size());
     buffers.push_back(std::move(buf));
     return FileID(id);
   }
@@ -158,45 +162,47 @@ FileID SourceManager::addBufferInMemory(std::string path,
 llvm::StringRef SourceManager::getBuffer(FileID f) const {
   Buffer &b = impl_->buffer(f);
   // Visible bytes exclude the NUL sentinel.
-  size_t visible = b.bytes.empty() ? 0 : b.bytes.size() - 1;
-  return llvm::StringRef(b.bytes.data(), visible);
+  size_t const visible = b.bytes.empty() ? 0 : b.bytes.size() - 1;
+  return {b.bytes.data(), visible};
 }
 
 llvm::StringRef SourceManager::getPath(FileID f) const {
-  Buffer &b = impl_->buffer(f);
-  return llvm::StringRef(b.path);
+  Buffer const &b = impl_->buffer(f);
+  return {b.path};
 }
 
 std::pair<uint32_t, uint32_t>
 SourceManager::getLineCol(SourceLocation loc) const {
   Buffer &b = impl_->buffer(loc.file());
   buildLineOffsetsIfNeeded(b);
-  uint32_t off = loc.offset();
+  uint32_t const off = loc.offset();
   // Binary search: largest line_offsets[i] <= off.
   auto it = std::upper_bound(b.line_offsets.begin(), b.line_offsets.end(), off);
   // upper_bound gives the first > off; the line index is one before.
-  size_t line_idx = static_cast<size_t>(std::distance(b.line_offsets.begin(), it)) - 1u;
-  uint32_t line = static_cast<uint32_t>(line_idx) + 1u; // 1-based
-  uint32_t line_start = b.line_offsets[line_idx];
-  uint32_t col = off - line_start + 1u; // 1-based
+  size_t const line_idx =
+      static_cast<size_t>(std::distance(b.line_offsets.begin(), it)) - 1U;
+  uint32_t const line = static_cast<uint32_t>(line_idx) + 1U; // 1-based
+  uint32_t const line_start = b.line_offsets[line_idx];
+  uint32_t const col = off - line_start + 1U; // 1-based
   return {line, col};
 }
 
 llvm::StringRef SourceManager::getLine(SourceLocation loc) const {
   Buffer &b = impl_->buffer(loc.file());
   buildLineOffsetsIfNeeded(b);
-  uint32_t off = loc.offset();
+  uint32_t const off = loc.offset();
   auto it = std::upper_bound(b.line_offsets.begin(), b.line_offsets.end(), off);
-  size_t line_idx = static_cast<size_t>(std::distance(b.line_offsets.begin(), it)) - 1u;
-  uint32_t line_start = b.line_offsets[line_idx];
+  size_t const line_idx =
+      static_cast<size_t>(std::distance(b.line_offsets.begin(), it)) - 1U;
+  uint32_t const line_start = b.line_offsets[line_idx];
 
-  size_t visible = b.bytes.empty() ? 0 : b.bytes.size() - 1;
+  size_t const visible = b.bytes.empty() ? 0 : b.bytes.size() - 1;
   // End of line: next line offset minus 1 (the '\n'), or the
   // visible end of the buffer for the last line.
-  size_t line_end;
+  size_t line_end = 0;
   if (line_idx + 1 < b.line_offsets.size()) {
     // Subtract one to exclude the '\n' at the end of this line.
-    line_end = static_cast<size_t>(b.line_offsets[line_idx + 1]) - 1u;
+    line_end = static_cast<size_t>(b.line_offsets[line_idx + 1]) - 1U;
   } else {
     line_end = visible;
   }
@@ -204,7 +210,7 @@ llvm::StringRef SourceManager::getLine(SourceLocation loc) const {
   // ends just past it), trim. The line_offsets builder appends an
   // entry for "after newline", so for "abc\n" line_offsets = [0,4]
   // and line_idx==0 picks line_end=3 correctly via the if-branch.
-  return llvm::StringRef(b.bytes.data() + line_start, line_end - line_start);
+  return {b.bytes.data() + line_start, line_end - line_start};
 }
 
 SourceManager::VirtualLoc
@@ -215,7 +221,7 @@ SourceManager::resolveVirtual(SourceLocation loc) const {
   const LineDirective *active = nullptr;
   for (const auto &d : b.line_overrides) {
     if (d.origin_offset <= loc.offset()) {
-      if (!active || d.origin_offset > active->origin_offset) {
+      if ((active == nullptr) || d.origin_offset > active->origin_offset) {
         active = &d;
       }
     } else {
@@ -226,7 +232,7 @@ SourceManager::resolveVirtual(SourceLocation loc) const {
 
   auto [phys_line, phys_col] = getLineCol(loc);
 
-  if (!active) {
+  if (active == nullptr) {
     return VirtualLoc{llvm::StringRef(b.path), phys_line, phys_col};
   }
 
@@ -234,18 +240,18 @@ SourceManager::resolveVirtual(SourceLocation loc) const {
   // Subsequent physical lines map by simple offset.
   buildLineOffsetsIfNeeded(b);
   // Compute the physical line number at the directive's origin offset.
-  uint32_t origin_off = active->origin_offset;
+  uint32_t const origin_off = active->origin_offset;
   auto it = std::upper_bound(b.line_offsets.begin(), b.line_offsets.end(),
                              origin_off);
-  size_t origin_line_idx =
-      static_cast<size_t>(std::distance(b.line_offsets.begin(), it)) - 1u;
-  uint32_t origin_phys_line = static_cast<uint32_t>(origin_line_idx) + 1u;
+  size_t const origin_line_idx =
+      static_cast<size_t>(std::distance(b.line_offsets.begin(), it)) - 1U;
+  uint32_t const origin_phys_line = static_cast<uint32_t>(origin_line_idx) + 1U;
 
-  uint32_t virt_line =
+  uint32_t const virt_line =
       active->virtual_line + (phys_line - origin_phys_line);
-  llvm::StringRef virt_path = active->virtual_path.empty()
-                                  ? llvm::StringRef(b.path)
-                                  : llvm::StringRef(active->virtual_path);
+  llvm::StringRef const virt_path = active->virtual_path.empty()
+                                        ? llvm::StringRef(b.path)
+                                        : llvm::StringRef(active->virtual_path);
   return VirtualLoc{virt_path, virt_line, phys_col};
 }
 
@@ -272,8 +278,7 @@ void SourceManager::popIncludeFrame() {
   impl_->include_stack.pop_back();
 }
 
-std::vector<SourceLocation>
-SourceManager::getIncludeStackFor(FileID f) const {
+std::vector<SourceLocation> SourceManager::getIncludeStackFor(FileID f) const {
   // Find the topmost frame whose `included` matches `f`. The
   // ancestry from that point downward (innermost first toward root)
   // is the include trace.

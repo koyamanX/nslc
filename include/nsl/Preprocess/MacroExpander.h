@@ -24,9 +24,9 @@
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Preprocess/MacroTable.h"
 
-#include <string>
-
 #include "llvm/ADT/StringRef.h"
+
+#include <string>
 
 namespace nsl::preprocess {
 

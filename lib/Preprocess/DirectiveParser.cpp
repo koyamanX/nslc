@@ -6,19 +6,19 @@
 
 #include "DirectiveParser.h"
 
-#include "nsl/Basic/SourceLocation.h"
+#include "llvm/ADT/StringRef.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <string>
 
-#include "llvm/ADT/StringRef.h"
-
 namespace nsl::preprocess {
 
 namespace {
 
-bool isWS(char c) { return c == ' ' || c == '\t'; }
+bool isWS(char c) {
+  return c == ' ' || c == '\t';
+}
 bool isIdentStart(char c) {
   return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_';
 }
@@ -33,7 +33,7 @@ void skipWS(llvm::StringRef s, std::size_t &i) {
 }
 
 llvm::StringRef readIdent(llvm::StringRef s, std::size_t &i) {
-  std::size_t b = i;
+  std::size_t const b = i;
   if (i < s.size() && isIdentStart(s[i])) {
     ++i;
     while (i < s.size() && isIdentBody(s[i])) {
@@ -81,7 +81,7 @@ ParsedDirective classifyLine(llvm::StringRef line, uint32_t line_begin,
   skipWS(line, i);
 
   // Read the directive keyword.
-  llvm::StringRef kw = readIdent(line, i);
+  llvm::StringRef const kw = readIdent(line, i);
   if (kw.empty()) {
     // `#` followed by no name — unknown directive.
     d.kind = ParsedDirective::Kind::Unknown;
@@ -89,7 +89,7 @@ ParsedDirective classifyLine(llvm::StringRef line, uint32_t line_begin,
   }
 
   // Tail: rest of the line after the keyword.
-  llvm::StringRef tail = trim(line.substr(i));
+  llvm::StringRef const tail = trim(line.substr(i));
 
   if (kw == "include") {
     d.kind = ParsedDirective::Kind::Include;
@@ -123,7 +123,7 @@ ParsedDirective classifyLine(llvm::StringRef line, uint32_t line_begin,
     d.kind = ParsedDirective::Kind::Define;
     std::size_t j = i;
     skipWS(line, j);
-    llvm::StringRef name = readIdent(line, j);
+    llvm::StringRef const name = readIdent(line, j);
     d.name = name.str();
     // Body: everything after `<name>` (with leading whitespace
     // stripped) up to end of line.
@@ -131,9 +131,8 @@ ParsedDirective classifyLine(llvm::StringRef line, uint32_t line_begin,
     d.body = line.substr(j).str();
     // Trim trailing whitespace off the body (including any '\r' for
     // CRLF safety).
-    while (!d.body.empty() &&
-           (d.body.back() == ' ' || d.body.back() == '\t' ||
-            d.body.back() == '\r')) {
+    while (!d.body.empty() && (d.body.back() == ' ' || d.body.back() == '\t' ||
+                               d.body.back() == '\r')) {
       d.body.pop_back();
     }
     return d;

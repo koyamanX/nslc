@@ -30,11 +30,11 @@
 #include "nsl/Basic/SourceManager.h"
 #include "nsl/Lex/Token.h"
 
+#include "llvm/ADT/StringRef.h"
+
 #include <cstdint>
 #include <deque>
 #include <memory>
-
-#include "llvm/ADT/StringRef.h"
 
 namespace nsl {
 
@@ -65,7 +65,7 @@ public:
   /// True iff the cursor has consumed every byte of the buffer AND
   /// the peek-cache is empty. Useful for parser-side tight loops
   /// that prefer `while (!atEOF())` over `while (next() != eof)`.
-  bool atEOF() const noexcept;
+  [[nodiscard]] bool atEOF() const noexcept;
 
 private:
   class Impl;

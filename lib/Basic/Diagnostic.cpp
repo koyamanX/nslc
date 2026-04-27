@@ -9,6 +9,10 @@
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Basic/SourceManager.h"
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/raw_ostream.h"
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -16,10 +20,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/raw_ostream.h"
 
 namespace nsl {
 
@@ -71,7 +71,7 @@ void writeTextHeaderLine(llvm::raw_ostream &os, const SourceManager &sm,
 /// order) and would break Principle V determinism.
 void writeJsonString(llvm::raw_ostream &os, llvm::StringRef s) {
   os << '"';
-  for (unsigned char c : s) {
+  for (unsigned char const c : s) {
     switch (c) {
     case '"':
       os << "\\\"";
@@ -121,7 +121,7 @@ void writeJsonObject(llvm::raw_ostream &os, const SourceManager &sm,
   writeJsonString(os, severityName(d.severity));
   os << ",\"message\":";
   writeJsonString(os, d.message);
-  if (included_from) {
+  if (included_from != nullptr) {
     auto vinc = sm.resolveVirtual(*included_from);
     os << ",\"included_from\":{";
     os << "\"path\":";
@@ -160,7 +160,7 @@ DiagnosticEngine::report(Severity sev, SourceLocation loc, std::string msg) {
   d.severity = sev;
   d.loc = loc;
   d.message = std::move(msg);
-  size_t idx = impl_->diags.size();
+  size_t const idx = impl_->diags.size();
   impl_->diags.push_back(std::move(d));
   if (sev == Severity::Error) {
     ++impl_->error_count;
@@ -225,7 +225,7 @@ void DiagnosticEngine::clear() noexcept {
 }
 
 llvm::ArrayRef<Diagnostic> DiagnosticEngine::diagnostics() const noexcept {
-  return llvm::ArrayRef<Diagnostic>(impl_->diags);
+  return {impl_->diags};
 }
 
 void DiagnosticEngine::appendFixItAt(size_t index, FixItHint hint) {
@@ -245,21 +245,21 @@ SourceManager &DiagnosticEngine::sourceManager() const noexcept {
 // -----------------------------------------------------------------------------
 
 DiagnosticEngine::Builder &
-DiagnosticEngine::Builder::addFixIt(SourceRange range, std::string replacement) {
+DiagnosticEngine::Builder::addFixIt(SourceRange range,
+                                    std::string replacement) {
   engine_->appendFixItAt(index_, FixItHint{range, std::move(replacement)});
   return *this;
 }
 
 DiagnosticEngine::Builder &DiagnosticEngine::Builder::addIncludedFromNotes() {
-  SourceManager &sm = engine_->sourceManager();
+  SourceManager const &sm = engine_->sourceManager();
   // The diagnostic's loc tells us which file we're currently in; the
   // include stack frames trace the ancestry up to the original input.
-  SourceLocation parent_loc =
-      engine_->impl_->diags[index_].loc;
+  SourceLocation const parent_loc = engine_->impl_->diags[index_].loc;
   if (!parent_loc.isValid()) {
     return *this;
   }
-  std::vector<SourceLocation> stack =
+  std::vector<SourceLocation> const stack =
       sm.getIncludeStackFor(parent_loc.file());
   for (const SourceLocation &include_site : stack) {
     Diagnostic note;

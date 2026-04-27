@@ -35,15 +35,16 @@
 #include "nsl/Lex/Token.h"
 #include "nsl/Preprocess/Preprocessor.h"
 
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ErrorOr.h"
+#include "llvm/Support/raw_ostream.h"
+
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <system_error>
 #include <utility>
 #include <vector>
-
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/ErrorOr.h"
-#include "llvm/Support/raw_ostream.h"
 
 namespace nsl::driver {
 
@@ -56,7 +57,7 @@ namespace {
 std::string escapeForTokenStream(llvm::StringRef s) {
   std::string out;
   out.reserve(s.size());
-  for (unsigned char c : s) {
+  for (unsigned char const c : s) {
     switch (c) {
     case '\t':
       out += "\\t";
@@ -91,13 +92,13 @@ std::string renderFlags(uint16_t flags) {
     out += name;
     first = false;
   };
-  if (flags & Token::NF_HasZ) {
+  if ((flags & Token::NF_HasZ) != 0) {
     add("Z");
   }
-  if (flags & Token::NF_HasX) {
+  if ((flags & Token::NF_HasX) != 0) {
     add("X");
   }
-  if (flags & Token::NF_HasU) {
+  if ((flags & Token::NF_HasU) != 0) {
     add("U");
   }
   out += "]";
@@ -108,7 +109,7 @@ std::string renderFlags(uint16_t flags) {
 /// `-D NAME` (no `=`) maps to `(NAME, "1")` matching the convention
 /// for `-D NAME` shorthand in C compilers.
 std::pair<std::string, std::string> splitMacroDef(llvm::StringRef arg) {
-  std::size_t eq = arg.find('=');
+  std::size_t const eq = arg.find('=');
   if (eq == llvm::StringRef::npos) {
     return {arg.str(), "1"};
   }
@@ -128,7 +129,7 @@ int emitTokens(llvm::StringRef input_path, const EmitTokensOptions &opts,
         << fid_or.getError().message() << "\n";
     return 3;
   }
-  FileID input_fid = *fid_or;
+  FileID const input_fid = *fid_or;
 
   // Construct the include-search path. Quote-form paths from `-I`;
   // angle-form paths from NSL_INCLUDE (read once at construction per
@@ -152,9 +153,8 @@ int emitTokens(llvm::StringRef input_path, const EmitTokensOptions &opts,
   // If preprocessing errored (or yielded an error result), surface
   // diagnostics and return 1.
   if (diag.hasError() || !pp_out) {
-    diag.renderAll(err, opts.diagnostic_json
-                            ? DiagnosticEngine::Format::JSON
-                            : DiagnosticEngine::Format::Text);
+    diag.renderAll(err, opts.diagnostic_json ? DiagnosticEngine::Format::JSON
+                                             : DiagnosticEngine::Format::Text);
     return 1;
   }
 
@@ -173,25 +173,26 @@ int emitTokens(llvm::StringRef input_path, const EmitTokensOptions &opts,
   // present there in canonical form.
   std::string synth_path = input_path.str();
   std::vector<char> synth_bytes(pp_out->begin(), pp_out->end());
-  FileID synth_fid =
+  FileID const synth_fid =
       sm.addBufferInMemory(std::move(synth_path), std::move(synth_bytes));
 
   // Replay #line directives onto the synthetic buffer. We scan the
   // preprocessed text line by line; each `#line N "FILE"` (or
   // `#line N`) at column 0 calls addLineDirective on synth_fid.
   {
-    llvm::StringRef syn = sm.getBuffer(synth_fid);
+    llvm::StringRef const syn = sm.getBuffer(synth_fid);
     std::size_t off = 0;
     while (off < syn.size()) {
-      std::size_t line_begin = off;
+      std::size_t const line_begin = off;
       while (off < syn.size() && syn[off] != '\n') {
         ++off;
       }
-      std::size_t line_end_excl = off;
+      std::size_t const line_end_excl = off;
       if (off < syn.size()) {
         ++off; // consume newline
       }
-      llvm::StringRef line = syn.substr(line_begin, line_end_excl - line_begin);
+      llvm::StringRef const line =
+          syn.substr(line_begin, line_end_excl - line_begin);
       // Match `#line ` at column 0.
       if (!line.starts_with("#line ")) {
         continue;
@@ -214,7 +215,7 @@ int emitTokens(llvm::StringRef input_path, const EmitTokensOptions &opts,
       std::string vpath;
       if (i < line.size() && line[i] == '"') {
         ++i;
-        std::size_t fb = i;
+        std::size_t const fb = i;
         while (i < line.size() && line[i] != '"') {
           ++i;
         }
@@ -227,10 +228,9 @@ int emitTokens(llvm::StringRef input_path, const EmitTokensOptions &opts,
       // 8: "the very next line of input is reported as line LINENUM"
       // — so `virtual_line == ln` (NOT `ln+1`). `#line 100 "synth.v"`
       // means the line AFTER the directive is `synth.v:100`.
-      uint32_t at_off = static_cast<uint32_t>(off);
+      auto at_off = static_cast<uint32_t>(off);
       sm.addLineDirective(SourceLocation::make(synth_fid, at_off),
-                          static_cast<uint32_t>(ln),
-                          llvm::StringRef(vpath));
+                          static_cast<uint32_t>(ln), llvm::StringRef(vpath));
     }
   }
 
@@ -240,7 +240,7 @@ int emitTokens(llvm::StringRef input_path, const EmitTokensOptions &opts,
   // error is forbidden by the contract.
   std::vector<Token> tokens;
   for (;;) {
-    Token t = lexer.next();
+    Token const t = lexer.next();
     tokens.push_back(t);
     if (t.kind() == TokenKind::tk_eof) {
       break;
@@ -248,16 +248,15 @@ int emitTokens(llvm::StringRef input_path, const EmitTokensOptions &opts,
   }
 
   if (diag.hasError()) {
-    diag.renderAll(err, opts.diagnostic_json
-                            ? DiagnosticEngine::Format::JSON
-                            : DiagnosticEngine::Format::Text);
+    diag.renderAll(err, opts.diagnostic_json ? DiagnosticEngine::Format::JSON
+                                             : DiagnosticEngine::Format::Text);
     return 1;
   }
 
   for (const Token &t : tokens) {
     auto phys = sm.getLineCol(t.range().begin());
     auto virt = sm.resolveVirtual(t.range().begin());
-    llvm::StringRef path = sm.getPath(t.range().begin().file());
+    llvm::StringRef const path = sm.getPath(t.range().begin().file());
 
     os << toString(t.kind()) << '\t' << escapeForTokenStream(t.spelling())
        << '\t' << path << ':' << phys.first << ':' << phys.second << ':'
@@ -268,9 +267,8 @@ int emitTokens(llvm::StringRef input_path, const EmitTokensOptions &opts,
   // Even on success we render any non-error diagnostics (warnings /
   // notes) to stderr; routing matches diagnostic-output.contract.md.
   if (diag.numWarnings() > 0) {
-    diag.renderAll(err, opts.diagnostic_json
-                            ? DiagnosticEngine::Format::JSON
-                            : DiagnosticEngine::Format::Text);
+    diag.renderAll(err, opts.diagnostic_json ? DiagnosticEngine::Format::JSON
+                                             : DiagnosticEngine::Format::Text);
   }
   return 0;
 }

@@ -19,20 +19,20 @@
 
 #include "nsl/Basic/SourceLocation.h"
 
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ErrorOr.h"
+
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/ErrorOr.h"
-
 namespace nsl {
 
 namespace detail {
 class Buffer;
-}
+} // namespace detail
 
 class SourceManager {
 public:
@@ -63,33 +63,34 @@ public:
 
   /// Bytes of the buffer for `f` (NUL-terminator NOT included in the
   /// returned `StringRef`).
-  llvm::StringRef getBuffer(FileID f) const;
+  [[nodiscard]] llvm::StringRef getBuffer(FileID f) const;
 
   /// The path label registered for `f`.
-  llvm::StringRef getPath(FileID f) const;
+  [[nodiscard]] llvm::StringRef getPath(FileID f) const;
 
   // ------------------ Physical location queries ------------------
 
   /// 1-based `(line, col)` for `loc` against its physical file.
   /// O(log lines) after the lazy line-offset table is built.
-  std::pair<uint32_t, uint32_t> getLineCol(SourceLocation loc) const;
+  [[nodiscard]] std::pair<uint32_t, uint32_t>
+  getLineCol(SourceLocation loc) const;
 
   /// The raw bytes of the source line containing `loc` (excluding
   /// the trailing newline).
-  llvm::StringRef getLine(SourceLocation loc) const;
+  [[nodiscard]] llvm::StringRef getLine(SourceLocation loc) const;
 
   // ------------------ Virtual location queries (post-#line) ------------------
 
   struct VirtualLoc {
     llvm::StringRef path;
-    uint32_t line;
-    uint32_t col;
+    uint32_t line{};
+    uint32_t col{};
   };
 
   /// Resolve `loc` to its post-`#line` virtual coordinates if any
   /// matching `LineDirective` exists at or before `loc.offset()`;
   /// otherwise returns the physical coordinates.
-  VirtualLoc resolveVirtual(SourceLocation loc) const;
+  [[nodiscard]] VirtualLoc resolveVirtual(SourceLocation loc) const;
 
   // ------------------ #line directive registration ------------------
 
@@ -105,7 +106,8 @@ public:
   void addLineDirective(SourceLocation at, uint32_t virtual_line,
                         llvm::StringRef virtual_path);
 
-  // ------------------ Include-stack tracking (for diagnostics) ------------------
+  // ------------------ Include-stack tracking (for diagnostics)
+  // ------------------
 
   /// Push a new include frame. `include_directive_loc` is the
   /// `SourceLocation` of the `#include` directive that resolved to
@@ -119,7 +121,7 @@ public:
   /// Return the chain of `#include` directive locations that led to
   /// `f`, innermost first. Empty when `f` is the original input file
   /// or when no include frame for `f` is currently active.
-  std::vector<SourceLocation> getIncludeStackFor(FileID f) const;
+  [[nodiscard]] std::vector<SourceLocation> getIncludeStackFor(FileID f) const;
 
 private:
   // Pimpl-style impl pointer to keep the public header stable while

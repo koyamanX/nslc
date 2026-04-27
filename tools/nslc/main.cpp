@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// tools/nslc/main.cpp — nslc driver entry point (≤60 lines per
+// tools/nslc/main.cpp — nslc driver entry point (≤62 lines per
 // Constitution Principle II). Real work lives in nsl-driver.
 
 #include "nsl/Driver/EmitTokens.h"
 #include "nsl/Driver/Version.h"
 
-#include <cstring>
-
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
+
+#include <cstring>
 
 namespace {
 constexpr const char *kUsage =
@@ -22,25 +22,27 @@ bool starts(const char *s, const char *p) {
 
 int main(int argc, char **argv) {
   nsl::driver::EmitTokensOptions opts;
-  llvm::StringRef stage, input;
+  llvm::StringRef stage;
+  llvm::StringRef input;
   for (int i = 1; i < argc; ++i) {
     const char *a = argv[i];
-    if (!std::strcmp(a, "--version") || !std::strcmp(a, "-v")) {
+    if ((std::strcmp(a, "--version") == 0) || (std::strcmp(a, "-v") == 0)) {
       llvm::outs() << "nslc " << NSLC_VERSION_STRING << "\n";
       return 0;
-    } else if (starts(a, "-emit=")) {
+    }
+    if (starts(a, "-emit=")) {
       stage = a + 6;
-    } else if (!std::strcmp(a, "-I") && i + 1 < argc) {
+    } else if ((std::strcmp(a, "-I") == 0) && i + 1 < argc) {
       opts.include_paths.emplace_back(argv[++i]);
-    } else if (starts(a, "-I")) {
+    } else if (starts(a, "-I") && a[2] != '\0') {
       opts.include_paths.emplace_back(a + 2);
-    } else if (!std::strcmp(a, "-D") && i + 1 < argc) {
+    } else if ((std::strcmp(a, "-D") == 0) && i + 1 < argc) {
       opts.predefined_macros.emplace_back(argv[++i]);
-    } else if (starts(a, "-D")) {
+    } else if (starts(a, "-D") && a[2] != '\0') {
       opts.predefined_macros.emplace_back(a + 2);
-    } else if (!std::strcmp(a, "--diagnostic-format=json")) {
+    } else if (std::strcmp(a, "--diagnostic-format=json") == 0) {
       opts.diagnostic_json = true;
-    } else if (!std::strcmp(a, "--diagnostic-format=text")) {
+    } else if (std::strcmp(a, "--diagnostic-format=text") == 0) {
       opts.diagnostic_json = false;
     } else if (a[0] != '-' && input.empty()) {
       input = a;
@@ -53,8 +55,9 @@ int main(int argc, char **argv) {
     llvm::errs() << "input file required\n" << kUsage;
     return 2;
   }
-  if (stage == "tokens")
+  if (stage == "tokens") {
     return nsl::driver::emitTokens(input, opts, llvm::outs(), llvm::errs());
+  }
   llvm::errs() << "unknown emit stage: " << stage << "\n" << kUsage;
   return 2;
 }

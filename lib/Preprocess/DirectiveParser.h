@@ -23,10 +23,10 @@
 
 #include "nsl/Basic/SourceLocation.h"
 
+#include "llvm/ADT/StringRef.h"
+
 #include <cstdint>
 #include <string>
-
-#include "llvm/ADT/StringRef.h"
 
 namespace nsl::preprocess {
 
@@ -34,17 +34,17 @@ namespace nsl::preprocess {
 /// fields are valid; the remaining fields are zero/empty otherwise.
 struct ParsedDirective {
   enum class Kind : uint8_t {
-    None,       ///< Not a directive (passthrough line).
-    Include,    ///< `#include "f"` or `#include <f>`.
-    Define,     ///< `#define <name> <body>`.
-    Undef,      ///< `#undef <name>`.
-    Ifdef,      ///< `#ifdef <name>`.
-    Ifndef,     ///< `#ifndef <name>`.
-    If,         ///< `#if <expr>`.
-    Else,       ///< `#else`.
-    Endif,      ///< `#endif`.
-    Line,       ///< `#line ...` (variant 1, 2, or 3).
-    Unknown,    ///< `#xxx` where `xxx` is not recognized.
+    None,    ///< Not a directive (passthrough line).
+    Include, ///< `#include "f"` or `#include <f>`.
+    Define,  ///< `#define <name> <body>`.
+    Undef,   ///< `#undef <name>`.
+    Ifdef,   ///< `#ifdef <name>`.
+    Ifndef,  ///< `#ifndef <name>`.
+    If,      ///< `#if <expr>`.
+    Else,    ///< `#else`.
+    Endif,   ///< `#endif`.
+    Line,    ///< `#line ...` (variant 1, 2, or 3).
+    Unknown, ///< `#xxx` where `xxx` is not recognized.
   };
 
   Kind kind = Kind::None;

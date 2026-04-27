@@ -1,7 +1,17 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.3.0 → 1.4.0
+Version change: 1.4.0 → 1.5.0
+Bump rationale: MINOR — Principle IX transitional clause retired.
+After feature 004-clang-tidy-cleanup drove the static-checks gate
+from 927 warnings-as-errors to 0, `./scripts/ci.sh all` exits 0 on
+master HEAD across all six stages. The transitional fallback ("CI
+not yet online; PR submitter runs the local equivalent") is no
+longer load-bearing; the steady-state Principle IX rule (green CI
+mandates merge gate) governs all PRs going forward. No principles
+removed; transitional paragraph + 2 cross-references deleted.
+
+Previous version change: 1.3.0 → 1.4.0
 Bump rationale: MINOR — coordinated bundle of (a) one rule narrowing
 (External Integrations § Linear: scope narrows to feature-track work
 items only; bug reports move to GitHub Issues as canonical), (b) the
@@ -28,6 +38,10 @@ Prior history:
     (CodeRabbit, Linear).
   - 1.3.0 (2026-04-25): C++17 carve-out collapsed; Principle VI
     Delivery + Reference-VCDs sub-bullets added.
+  - 1.4.0 (2026-04-26): Linear scope narrowed to feature-track work
+    items (bug reports moved to GitHub Issues canonical); P-LIN
+    team-prefix placeholder resolved; documentation/process audit
+    fixes bundled.
 
 Modified principles:
   - II. Layered Library Architecture — `nsl-opt` reclassified as a
@@ -92,9 +106,6 @@ Source-document propagations bundled into this amendment:
     protocol" added.
 
 Follow-up TODOs:
-  - Establishing the CI pipeline described in Principle IX remains
-    a project-priority task; the transitional clause governs merges
-    until CI is online (carried forward from 1.1.0).
   - P-LIN team-prefix placeholder is resolved (`NSLC-<N>`) but the
     formal P-LIN landed-state still requires the PR-trailer
     convention to be exercised in a first non-trivial PR.
@@ -345,8 +356,7 @@ The project MUST maintain a CI pipeline that automatically verifies every
 pull request and every push to `main` against this Constitution's
 invariants. A green CI run is the precondition for merge to `main`.
 
-- **Pipeline stages.** When CI runs (per the transitional clause below,
-  CI is being established), it MUST execute, in order, on every PR and
+- **Pipeline stages.** CI MUST execute, in order, on every PR and
   every push to `main`:
   1. **Build matrix** — `Debug` and `Release` builds on Linux x86_64.
      Additional platforms MAY be added; none MAY be dropped without a
@@ -379,12 +389,6 @@ invariants. A green CI run is the precondition for merge to `main`.
 - **Release artifacts.** Tagged releases MUST publish reproducible
   binaries and source tarballs from CI; no human-built artifacts are
   attached to releases.
-- **Transitional clause.** Until the CI pipeline is online, every PR
-  submitter MUST run the full local-equivalent of the stages above and
-  link the run output (or a hash of it) in the PR description; a
-  maintainer's confirmation of an equivalent local run substitutes for
-  the CI gate during this period. Establishing the CI pipeline is a
-  project-priority task and SHOULD precede merging non-trivial work.
 
 **Rationale.** The audited-project regression (Principle VI), the
 determinism guarantee (Principle V), and the spec/design coupling
@@ -523,8 +527,7 @@ post-merge, and user-reported failures.
 **Merge gate composition.** A PR is mergeable only when **all** of the
 following are true:
 
-1. CI is green (Principle IX, or its transitional-clause equivalent
-   until CI is online).
+1. CI is green (Principle IX).
 2. CodeRabbit review has run and all blocking findings (Constitution
    violations, spec/design contradictions, regression-suite breakage)
    are addressed.
@@ -607,4 +610,4 @@ Constitution wins.
   `T*`) follow the monotonic-numbering rule of Principle I — retired
   numbers MUST NOT be reused; renumbering is forbidden.
 
-**Version**: 1.4.0 | **Ratified**: 2026-04-25 | **Last Amended**: 2026-04-26
+**Version**: 1.5.0 | **Ratified**: 2026-04-25 | **Last Amended**: 2026-04-27

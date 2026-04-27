@@ -40,16 +40,15 @@
 #ifndef NSL_LIB_PREPROCESS_PPEXPRESSION_H
 #define NSL_LIB_PREPROCESS_PPEXPRESSION_H
 
+#include "nsl/Basic/Diagnostic.h"
+#include "nsl/Basic/SourceLocation.h"
 #include "nsl/Preprocess/HelperEvaluator.h"
 #include "nsl/Preprocess/MacroTable.h"
 
-#include "nsl/Basic/Diagnostic.h"
-#include "nsl/Basic/SourceLocation.h"
+#include "llvm/ADT/StringRef.h"
 
 #include <cstddef>
 #include <string>
-
-#include "llvm/ADT/StringRef.h"
 
 namespace nsl::preprocess {
 

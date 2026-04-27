@@ -43,8 +43,8 @@ public:
   /// `SourceManager::loadFile` or `SourceManager::addBufferInMemory`.
   explicit FileID(uint8_t id) noexcept : id_(id) {}
 
-  uint8_t raw() const noexcept { return id_; }
-  bool isValid() const noexcept { return id_ != 0; }
+  [[nodiscard]] uint8_t raw() const noexcept { return id_; }
+  [[nodiscard]] bool isValid() const noexcept { return id_ != 0; }
 
   bool operator==(FileID other) const noexcept { return id_ == other.id_; }
   bool operator!=(FileID other) const noexcept { return id_ != other.id_; }
@@ -60,20 +60,20 @@ class SourceLocation {
 public:
   /// Maximum representable byte offset (exclusive). Equivalent to
   /// 16 MiB; offsets in `[0, kMaxOffset)` are valid.
-  static constexpr uint32_t kMaxOffset = 1u << 24;
+  static constexpr uint32_t kMaxOffset = 1U << 24;
 
   /// Default-construct the invalid sentinel.
-  SourceLocation() noexcept : bits_(0) {}
+  SourceLocation() noexcept = default;
 
   /// Pack `(fid, off)` into a `SourceLocation`. Aborts via `assert`
   /// if `off >= kMaxOffset` (24-bit field overflow).
   static SourceLocation make(FileID fid, uint32_t off);
 
-  FileID file() const noexcept {
-    return FileID(static_cast<uint8_t>((bits_ >> 24) & 0xFFu));
+  [[nodiscard]] FileID file() const noexcept {
+    return FileID(static_cast<uint8_t>((bits_ >> 24) & 0xFFU));
   }
 
-  uint32_t offset() const noexcept { return bits_ & 0x00FFFFFFu; }
+  [[nodiscard]] uint32_t offset() const noexcept { return bits_ & 0x00FFFFFFU; }
 
   /// True iff this is not the default-constructed sentinel.
   ///
@@ -81,7 +81,7 @@ public:
   /// i.e., `FileID == 0` and `offset == 0`. In production no
   /// `FileID` of zero is ever minted, so a zero value uniquely
   /// identifies "no location".
-  bool isValid() const noexcept { return bits_ != 0; }
+  [[nodiscard]] bool isValid() const noexcept { return bits_ != 0; }
 
   bool operator==(SourceLocation other) const noexcept {
     return bits_ == other.bits_;
@@ -100,10 +100,10 @@ public:
 
   /// Internal accessor used by `SourceManager` for testing /
   /// serialization. Not intended for general use.
-  uint32_t rawBits() const noexcept { return bits_; }
+  [[nodiscard]] uint32_t rawBits() const noexcept { return bits_; }
 
 private:
-  uint32_t bits_;
+  uint32_t bits_{0};
 };
 
 /// A half-open `[begin, end)` span of source whose endpoints are
@@ -117,17 +117,17 @@ public:
   /// different files or if `b > e`.
   SourceRange(SourceLocation b, SourceLocation e);
 
-  SourceLocation begin() const noexcept { return begin_; }
-  SourceLocation end() const noexcept { return end_; }
+  [[nodiscard]] SourceLocation begin() const noexcept { return begin_; }
+  [[nodiscard]] SourceLocation end() const noexcept { return end_; }
 
   /// Length in bytes (0 for an empty range).
-  uint32_t length() const noexcept {
+  [[nodiscard]] uint32_t length() const noexcept {
     return end_.offset() - begin_.offset();
   }
 
   /// True iff `loc` is `>= begin()` and `< end()` and lives in the
   /// same `FileID`.
-  bool contains(SourceLocation loc) const noexcept {
+  [[nodiscard]] bool contains(SourceLocation loc) const noexcept {
     if (!loc.isValid() || !isValid()) {
       return false;
     }
@@ -139,7 +139,7 @@ public:
 
   /// True iff both endpoints are valid (and, by construction, live
   /// in the same file).
-  bool isValid() const noexcept {
+  [[nodiscard]] bool isValid() const noexcept {
     return begin_.isValid() && end_.isValid();
   }
 

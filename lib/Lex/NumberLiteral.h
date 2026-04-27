@@ -9,17 +9,17 @@
 
 #include "nsl/Lex/Token.h"
 
-#include <cstdint>
-
 #include "llvm/ADT/StringRef.h"
+
+#include <cstdint>
 
 namespace nsl::detail {
 
 /// Result of scanning a numeric literal starting at `buf[cur]`.
 struct NumberScanResult {
-  TokenKind kind;     ///< Always one of tk_{decimal,hex,binary,octal}_lit.
-  uint32_t end;       ///< First offset NOT consumed (i.e. length is `end - cur`).
-  uint16_t flags;     ///< Bitwise OR of `Token::NumericFlag` bits.
+  TokenKind kind; ///< Always one of tk_{decimal,hex,binary,octal}_lit.
+  uint32_t end;   ///< First offset NOT consumed (i.e. length is `end - cur`).
+  uint16_t flags; ///< Bitwise OR of `Token::NumericFlag` bits.
 };
 
 /// Scan a numeric literal beginning at `buf[cur]`. Recognized forms

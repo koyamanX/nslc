@@ -10,6 +10,8 @@
 
 #include "AssertImpl.h"
 
+#include <cstdint>
+
 namespace nsl {
 
 SourceLocation SourceLocation::make(FileID fid, uint32_t off) {
@@ -20,13 +22,15 @@ SourceLocation SourceLocation::make(FileID fid, uint32_t off) {
   NSL_ABORT(off < kMaxOffset, "SourceLocation offset >= 16 MiB");
 
   SourceLocation result;
-  result.bits_ = (static_cast<uint32_t>(fid.raw()) << 24) | (off & 0x00FFFFFFu);
+  result.bits_ = (static_cast<uint32_t>(fid.raw()) << 24) | (off & 0x00FFFFFFU);
   return result;
 }
 
-SourceRange::SourceRange(SourceLocation b, SourceLocation e) : begin_(b), end_(e) {
+SourceRange::SourceRange(SourceLocation b, SourceLocation e)
+    : begin_(b), end_(e) {
   // Same-file invariant per data-model entity 2.
-  NSL_ABORT(b.file() == e.file(), "SourceRange endpoints must be in the same file");
+  NSL_ABORT(b.file() == e.file(),
+            "SourceRange endpoints must be in the same file");
   // Half-open: begin <= end.
   NSL_ABORT(!(e < b), "SourceRange begin must be <= end");
 }

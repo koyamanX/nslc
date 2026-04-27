@@ -8,16 +8,18 @@
 
 #include "nsl/Lex/Token.h"
 
-#include <cstdint>
-
 #include "llvm/ADT/StringRef.h"
+
+#include <cstdint>
 
 namespace nsl::detail {
 
 namespace {
 
 /// True iff `c` is a base-10 digit.
-bool isDecDigit(char c) { return c >= '0' && c <= '9'; }
+bool isDecDigit(char c) {
+  return c >= '0' && c <= '9';
+}
 
 /// True iff `c` is a base-16 digit (0-9, a-f, A-F).
 bool isHexDigit(char c) {
@@ -76,7 +78,7 @@ void setMarkerFlag(char marker, uint16_t &flags) {
 uint32_t consumeValueRun(llvm::StringRef buf, uint32_t pos, int base,
                          uint16_t &flags) {
   while (pos < buf.size()) {
-    char c = buf[pos];
+    char const c = buf[pos];
     char marker = '\0';
     if (c == '_') {
       ++pos;
@@ -145,15 +147,15 @@ NumberScanResult scanNumber(llvm::StringRef buf, uint32_t cur) {
 
   // ---- C-style: `0b...` / `0B...` / `0x...` / `0X...` ----
   if (buf[cur] == '0' && cur + 1 < buf.size()) {
-    char p = buf[cur + 1];
+    char const p = buf[cur + 1];
     if (p == 'x' || p == 'X') {
       uint16_t flags = 0;
-      uint32_t end = consumeValueRun(buf, cur + 2, /*base=*/16, flags);
+      uint32_t const end = consumeValueRun(buf, cur + 2, /*base=*/16, flags);
       return {TokenKind::tk_hex_lit, end, flags};
     }
     if (p == 'b' || p == 'B') {
       uint16_t flags = 0;
-      uint32_t end = consumeValueRun(buf, cur + 2, /*base=*/2, flags);
+      uint32_t const end = consumeValueRun(buf, cur + 2, /*base=*/2, flags);
       return {TokenKind::tk_binary_lit, end, flags};
     }
     // `0o` / `0O` is NOT in lang.ebnf §13's c_radix_char alternation
@@ -171,7 +173,7 @@ NumberScanResult scanNumber(llvm::StringRef buf, uint32_t cur) {
   // ---- Verilog-style `<width>'<radix><value_run>` ----
   if (pos < buf.size() && buf[pos] == '\'') {
     if (pos + 1 < buf.size()) {
-      RadixInfo r = radixFromChar(buf[pos + 1]);
+      RadixInfo const r = radixFromChar(buf[pos + 1]);
       if (r.kind != TokenKind::tk_unknown) {
         uint16_t flags = 0;
         // Decimal verilog-style ('d) does not permit Z/X/U markers
@@ -179,7 +181,7 @@ NumberScanResult scanNumber(llvm::StringRef buf, uint32_t cur) {
         // markers as illegal naturally because `consumeValueRun` for
         // base 10 would never accept them — handle this by routing
         // base 10 through the decimal-only loop.
-        uint32_t end;
+        uint32_t end = 0;
         if (r.base == 10) {
           uint32_t p = pos + 2;
           while (p < buf.size() && (isDecDigit(buf[p]) || buf[p] == '_')) {

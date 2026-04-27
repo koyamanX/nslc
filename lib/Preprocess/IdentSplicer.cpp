@@ -12,15 +12,16 @@
 
 #include "IdentSplicer.h"
 
-#include "nsl/Preprocess/MacroTable.h"
-
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
-
-#include <cstdint>
-#include <string>
+#include "nsl/Preprocess/HelperEvaluator.h"
+#include "nsl/Preprocess/MacroTable.h"
 
 #include "llvm/ADT/StringRef.h"
+
+#include <cstddef>
+#include <cstdint>
+#include <string>
 
 namespace nsl::preprocess {
 
@@ -35,9 +36,9 @@ bool isIdentBody(char c) {
 
 SourceLocation locAt(SourceLocation base, std::size_t delta) {
   if (!base.isValid()) {
-    return SourceLocation();
+    return {};
   }
-  uint32_t off = base.offset() + static_cast<uint32_t>(delta);
+  uint32_t const off = base.offset() + static_cast<uint32_t>(delta);
   if (off >= SourceLocation::kMaxOffset) {
     return base;
   }
@@ -53,7 +54,7 @@ std::string IdentSplicer::splice(llvm::StringRef line,
 
   std::size_t i = 0;
   while (i < line.size()) {
-    char c = line[i];
+    char const c = line[i];
 
     // String literal: copy verbatim through closing quote, honoring
     // backslash escapes.
@@ -61,7 +62,7 @@ std::string IdentSplicer::splice(llvm::StringRef line,
       out.push_back(c);
       ++i;
       while (i < line.size()) {
-        char d = line[i];
+        char const d = line[i];
         out.push_back(d);
         ++i;
         if (d == '\\' && i < line.size()) {
@@ -79,7 +80,6 @@ std::string IdentSplicer::splice(llvm::StringRef line,
     // Line comment: copy to end of line.
     if (c == '/' && i + 1 < line.size() && line[i + 1] == '/') {
       out.append(line.data() + i, line.size() - i);
-      i = line.size();
       break;
     }
 
@@ -88,8 +88,7 @@ std::string IdentSplicer::splice(llvm::StringRef line,
       out.push_back(c);
       out.push_back('*');
       i += 2;
-      while (i + 1 < line.size() &&
-             !(line[i] == '*' && line[i + 1] == '/')) {
+      while (i + 1 < line.size() && (line[i] != '*' || line[i + 1] != '/')) {
         out.push_back(line[i]);
         ++i;
       }
@@ -106,43 +105,42 @@ std::string IdentSplicer::splice(llvm::StringRef line,
 
     // %IDENT% reference?
     if (c == '%') {
-      std::size_t begin = i;
-      std::size_t name_begin = i + 1;
+      std::size_t const begin = i;
+      std::size_t const name_begin = i + 1;
       std::size_t j = name_begin;
       while (j < line.size() && isIdentBody(line[j])) {
         ++j;
       }
       if (j > name_begin && j < line.size() && line[j] == '%') {
         // Recognized %NAME% form.
-        llvm::StringRef name = line.substr(name_begin, j - name_begin);
+        llvm::StringRef const name = line.substr(name_begin, j - name_begin);
         const MacroDef *def = macros_.lookup(name);
-        if (def) {
+        if (def != nullptr) {
           // Per P10 step 1 + spec scenario 3: if the macro body
           // contains a helper call or float literal, REDUCE it via
           // PPExpression and splice the rendered VALUE. Otherwise
           // textual splice (P3).
           bool needs_reduction = false;
           {
-            llvm::StringRef body = def->body;
+            llvm::StringRef const body = def->body;
             // Detect `_<lower>(` (a helper call pattern) or a float
             // literal (digit `.` digit, or digit `e[+-]?digit`).
             for (std::size_t k = 0; k + 1 < body.size(); ++k) {
-              char a = body[k];
-              char b = body[k + 1];
+              char const a = body[k];
+              char const b = body[k + 1];
               // Helper call: `_<letter>` followed by `(` somewhere
               // before whitespace (cheap heuristic).
               if (a == '_' &&
                   ((b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z'))) {
                 // Look for `(` ahead.
                 for (std::size_t m = k + 1; m < body.size(); ++m) {
-                  char c = body[m];
+                  char const c = body[m];
                   if (c == '(') {
                     needs_reduction = true;
                     break;
                   }
-                  if (!((c >= 'a' && c <= 'z') ||
-                        (c >= 'A' && c <= 'Z') ||
-                        (c >= '0' && c <= '9') || c == '_')) {
+                  if ((c < 'a' || c > 'z') && (c < 'A' || c > 'Z') &&
+                      (c < '0' || c > '9') && c != '_') {
                     break;
                   }
                 }
@@ -175,9 +173,9 @@ std::string IdentSplicer::splice(llvm::StringRef line,
             // StringRef is stable. We use the macro's defining_loc
             // begin as the diagnostic anchor; the body itself doesn't
             // map back to a buffer location at this point.
-            SourceLocation body_loc = def->defining_loc.isValid()
-                                          ? def->defining_loc.begin()
-                                          : SourceLocation();
+            SourceLocation const body_loc = def->defining_loc.isValid()
+                                                ? def->defining_loc.begin()
+                                                : SourceLocation();
             if (expr_.reduceDefineBody(def->body, body_loc, &v)) {
               out.append(v.render());
             } else {

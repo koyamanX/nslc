@@ -10,11 +10,12 @@
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Basic/SourceManager.h"
 
-#include <string>
-#include <vector>
+#include "llvm/Support/raw_ostream.h"
 
 #include "gtest/gtest.h"
-#include "llvm/Support/raw_ostream.h"
+#include <cstddef>
+#include <string>
+#include <vector>
 
 using nsl::DiagnosticEngine;
 using nsl::FileID;
@@ -26,7 +27,7 @@ namespace {
 
 std::vector<char> bytesOf(const char *s) {
   std::vector<char> out;
-  while (*s) {
+  while (*s != 0) {
     out.push_back(*s++);
   }
   return out;
@@ -42,8 +43,8 @@ std::string render(DiagnosticEngine &diag, DiagnosticEngine::Format fmt) {
 
 TEST(DiagnosticEngineSortTest, SortsByLocationAtRenderTime) {
   SourceManager sm;
-  FileID fid = sm.addBufferInMemory("s.nsl",
-                                    bytesOf("aaaa\nbbbb\ncccc\ndddd\neeee\n"));
+  FileID const fid =
+      sm.addBufferInMemory("s.nsl", bytesOf("aaaa\nbbbb\ncccc\ndddd\neeee\n"));
   DiagnosticEngine diag(sm);
 
   // Emit out of order: B, A, C (B first, then earlier A, then later C).
@@ -51,11 +52,11 @@ TEST(DiagnosticEngineSortTest, SortsByLocationAtRenderTime) {
   diag.report(Severity::Error, SourceLocation::make(fid, 0), "A");
   diag.report(Severity::Error, SourceLocation::make(fid, 10), "C");
 
-  std::string out = render(diag, DiagnosticEngine::Format::Text);
+  std::string const out = render(diag, DiagnosticEngine::Format::Text);
   // Expect A-line before B-line before C-line.
-  size_t a_pos = out.find(" error: A");
-  size_t b_pos = out.find(" error: B");
-  size_t c_pos = out.find(" error: C");
+  size_t const a_pos = out.find(" error: A");
+  size_t const b_pos = out.find(" error: B");
+  size_t const c_pos = out.find(" error: C");
   ASSERT_NE(a_pos, std::string::npos);
   ASSERT_NE(b_pos, std::string::npos);
   ASSERT_NE(c_pos, std::string::npos);
@@ -65,26 +66,26 @@ TEST(DiagnosticEngineSortTest, SortsByLocationAtRenderTime) {
 
 TEST(DiagnosticEngineSortTest, RenderAllIsIdempotent) {
   SourceManager sm;
-  FileID fid = sm.addBufferInMemory("s.nsl",
-                                    bytesOf("aa\nbb\ncc\ndd\nee\n"));
+  FileID const fid =
+      sm.addBufferInMemory("s.nsl", bytesOf("aa\nbb\ncc\ndd\nee\n"));
   DiagnosticEngine diag(sm);
   diag.report(Severity::Error, SourceLocation::make(fid, 3), "X");
   diag.report(Severity::Warning, SourceLocation::make(fid, 0), "Y");
   diag.report(Severity::Note, SourceLocation::make(fid, 6), "Z");
 
-  std::string first = render(diag, DiagnosticEngine::Format::Text);
-  std::string second = render(diag, DiagnosticEngine::Format::Text);
+  std::string const first = render(diag, DiagnosticEngine::Format::Text);
+  std::string const second = render(diag, DiagnosticEngine::Format::Text);
   EXPECT_EQ(first, second);
 
   // Same idempotence must hold for JSON.
-  std::string j1 = render(diag, DiagnosticEngine::Format::JSON);
-  std::string j2 = render(diag, DiagnosticEngine::Format::JSON);
+  std::string const j1 = render(diag, DiagnosticEngine::Format::JSON);
+  std::string const j2 = render(diag, DiagnosticEngine::Format::JSON);
   EXPECT_EQ(j1, j2);
 }
 
 TEST(DiagnosticEngineSortTest, SecondaryKeyIsSeverity) {
   SourceManager sm;
-  FileID fid = sm.addBufferInMemory("s.nsl", bytesOf("aaa"));
+  FileID const fid = sm.addBufferInMemory("s.nsl", bytesOf("aaa"));
   DiagnosticEngine diag(sm);
   // Same SourceLocation, different severities. The contract orders
   // by (loc, severity); Severity::Note < Warning < Error per the
@@ -93,10 +94,10 @@ TEST(DiagnosticEngineSortTest, SecondaryKeyIsSeverity) {
   diag.report(Severity::Note, SourceLocation::make(fid, 1), "NOTE");
   diag.report(Severity::Warning, SourceLocation::make(fid, 1), "WARN");
 
-  std::string out = render(diag, DiagnosticEngine::Format::Text);
-  size_t note_pos = out.find("NOTE");
-  size_t warn_pos = out.find("WARN");
-  size_t err_pos = out.find("ERR");
+  std::string const out = render(diag, DiagnosticEngine::Format::Text);
+  size_t const note_pos = out.find("NOTE");
+  size_t const warn_pos = out.find("WARN");
+  size_t const err_pos = out.find("ERR");
   ASSERT_NE(note_pos, std::string::npos);
   ASSERT_NE(warn_pos, std::string::npos);
   ASSERT_NE(err_pos, std::string::npos);

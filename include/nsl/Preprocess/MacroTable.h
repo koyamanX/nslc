@@ -19,12 +19,12 @@
 
 #include "nsl/Basic/SourceLocation.h"
 
-#include <map>
-#include <string>
-
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+
+#include <map>
+#include <string>
 
 namespace nsl::preprocess {
 
@@ -81,14 +81,16 @@ public:
                 SourceRange defining_loc, SourceRange *out_previous_loc);
 
   /// Look up a macro by name. Returns `nullptr` if no entry exists.
-  const MacroDef *lookup(llvm::StringRef name) const;
+  [[nodiscard]] const MacroDef *lookup(llvm::StringRef name) const;
   MacroDef *lookup(llvm::StringRef name);
 
   /// Remove a macro. Returns `true` if the entry existed.
   bool undef(llvm::StringRef name);
 
   /// True iff `name` is defined.
-  bool defined(llvm::StringRef name) const { return lookup(name) != nullptr; }
+  [[nodiscard]] bool defined(llvm::StringRef name) const {
+    return lookup(name) != nullptr;
+  }
 
   /// Predefine a macro from a `-D NAME=value` CLI flag. Inserted
   /// before any source-defined macro (per data-model entity 11
@@ -96,8 +98,8 @@ public:
   void predefine(llvm::StringRef name, llvm::StringRef body);
 
   /// Number of defined macros.
-  std::size_t size() const { return entries_.size(); }
-  bool empty() const { return entries_.empty(); }
+  [[nodiscard]] std::size_t size() const { return entries_.size(); }
+  [[nodiscard]] bool empty() const { return entries_.empty(); }
 
   /// Iteration is insertion-ordered. The yielded `MacroDef`s are
   /// references into the underlying storage and remain valid for the
@@ -114,8 +116,12 @@ public:
       llvm::MapVector<std::string, MacroDef, std::map<std::string, unsigned>>;
   container_type::iterator begin() { return entries_.begin(); }
   container_type::iterator end() { return entries_.end(); }
-  container_type::const_iterator begin() const { return entries_.begin(); }
-  container_type::const_iterator end() const { return entries_.end(); }
+  [[nodiscard]] container_type::const_iterator begin() const {
+    return entries_.begin();
+  }
+  [[nodiscard]] container_type::const_iterator end() const {
+    return entries_.end();
+  }
 
 private:
   container_type entries_;

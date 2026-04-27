@@ -11,10 +11,10 @@
 
 #include "nsl/Basic/SourceLocation.h"
 
+#include "llvm/ADT/StringRef.h"
+
 #include <string>
 #include <utility>
-
-#include "llvm/ADT/StringRef.h"
 
 namespace nsl::preprocess {
 
@@ -39,7 +39,7 @@ void MacroTable::redefine(llvm::StringRef name, llvm::StringRef body,
   std::string key = name.str();
   auto it = entries_.find(key);
   if (it == entries_.end()) {
-    if (out_previous_loc) {
+    if (out_previous_loc != nullptr) {
       *out_previous_loc = SourceRange();
     }
     MacroDef def;
@@ -49,7 +49,7 @@ void MacroTable::redefine(llvm::StringRef name, llvm::StringRef body,
     entries_.insert({std::move(key), std::move(def)});
     return;
   }
-  if (out_previous_loc) {
+  if (out_previous_loc != nullptr) {
     *out_previous_loc = it->second.defining_loc;
   }
   it->second.body = body.str();
@@ -57,7 +57,7 @@ void MacroTable::redefine(llvm::StringRef name, llvm::StringRef body,
 }
 
 const MacroDef *MacroTable::lookup(llvm::StringRef name) const {
-  std::string key = name.str();
+  std::string const key = name.str();
   auto it = entries_.find(key);
   if (it == entries_.end()) {
     return nullptr;
@@ -66,7 +66,7 @@ const MacroDef *MacroTable::lookup(llvm::StringRef name) const {
 }
 
 MacroDef *MacroTable::lookup(llvm::StringRef name) {
-  std::string key = name.str();
+  std::string const key = name.str();
   auto it = entries_.find(key);
   if (it == entries_.end()) {
     return nullptr;
@@ -75,7 +75,7 @@ MacroDef *MacroTable::lookup(llvm::StringRef name) {
 }
 
 bool MacroTable::undef(llvm::StringRef name) {
-  std::string key = name.str();
+  std::string const key = name.str();
   auto it = entries_.find(key);
   if (it == entries_.end()) {
     return false;

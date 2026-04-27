@@ -7,17 +7,17 @@
 // `specs/002-m1-lex-preprocess/data-model.md`. Authored RED before
 // `include/nsl/Basic/SourceManager.h` exists.
 
-#include "nsl/Basic/SourceManager.h"
 #include "nsl/Basic/SourceLocation.h"
+#include "nsl/Basic/SourceManager.h"
 
+#include "llvm/Support/ErrorOr.h"
+
+#include "gtest/gtest.h"
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <string>
 #include <vector>
-
-#include "gtest/gtest.h"
-#include "llvm/Support/ErrorOr.h"
-#include "llvm/Support/raw_ostream.h"
 
 using nsl::FileID;
 using nsl::SourceLocation;
@@ -27,7 +27,7 @@ namespace {
 
 std::vector<char> bytesOf(const char *literal) {
   std::vector<char> out;
-  while (*literal) {
+  while (*literal != 0) {
     out.push_back(*literal++);
   }
   return out;
@@ -39,18 +39,19 @@ protected:
 };
 
 TEST_F(SourceManagerTest, AddBufferInMemoryRoundTrip) {
-  FileID fid = sm.addBufferInMemory("/virt/a.nsl", bytesOf("hello\nworld\n"));
+  FileID const fid =
+      sm.addBufferInMemory("/virt/a.nsl", bytesOf("hello\nworld\n"));
   EXPECT_TRUE(fid.isValid());
   EXPECT_EQ(sm.getPath(fid), "/virt/a.nsl");
   // The buffer round-trips, NUL-terminator implementation detail not
   // exposed: getBuffer returns the size-N visible bytes.
-  EXPECT_EQ(sm.getBuffer(fid).size(), 12u);
+  EXPECT_EQ(sm.getBuffer(fid).size(), 12U);
   EXPECT_EQ(sm.getBuffer(fid).str(), "hello\nworld\n");
 }
 
 TEST_F(SourceManagerTest, AddBufferAllocatesDistinctFileIDs) {
-  FileID a = sm.addBufferInMemory("/virt/a.nsl", bytesOf("a"));
-  FileID b = sm.addBufferInMemory("/virt/b.nsl", bytesOf("b"));
+  FileID const a = sm.addBufferInMemory("/virt/a.nsl", bytesOf("a"));
+  FileID const b = sm.addBufferInMemory("/virt/b.nsl", bytesOf("b"));
   EXPECT_NE(a.raw(), b.raw());
   EXPECT_TRUE(a.isValid());
   EXPECT_TRUE(b.isValid());
@@ -59,54 +60,56 @@ TEST_F(SourceManagerTest, AddBufferAllocatesDistinctFileIDs) {
 TEST_F(SourceManagerTest, GetLineColMultiLine) {
   // "abc\ndef\nghi"
   //  ^0  ^4   ^8
-  FileID fid = sm.addBufferInMemory("/virt/a.nsl", bytesOf("abc\ndef\nghi"));
+  FileID const fid =
+      sm.addBufferInMemory("/virt/a.nsl", bytesOf("abc\ndef\nghi"));
   // Offset 0 is line 1, column 1.
   auto p0 = sm.getLineCol(SourceLocation::make(fid, 0));
-  EXPECT_EQ(p0.first, 1u);
-  EXPECT_EQ(p0.second, 1u);
+  EXPECT_EQ(p0.first, 1U);
+  EXPECT_EQ(p0.second, 1U);
 
   // Offset 2 is line 1, column 3 ('c').
   auto p2 = sm.getLineCol(SourceLocation::make(fid, 2));
-  EXPECT_EQ(p2.first, 1u);
-  EXPECT_EQ(p2.second, 3u);
+  EXPECT_EQ(p2.first, 1U);
+  EXPECT_EQ(p2.second, 3U);
 
   // Offset 4 is line 2, column 1 ('d').
   auto p4 = sm.getLineCol(SourceLocation::make(fid, 4));
-  EXPECT_EQ(p4.first, 2u);
-  EXPECT_EQ(p4.second, 1u);
+  EXPECT_EQ(p4.first, 2U);
+  EXPECT_EQ(p4.second, 1U);
 
   // Offset 8 is line 3, column 1 ('g').
   auto p8 = sm.getLineCol(SourceLocation::make(fid, 8));
-  EXPECT_EQ(p8.first, 3u);
-  EXPECT_EQ(p8.second, 1u);
+  EXPECT_EQ(p8.first, 3U);
+  EXPECT_EQ(p8.second, 1U);
 
   // Offset 10 is line 3, column 3 ('i').
   auto p10 = sm.getLineCol(SourceLocation::make(fid, 10));
-  EXPECT_EQ(p10.first, 3u);
-  EXPECT_EQ(p10.second, 3u);
+  EXPECT_EQ(p10.first, 3U);
+  EXPECT_EQ(p10.second, 3U);
 }
 
 TEST_F(SourceManagerTest, GetLineReturnsLineSlice) {
-  FileID fid = sm.addBufferInMemory("/virt/a.nsl", bytesOf("abc\ndefg\nhij"));
+  FileID const fid =
+      sm.addBufferInMemory("/virt/a.nsl", bytesOf("abc\ndefg\nhij"));
   // Offset 5 is on line 2 ("defg").
-  llvm::StringRef line = sm.getLine(SourceLocation::make(fid, 5));
+  llvm::StringRef const line = sm.getLine(SourceLocation::make(fid, 5));
   EXPECT_EQ(line.str(), "defg");
   // First-line slice.
-  llvm::StringRef first = sm.getLine(SourceLocation::make(fid, 0));
+  llvm::StringRef const first = sm.getLine(SourceLocation::make(fid, 0));
   EXPECT_EQ(first.str(), "abc");
   // Last line (no trailing newline).
-  llvm::StringRef last = sm.getLine(SourceLocation::make(fid, 9));
+  llvm::StringRef const last = sm.getLine(SourceLocation::make(fid, 9));
   EXPECT_EQ(last.str(), "hij");
 }
 
 TEST_F(SourceManagerTest, AddLineDirectiveAndResolveVirtual) {
-  FileID fid = sm.addBufferInMemory("/virt/a.nsl",
-                                    bytesOf("line1\nline2\nline3\nline4\n"));
+  FileID const fid = sm.addBufferInMemory(
+      "/virt/a.nsl", bytesOf("line1\nline2\nline3\nline4\n"));
   // Without any #line directive, virtual = physical.
   auto v0 = sm.resolveVirtual(SourceLocation::make(fid, 0));
   EXPECT_EQ(v0.path.str(), "/virt/a.nsl");
-  EXPECT_EQ(v0.line, 1u);
-  EXPECT_EQ(v0.col, 1u);
+  EXPECT_EQ(v0.line, 1U);
+  EXPECT_EQ(v0.col, 1U);
 
   // After #line 100 "synth.v" applied at offset 6 (start of line 2),
   // every offset >= 6 reports synth.v at line 100 + (line-1).
@@ -115,49 +118,50 @@ TEST_F(SourceManagerTest, AddLineDirectiveAndResolveVirtual) {
   // Offset 6 is the first byte AFTER the directive; it's line 100 col 1.
   auto v6 = sm.resolveVirtual(SourceLocation::make(fid, 6));
   EXPECT_EQ(v6.path.str(), "synth.v");
-  EXPECT_EQ(v6.line, 100u);
-  EXPECT_EQ(v6.col, 1u);
+  EXPECT_EQ(v6.line, 100U);
+  EXPECT_EQ(v6.col, 1U);
 
   // Offset 12 is the start of physical line 3 ("line3"), so the
   // virtual line is 101.
   auto v12 = sm.resolveVirtual(SourceLocation::make(fid, 12));
   EXPECT_EQ(v12.path.str(), "synth.v");
-  EXPECT_EQ(v12.line, 101u);
+  EXPECT_EQ(v12.line, 101U);
 
   // Offsets BEFORE the directive resolve to the physical path.
   auto v3 = sm.resolveVirtual(SourceLocation::make(fid, 3));
   EXPECT_EQ(v3.path.str(), "/virt/a.nsl");
-  EXPECT_EQ(v3.line, 1u);
+  EXPECT_EQ(v3.line, 1U);
 }
 
 TEST_F(SourceManagerTest, AddLineDirectiveReusesPathOnEmptyArg) {
-  FileID fid = sm.addBufferInMemory("/virt/a.nsl",
-                                    bytesOf("a\nb\nc\nd\n"));
+  FileID const fid =
+      sm.addBufferInMemory("/virt/a.nsl", bytesOf("a\nb\nc\nd\n"));
   // Empty virtual_path = reuse current path.
   sm.addLineDirective(SourceLocation::make(fid, 2), 50, "");
   auto v = sm.resolveVirtual(SourceLocation::make(fid, 2));
   EXPECT_EQ(v.path.str(), "/virt/a.nsl");
-  EXPECT_EQ(v.line, 50u);
+  EXPECT_EQ(v.line, 50U);
 }
 
 TEST(SourceManagerDeathTest, AddLineDirectiveRequiresStrictlyIncreasingOffset) {
   SourceManager sm;
-  FileID fid = sm.addBufferInMemory("/virt/a.nsl",
-                                    bytesOf("a\nb\nc\nd\n"));
+  FileID const fid =
+      sm.addBufferInMemory("/virt/a.nsl", bytesOf("a\nb\nc\nd\n"));
   sm.addLineDirective(SourceLocation::make(fid, 2), 100, "x.v");
   // Re-inserting at the same or lower offset must abort.
-  EXPECT_DEATH({ sm.addLineDirective(SourceLocation::make(fid, 2), 200, "y.v"); },
-               ".*");
-  EXPECT_DEATH({ sm.addLineDirective(SourceLocation::make(fid, 1), 200, "y.v"); },
-               ".*");
+  EXPECT_DEATH(
+      { sm.addLineDirective(SourceLocation::make(fid, 2), 200, "y.v"); }, ".*");
+  EXPECT_DEATH(
+      { sm.addLineDirective(SourceLocation::make(fid, 1), 200, "y.v"); }, ".*");
 }
 
 TEST_F(SourceManagerTest, IncludeStackPushPopOrder) {
-  FileID outer = sm.addBufferInMemory("/virt/outer.nsl",
-                                      bytesOf("#include \"middle\"\n"));
-  FileID middle = sm.addBufferInMemory("/virt/middle.nsl",
-                                       bytesOf("#include \"inner\"\n"));
-  FileID inner = sm.addBufferInMemory("/virt/inner.nsl", bytesOf("err\n"));
+  FileID const outer =
+      sm.addBufferInMemory("/virt/outer.nsl", bytesOf("#include \"middle\"\n"));
+  FileID const middle =
+      sm.addBufferInMemory("/virt/middle.nsl", bytesOf("#include \"inner\"\n"));
+  FileID const inner =
+      sm.addBufferInMemory("/virt/inner.nsl", bytesOf("err\n"));
 
   // outer at offset 0 directly includes middle.
   sm.pushIncludeFrame(SourceLocation::make(outer, 0), middle);
@@ -167,7 +171,7 @@ TEST_F(SourceManagerTest, IncludeStackPushPopOrder) {
   // For a location in `inner`, the stack ancestry (innermost-first)
   // is [middle:include-site, outer:include-site].
   auto stack = sm.getIncludeStackFor(inner);
-  ASSERT_EQ(stack.size(), 2u);
+  ASSERT_EQ(stack.size(), 2U);
   EXPECT_EQ(stack[0].file().raw(), middle.raw());
   EXPECT_EQ(stack[1].file().raw(), outer.raw());
 
@@ -175,15 +179,15 @@ TEST_F(SourceManagerTest, IncludeStackPushPopOrder) {
   // is just [outer:include-site].
   sm.popIncludeFrame();
   auto stack_after_pop = sm.getIncludeStackFor(middle);
-  ASSERT_EQ(stack_after_pop.size(), 1u);
+  ASSERT_EQ(stack_after_pop.size(), 1U);
   EXPECT_EQ(stack_after_pop[0].file().raw(), outer.raw());
 }
 
 TEST_F(SourceManagerTest, LoadFileIdempotent) {
   // Write a temp file in $TMPDIR (writable in sandbox).
   const char *tmpdir = std::getenv("TMPDIR");
-  std::string base = tmpdir ? tmpdir : "/tmp";
-  std::string path = base + "/nslc_sm_test_load.nsl";
+  std::string const base = (tmpdir != nullptr) ? tmpdir : "/tmp";
+  std::string const path = base + "/nslc_sm_test_load.nsl";
   {
     std::ofstream out(path);
     out << "alpha\nbeta\n";
@@ -202,7 +206,8 @@ TEST_F(SourceManagerTest, LoadFileIdempotent) {
 }
 
 TEST_F(SourceManagerTest, LoadFileMissingReturnsError) {
-  llvm::ErrorOr<FileID> r = sm.loadFile("/no/such/path/please/nslc/missing.nsl");
+  llvm::ErrorOr<FileID> const r =
+      sm.loadFile("/no/such/path/please/nslc/missing.nsl");
   EXPECT_FALSE(static_cast<bool>(r));
 }
 
