@@ -136,7 +136,7 @@ TEST(SourceRangeDeathTest, RejectsCrossFileEndpoints) {
   SourceLocation const b = SourceLocation::make(f2, 0);
   EXPECT_DEATH(
       {
-        SourceRange r(a, b);
+        SourceRange const r(a, b);
         (void)r;
       },
       ".*");
@@ -148,7 +148,7 @@ TEST(SourceRangeDeathTest, RejectsBeginAfterEnd) {
   SourceLocation const b = SourceLocation::make(fid, 50);
   EXPECT_DEATH(
       {
-        SourceRange r(a, b);
+        SourceRange const r(a, b);
         (void)r;
       },
       ".*");

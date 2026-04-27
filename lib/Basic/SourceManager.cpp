@@ -168,7 +168,7 @@ llvm::StringRef SourceManager::getBuffer(FileID f) const {
 
 llvm::StringRef SourceManager::getPath(FileID f) const {
   Buffer const &b = impl_->buffer(f);
-  return llvm::StringRef(b.path);
+  return {b.path};
 }
 
 std::pair<uint32_t, uint32_t>

@@ -80,7 +80,6 @@ std::string IdentSplicer::splice(llvm::StringRef line,
     // Line comment: copy to end of line.
     if (c == '/' && i + 1 < line.size() && line[i + 1] == '/') {
       out.append(line.data() + i, line.size() - i);
-      i = line.size();
       break;
     }
 

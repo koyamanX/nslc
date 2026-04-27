@@ -98,15 +98,15 @@ description: "Tasks for 004-clang-tidy-cleanup — retire CI static-checks debt"
 
 **Mixed-disposition per-site block**:
 
-- [ ] T018 [US1] `readability-convert-member-functions-to-static` (17 sites): per-site judgment per `research.md` §1 row "MIXED". Fix the genuinely-static-utility ones (~8 sites likely); add `// NOLINTNEXTLINE(readability-convert-member-functions-to-static) <rationale>` for the semantic-membership ones (~9 sites). Each NOLINT must satisfy `data-model.md` Entity 4 schema (parenthesized category + one-line rationale). Verify GREEN. Commit; expect approximately `~76 → ~59`.
+- [X] T018 [US1] `readability-convert-member-functions-to-static` (17 sites): per-site judgment per `research.md` §1 row "MIXED". Fix the genuinely-static-utility ones (~8 sites likely); add `// NOLINTNEXTLINE(readability-convert-member-functions-to-static) <rationale>` for the semantic-membership ones (~9 sites). Each NOLINT must satisfy `data-model.md` Entity 4 schema (parenthesized category + one-line rationale). Verify GREEN. Commit; expect approximately `~76 → ~59`.
 
 **Suppression block** — globally suppress the 5 categories whose refactor would exceed feature scope per `research.md` §1:
 
-- [ ] T019 [US1] Update `.clang-tidy` (entity 1 of `data-model.md`) with the global allow-list + the rationale block for the 5 suppressed categories: `misc-non-private-member-variables-in-classes` (22), `cppcoreguidelines-avoid-const-or-ref-data-members` (16), `misc-no-recursion` (14), `readability-function-cognitive-complexity` (13), `cppcoreguidelines-avoid-do-while` (7). Verify the gate exits 0 (`./scripts/ci.sh static-checks 2>&1 | grep "warnings treated as errors"` returns empty). Commit; expect `~59 → 0`.
+- [X] T019 [US1] Update `.clang-tidy` (entity 1 of `data-model.md`) with the global allow-list + the rationale block for the 5 suppressed categories: `misc-non-private-member-variables-in-classes` (22), `cppcoreguidelines-avoid-const-or-ref-data-members` (16), `misc-no-recursion` (14), `readability-function-cognitive-complexity` (13), `cppcoreguidelines-avoid-do-while` (7). Verify the gate exits 0 (`./scripts/ci.sh static-checks 2>&1 | grep "warnings treated as errors"` returns empty). Commit; expect `~59 → 0`.
 
 **Verification gate**:
 
-- [ ] T020 [US1] Run `./scripts/ci.sh all` end-to-end inside the container — all 6 stages exit 0 (build-matrix, static-checks, unit-tests, lowering-tests, e2e-empty, formal-empty). Verify SC-001 and SC-002.
+- [X] T020 [US1] Run `./scripts/ci.sh all` end-to-end inside the container — all 6 stages exit 0 (build-matrix, static-checks, unit-tests, lowering-tests, e2e-empty, formal-empty). Verify SC-001 and SC-002.
 
 **Checkpoint**: US1 MVP fully functional. The static-checks gate is GREEN on the working tree. US2 (constitution edit) and US3 (regression probe) extend this.
 

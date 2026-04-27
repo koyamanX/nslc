@@ -63,7 +63,7 @@ public:
   static constexpr uint32_t kMaxOffset = 1U << 24;
 
   /// Default-construct the invalid sentinel.
-  SourceLocation() noexcept : bits_(0) {}
+  SourceLocation() noexcept = default;
 
   /// Pack `(fid, off)` into a `SourceLocation`. Aborts via `assert`
   /// if `off >= kMaxOffset` (24-bit field overflow).
@@ -103,7 +103,7 @@ public:
   [[nodiscard]] uint32_t rawBits() const noexcept { return bits_; }
 
 private:
-  uint32_t bits_;
+  uint32_t bits_{0};
 };
 
 /// A half-open `[begin, end)` span of source whose endpoints are

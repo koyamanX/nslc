@@ -11,12 +11,12 @@
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Basic/SourceManager.h"
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include "gtest/gtest.h"
 #include <cstddef>
-#include <llvm/ADT/StringRef.h>
 #include <sstream>
 #include <string>
 #include <vector>

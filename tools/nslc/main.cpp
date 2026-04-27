@@ -29,7 +29,8 @@ int main(int argc, char **argv) {
     if ((std::strcmp(a, "--version") == 0) || (std::strcmp(a, "-v") == 0)) {
       llvm::outs() << "nslc " << NSLC_VERSION_STRING << "\n";
       return 0;
-    } else if (starts(a, "-emit=")) {
+    }
+    if (starts(a, "-emit=")) {
       stage = a + 6;
     } else if ((std::strcmp(a, "-I") == 0) && i + 1 < argc) {
       opts.include_paths.emplace_back(argv[++i]);

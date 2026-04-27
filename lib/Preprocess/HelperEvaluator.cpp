@@ -69,7 +69,7 @@ std::string PPValue::render() const {
     char buf[32];
     std::snprintf(buf, sizeof(buf), "%lld",
                   static_cast<long long>(std::get<int64_t>(v_)));
-    return std::string(buf);
+    return {buf};
   }
   // Real: 17 significant digits, sufficient to round-trip a double
   // (research §5). Use `%.17Lg` for long-double-aware formatting.

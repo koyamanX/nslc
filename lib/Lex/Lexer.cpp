@@ -166,12 +166,8 @@ public:
       ++cur;
     }
     llvm::StringRef const text = buf.substr(begin, cur - begin);
-    TokenKind kind;
-    if (starts_with_underscore) {
-      kind = classifyUnderscoreName(text);
-    } else {
-      kind = classifyKeyword(text);
-    }
+    TokenKind const kind = starts_with_underscore ? classifyUnderscoreName(text)
+                                                  : classifyKeyword(text);
     return {kind, makeRange(begin, cur), text};
   }
 

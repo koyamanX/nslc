@@ -225,7 +225,7 @@ void DiagnosticEngine::clear() noexcept {
 }
 
 llvm::ArrayRef<Diagnostic> DiagnosticEngine::diagnostics() const noexcept {
-  return llvm::ArrayRef<Diagnostic>(impl_->diags);
+  return {impl_->diags};
 }
 
 void DiagnosticEngine::appendFixItAt(size_t index, FixItHint hint) {
