@@ -373,12 +373,16 @@ populated and the diagnostic-emission sites being wired.
   abstract `Decl` / `Stmt` / `Expr` mid-level bases MUST exist.
   `Expr` MUST carry a `TypeRef inferredType()` slot writable by
   Sema at M3.
-- **FR-005**: AST nodes MUST be allocated as `std::unique_ptr<T>` with
-  a polymorphic visitor (`ASTVisitor`) defined in `nsl-ast`. The
-  visitor's per-node-kind methods MUST cover every concrete node
-  enumerated in §5 — a missing override is a compile-time error
-  (e.g., via pure-virtual or `[[nodiscard]] = delete`-style
-  enforcement).
+- **FR-005**: AST nodes MUST be allocated as `std::unique_ptr<T>`
+  with a polymorphic visitor (`ASTVisitor`) defined in `nsl-ast`.
+  The visitor's per-node-kind methods MUST cover every concrete
+  node enumerated in §5 — a missing override is a **link-time
+  error** (the base declares one pure-virtual `visit(T&) = 0;` per
+  concrete node, so a derived class that omits an override leaves
+  the vtable referencing an undefined symbol; see
+  [`research.md`](./research.md) §7 and
+  [`contracts/ast-stability.contract.md`](./contracts/ast-stability.contract.md)
+  Invariant 5 for the mechanism).
 
 **Parser functional requirements (per [`docs/spec/nsl_lang.ebnf`](../../docs/spec/nsl_lang.ebnf) §§1–11 and parser notes N1–N14):**
 
@@ -604,8 +608,9 @@ populated and the diagnostic-emission sites being wired.
   per §5 lines 311–325. Every concrete AST node kind inherits
   from exactly one of these.
 - **`ASTVisitor`**: polymorphic visitor base, per FR-005. One
-  `visit(T&)` per concrete node kind enumerated in §5 lines
-  622–639; missing overrides are compile-time errors.
+  pure-virtual `visit(T&) = 0` per concrete node kind enumerated
+  in §5 lines 622–639; missing overrides produce link-time errors
+  (vtable references an undefined symbol).
 - **`TypeRef`**: forward-declared in `nsl-ast`'s `Expr`; its
   filled-in form is M3's responsibility. At M2 the slot exists
   and reads as "unresolved" / nullptr.
