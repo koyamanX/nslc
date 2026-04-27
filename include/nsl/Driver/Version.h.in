@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// include/nsl/Driver/Version.h.in — configure-time-substituted
+// header. CMake's configure_file(@ONLY) resolves @NSLC_GIT_DESCRIBE@
+// from cmake/NSLVersion.cmake. Edit this template, never the
+// generated `Version.h` in the build dir.
+
+#ifndef NSL_DRIVER_VERSION_H
+#define NSL_DRIVER_VERSION_H
+
+// `git describe --tags --always --dirty` injected at configure time.
+// See contracts/nslc-version.contract.md for output schema.
+#define NSLC_VERSION_STRING "@NSLC_GIT_DESCRIBE@"
+
+#endif  // NSL_DRIVER_VERSION_H

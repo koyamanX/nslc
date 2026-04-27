@@ -1,0 +1,218 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+# .github/workflows/ci.yml — six-stage CI pipeline per Constitution
+# Principle IX. Mirrors scripts/ci.sh exactly: each step calls into
+# the same dispatch so divergence between local and remote runs is
+# impossible (FR-021).
+#
+# Container strategy (research §2 + .docker/): every job that needs
+# LLVM/MLIR/CIRCT runs inside ghcr.io/<owner>/nsl-nslc:dev, which is
+# built and pushed by .github/workflows/publish-images.yml from the
+# pins in cmake/deps.lock. Local dev uses scripts/docker-build.sh
+# against the same Dockerfiles + pins (Principle V — identical
+# input → identical environment).
+
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: read         # pull ghcr.io/<owner>/nsl-nslc:dev
+  pull-requests: write   # for the wired-but-empty sticky comment
+
+env:
+  # Documents the canonical container image. NOT consumed by
+  # `container.image` (GitHub Actions does not allow `env` context
+  # there — see comment on each job's container directive). The
+  # literal lowercase form `ghcr.io/koyamanx/nsl-nslc:dev` is
+  # hardcoded in each `container.image` instead. This env entry exists
+  # for run-context shell steps that may want the image string.
+  #
+  # Floating `:dev` tag — bumped atomically by publish-images.yml when
+  # any docker-stack input changes (.docker/** or cmake/deps.lock).
+  NSLC_IMAGE: ghcr.io/koyamanx/nsl-nslc:dev
+
+jobs:
+
+  # --------------------------------------------------------------------------
+  # Stage 1: build-matrix (4 cells: Debug × Release × {gcc, clang})
+  #
+  # The container provides clang/gcc/cmake/ninja/lld/ccache/python3
+  # and the prebuilt /opt/llvm + /opt/circt staged by
+  # publish-images.yml's nsl-llvm-mlir + nsl-circt jobs. No on-the-fly
+  # LLVM/MLIR/CIRCT build in this loop.
+  # --------------------------------------------------------------------------
+  build-matrix:
+    name: build-matrix (${{ matrix.build_type }}, ${{ matrix.compiler }})
+    runs-on: ubuntu-22.04                # research §7: pinned, never `latest`
+    container:
+      # Hardcoded literal — GitHub Actions does NOT support the `env`
+      # context in `jobs.<id>.container.image` (only github / needs /
+      # strategy / matrix / vars / inputs are allowed there). Forks
+      # should update both this string and the registry namespace in
+      # `.github/workflows/publish-images.yml`.
+      image: ghcr.io/koyamanx/nsl-nslc:dev
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Debug, Release]
+        compiler: [gcc, clang]
+    steps:
+      - name: Checkout (full depth for git describe)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run stage 1 via scripts/ci.sh
+        run: ./scripts/ci.sh build-matrix ${{ matrix.build_type }} ${{ matrix.compiler }}
+
+      - name: Upload compile_commands.json (used by stage 2)
+        if: matrix.build_type == 'Release' && matrix.compiler == 'gcc'
+        uses: actions/upload-artifact@v4
+        with:
+          name: compile-commands
+          path: build-Release-gcc/compile_commands.json
+          if-no-files-found: error
+
+  # --------------------------------------------------------------------------
+  # Stage 2: static-checks (clang-format + clang-tidy + SPDX)
+  # --------------------------------------------------------------------------
+  static-checks:
+    name: static-checks
+    runs-on: ubuntu-22.04
+    needs: build-matrix
+    container:
+      # Hardcoded literal — GitHub Actions does NOT support the `env`
+      # context in `jobs.<id>.container.image` (only github / needs /
+      # strategy / matrix / vars / inputs are allowed there). Forks
+      # should update both this string and the registry namespace in
+      # `.github/workflows/publish-images.yml`.
+      image: ghcr.io/koyamanx/nsl-nslc:dev
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download compile_commands.json
+        uses: actions/download-artifact@v4
+        with:
+          name: compile-commands
+          path: build
+
+      - name: Run stage 2 via scripts/ci.sh
+        run: ./scripts/ci.sh static-checks
+
+  # --------------------------------------------------------------------------
+  # Stage 3: unit-and-layer-tests
+  # --------------------------------------------------------------------------
+  unit-and-layer-tests:
+    name: unit-and-layer-tests
+    runs-on: ubuntu-22.04
+    needs: build-matrix
+    container:
+      # Hardcoded literal — GitHub Actions does NOT support the `env`
+      # context in `jobs.<id>.container.image` (only github / needs /
+      # strategy / matrix / vars / inputs are allowed there). Forks
+      # should update both this string and the registry namespace in
+      # `.github/workflows/publish-images.yml`.
+      image: ghcr.io/koyamanx/nsl-nslc:dev
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure + build (Release × gcc)
+        run: ./scripts/ci.sh build-matrix Release gcc
+
+      - name: Run stage 3 via scripts/ci.sh
+        run: ./scripts/ci.sh unit-tests build-Release-gcc
+
+  # --------------------------------------------------------------------------
+  # Stage 4: lowering-tests
+  # --------------------------------------------------------------------------
+  lowering-tests:
+    name: lowering-tests
+    runs-on: ubuntu-22.04
+    needs: build-matrix
+    container:
+      # Hardcoded literal — GitHub Actions does NOT support the `env`
+      # context in `jobs.<id>.container.image` (only github / needs /
+      # strategy / matrix / vars / inputs are allowed there). Forks
+      # should update both this string and the registry namespace in
+      # `.github/workflows/publish-images.yml`.
+      image: ghcr.io/koyamanx/nsl-nslc:dev
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure + build (Release × gcc)
+        run: ./scripts/ci.sh build-matrix Release gcc
+
+      - name: Run stage 4 via scripts/ci.sh
+        run: ./scripts/ci.sh lowering-tests build-Release-gcc
+
+  # --------------------------------------------------------------------------
+  # Stage 5: end-to-end (wired but empty until M7)
+  # --------------------------------------------------------------------------
+  end-to-end:
+    name: end-to-end
+    runs-on: ubuntu-22.04
+    needs: build-matrix
+    if: false                              # FR-015: skipped until M7 lands
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/ci.sh e2e
+
+  # --------------------------------------------------------------------------
+  # Stage 6: formal (wired but empty until M8)
+  # --------------------------------------------------------------------------
+  formal:
+    name: formal
+    runs-on: ubuntu-22.04
+    needs: build-matrix
+    if: false                              # FR-015: skipped until M8 lands
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/ci.sh formal
+
+  # --------------------------------------------------------------------------
+  # Wired-but-empty sticky comment (research §8). Always runs so
+  # reviewers immediately see why stages 5/6 show as skipped.
+  # --------------------------------------------------------------------------
+  wired-but-empty-comment:
+    name: wired-but-empty-comment
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: nslc-wired-but-empty
+          message: |
+            ### CI: stages 5 & 6 are wired but empty
+
+            - **Stage 5 (end-to-end)** — wired but empty until M7 lands
+              (audited-project vendoring P-VEN + golden-VCD P-VCD).
+              See `README.md` §Roadmap and Constitution Principle VI.
+            - **Stage 6 (formal)** — wired but empty until M8 lands
+              (riscv-formal integration).
+
+            These stages MUST report a visible "skipped" status, never
+            a green "no tests" pass (FR-015). Adding them to
+            `.github/branch-protection.json` `required_status_checks.contexts`
+            is a one-line PR at M7 / M8.

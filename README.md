@@ -122,6 +122,23 @@ nslc input.nsl -emit=verilog        # equivalent to default
 
 Useful flags: `-I <dir>` for `#include` quote-form search paths; `-D NAME=value` for preprocessor defines; the `NSL_INCLUDE` environment variable for angle-form `#include` paths.
 
+## Building
+
+On a Linux x86_64 host with CMake ≥ 3.22, Ninja, GCC ≥ 9 (or Clang ≥ 10), Python ≥ 3.8, and a vendored prebuilt LLVM + MLIR + CIRCT install:
+
+```bash
+cmake -S . -B build -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DMLIR_DIR=/path/to/llvm-install/lib/cmake/mlir \
+  -DCIRCT_DIR=/path/to/circt-install/lib/cmake/circt
+cmake --build build
+./build/bin/nslc --version          # smoke: prints `nslc <git-describe>`
+ctest --test-dir build --output-on-failure
+cd build && lit -v ../test
+```
+
+`scripts/ci.sh` is the single authoritative local-reproduction entry point — it runs the same six stages that GitHub Actions runs on every PR (Constitution Principle IX). Re-run any failing stage offline with `./scripts/ci.sh <stage>`. The full sequence is documented in [`specs/001-m0-build-ci-scaffolding/quickstart.md`](./specs/001-m0-build-ci-scaffolding/quickstart.md).
+
 ## Repository layout
 
 > _Target layout for the first compiler release. Only `docs/`, `.specify/`, and `.claude/` are populated today; the implementation tree (`include/`, `lib/`, `tools/`, `test/`) is added milestone-by-milestone._

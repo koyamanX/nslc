@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+# .clang-format — LLVM/CIRCT-style formatting (FR-009).
+#
+# Static-checks stage 2 runs `clang-format --dry-run --Werror` over
+# all `.cpp/.h/.cc/.hpp` files; any unformatted file fails the stage.
+
+BasedOnStyle: LLVM
+ColumnLimit: 80
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+
+AlwaysBreakTemplateDeclarations: Yes
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+DerivePointerAlignment: false
+PointerAlignment: Right
+ReferenceAlignment: Right
+
+# Header-include sorting. LLVM's default is fine; keep it explicit.
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup

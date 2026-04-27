@@ -1,0 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Per-layer smoke fixture for nsl-ast. Real AST tests land at M2.
+
+// RUN: echo "smoke for nsl-ast" | FileCheck %s
+// CHECK: smoke for nsl-ast

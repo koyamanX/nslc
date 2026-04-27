@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+# .clang-tidy — LLVM/CIRCT-derived profile (FR-008).
+#
+# Stage 2 runs `clang-tidy -p build $(git ls-files '*.cpp')` against
+# this profile. Reuses compile_commands.json from the stage-1
+# Release × gcc cell.
+#
+# Determinism enforcement: the cert-msc51-cpp adjacent rules and
+# explicit -Werror=date-time in NSLDeterminism.cmake together prevent
+# __DATE__/__TIME__/__TIMESTAMP__ from leaking into build outputs
+# (Principle V).
+
+Checks: >
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  llvm-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-vararg,
+  -llvm-header-guard,
+  -modernize-avoid-c-arrays,
+  -modernize-use-trailing-return-type,
+  -readability-identifier-length,
+  -readability-magic-numbers
+# Rationale for the cppcoreguidelines/modernize disables:
+# - macro-usage: NSLC_VERSION_STRING is a configure_file() output;
+#   constexpr is not a viable replacement for build-time substitution.
+# - avoid-c-arrays / pro-bounds-array-to-pointer-decay /
+#   pro-bounds-pointer-arithmetic: `int main(int, char**)` and
+#   `argv[i]` are canonical and required by the standard.
+# - pro-type-vararg: `std::printf` is the LLVM/CIRCT idiom; std::print
+#   waits on C++23+ toolchain support across the CIRCT-pinned LLVM.
+
+# Treat every enabled clang-tidy diagnostic as a hard error. Combined
+# with `clang-tidy --warnings-as-errors=*` in scripts/ci.sh:stage_static_checks,
+# any check listed in `Checks:` above that fires on any source file
+# fails the static-checks CI stage (FR-008 strict-gate intent).
+WarningsAsErrors: '*'
+
+HeaderFilterRegex: '(include|lib|tools|test_unit)/.*\.(h|hpp)$'
+
+# LLVM-style identifier-naming convention (subset of llvm-namespace-comment).
+CheckOptions:
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: camelBack
+  - key: readability-identifier-naming.VariableCase
+    value: camelBack
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: ''
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE

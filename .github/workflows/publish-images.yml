@@ -1,0 +1,254 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+# .github/workflows/publish-images.yml — build and push the four-stage
+# nslc development image set to GitHub Container Registry.
+#
+# The publishing flow runs only when the inputs change (either a
+# Dockerfile under .docker/, or the LLVM/CIRCT pins in cmake/deps.lock).
+# Once an image is published, .github/workflows/ci.yml consumes it via
+# the `container:` directive — there is no on-the-fly LLVM build in
+# the main CI loop.
+#
+# Local development uses scripts/docker-build.sh, which reads the same
+# pins and produces the same image content (Principle V — same input,
+# same output).
+
+name: publish-images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.docker/**'
+      - 'cmake/deps.lock'
+      - '.github/workflows/publish-images.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write       # ghcr.io push
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # Stage 1: nsl-base — toolchain only, fast.
+  # ---------------------------------------------------------------------------
+  base:
+    name: nsl-base
+    runs-on: ubuntu-22.04
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image name
+        id: meta
+        run: |
+          owner_lc="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          echo "image=${{ env.REGISTRY }}/${owner_lc}/nsl-base" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push base
+        uses: docker/build-push-action@v6
+        with:
+          context: .docker/base
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:dev
+            ${{ steps.meta.outputs.image }}:sha-${{ github.sha }}
+          cache-from: type=gha,scope=base
+          cache-to: type=gha,scope=base,mode=max
+
+  # ---------------------------------------------------------------------------
+  # Stage 2: nsl-llvm-mlir — long. Pinned to LLVM_COMMIT in deps.lock.
+  # ---------------------------------------------------------------------------
+  llvm-mlir:
+    name: nsl-llvm-mlir
+    runs-on: ubuntu-22.04
+    needs: base
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image name and load pins
+        id: meta
+        run: |
+          owner_lc="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          echo "image=${{ env.REGISTRY }}/${owner_lc}/nsl-llvm-mlir" >> "$GITHUB_OUTPUT"
+          # shellcheck disable=SC1091
+          set -a; . cmake/deps.lock; set +a
+          echo "llvm_commit=${LLVM_COMMIT}" >> "$GITHUB_OUTPUT"
+          echo "llvm_short=${LLVM_COMMIT:0:8}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The .docker/llvm-mlir/Dockerfile uses `FROM nsl/base:dev` — a
+      # local-only tag. Pull the just-pushed nsl-base into a daemon
+      # tag matching that name so the FROM resolves.
+      - name: Pull and re-tag nsl-base
+        run: |
+          docker pull ${{ needs.base.outputs.image }}:dev
+          docker tag ${{ needs.base.outputs.image }}:dev nsl/base:dev
+
+      - name: Build and push llvm-mlir
+        uses: docker/build-push-action@v6
+        with:
+          context: .docker/llvm-mlir
+          push: true
+          build-args: |
+            LLVM_COMMIT=${{ steps.meta.outputs.llvm_commit }}
+            LLVM_PARALLEL_LINK_JOBS=2
+          tags: |
+            ${{ steps.meta.outputs.image }}:dev
+            ${{ steps.meta.outputs.image }}:llvm-${{ steps.meta.outputs.llvm_short }}
+          cache-from: type=gha,scope=llvm-mlir
+          cache-to: type=gha,scope=llvm-mlir,mode=max
+
+  # ---------------------------------------------------------------------------
+  # Stage 3: nsl-circt — pinned to CIRCT_COMMIT in deps.lock.
+  # ---------------------------------------------------------------------------
+  circt:
+    name: nsl-circt
+    runs-on: ubuntu-22.04
+    needs: llvm-mlir
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image name and load pins
+        id: meta
+        run: |
+          owner_lc="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          echo "image=${{ env.REGISTRY }}/${owner_lc}/nsl-circt" >> "$GITHUB_OUTPUT"
+          # shellcheck disable=SC1091
+          set -a; . cmake/deps.lock; set +a
+          echo "circt_commit=${CIRCT_COMMIT}" >> "$GITHUB_OUTPUT"
+          echo "circt_short=${CIRCT_COMMIT:0:8}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull and re-tag nsl-llvm-mlir
+        run: |
+          docker pull ${{ needs.llvm-mlir.outputs.image }}:dev
+          docker tag ${{ needs.llvm-mlir.outputs.image }}:dev nsl/llvm-mlir:dev
+
+      - name: Build and push circt
+        uses: docker/build-push-action@v6
+        with:
+          context: .docker/circt
+          push: true
+          build-args: |
+            CIRCT_COMMIT=${{ steps.meta.outputs.circt_commit }}
+            CIRCT_PARALLEL_LINK_JOBS=2
+          tags: |
+            ${{ steps.meta.outputs.image }}:dev
+            ${{ steps.meta.outputs.image }}:circt-${{ steps.meta.outputs.circt_short }}
+          cache-from: type=gha,scope=circt
+          cache-to: type=gha,scope=circt,mode=max
+
+  # ---------------------------------------------------------------------------
+  # Stage 4: nsl-nslc — adds clang-format/tidy/gdb on top, sets
+  # LLVM_DIR / MLIR_DIR / CIRCT_DIR. This is the image ci.yml consumes.
+  # ---------------------------------------------------------------------------
+  nslc:
+    name: nsl-nslc
+    runs-on: ubuntu-22.04
+    needs: circt
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image name
+        id: meta
+        run: |
+          owner_lc="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          echo "image=${{ env.REGISTRY }}/${owner_lc}/nsl-nslc" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull and re-tag nsl-circt
+        run: |
+          docker pull ${{ needs.circt.outputs.image }}:dev
+          docker tag ${{ needs.circt.outputs.image }}:dev nsl/circt:dev
+
+      - name: Build and push nslc
+        uses: docker/build-push-action@v6
+        with:
+          context: .docker/nslc
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:dev
+            ${{ steps.meta.outputs.image }}:sha-${{ github.sha }}
+          cache-from: type=gha,scope=nslc
+          cache-to: type=gha,scope=nslc,mode=max
+
+  # ---------------------------------------------------------------------------
+  # Smoke: pull the just-published nsl-nslc image and verify the
+  # tooling expected by ci.yml is present at the right paths.
+  # ---------------------------------------------------------------------------
+  smoke:
+    name: smoke (verify published image)
+    runs-on: ubuntu-22.04
+    needs: nslc
+    container:
+      # Pin to the immutable per-SHA tag the nslc job pushed in this
+      # workflow run. Pulling `:dev` instead would let a concurrent
+      # publish race silently substitute a different image and pass
+      # the smoke against the wrong artifact.
+      image: ${{ needs.nslc.outputs.image }}:sha-${{ github.sha }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - run: |
+          set -e
+          echo "MLIR_DIR=${MLIR_DIR}"
+          echo "CIRCT_DIR=${CIRCT_DIR}"
+          test -f "${MLIR_DIR}/MLIRConfig.cmake"
+          test -f "${CIRCT_DIR}/CIRCTConfig.cmake"
+          command -v clang-format
+          command -v clang-tidy
+          command -v cmake
+          command -v ninja
+          command -v lit || command -v llvm-lit
+          command -v FileCheck
+          echo "OK: published image carries the tools ci.yml expects."

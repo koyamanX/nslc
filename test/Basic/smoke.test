@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Per-layer smoke fixture for nsl-basic — verifies that lit discovers
+// fixtures in this directory (FR-007 file-placement extensibility).
+// Real layer tests land at M1+.
+
+// RUN: echo "smoke for nsl-basic" | FileCheck %s
+// CHECK: smoke for nsl-basic

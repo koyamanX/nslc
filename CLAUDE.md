@@ -144,6 +144,13 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
+**Active feature**: `001-m0-build-ci-scaffolding` — M0 (build
+scaffolding) + P-CI (CI pipeline online). For technologies, project
+structure, shell commands, contracts, and quickstart, read the
+current plan: [`specs/001-m0-build-ci-scaffolding/plan.md`](./specs/001-m0-build-ci-scaffolding/plan.md).
+Companion artifacts: [`spec.md`](./specs/001-m0-build-ci-scaffolding/spec.md),
+[`research.md`](./specs/001-m0-build-ci-scaffolding/research.md),
+[`data-model.md`](./specs/001-m0-build-ci-scaffolding/data-model.md),
+[`contracts/`](./specs/001-m0-build-ci-scaffolding/contracts/),
+[`quickstart.md`](./specs/001-m0-build-ci-scaffolding/quickstart.md).
 <!-- SPECKIT END -->
