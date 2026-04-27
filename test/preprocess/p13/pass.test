@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p13/pass.test — P13 basic `#line` recognition per
+// `docs/spec/nsl_pp.ebnf` §2.4 + the contract topic table in
+// `specs/002-m1-lex-preprocess/contracts/preprocessor-seam.contract.md`.
+//
+// Topic per the table: "`#line` round-trip golden (see above)".
+// This single-fixture variant exercises P13's basic round-trip:
+// input `#line 100 "synth.v"` followed by ordinary NSL on the next
+// line — the output token stream contains a canonical `#line 100
+// "synth.v"` directive (variant 2) and subsequent tokens report
+// `synth.v:100:…` for their virtual coordinates.
+//
+// Verified through the `<phys-loc>` and `<virt-loc>` columns in
+// `-emit=tokens` output per
+// `specs/002-m1-lex-preprocess/contracts/nslc-emit-tokens.contract.md`:
+//   <phys-loc> := <path>:<line>:<col>:<offset>   (physical, the temp file)
+//   <virt-loc> := <path>:<line>:<col>            (virtual, post-#line)
+//
+// For the first NSL token after `#line 100 "synth.v"`:
+//   <phys-loc> = %t.nsl:2:1:NN     (line 2 of the temp file)
+//   <virt-loc> = synth.v:100:1     (post-#line virtual)
+//
+// Tasks.md T049 + spec.md US2 acceptance #8.
+//
+// **RED state**: the existing Phase-3 lexer recognizes `#line` as
+// `tk_line_directive` (per the lexer fix in commit ecfee46) but
+// does NOT update the SourceManager's virtual-line table — that's
+// preprocessor work (FR-020). So `<virt-loc>` against the unchanged
+// tree still reports the physical coordinates. Phase-4 wires the
+// virtual update via `SourceManager::addLineDirective()`.
+
+// RUN: echo '#line 100 "synth.v"' >  %t.nsl
+// RUN: echo 'reg z;'              >> %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// First, the canonical #line directive crosses the seam (P12 + P13
+// — `#line` is one of the two artifacts permitted to cross). The
+// directive's spelling is preserved exactly (variant 2: number +
+// string-literal).
+// CHECK: tk_line_directive
+
+// Then the post-#line tokens report virtual coordinates synth.v:100.
+// `tk_reg` lands on physical line 2 of the temp file; its virtual
+// loc is `synth.v:100`.
+// CHECK: tk_reg{{[ \t]+}}reg{{[ \t]+}}{{[^:]+}}:2:1:{{[0-9]+}}{{[ \t]+}}synth.v:100:1
+// CHECK: tk_identifier{{[ \t]+}}z{{[ \t]+}}{{[^:]+}}:2:5:{{[0-9]+}}{{[ \t]+}}synth.v:100:5
