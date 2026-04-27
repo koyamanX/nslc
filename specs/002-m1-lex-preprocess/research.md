@@ -516,3 +516,14 @@ gate M1's acceptance:
    change adding/removing a keyword regenerates the lexer
    recognizer + the test corpus from one source. Implement as a
    tasks.md item.
+5. **`lang.ebnf §15` lines 822–824 helper-list staleness** — surfaced
+   during T004/T005 implementation. The §15 parenthetical "Lexically-
+   reserved (prefix '_') system names — Preprocessor-only" list is
+   inconsistent with `pp.ebnf §3` lines 282–288 (the canonical helper
+   grammar production): §15 includes `_atan2`, `_fabs`, `_fmod` but
+   misses `_round`, `_abs`, `_min`, `_max`. Per parser-note **N11**
+   (lang.ebnf:1101), preprocessor helpers are formally defined in
+   `pp.ebnf §3.1`, so `pp.ebnf` wins. The §15 comment list should be
+   either deleted (preferred) or synced to pp.ebnf §3. Principle-VII
+   coupling-fix follow-up scoped to a separate PR alongside the
+   CLAUDE.md §1 helper-eval row fix from /speckit-clarify Q1.

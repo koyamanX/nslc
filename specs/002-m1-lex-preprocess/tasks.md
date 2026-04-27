@@ -33,9 +33,9 @@ description: "Tasks for M1 — Lex + Preprocess (with Diagnostic Plumbing)"
 
 **Purpose**: Project initialization for M1; M0 stood up the build, the CI pipeline, the SPDX scan, and the empty layer skeleton — Phase 1 here is small.
 
-- [ ] T001 Create the M1 test directory tree under `test/` and `test_unit/`: `test/lex/{keywords,numbers,n5,n11,strings,comments}/`, `test/preprocess/{p01,p02,p03,p04,p05,p06,p07,p08,p09,p10,p11,p12,p13,line,include-stack}/`, `test/Driver/`, `test_unit/{source_manager_test,diagnostic_engine_test,macro_table_test,helper_evaluator_test}/` — each with a `.keep` placeholder so M0's lit-discovery picks them up.
-- [ ] T002 Sanity-verify the M0 build is still green on branch `002-m1-lex-preprocess` by running `./scripts/ci.sh static unit` against the unchanged-since-M0 source tree (checkpoint before adding M1 sources).
-- [ ] T003 [P] Add `cmake/NSLTest.cmake` (small helper) consolidating gtest-target wiring for the four new `test_unit/` suites; reused by Phase 2 + Phase 3 + Phase 4 to keep `CMakeLists.txt` files terse.
+- [X] T001 Create the M1 test directory tree under `test/` and `test_unit/`: `test/lex/{keywords,numbers,n5,n11,strings,comments}/`, `test/preprocess/{p01,p02,p03,p04,p05,p06,p07,p08,p09,p10,p11,p12,p13,line,include-stack}/`, `test/Driver/`, `test_unit/{source_manager_test,diagnostic_engine_test,macro_table_test,helper_evaluator_test}/` — each with a `.keep` placeholder so M0's lit-discovery picks them up.
+- [X] T002 Sanity-verify the M0 build is still green on branch `002-m1-lex-preprocess` by running the build + ctest inside `ghcr.io/koyamanx/nsl-nslc:dev` against the unchanged-since-M0 source tree (checkpoint before adding M1 sources). **Result**: 14/14 tests passing on Release × gcc.
+- [~] T003 [P] DEFERRED — the M0 `test_unit/CMakeLists.txt` `foreach()` discovery loop already provides what `cmake/NSLTest.cmake` would have abstracted; no separate helper needed. Will revisit if Phase 2 implementation surfaces a concrete cleanup.
 
 **Checkpoint**: M1 directory skeleton in place; build still green; gtest helper available.
 
@@ -49,8 +49,8 @@ description: "Tasks for M1 — Lex + Preprocess (with Diagnostic Plumbing)"
 
 ### X-macro single-source-of-truth `.def` files (research §6)
 
-- [ ] T004 [P] Author `include/nsl/Lex/KeywordSet.def` — X-macro file enumerating every reserved keyword from `docs/spec/nsl_lang.ebnf` §15 (lines 783–824). Format: `KEYWORD(name, "spelling")` per entry; SPDX header on line 1; verifying comment-block at top citing the source range.
-- [ ] T005 [P] Author `include/nsl/Basic/HelperSet.def` — X-macro file enumerating the 22 compile-time helpers from `docs/spec/nsl_pp.ebnf` §3 (lines 282–288), per research §6. Format: `HELPER(name, arity, returns_real)` per entry; SPDX header on line 1; comment-block citing the source range.
+- [X] T004 [P] Author `include/nsl/Lex/KeywordSet.def` — X-macro file enumerating the **42** reserved keywords from `docs/spec/nsl_lang.ebnf` §15 (lines 790–815). Format: `KEYWORD(enum_suffix, "spelling")`; trailing-underscore convention used for `for`/`goto`/`while`/`if`/`else`/`return`/`struct` to dodge C++ keyword conflicts. Cross-reference comment notes that `lang.ebnf §15` lines 822–824 helper list is stale relative to `pp.ebnf §3` (a separate Principle-VII coupling-fix follow-up — see [research.md](./research.md) §12 update below).
+- [X] T005 [P] Author `include/nsl/Basic/HelperSet.def` — X-macro file enumerating the 22 compile-time helpers from `docs/spec/nsl_pp.ebnf` §3 (lines 282–288), per research §6. Format: `HELPER(name, arity, returns_real)` (name has the leading `_` stripped so `int`/`real`/etc. don't collide with C++ types — recognizer re-prepends `_`). `_int`/`_real` are integer/real coercions; `_abs`/`_min`/`_max` are kind-preserving (`returns_real=false`).
 
 ### `SourceLocation` / `SourceRange` / `FileID` (data-model entities 1–3)
 
