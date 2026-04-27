@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/numbers/embedded_underscore.test — `_` separators inside
+// numeric literals per `lang.ebnf §13` (`value_run = value_digit
+// { value_digit | "_" } ;` and `decimal_integer = digit { digit | "_"
+// } ;`). Plain decimal accepts the `_` separator; the spelling
+// preserves the underscores literally.
+
+// RUN: echo '1_000_000' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_decimal_lit	1_000_000	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK-NEXT: tk_eof

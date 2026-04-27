@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// KeywordSet.def — single source of truth for the NSL reserved-keyword
+// set. Enumerated verbatim from `docs/spec/nsl_lang.ebnf` §15 lines
+// 790–815 (`reserved_keyword = ...` production).
+//
+// Spec citation: `docs/spec/nsl_lang.ebnf` §15. The §15 parenthetical
+// list at lines 822–824 ("preprocessor-only" helpers) is INFORMATIONAL
+// and STALE relative to `docs/spec/nsl_pp.ebnf` §3 — see HelperSet.def
+// in include/nsl/Basic/ for the canonical helper closed set. Per
+// parser-note N11 (lang.ebnf:1101), preprocessor helpers are defined
+// in pp.ebnf §3.1, not here.
+//
+// Format:
+//   KEYWORD(enum_suffix, "spelling")
+// where enum_suffix becomes `tk_<enum_suffix>` in the TokenKind enum
+// (see include/nsl/Lex/Token.h) and "spelling" is the literal source
+// text the lexer matches against.
+//
+// Adding a keyword: insert one KEYWORD(...) line in the same group as
+// its spec source (Appendix-3-listed vs practical-additions). The
+// X-macro pattern propagates the change to (a) the TokenKind enum,
+// (b) the keyword recognizer in lib/Lex/KeywordSet.cpp, and (c) the
+// per-keyword fixture corpus in test/lex/keywords/ via
+// scripts/gen_keyword_fixtures.py — no other edits needed
+// (Principle II / spec FR-017 single-source).
+
+// ---- listed explicitly in lang.ebnf §15 / Ref Appendix 3 ----
+KEYWORD(alt,         "alt")
+KEYWORD(any,         "any")
+KEYWORD(declare,     "declare")
+KEYWORD(finish,      "finish")
+KEYWORD(for_,        "for")          // C++ keyword conflict avoided by trailing _
+KEYWORD(func,        "func")
+KEYWORD(func_in,     "func_in")
+KEYWORD(func_out,    "func_out")
+KEYWORD(func_self,   "func_self")
+KEYWORD(generate,    "generate")
+KEYWORD(goto_,       "goto")         // C++ keyword conflict avoided by trailing _
+KEYWORD(inout,       "inout")
+KEYWORD(input,       "input")
+KEYWORD(integer,     "integer")
+KEYWORD(interface,   "interface")
+KEYWORD(label,       "label")        // reserved; see N10
+KEYWORD(label_name,  "label_name")
+KEYWORD(m_clock,     "m_clock")      // auto-synthesized clock
+KEYWORD(mem,         "mem")
+KEYWORD(module,      "module")
+KEYWORD(output,      "output")
+KEYWORD(p_reset,     "p_reset")      // auto-synthesized reset
+KEYWORD(proc,        "proc")
+KEYWORD(proc_name,   "proc_name")
+KEYWORD(reg,         "reg")
+KEYWORD(seq,         "seq")
+KEYWORD(state,       "state")
+KEYWORD(state_name,  "state_name")
+KEYWORD(variable,    "variable")
+KEYWORD(while_,      "while")        // C++ keyword conflict avoided by trailing _
+KEYWORD(wire,        "wire")
+
+// ---- practical additions absent from Appendix 3 ----
+KEYWORD(else_,       "else")         // C++ keyword conflict avoided by trailing _
+KEYWORD(first_state, "first_state")  // tutorial NS17
+KEYWORD(function,    "function")     // synonym of func; see S26
+KEYWORD(if_,         "if")           // C++ keyword conflict avoided by trailing _
+KEYWORD(invoke,      "invoke")       // built-in procedure method
+KEYWORD(param_int,   "param_int")
+KEYWORD(param_str,   "param_str")
+KEYWORD(parameter,   "parameter")    // Verilog submodule header
+KEYWORD(return_,     "return")       // C++ keyword conflict avoided by trailing _
+KEYWORD(simulation,  "simulation")   // declare modifier
+KEYWORD(struct_,     "struct")       // C++ keyword conflict avoided by trailing _

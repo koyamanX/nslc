@@ -1,37 +1,60 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// tools/nslc/main.cpp — nslc driver entry point.
-//
-// Per Constitution Principle II this file MUST stay ≤60 lines and
-// delegate behavior to nsl-driver. At M0 the only behavior is
-// `--version` (FR-005, FR-006, SC-002, spec Q5). Real `-emit=*` flags
-// arrive incrementally from M1 onward and replace the M0 fallthrough.
+// tools/nslc/main.cpp — nslc driver entry point (≤60 lines per
+// Constitution Principle II). Real work lives in nsl-driver.
 
+#include "nsl/Driver/EmitTokens.h"
 #include "nsl/Driver/Version.h"
 
-#include <cstdio>
 #include <cstring>
 
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/raw_ostream.h"
+
 namespace {
-
 constexpr const char *kUsage =
-    "nslc: usage: nslc --version  (M0 smoke; full CLI lands M1+)\n";
-
-bool isVersionFlag(const char *arg) {
-  return std::strcmp(arg, "--version") == 0 || std::strcmp(arg, "-v") == 0 ||
-         std::strcmp(arg, "-V") == 0;
+    "usage: nslc [--version] [-I <dir>]... [-D NAME=value]... "
+    "[--diagnostic-format=text|json] -emit=<stage> <input>\n";
+bool starts(const char *s, const char *p) {
+  return std::strncmp(s, p, std::strlen(p)) == 0;
 }
-
 } // namespace
 
 int main(int argc, char **argv) {
-  if (argc == 2 && isVersionFlag(argv[1])) {
-    std::printf("nslc %s\n", NSLC_VERSION_STRING);
-    return 0;
+  nsl::driver::EmitTokensOptions opts;
+  llvm::StringRef stage, input;
+  for (int i = 1; i < argc; ++i) {
+    const char *a = argv[i];
+    if (!std::strcmp(a, "--version") || !std::strcmp(a, "-v")) {
+      llvm::outs() << "nslc " << NSLC_VERSION_STRING << "\n";
+      return 0;
+    } else if (starts(a, "-emit=")) {
+      stage = a + 6;
+    } else if (!std::strcmp(a, "-I") && i + 1 < argc) {
+      opts.include_paths.emplace_back(argv[++i]);
+    } else if (starts(a, "-I")) {
+      opts.include_paths.emplace_back(a + 2);
+    } else if (!std::strcmp(a, "-D") && i + 1 < argc) {
+      opts.predefined_macros.emplace_back(argv[++i]);
+    } else if (starts(a, "-D")) {
+      opts.predefined_macros.emplace_back(a + 2);
+    } else if (!std::strcmp(a, "--diagnostic-format=json")) {
+      opts.diagnostic_json = true;
+    } else if (!std::strcmp(a, "--diagnostic-format=text")) {
+      opts.diagnostic_json = false;
+    } else if (a[0] != '-' && input.empty()) {
+      input = a;
+    } else {
+      llvm::errs() << "unknown argument: " << a << "\n" << kUsage;
+      return 2;
+    }
   }
-  // cert-err33-c: discarding fputs's return value is intentional —
-  // we are already exiting with a non-zero status, and a usage write
-  // failure does not change that outcome.
-  static_cast<void>(std::fputs(kUsage, stderr));
+  if (stage.empty() || input.empty()) {
+    llvm::errs() << "input file required\n" << kUsage;
+    return 2;
+  }
+  if (stage == "tokens")
+    return nsl::driver::emitTokens(input, opts, llvm::outs(), llvm::errs());
+  llvm::errs() << "unknown emit stage: " << stage << "\n" << kUsage;
   return 2;
 }

@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/numbers/verilog_decimal.test — Verilog-style decimal
+// literal per `lang.ebnf §13`. Decimal literals — both `'d` and
+// plain — accept ONLY digits (no Z/X/U) per the §13 line 736 comment;
+// this fixture exercises the bare `'d` Verilog form recognition path.
+
+// RUN: echo '8'\''d42' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_decimal_lit	8'd42	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK-NEXT: tk_eof

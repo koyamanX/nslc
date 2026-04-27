@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/numbers/octal_plain.test — Verilog-style octal literal per
+// `lang.ebnf §13` `verilog_style_number = decimal_integer "'"
+// radix_char value_run`. NSL's `c_radix_char` production excludes `o`,
+// so octal is reachable only via the Verilog `<width>'o<digits>`
+// form.
+
+// RUN: echo '8'\''o7' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_octal_lit	8'o7	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK-NEXT: tk_eof

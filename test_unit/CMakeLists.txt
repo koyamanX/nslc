@@ -28,7 +28,11 @@ foreach(suite
     ci_sh_test
     ci_yml_test
     branch_protection_test
-    spdx_check_test)
+    spdx_check_test
+    source_manager_test
+    diagnostic_engine_test
+    macro_table_test
+    helper_evaluator_test)
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${suite}/CMakeLists.txt")
     add_subdirectory(${suite})
   endif()

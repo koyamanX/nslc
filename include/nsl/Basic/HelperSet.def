@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// HelperSet.def — single source of truth for the closed set of
+// compile-time preprocessor helper functions. Enumerated verbatim
+// from `docs/spec/nsl_pp.ebnf` §3.1 lines 282–288 (`helper_name`
+// production).
+//
+// Spec citation: `docs/spec/nsl_pp.ebnf` §3.1. Preprocessor notes
+// **P5** (helpers return integers/reals — i.e., they evaluate at
+// preprocess time), **P6** (helpers forbidden outside #define / #if),
+// **P10** (expansion order inside #define body), and **P12** (P-seam
+// invariant: no helper calls cross the preprocessor → lexer seam) all
+// constrain this set.
+//
+// Per /speckit-clarify session 2026-04-27 Q1, helpers ARE evaluated at
+// preprocess time (M1), not deferred to Sema (M3). The CLAUDE.md §1
+// row that says "M3 (eval)" is reinterpreted as referring to the
+// NSL-language Sema constant evaluator (a different evaluator from
+// this preprocessor one) — coupling-fix follow-up scoped to a
+// separate PR.
+//
+// Format:
+//   HELPER(name, arity, returns_real)
+// where:
+//   - `name` is the C++ identifier and the on-disk spelling minus the
+//     leading underscore (e.g., HELPER(int, …) corresponds to source
+//     `_int(…)`); the recognizer in lib/Preprocess/HelperEvaluator.cpp
+//     re-prepends the underscore.
+//   - `arity` is the fixed argument count (1 or 2 in the current set).
+//   - `returns_real` is true iff the helper unconditionally returns a
+//     real value. `_int` and `_real` are integer/real coercions
+//     respectively (the kind of the return is known statically).
+//     `_abs`, `_min`, `_max` are KIND-PRESERVING — `returns_real` is
+//     false so callers know to consult the argument type at run time.
+//
+// Adding a helper: insert one HELPER(...) line in the same numerical
+// group (per pp.ebnf §3 grouping). The X-macro pattern propagates to
+// (a) the dispatch table in lib/Preprocess/HelperEvaluator.cpp, (b)
+// the recognizer in lib/Preprocess/DirectiveParser.cpp, (c) the
+// fixture corpus in test/preprocess/p05/, and (d) the unit-test
+// suite in test_unit/helper_evaluator_test/ — no other edits needed
+// (FR-017 single-source).
+
+// ---- group 1: integer/real coercion + power/root ----
+HELPER(int,    1, false)
+HELPER(real,   1, true)
+HELPER(pow,    2, true)
+HELPER(sqrt,   1, true)
+
+// ---- group 2: trigonometric ----
+HELPER(sin,    1, true)
+HELPER(cos,    1, true)
+HELPER(tan,    1, true)
+
+// ---- group 3: inverse trigonometric ----
+HELPER(asin,   1, true)
+HELPER(acos,   1, true)
+HELPER(atan,   1, true)
+
+// ---- group 4: hyperbolic ----
+HELPER(sinh,   1, true)
+HELPER(cosh,   1, true)
+HELPER(tanh,   1, true)
+
+// ---- group 5: logarithmic / exponential ----
+HELPER(log,    1, true)
+HELPER(log10,  1, true)
+HELPER(exp,    1, true)
+
+// ---- group 6: rounding ----
+HELPER(floor,  1, true)
+HELPER(ceil,   1, true)
+HELPER(round,  1, true)
+
+// ---- group 7: kind-preserving (integer↔real per argument) ----
+HELPER(abs,    1, false)
+HELPER(min,    2, false)
+HELPER(max,    2, false)

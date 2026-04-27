@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/strings/with_special_chars.test — string literal with a
+// `\t` (escaped-tab) escape sequence per `lang.ebnf §13`
+// `escape_sequence` production. Complements `with_escape.test`
+// (which covers `\n`); here the lex stream sees `\` + `t` as a
+// 2-char escape inside the quoted span.
+//
+// Source bytes:    "a\tb"  (6 on-disk chars: `"`, `a`, `\`, `t`, `b`, `"`)
+// Spelling rendering: each `\` C-escaped to `\\`, each `"` to `\"`
+// per the contract → rendered as `\"a\\tb\"`.
+
+// RUN: printf '"a\\tb"\n' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_string_lit	\"a\\tb\"	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK-NEXT: tk_eof

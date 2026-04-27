@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/numbers/binary_z.test — C-style binary literal with `Z`
+// digit per `lang.ebnf §13` (Z/X/U markers legal in `0b` form per
+// §13 line 733 comment).
+
+// RUN: echo '0b1Z' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_binary_lit	0b1Z	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[Z]
+// CHECK-NEXT: tk_eof

@@ -144,13 +144,14 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `001-m0-build-ci-scaffolding` — M0 (build
-scaffolding) + P-CI (CI pipeline online). For technologies, project
+**Active feature**: `002-m1-lex-preprocess` — M1 (`nsl-basic` +
+`nsl-preprocess` + `nsl-lex` with diagnostic plumbing) + the
+`nslc -emit=tokens` driver flag. For technologies, project
 structure, shell commands, contracts, and quickstart, read the
-current plan: [`specs/001-m0-build-ci-scaffolding/plan.md`](./specs/001-m0-build-ci-scaffolding/plan.md).
-Companion artifacts: [`spec.md`](./specs/001-m0-build-ci-scaffolding/spec.md),
-[`research.md`](./specs/001-m0-build-ci-scaffolding/research.md),
-[`data-model.md`](./specs/001-m0-build-ci-scaffolding/data-model.md),
-[`contracts/`](./specs/001-m0-build-ci-scaffolding/contracts/),
-[`quickstart.md`](./specs/001-m0-build-ci-scaffolding/quickstart.md).
+current plan: [`specs/002-m1-lex-preprocess/plan.md`](./specs/002-m1-lex-preprocess/plan.md).
+Companion artifacts: [`spec.md`](./specs/002-m1-lex-preprocess/spec.md),
+[`research.md`](./specs/002-m1-lex-preprocess/research.md),
+[`data-model.md`](./specs/002-m1-lex-preprocess/data-model.md),
+[`contracts/`](./specs/002-m1-lex-preprocess/contracts/),
+[`quickstart.md`](./specs/002-m1-lex-preprocess/quickstart.md).
 <!-- SPECKIT END -->
