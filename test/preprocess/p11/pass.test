@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p11/pass.test — P11 one-line directive limit per
+// `docs/spec/nsl_pp.ebnf` notes section + the contract topic table
+// in
+// `specs/002-m1-lex-preprocess/contracts/preprocessor-seam.contract.md`.
+//
+// Topic per the table: "one-line directive limit: `#define X` ends
+// at newline".
+//
+// P11 narrower-than-C semantics: a preprocessor directive ends at
+// the end-of-line, regardless of any trailing `\` (backslash-line-
+// continuation is **NOT** supported). In C this:
+//
+//   #define LONG \
+//     1 + 2
+//
+// would be one logical line of `#define LONG  1 + 2`. In NSL P11
+// disallows that — the trailing `\` is part of the body, not a
+// continuation.
+//
+// Pass shape (this fixture): a `#define X` on one line, with body
+// `1`. The next line is a separate logical line of NSL source.
+// The macro X expands to integer `1` at the use site.
+//
+// Tasks.md T047. Fail-case is N/A — there's nothing to "violate"
+// at source level beyond the documented continuation-not-supported
+// behavior; an implementer who incorrectly handles a trailing `\`
+// produces an obviously-wrong macro body that downstream fixtures
+// catch.
+//
+// **RED state**: the unchanged Phase-3 lexer tokenizes the
+// `#define X 1` bytes literally. Phase-4 turns it green.
+
+// RUN: echo '#define X 1' >  %t.nsl
+// RUN: echo 'reg y = %%X%%;' >> %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// X expands to integer 1; the line is treated as one directive.
+// CHECK:      tk_reg{{[ \t]+}}reg
+// CHECK-NEXT: tk_identifier{{[ \t]+}}y
+// CHECK-NEXT: tk_assign{{[ \t]+}}=
+// CHECK-NEXT: tk_decimal_lit{{[ \t]+}}1
+// CHECK-NEXT: tk_semicolon{{[ \t]+}};
+// CHECK-NEXT: tk_eof
