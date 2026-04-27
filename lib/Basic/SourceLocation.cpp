@@ -10,6 +10,8 @@
 
 #include "AssertImpl.h"
 
+#include <cstdint>
+
 namespace nsl {
 
 SourceLocation SourceLocation::make(FileID fid, uint32_t off) {

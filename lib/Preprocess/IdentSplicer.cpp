@@ -14,10 +14,12 @@
 
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
+#include "nsl/Preprocess/HelperEvaluator.h"
 #include "nsl/Preprocess/MacroTable.h"
 
 #include "llvm/ADT/StringRef.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 

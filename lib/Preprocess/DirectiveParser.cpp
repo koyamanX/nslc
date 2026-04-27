@@ -6,8 +6,6 @@
 
 #include "DirectiveParser.h"
 
-#include "nsl/Basic/SourceLocation.h"
-
 #include "llvm/ADT/StringRef.h"
 
 #include <cstddef>

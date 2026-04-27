@@ -25,9 +25,14 @@
 
 #include "nsl/Preprocess/MacroExpander.h"
 
+#include "nsl/Basic/Diagnostic.h"
+#include "nsl/Basic/SourceLocation.h"
+#include "nsl/Preprocess/MacroTable.h"
+
 #include "llvm/ADT/StringRef.h"
 
 #include <cctype>
+#include <cstddef>
 #include <string>
 
 namespace nsl::preprocess {

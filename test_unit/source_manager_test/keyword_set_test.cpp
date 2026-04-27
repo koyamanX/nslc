@@ -32,7 +32,6 @@
 #include "llvm/ADT/StringRef.h"
 
 #include "gtest/gtest.h"
-#include <string>
 
 using nsl::classifyKeyword;
 using nsl::TokenKind;

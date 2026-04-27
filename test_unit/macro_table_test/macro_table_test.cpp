@@ -59,8 +59,8 @@
 #include "llvm/ADT/StringRef.h"
 
 #include "gtest/gtest.h"
-#include <algorithm>
 #include <string>
+#include <utility>
 #include <vector>
 
 using nsl::DiagnosticEngine;

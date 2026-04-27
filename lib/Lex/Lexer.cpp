@@ -36,7 +36,6 @@
 #include <cstring>
 #include <deque>
 #include <memory>
-#include <utility>
 
 namespace nsl {
 

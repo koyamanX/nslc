@@ -42,10 +42,12 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
-#include <iterator>
+#include <ios>
+#include <memory>
 #include <string>
 #include <system_error>
 #include <utility>

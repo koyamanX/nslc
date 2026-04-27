@@ -14,6 +14,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include "gtest/gtest.h"
+#include <cstddef>
 #include <regex>
 #include <sstream>
 #include <string>

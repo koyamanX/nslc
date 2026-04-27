@@ -71,7 +71,7 @@ description: "Tasks for 004-clang-tidy-cleanup — retire CI static-checks debt"
 
 **Include-cleaner block** — done after the format sweep so reordered includes don't fight the cleaner:
 
-- [ ] T009 [US1] `misc-include-cleaner` (35 sites): `run-clang-tidy -checks='-*,misc-include-cleaner' -fix`. Verify GREEN. Commit; expect `813 → 778`.
+- [X] T009 [US1] `misc-include-cleaner` (35 sites): `run-clang-tidy -checks='-*,misc-include-cleaner' -fix`. Verify GREEN. Commit; expect `813 → 778`.
 
 **Bool-conversion block**:
 

@@ -11,10 +11,10 @@
 #include "nsl/Basic/SourceManager.h"
 
 #include "llvm/Support/ErrorOr.h"
-#include "llvm/Support/raw_ostream.h"
 
 #include "gtest/gtest.h"
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <string>
 #include <vector>

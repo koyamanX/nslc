@@ -7,13 +7,16 @@
 #include "nsl/Basic/SourceManager.h"
 
 #include "AssertImpl.h"
+#include "nsl/Basic/SourceLocation.h"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/ErrorOr.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <fstream>
+#include <ios>
 #include <iterator>
 #include <memory>
 #include <string>
