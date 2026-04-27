@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p10/cycle.fail.test — US3 acceptance scenario 2
+// of 003-macro-textual-concat.
+//
+//   #define A A
+//   #define X _int(A)
+//   reg buf[%X%];
+//
+// Self-cyclic definition. The MacroExpander's recursion depth
+// counter trips at kMaxExpansionDepth (256) and emits the FR-007
+// LOCKED diagnostic verbatim. Per the M1 FR-037 / Principle VIII
+// discipline this fixture cites the exact diagnostic string.
+
+// RUN: printf '#define A A\n#define X _int(A)\nreg buf[\045X\045];\n' > %t.nsl
+// RUN: not %nslc -emit=tokens %t.nsl 2>&1 | FileCheck %s
+
+// CHECK: error: recursive macro expansion: A

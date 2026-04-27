@@ -129,33 +129,33 @@ file's 559-line cap holds (SC-006).
  *        future expansions and  #if  comparisons.
 ```
 
-**Amended P10 text** (same line count):
+**Amended P10 text** (verbatim from `docs/spec/nsl_pp.ebnf:491–500` post-amendment):
 
 ```
  *  (P10) ORDERING OF EXPANSION INSIDE #define / #if.
  *        Within a  #define  replacement body or  #if  condition:
- *          1.  TEXTUAL SUBSTITUTION: replace every bare-identifier
- *              macro reference AND every  %IDENT%  splice with the
- *              referenced macro's body TEXT (not its value);
- *              substituted text adjoins surrounding characters
- *              without inserted whitespace, then the result is
- *              re-tokenized.  Recursion bounded at 256 levels.
+ *          1.  TEXTUAL SUBSTITUTION: replace bare-identifier macro
+ *              references AND  %IDENT%  splices with the macro's
+ *              body TEXT (not its value); substituted text adjoins
+ *              surrounding characters without inserted whitespace;
+ *              result is re-tokenized.  Recursion bounded at 256.
  *          2.  Evaluate compile-time helper calls left-to-right.
- *          3.  Reduce per the operator-precedence in §3.
- *        The final value (integer or real) becomes the macro's
- *        value for future expansions and  #if  comparisons.
+ *          3.  Reduce per §3 operator-precedence.
+ *        Final value becomes the macro's value for future use.
 ```
 
 The amendment makes explicit that **bare identifiers AND `%IDENT%`
 forms BOTH undergo textual substitution** in step 1, replacing the
 former implicit "%IDENT%-only" reading. Adjacency rules are stated
 ("adjoins surrounding characters without inserted whitespace");
-recursion bound stated ("256 levels"). The reduction step (3) is
+recursion bound stated ("256"). The reduction step (3) is
 slightly tightened to reference §3 explicitly.
 
-**Line count** (verified post-edit): 13 lines, same as the
-original 13 lines → **net 0** change. SC-006's "±2 line" budget is
-respected with margin to spare.
+**Line count** (verified post-edit): the P10 paragraph itself is
+10 lines of body inside the comment block; the file `nsl_pp.ebnf`
+remains at exactly **559 lines**, identical to the pre-amendment
+total → **net 0** change. SC-006's "±2 line" budget is respected
+with margin to spare.
 
 ## Validation checklist for the design
 

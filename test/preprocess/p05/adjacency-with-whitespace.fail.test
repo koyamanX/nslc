@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p05/adjacency-with-whitespace.fail.test — US2
+// acceptance scenario 2 of 003-macro-textual-concat.
+//
+//   #define B 4
+//   #define X _int(B .5)
+//   reg buf[%X%];
+//
+// `B .5` (whitespace between B and `.5`) substitutes to `4 .5` —
+// preserving the whitespace per data-model entity 1's "no inserted
+// whitespace" invariant (which only forbids INSERTING; original
+// whitespace is preserved). The helper evaluator then sees a
+// malformed `_int(4 .5)` argument list and errors. Pins the
+// distinction between the no-whitespace canonical form and the
+// with-whitespace error case.
+
+// RUN: printf '#define B 4\n#define X _int(B .5)\nreg buf[\045X\045];\n' > %t.nsl
+// RUN: not %nslc -emit=tokens %t.nsl 2>&1 | FileCheck %s
+
+// CHECK: error: missing ')' in helper call '_int'

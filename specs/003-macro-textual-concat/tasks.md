@@ -29,9 +29,9 @@ description: "Tasks for 003-macro-textual-concat — bare-macro textual concaten
 
 **Purpose**: Sanity-verify the M1 baseline + register the new gtest suite directory.
 
-- [ ] T001 Sanity-verify the M1 baseline is green inside `ghcr.io/koyamanx/nsl-nslc:dev`. Run `cmake --build build-Release-host && ctest --test-dir build-Release-host && /usr/local/bin/lit build-Release-host/test`; expect all 113 lit + 66 ctest passing on master HEAD `00f0225`.
-- [ ] T002 [P] Create the new gtest suite directory `test_unit/macro_expander_test/` with a stub `.keep` placeholder and a stub `CMakeLists.txt` that uses the M1 guarded-source pattern (no source files yet → suite not registered until T020 lands the actual `.cpp`).
-- [ ] T003 Edit `test_unit/CMakeLists.txt` foreach() loop to register `macro_expander_test` alongside the existing 10 M1 suite names. The guarded-source pattern in T002's CMakeLists keeps the build green during Phase 2 (no source files yet); T020 lands the .cpp and the suite turns active.
+- [X] T001 Sanity-verify the M1 baseline is green inside `ghcr.io/koyamanx/nsl-nslc:dev`. Run `cmake --build build-Release-host && ctest --test-dir build-Release-host && /usr/local/bin/lit build-Release-host/test`; expect all 113 lit + 66 ctest passing on master HEAD `00f0225`.
+- [X] T002 [P] Create the new gtest suite directory `test_unit/macro_expander_test/` with a stub `.keep` placeholder and a stub `CMakeLists.txt` that uses the M1 guarded-source pattern (no source files yet → suite not registered until T020 lands the actual `.cpp`).
+- [X] T003 Edit `test_unit/CMakeLists.txt` foreach() loop to register `macro_expander_test` alongside the existing 10 M1 suite names. The guarded-source pattern in T002's CMakeLists keeps the build green during Phase 2 (no source files yet); T020 lands the .cpp and the suite turns active.
 
 **Checkpoint**: M1 baseline green; new suite directory registered (no-op until Phase 3 fills it).
 
@@ -43,7 +43,7 @@ description: "Tasks for 003-macro-textual-concat — bare-macro textual concaten
 
 **⚠️ CRITICAL**: Phase 3 / 4 / 5 user-story work depends on the P10 amendment being in place so the fixtures and code can cite it.
 
-- [ ] T004 Amend `docs/spec/nsl_pp.ebnf` P10 per data-model.md entity 3. Replace the existing 13-line P10 paragraph with the amended text that explicitly covers BOTH `%IDENT%` AND bare-identifier substitution in step 1, adjacency rules ("adjoins surrounding characters without inserted whitespace"), and the 256-level recursion bound. Verify `wc -l docs/spec/nsl_pp.ebnf` returns exactly **559** post-edit (SC-006's ±2 line budget; aim for 0 net change to preserve `docs/CLAUDE.md §5` line refs).
+- [X] T004 Amend `docs/spec/nsl_pp.ebnf` P10 per data-model.md entity 3. Replace the existing 13-line P10 paragraph with the amended text that explicitly covers BOTH `%IDENT%` AND bare-identifier substitution in step 1, adjacency rules ("adjoins surrounding characters without inserted whitespace"), and the 256-level recursion bound. Verify `wc -l docs/spec/nsl_pp.ebnf` returns exactly **559** post-edit (SC-006's ±2 line budget; aim for 0 net change to preserve `docs/CLAUDE.md §5` line refs).
 
 **Checkpoint**: pp.ebnf amended. Phase 3+ work can proceed.
 
@@ -59,9 +59,9 @@ description: "Tasks for 003-macro-textual-concat — bare-macro textual concaten
 
 > Write these tests FIRST. They MUST be observed FAILING against the unchanged tree before any implementation task in this story begins.
 
-- [ ] T005 [P] [US1] Author `test/preprocess/p05/textual-concat.pass.test` — the canonical pp.ebnf P5 example per spec US1 acceptance scenario 1. Use `printf` (not `echo`) to write the multi-line input to `%t.nsl` per M1 lit-fixture lessons. CHECK lines assert the post-`%MEMDEPTH%` token stream contains `tk_decimal_lit\t256` (followed by the surrounding `reg buf[…]` tokens). Independent of US2's adjacency edge cases.
-- [ ] T006 [P] [US1] TDD — author the basic-substitution test cases in `test_unit/macro_expander_test/macro_expander_test.cpp`: `MacroExpander::expand("DEPTH", loc)` returns `"8"` when DEPTH is defined as `8`; `MacroExpander::expand("DEPTH.0", loc)` returns `"8.0"`; `MacroExpander::expand("UNDEF", loc)` returns `"UNDEF"` unchanged (FR-017). Assertions cite the data-model entity 1 invariants. Run; observe FAILING (no MacroExpander symbol exists yet).
-- [ ] T007 [US1] Run T005 + T006 inside the dev container against the unchanged-since-M1 tree. **Observe ALL FAILING** — T005 fails because `_int(_pow(2.0, DEPTH.0))` errors with `missing ')' in helper call '_pow'` (M1's PPExpression doesn't substitute `DEPTH` textually); T006 fails to LINK because `nsl::preprocess::MacroExpander` doesn't exist. Capture as the FR-015 / Principle VIII RED-state evidence; the commit message records the per-task SHAs.
+- [X] T005 [P] [US1] Author `test/preprocess/p05/textual-concat.pass.test` — the canonical pp.ebnf P5 example per spec US1 acceptance scenario 1. Use `printf` (not `echo`) to write the multi-line input to `%t.nsl` per M1 lit-fixture lessons. CHECK lines assert the post-`%MEMDEPTH%` token stream contains `tk_decimal_lit\t256` (followed by the surrounding `reg buf[…]` tokens). Independent of US2's adjacency edge cases.
+- [X] T006 [P] [US1] TDD — author the basic-substitution test cases in `test_unit/macro_expander_test/macro_expander_test.cpp`: `MacroExpander::expand("DEPTH", loc)` returns `"8"` when DEPTH is defined as `8`; `MacroExpander::expand("DEPTH.0", loc)` returns `"8.0"`; `MacroExpander::expand("UNDEF", loc)` returns `"UNDEF"` unchanged (FR-017). Assertions cite the data-model entity 1 invariants. Run; observe FAILING (no MacroExpander symbol exists yet).
+- [X] T007 [US1] Run T005 + T006 inside the dev container against the unchanged-since-M1 tree. **Observe ALL FAILING** — T005 fails because `_int(_pow(2.0, DEPTH.0))` errors with `missing ')' in helper call '_pow'` (M1's PPExpression doesn't substitute `DEPTH` textually); T006 fails to LINK because `nsl::preprocess::MacroExpander` doesn't exist. Capture as the FR-015 / Principle VIII RED-state evidence; the commit message records the per-task SHAs.
 
 ### Implementation for User Story 1
 

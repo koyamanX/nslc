@@ -32,7 +32,8 @@ foreach(suite
     source_manager_test
     diagnostic_engine_test
     macro_table_test
-    helper_evaluator_test)
+    helper_evaluator_test
+    macro_expander_test)
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${suite}/CMakeLists.txt")
     add_subdirectory(${suite})
   endif()
