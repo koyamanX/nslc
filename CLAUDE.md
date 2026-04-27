@@ -144,14 +144,14 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `002-m1-lex-preprocess` — M1 (`nsl-basic` +
-`nsl-preprocess` + `nsl-lex` with diagnostic plumbing) + the
-`nslc -emit=tokens` driver flag. For technologies, project
-structure, shell commands, contracts, and quickstart, read the
-current plan: [`specs/002-m1-lex-preprocess/plan.md`](./specs/002-m1-lex-preprocess/plan.md).
-Companion artifacts: [`spec.md`](./specs/002-m1-lex-preprocess/spec.md),
-[`research.md`](./specs/002-m1-lex-preprocess/research.md),
-[`data-model.md`](./specs/002-m1-lex-preprocess/data-model.md),
-[`contracts/`](./specs/002-m1-lex-preprocess/contracts/),
-[`quickstart.md`](./specs/002-m1-lex-preprocess/quickstart.md).
+**Active feature**: `003-macro-textual-concat` — bare-macro textual
+concatenation in preprocessor `#define` body and `#if` condition
+contexts (research-§12 #4 follow-up from M1). For technologies,
+project structure, shell commands, contracts, and quickstart, read
+the current plan: [`specs/003-macro-textual-concat/plan.md`](./specs/003-macro-textual-concat/plan.md).
+Companion artifacts: [`spec.md`](./specs/003-macro-textual-concat/spec.md),
+[`research.md`](./specs/003-macro-textual-concat/research.md),
+[`data-model.md`](./specs/003-macro-textual-concat/data-model.md),
+[`contracts/`](./specs/003-macro-textual-concat/contracts/),
+[`quickstart.md`](./specs/003-macro-textual-concat/quickstart.md).
 <!-- SPECKIT END -->
