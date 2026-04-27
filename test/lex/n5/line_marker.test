@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/n5/line_marker.test — N5 disambiguation per `lang.ebnf`
+// lines 1035–1049. A `#` at start-of-logical-line classifies as
+// `tk_line_directive` (the seam-crossing line-marker form per P13).
+// The lexer's `at_line_start_` state per data-model entity 9 toggles
+// on `\n` and on `#line` directive consumption; on entry to the
+// fixture's first byte that flag is true, so the leading `#` is the
+// line-marker form.
+//
+// The full directive shape is `#line N "file"`; the lexer's TokenKind
+// is `tk_line_directive`. The `100` and string-literal that follow
+// belong to the directive body and the parser/preprocessor consume
+// them as part of the seam handling.
+
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+#line 100 "synth.nsl"
+// CHECK: tk_line_directive	{{.*}}	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK: tk_eof
