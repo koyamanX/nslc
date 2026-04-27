@@ -551,9 +551,9 @@ other_lexical_token   = ? any token from nsl_lang.ebnf §13 that is
  *            On return from an include, it should emit a similar marker
  *            re-establishing the outer file's location.
  *
- *          – A well-formed  #line  with LINENUM = 0 is permitted; the
- *            line counter for the next line of input becomes 1 (since
- *            the directive's own line is numbered LINENUM and the next
- *            line is LINENUM + 1).
+ *          – LINE NUMBERING.  After  #line N  is consumed, the FIRST
+ *            input line that follows the directive is reported as
+ *            line N (NOT N+1; the directive's own line is consumed
+ *            by the directive itself).  LINENUM = 0 is permitted.
  *
  * ============================================================================ *)

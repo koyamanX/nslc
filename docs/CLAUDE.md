@@ -24,8 +24,8 @@ nslc/                              ← parent project (compiler implementation)
     │   ├── nsl_pp.ebnf           (559 lines) — preprocessor grammar
     │   └── nsl_lang.ebnf         (1149 lines) — NSL language proper
     ├── design/                    ← implementation specifications (how we implement the spec)
-    │   ├── nsl_compiler_design.md (~1306 lines) — frontend → MLIR → CIRCT → Verilog
-    │   └── nsl_tooling_design.md  (~1023 lines) — LSP, formatter, linter, highlighter
+    │   ├── nsl_compiler_design.md (1303 lines) — frontend → MLIR → CIRCT → Verilog
+    │   └── nsl_tooling_design.md  (1015 lines) — LSP, formatter, linter, highlighter
 ```
 
 The project roadmap lives in the project root (orthogonal to spec/design):
@@ -238,7 +238,7 @@ The 6-phase workflow (Linear → plan → implement → CodeRabbit self-review �
 
 ---
 
-## 6. `design/nsl_compiler_design.md` — section TOC (1306 lines)
+## 6. `design/nsl_compiler_design.md` — section TOC (1303 lines)
 
 | Lines | Section |
 |---|---|
@@ -260,11 +260,11 @@ The 6-phase workflow (Linear → plan → implement → CodeRabbit self-review �
 | 1199–1256 | §13 Build System and Dependencies (CMake, repo layout) |
 | 1260–1273 | §14 Testing Strategy (lexer→e2e+formal layers) |
 | 1274–1290 | §14.5 Milestone Plan (routing pointer to `../../README.md` §Roadmap, `../../CLAUDE.md` §1, and the Constitution; do not duplicate the table) |
-| 1298–1306 | §15 Extension Points (verif, LSP, alternate backends) |
+| 1295–1303 | §15 Extension Points (verif, LSP, alternate backends) |
 
 ---
 
-## 7. `design/nsl_tooling_design.md` — section TOC (1023 lines)
+## 7. `design/nsl_tooling_design.md` — section TOC (1015 lines)
 
 | Lines | Section |
 |---|---|
@@ -293,8 +293,8 @@ The 6-phase workflow (Linear → plan → implement → CodeRabbit self-review �
 | 881–889 | §6.6 CI Integration |
 | 891–909 | §7 Cross-Tool Integration — LSP as hub |
 | 913–973 | §8 Shared Directory Layout |
-| 977–998 | §9 Milestone Plan (routing pointer to `../../README.md` §Roadmap, `../../CLAUDE.md` §2, and `../../CONTRIBUTING.md` §3.8–§3.9) |
-| 1006–1023 | §10 Summary — Value Proposition |
+| 977–997 | §9 Milestone Plan (routing pointer to `../../README.md` §Roadmap, `../../CLAUDE.md` §2, and `../../CONTRIBUTING.md` §3.8–§3.9) |
+| 998–1015 | §10 Summary — Value Proposition |
 
 ---
 

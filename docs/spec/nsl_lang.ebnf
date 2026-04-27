@@ -819,9 +819,9 @@ reserved_keyword =
  *   Statements / tasks :  _display  _monitor  _write  _readmemh  _readmemb   *
  *                         _finish   _stop     _init  _delay                  *
  *   Variables          :  _random  _time                                     *
- *   Preprocessor-only  :  _real _int _acos _asin _atan _atan2 _ceil _cos     *
- *                         _cosh _exp _fabs _floor _fmod _log _log10 _pow     *
- *                         _sin _sinh _sqrt _tan _tanh                        *)
+ *   Preprocessor-only  :  per parser-note N11, defined exclusively in       *
+ *                         nsl_pp.ebnf §3.1 `helper_name` — DO NOT duplicate  *
+ *                         here (Principle VII drift surface).                *)
 
 (* ============================================================================
  *  SEMANTIC CONSTRAINTS NOT EXPRESSED IN THE GRAMMAR
