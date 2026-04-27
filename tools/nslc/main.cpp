@@ -22,7 +22,8 @@ bool starts(const char *s, const char *p) {
 
 int main(int argc, char **argv) {
   nsl::driver::EmitTokensOptions opts;
-  llvm::StringRef stage, input;
+  llvm::StringRef stage;
+  llvm::StringRef input;
   for (int i = 1; i < argc; ++i) {
     const char *a = argv[i];
     if ((std::strcmp(a, "--version") == 0) || (std::strcmp(a, "-v") == 0)) {

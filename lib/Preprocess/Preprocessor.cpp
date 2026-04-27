@@ -178,21 +178,21 @@ public:
   struct Frame {
     FileID fid;
     /// Byte offset within `fid`'s buffer of the next line to read.
-    std::size_t cursor;
+    std::size_t cursor{};
     /// 1-based physical line number of the current cursor position
     /// (used for correlating diagnostics with the buffer; the actual
     /// VIRTUAL line number is computed by SourceManager from
     /// `addLineDirective` calls on emit).
-    std::size_t physical_line;
+    std::size_t physical_line{};
     /// Stack of conditional contexts (for nested #ifdef/#if/#else).
     /// We rebuild on each frame so an `#if` started in one file
     /// can't span an `#include`.
     struct CondFrame {
-      bool currently_emitting; ///< Are we in the active branch?
-      bool any_branch_taken;   ///< Has any branch in this if/else been emitted?
+      bool currently_emitting{}; ///< Are we in the active branch?
+      bool any_branch_taken{}; ///< Has any branch in this if/else been emitted?
       /// True iff this is an `#if 0` style frame whose lexically
       /// enclosing branch was not emitting (suppression cascades).
-      bool parent_suppressed;
+      bool parent_suppressed{};
       /// The directive site (for the "unterminated #if" diagnostic).
       SourceRange opener_loc;
     };
@@ -338,7 +338,7 @@ public:
   /// parent is not currently emitting, we mark the frame
   /// `parent_suppressed` so neither this branch nor its `#else` will
   /// emit until we pop back out.
-  void pushCondFrame(Frame &f, bool taken_now, SourceRange opener_loc) {
+  void pushCondFrame(Frame &f, bool taken_now, SourceRange opener_loc) const {
     bool const parent_suppressed = !isEmitting(f);
     Frame::CondFrame cf;
     cf.parent_suppressed = parent_suppressed;
@@ -508,11 +508,11 @@ public:
     // Cycle/depth guard.
     if (include_stack.size() + 1 > Preprocessor::kMaxIncludeDepth) {
       std::string trace;
-      for (std::size_t k = 0; k < include_stack.size(); ++k) {
+      for (auto &k : include_stack) {
         if (!trace.empty()) {
           trace += " -> ";
         }
-        trace += sm.getPath(include_stack[k].fid).str();
+        trace += sm.getPath(k.fid).str();
       }
       trace += " -> ";
       trace += *resolved;
@@ -751,7 +751,7 @@ public:
         if (text[i + 1] == '*') {
           i += 2;
           while (i + 1 < text.size() &&
-                 !(text[i] == '*' && text[i + 1] == '/')) {
+                 (text[i] != '*' || text[i + 1] != '/')) {
             ++i;
           }
           if (i + 1 < text.size()) {
@@ -824,7 +824,7 @@ public:
         if (text[i + 1] == '*') {
           i += 2;
           while (i + 1 < text.size() &&
-                 !(text[i] == '*' && text[i + 1] == '/')) {
+                 (text[i] != '*' || text[i + 1] != '/')) {
             ++i;
           }
           if (i + 1 < text.size()) {

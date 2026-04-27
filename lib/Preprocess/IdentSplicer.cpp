@@ -89,7 +89,7 @@ std::string IdentSplicer::splice(llvm::StringRef line,
       out.push_back(c);
       out.push_back('*');
       i += 2;
-      while (i + 1 < line.size() && !(line[i] == '*' && line[i + 1] == '/')) {
+      while (i + 1 < line.size() && (line[i] != '*' || line[i + 1] != '/')) {
         out.push_back(line[i]);
         ++i;
       }
@@ -140,8 +140,8 @@ std::string IdentSplicer::splice(llvm::StringRef line,
                     needs_reduction = true;
                     break;
                   }
-                  if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-                        (c >= '0' && c <= '9') || c == '_')) {
+                  if ((c < 'a' || c > 'z') && (c < 'A' || c > 'Z') &&
+                      (c < '0' || c > '9') && c != '_') {
                     break;
                   }
                 }

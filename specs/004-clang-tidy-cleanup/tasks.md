@@ -94,7 +94,7 @@ description: "Tasks for 004-clang-tidy-cleanup — retire CI static-checks debt"
 
 **Long-tail block** — combined into a single mechanical commit since each is small:
 
-- [ ] T017 [US1] Long-tail categories combined into one commit: `modernize-loop-convert` (7), `readability-simplify-boolean-expr` (5), `cppcoreguidelines-special-member-functions` (5), `cppcoreguidelines-pro-bounds-constant-array-index` (5; some sites need `// NOLINTNEXTLINE` per `data-model.md` Entity 4), `cppcoreguidelines-pro-type-member-init` (4), `misc-unused-parameters` (3), `readability-use-anyofallof` (2), and the singletons (`readability-make-member-function-const`, `readability-isolate-declaration`, `misc-unused-using-decls`, `llvm-namespace-comment`, `cppcoreguidelines-owning-memory`). Verify GREEN. Commit; expect `156 → ~76`.
+- [X] T017 [US1] Long-tail categories combined into one commit: `modernize-loop-convert` (7), `readability-simplify-boolean-expr` (5), `cppcoreguidelines-special-member-functions` (5), `cppcoreguidelines-pro-bounds-constant-array-index` (5; some sites need `// NOLINTNEXTLINE` per `data-model.md` Entity 4), `cppcoreguidelines-pro-type-member-init` (4), `misc-unused-parameters` (3), `readability-use-anyofallof` (2), and the singletons (`readability-make-member-function-const`, `readability-isolate-declaration`, `misc-unused-using-decls`, `llvm-namespace-comment`, `cppcoreguidelines-owning-memory`). Verify GREEN. Commit; expect `156 → ~76`.
 
 **Mixed-disposition per-site block**:
 

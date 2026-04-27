@@ -32,7 +32,7 @@ namespace nsl {
 
 namespace detail {
 class Buffer;
-}
+} // namespace detail
 
 class SourceManager {
 public:
@@ -83,8 +83,8 @@ public:
 
   struct VirtualLoc {
     llvm::StringRef path;
-    uint32_t line;
-    uint32_t col;
+    uint32_t line{};
+    uint32_t col{};
   };
 
   /// Resolve `loc` to its post-`#line` virtual coordinates if any

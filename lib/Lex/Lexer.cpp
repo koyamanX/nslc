@@ -136,7 +136,7 @@ public:
           // Non-nestable per lang.ebnf §14 line 781.
           cur += 2;
           while (cur + 1 < buf.size() &&
-                 !(buf[cur] == '*' && buf[cur + 1] == '/')) {
+                 (buf[cur] != '*' || buf[cur + 1] != '/')) {
             if (buf[cur] == '\n') {
               at_line_start = true;
             }

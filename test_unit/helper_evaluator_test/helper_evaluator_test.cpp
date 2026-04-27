@@ -84,7 +84,7 @@ FileID makeBuf(SourceManager &sm) {
   return sm.addBufferInMemory("synthetic.nsl", std::move(bytes));
 }
 
-nsl::SourceRange syntheticLoc(SourceManager &sm, FileID f) {
+nsl::SourceRange syntheticLoc(FileID f) {
   SourceLocation const b = SourceLocation::make(f, 0);
   SourceLocation const e = SourceLocation::make(f, 1);
   return {b, e};
@@ -143,12 +143,12 @@ TEST(HelperEvaluatorTest, IntCoercesRealToInteger_TruncTowardZero) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r1 = h.invoke("_int", {R(2.7L)}, syntheticLoc(sm, f));
+  PPValue const r1 = h.invoke("_int", {R(2.7L)}, syntheticLoc(f));
   ASSERT_TRUE(r1.isInt());
   EXPECT_EQ(r1.toInt(), 2);
 
   // Negative — truncate TOWARD ZERO, not floor.
-  PPValue const r2 = h.invoke("_int", {R(-2.7L)}, syntheticLoc(sm, f));
+  PPValue const r2 = h.invoke("_int", {R(-2.7L)}, syntheticLoc(f));
   ASSERT_TRUE(r2.isInt());
   EXPECT_EQ(r2.toInt(), -2);
 }
@@ -159,7 +159,7 @@ TEST(HelperEvaluatorTest, IntPassesIntegerThrough) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_int", {I(42)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_int", {I(42)}, syntheticLoc(f));
   ASSERT_TRUE(r.isInt());
   EXPECT_EQ(r.toInt(), 42);
 }
@@ -170,7 +170,7 @@ TEST(HelperEvaluatorTest, RealWidensIntegerToReal) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_real", {I(3)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_real", {I(3)}, syntheticLoc(f));
   ASSERT_TRUE(r.isReal());
   EXPECT_EQ(r.toReal(), 3.0L);
 }
@@ -181,7 +181,7 @@ TEST(HelperEvaluatorTest, RealPassesRealThrough) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_real", {R(2.5L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_real", {R(2.5L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 2.5L));
 }
 
@@ -195,7 +195,7 @@ TEST(HelperEvaluatorTest, PowBasic) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_pow", {R(2.0L), R(8.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_pow", {R(2.0L), R(8.0L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 256.0L));
 }
 
@@ -205,7 +205,7 @@ TEST(HelperEvaluatorTest, PowIntegerArgsWiden) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_pow", {I(2), I(8)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_pow", {I(2), I(8)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 256.0L));
 }
 
@@ -215,7 +215,7 @@ TEST(HelperEvaluatorTest, SqrtBasic) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_sqrt", {R(16.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_sqrt", {R(16.0L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 4.0L));
 }
 
@@ -225,7 +225,7 @@ TEST(HelperEvaluatorTest, SqrtNegativeIsDomainError_FailsoftZero) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_sqrt", {R(-1.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_sqrt", {R(-1.0L)}, syntheticLoc(f));
   EXPECT_TRUE(hasError(diag, "domain error"))
       << "_sqrt(-1) should emit a domain-error diagnostic";
   // Failsoft path returns integer 0 per research §10.
@@ -243,7 +243,7 @@ TEST(HelperEvaluatorTest, SinZero) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_sin", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_sin", {R(0.0L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 0.0L));
 }
 
@@ -253,7 +253,7 @@ TEST(HelperEvaluatorTest, CosZero) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_cos", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_cos", {R(0.0L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 1.0L));
 }
 
@@ -263,7 +263,7 @@ TEST(HelperEvaluatorTest, TanZero) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_tan", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_tan", {R(0.0L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 0.0L));
 }
 
@@ -277,7 +277,7 @@ TEST(HelperEvaluatorTest, AsinZero) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_asin", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_asin", {R(0.0L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 0.0L));
 }
 
@@ -287,7 +287,7 @@ TEST(HelperEvaluatorTest, AsinOutOfRangeIsDomainError_FailsoftZero) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_asin", {R(2.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_asin", {R(2.0L)}, syntheticLoc(f));
   EXPECT_TRUE(hasError(diag, "domain error"))
       << "_asin(2) should emit a domain-error diagnostic";
   ASSERT_TRUE(r.isInt());
@@ -300,7 +300,7 @@ TEST(HelperEvaluatorTest, AcosOne) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_acos", {R(1.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_acos", {R(1.0L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 0.0L));
 }
 
@@ -310,7 +310,7 @@ TEST(HelperEvaluatorTest, AcosOutOfRangeIsDomainError_FailsoftZero) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_acos", {R(-2.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_acos", {R(-2.0L)}, syntheticLoc(f));
   EXPECT_TRUE(hasError(diag, "domain error"));
   ASSERT_TRUE(r.isInt());
   EXPECT_EQ(r.toInt(), 0);
@@ -322,7 +322,7 @@ TEST(HelperEvaluatorTest, AtanZero) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_atan", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_atan", {R(0.0L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 0.0L));
 }
 
@@ -336,7 +336,7 @@ TEST(HelperEvaluatorTest, SinhZero) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_sinh", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_sinh", {R(0.0L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 0.0L));
 }
 
@@ -346,7 +346,7 @@ TEST(HelperEvaluatorTest, CoshZero) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_cosh", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_cosh", {R(0.0L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 1.0L));
 }
 
@@ -356,7 +356,7 @@ TEST(HelperEvaluatorTest, TanhZero) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_tanh", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_tanh", {R(0.0L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 0.0L));
 }
 
@@ -370,7 +370,7 @@ TEST(HelperEvaluatorTest, LogOneIsZero) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_log", {R(1.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_log", {R(1.0L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 0.0L));
 }
 
@@ -380,7 +380,7 @@ TEST(HelperEvaluatorTest, LogZeroIsDomainError_FailsoftZero) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_log", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_log", {R(0.0L)}, syntheticLoc(f));
   EXPECT_TRUE(hasError(diag, "domain error"))
       << "_log(0) should emit a domain-error diagnostic";
   ASSERT_TRUE(r.isInt());
@@ -393,7 +393,7 @@ TEST(HelperEvaluatorTest, LogNegativeIsDomainError_FailsoftZero) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_log", {R(-1.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_log", {R(-1.0L)}, syntheticLoc(f));
   EXPECT_TRUE(hasError(diag, "domain error"));
   ASSERT_TRUE(r.isInt());
   EXPECT_EQ(r.toInt(), 0);
@@ -405,7 +405,7 @@ TEST(HelperEvaluatorTest, Log10TenIsOne) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_log10", {R(10.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_log10", {R(10.0L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 1.0L));
 }
 
@@ -415,7 +415,7 @@ TEST(HelperEvaluatorTest, Log10ZeroIsDomainError_FailsoftZero) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_log10", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_log10", {R(0.0L)}, syntheticLoc(f));
   EXPECT_TRUE(hasError(diag, "domain error"));
   ASSERT_TRUE(r.isInt());
   EXPECT_EQ(r.toInt(), 0);
@@ -427,7 +427,7 @@ TEST(HelperEvaluatorTest, ExpZero) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_exp", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_exp", {R(0.0L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 1.0L));
 }
 
@@ -441,7 +441,7 @@ TEST(HelperEvaluatorTest, FloorPositiveFractional) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_floor", {R(2.7L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_floor", {R(2.7L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 2.0L));
 }
 
@@ -451,7 +451,7 @@ TEST(HelperEvaluatorTest, FloorNegativeFractional) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_floor", {R(-2.3L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_floor", {R(-2.3L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, -3.0L));
 }
 
@@ -461,7 +461,7 @@ TEST(HelperEvaluatorTest, CeilPositiveFractional) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_ceil", {R(2.3L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_ceil", {R(2.3L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 3.0L));
 }
 
@@ -471,7 +471,7 @@ TEST(HelperEvaluatorTest, CeilNegativeFractional) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_ceil", {R(-2.7L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_ceil", {R(-2.7L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, -2.0L));
 }
 
@@ -481,7 +481,7 @@ TEST(HelperEvaluatorTest, RoundHalfPositive) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_round", {R(0.5L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_round", {R(0.5L)}, syntheticLoc(f));
   // std::roundl(0.5) is 1.0 (away-from-zero on .5).
   EXPECT_TRUE(NearReal(r, 1.0L));
 }
@@ -499,7 +499,7 @@ TEST(HelperEvaluatorTest, AbsIntegerStaysInteger) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_abs", {I(-3)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_abs", {I(-3)}, syntheticLoc(f));
   ASSERT_TRUE(r.isInt());
   EXPECT_EQ(r.toInt(), 3);
 }
@@ -510,7 +510,7 @@ TEST(HelperEvaluatorTest, AbsRealStaysReal) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_abs", {R(-2.5L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_abs", {R(-2.5L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 2.5L));
 }
 
@@ -520,7 +520,7 @@ TEST(HelperEvaluatorTest, MinTwoIntegersStaysInteger) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_min", {I(3), I(5)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_min", {I(3), I(5)}, syntheticLoc(f));
   ASSERT_TRUE(r.isInt());
   EXPECT_EQ(r.toInt(), 3);
 }
@@ -531,7 +531,7 @@ TEST(HelperEvaluatorTest, MaxTwoIntegersStaysInteger) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_max", {I(3), I(5)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_max", {I(3), I(5)}, syntheticLoc(f));
   ASSERT_TRUE(r.isInt());
   EXPECT_EQ(r.toInt(), 5);
 }
@@ -543,7 +543,7 @@ TEST(HelperEvaluatorTest, MinMixedKindWidensToReal) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_min", {I(3), R(2.5L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_min", {I(3), R(2.5L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 2.5L));
 }
 
@@ -553,7 +553,7 @@ TEST(HelperEvaluatorTest, MaxMixedKindWidensToReal) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_max", {I(3), R(2.5L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_max", {I(3), R(2.5L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 3.0L));
 }
 
@@ -563,7 +563,7 @@ TEST(HelperEvaluatorTest, MinTwoRealsStaysReal) {
   FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue const r = h.invoke("_min", {R(1.5L), R(0.5L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_min", {R(1.5L), R(0.5L)}, syntheticLoc(f));
   EXPECT_TRUE(NearReal(r, 0.5L));
 }
 
@@ -590,7 +590,7 @@ TEST(HelperEvaluatorTest, DISABLED_ArityMismatch_Min_TooFew) {
   HelperEvaluator h(diag);
 
   // _min has arity 2; calling with one arg is an arity error.
-  PPValue const r = h.invoke("_min", {I(1)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_min", {I(1)}, syntheticLoc(f));
   EXPECT_TRUE(hasError(diag, "expects"))
       << "_min(1) should emit an arity-mismatch diagnostic";
   // The result on arity error is unspecified; we just ensure
@@ -605,7 +605,7 @@ TEST(HelperEvaluatorTest, DISABLED_ArityMismatch_Sin_TooMany) {
   HelperEvaluator h(diag);
 
   // _sin has arity 1; calling with two args is an arity error.
-  PPValue const r = h.invoke("_sin", {R(0.0L), R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_sin", {R(0.0L), R(0.0L)}, syntheticLoc(f));
   EXPECT_TRUE(hasError(diag, "expects"))
       << "_sin(0,0) should emit an arity-mismatch diagnostic";
   (void)r;
@@ -630,34 +630,34 @@ TEST(HelperEvaluatorTest, EveryDefEntryIsRecognized) {
 
   // Domain-safe args per group:
   //   group 1 (int/real coercion + pow + sqrt)
-  h.invoke("_int", {R(1.0L)}, syntheticLoc(sm, f));
-  h.invoke("_real", {I(1)}, syntheticLoc(sm, f));
-  h.invoke("_pow", {R(2.0L), R(3.0L)}, syntheticLoc(sm, f));
-  h.invoke("_sqrt", {R(4.0L)}, syntheticLoc(sm, f));
+  h.invoke("_int", {R(1.0L)}, syntheticLoc(f));
+  h.invoke("_real", {I(1)}, syntheticLoc(f));
+  h.invoke("_pow", {R(2.0L), R(3.0L)}, syntheticLoc(f));
+  h.invoke("_sqrt", {R(4.0L)}, syntheticLoc(f));
   //   group 2 (trig)
-  h.invoke("_sin", {R(0.0L)}, syntheticLoc(sm, f));
-  h.invoke("_cos", {R(0.0L)}, syntheticLoc(sm, f));
-  h.invoke("_tan", {R(0.0L)}, syntheticLoc(sm, f));
+  h.invoke("_sin", {R(0.0L)}, syntheticLoc(f));
+  h.invoke("_cos", {R(0.0L)}, syntheticLoc(f));
+  h.invoke("_tan", {R(0.0L)}, syntheticLoc(f));
   //   group 3 (inverse trig — domain-safe args)
-  h.invoke("_asin", {R(0.0L)}, syntheticLoc(sm, f));
-  h.invoke("_acos", {R(1.0L)}, syntheticLoc(sm, f));
-  h.invoke("_atan", {R(0.0L)}, syntheticLoc(sm, f));
+  h.invoke("_asin", {R(0.0L)}, syntheticLoc(f));
+  h.invoke("_acos", {R(1.0L)}, syntheticLoc(f));
+  h.invoke("_atan", {R(0.0L)}, syntheticLoc(f));
   //   group 4 (hyperbolic)
-  h.invoke("_sinh", {R(0.0L)}, syntheticLoc(sm, f));
-  h.invoke("_cosh", {R(0.0L)}, syntheticLoc(sm, f));
-  h.invoke("_tanh", {R(0.0L)}, syntheticLoc(sm, f));
+  h.invoke("_sinh", {R(0.0L)}, syntheticLoc(f));
+  h.invoke("_cosh", {R(0.0L)}, syntheticLoc(f));
+  h.invoke("_tanh", {R(0.0L)}, syntheticLoc(f));
   //   group 5 (log/exp — domain-safe)
-  h.invoke("_log", {R(1.0L)}, syntheticLoc(sm, f));
-  h.invoke("_log10", {R(1.0L)}, syntheticLoc(sm, f));
-  h.invoke("_exp", {R(0.0L)}, syntheticLoc(sm, f));
+  h.invoke("_log", {R(1.0L)}, syntheticLoc(f));
+  h.invoke("_log10", {R(1.0L)}, syntheticLoc(f));
+  h.invoke("_exp", {R(0.0L)}, syntheticLoc(f));
   //   group 6 (rounding)
-  h.invoke("_floor", {R(0.5L)}, syntheticLoc(sm, f));
-  h.invoke("_ceil", {R(0.5L)}, syntheticLoc(sm, f));
-  h.invoke("_round", {R(0.5L)}, syntheticLoc(sm, f));
+  h.invoke("_floor", {R(0.5L)}, syntheticLoc(f));
+  h.invoke("_ceil", {R(0.5L)}, syntheticLoc(f));
+  h.invoke("_round", {R(0.5L)}, syntheticLoc(f));
   //   group 7 (kind-preserving)
-  h.invoke("_abs", {I(-1)}, syntheticLoc(sm, f));
-  h.invoke("_min", {I(1), I(2)}, syntheticLoc(sm, f));
-  h.invoke("_max", {I(1), I(2)}, syntheticLoc(sm, f));
+  h.invoke("_abs", {I(-1)}, syntheticLoc(f));
+  h.invoke("_min", {I(1), I(2)}, syntheticLoc(f));
+  h.invoke("_max", {I(1), I(2)}, syntheticLoc(f));
 
   // After 22 calls with valid args + arity, no errors should have
   // been raised.

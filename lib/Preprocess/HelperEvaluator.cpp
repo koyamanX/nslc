@@ -119,13 +119,13 @@ constexpr std::size_t kHelperCount = sizeof(kHelpers) / sizeof(kHelpers[0]);
 
 bool lookupHelper(llvm::StringRef name, int *out_arity,
                   bool *out_returns_real) {
-  for (std::size_t i = 0; i < kHelperCount; ++i) {
-    if (name == llvm::StringRef(kHelpers[i].name)) {
+  for (auto kHelper : kHelpers) {
+    if (name == llvm::StringRef(kHelper.name)) {
       if (out_arity != nullptr) {
-        *out_arity = kHelpers[i].arity;
+        *out_arity = kHelper.arity;
       }
       if (out_returns_real != nullptr) {
-        *out_returns_real = kHelpers[i].returns_real;
+        *out_returns_real = kHelper.returns_real;
       }
       return true;
     }
