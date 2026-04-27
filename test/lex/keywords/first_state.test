@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Generated from include/nsl/Lex/KeywordSet.def — DO NOT EDIT.
+// Regenerate with: python3 scripts/gen_keyword_fixtures.py
+//
+// Per-keyword lex fixture for `first_state` per Constitution Principle
+// VIII (TDD). One token + tk_eof; SPDX header per FR-010..012.
+//
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+first_state
+// CHECK:      tk_first_state	first_state	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK-NEXT: tk_eof		{{[^:]+}}:2:1:12	{{[^:]+}}:2:1	[]

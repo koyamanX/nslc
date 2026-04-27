@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Generated from include/nsl/Lex/KeywordSet.def — DO NOT EDIT.
+// Regenerate with: python3 scripts/gen_keyword_fixtures.py
+//
+// Per-keyword lex fixture for `integer` per Constitution Principle
+// VIII (TDD). One token + tk_eof; SPDX header per FR-010..012.
+//
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+integer
+// CHECK:      tk_integer	integer	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK-NEXT: tk_eof		{{[^:]+}}:2:1:8	{{[^:]+}}:2:1	[]
