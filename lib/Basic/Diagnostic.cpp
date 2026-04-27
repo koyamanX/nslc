@@ -167,7 +167,16 @@ DiagnosticEngine::report(Severity sev, SourceLocation loc, std::string msg) {
   } else if (sev == Severity::Warning) {
     ++impl_->warning_count;
   }
-  return Builder(this, idx);
+  Builder b(this, idx);
+  // T068 (US3 / FR-026): auto-attach `note: included from <ancestor>`
+  // entries whenever the diagnostic's file has a non-empty include
+  // stack on the SourceManager. Notes are only attached on the
+  // PRIMARY diagnostic (sev != Note), so chained notes don't recurse.
+  if (sev != Severity::Note && loc.isValid() &&
+      !impl_->sm.getIncludeStackFor(loc.file()).empty()) {
+    b.addIncludedFromNotes();
+  }
+  return b;
 }
 
 void DiagnosticEngine::renderAll(llvm::raw_ostream &os, Format fmt) const {

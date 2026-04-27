@@ -11,10 +11,20 @@
 //
 // Constraints:
 //   * `#line 1000 "synth.nsl"` on physical line 1 of the input.
-//   * Physical line 2 is empty (consumed but no diagnostic).
-//   * Physical line 3 has the `%UNDEF%` error → virtual line 1002.
+//   * Physical line 2 is empty (consumed; virtual line 1000).
+//   * Physical line 3 has the `%UNDEF%` error → virtual line 1001.
+//
+// The off-by-one between the directive line and "the next input
+// line" follows pp.ebnf P13 + spec acceptance scenario 8: the
+// FIRST line AFTER the directive is line N, the second-after is
+// N+1. (The conflicting LINENUM=0 parenthetical in P13 is a known
+// spec contradiction flagged in Track B's Open Question #1; this
+// fixture honors the scenario-8 anchor.)
 
-// RUN: printf '#line 1000 "synth.nsl"\n\n%%UNDEF%%\n' > %t.nsl
+// `\045` is the octal escape for `%` — using printf's `%%` collides
+// with lit's `%`-substitution layer, so we drop down to the byte
+// escape to write a literal `%` char into the temp file.
+// RUN: printf '#line 1000 "synth.nsl"\n\n\045UNDEF\045\n' > %t.nsl
 // RUN: not %nslc -emit=tokens %t.nsl 2>&1 | FileCheck %s
 
-// CHECK: synth.nsl:1002:{{[0-9]+}}: error: undefined macro reference: '%UNDEF%'
+// CHECK: synth.nsl:1001:{{[0-9]+}}: error: undefined macro reference: '%UNDEF%'
