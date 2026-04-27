@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/comments/block.test — `/* … */` block comment per
+// `lang.ebnf §14` `block_comment = "/*" { any_char_not_starting_close
+// } "*/"`. Block comments do NOT nest (the comment on §14 line 781
+// pins this — "NON-nestable per Ref §0"). The lexer skips the
+// comment span; only the trailing `42` appears in the token stream.
+
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+/* a block comment */ 42
+// CHECK:      tk_decimal_lit	42	{{[^:]+}}:1:23:22	{{[^:]+}}:1:23	[]
+// CHECK-NEXT: tk_eof
