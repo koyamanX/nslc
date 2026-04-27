@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/strings/with_special_chars.test — string literal whose
+// body contains tab + escaped quote + escaped backslash escape
+// sequences per `lang.ebnf §13` `escape_sequence` production.
+//
+// Source bytes:    " a \t \" \\ b "
+// Spelling on stdout (per stdout-schema C-escaping): the embedded
+// backslashes are themselves rendered as `\\`, so each on-disk `\`
+// becomes `\\` in the rendered spelling field.
+
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+"a\t\"\\b"
+// CHECK:      tk_string_lit	"a\\t\\"\\\\b"	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK-NEXT: tk_eof
