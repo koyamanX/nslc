@@ -1,0 +1,67 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/emit-tokens.test — smoke + golden for `nslc -emit=tokens`.
+// Per `specs/002-m1-lex-preprocess/tasks.md` T035 + the canonical
+// example in `contracts/nslc-emit-tokens.contract.md` §"Example".
+//
+// Coverage:
+//   1. Positive: `module foo { reg x[8] = 0xZ_F; }` end-to-end —
+//      every token kind in the contract example, exit 0.
+//   2. Negative cases use `--check-prefix` to assert distinct stderr
+//      messages + exit codes per the contract's "Negative test list":
+//        NEG-NOINPUT      no input file       → exit 2 + "input file required"
+//        NEG-NOFILE       file not found      → exit 3 + "could not open"
+//        NEG-BADSTAGE     bogus -emit value   → exit 2 + "unknown emit stage"
+//
+// Per Principle VIII this fixture lands BEFORE
+// `lib/Driver/EmitTokens.cpp` and the `-emit=tokens` switch case in
+// `tools/nslc/main.cpp`; it MUST be observed FAILING on the
+// unchanged tree (FR-036).
+
+// ----- POSITIVE: smoke + golden over the contract example ------------
+//
+// We embed the input as a HEREDOC into a temp file rather than using
+// the .test as both fixture and self-source — the `// CHECK:` lines
+// would otherwise leak into the lex stream as comments and confuse
+// the golden. A temp file under %t.* gives a stable path the lexer
+// reports cleanly.
+//
+// RUN: echo 'module foo {' > %t.nsl
+// RUN: echo '  reg w[8] = 0xZ_F;' >> %t.nsl
+// RUN: echo '}' >> %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s --check-prefix=POS
+
+// POS:      tk_module	module	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// POS-NEXT: tk_identifier	foo	{{[^:]+}}:1:8:7	{{[^:]+}}:1:8	[]
+// POS-NEXT: tk_lbrace	{	{{[^:]+}}:1:12:11	{{[^:]+}}:1:12	[]
+// POS-NEXT: tk_reg	reg	{{[^:]+}}:2:3:15	{{[^:]+}}:2:3	[]
+// POS-NEXT: tk_identifier	w	{{[^:]+}}:2:7:19	{{[^:]+}}:2:7	[]
+// POS-NEXT: tk_lbracket	[	{{[^:]+}}:2:8:20	{{[^:]+}}:2:8	[]
+// POS-NEXT: tk_decimal_lit	8	{{[^:]+}}:2:9:21	{{[^:]+}}:2:9	[]
+// POS-NEXT: tk_rbracket	]	{{[^:]+}}:2:10:22	{{[^:]+}}:2:10	[]
+// POS-NEXT: tk_assign	=	{{[^:]+}}:2:12:24	{{[^:]+}}:2:12	[]
+// POS-NEXT: tk_hex_lit	0xZ_F	{{[^:]+}}:2:14:26	{{[^:]+}}:2:14	[Z]
+// POS-NEXT: tk_semicolon	;	{{[^:]+}}:2:19:31	{{[^:]+}}:2:19	[]
+// POS-NEXT: tk_rbrace	}	{{[^:]+}}:3:1:33	{{[^:]+}}:3:1	[]
+// POS-NEXT: tk_eof		{{[^:]+}}:3:2:34	{{[^:]+}}:3:2	[]
+
+// ----- NEGATIVE 1: no input file → exit 2 + "input file required" ----
+//
+// `not` makes lit pass when nslc exits non-zero; the FileCheck
+// pipeline asserts the diagnostic text on stderr.
+//
+// RUN: not %nslc -emit=tokens 2>&1 | FileCheck %s --check-prefix=NEG-NOINPUT
+
+// NEG-NOINPUT: input file required
+
+// ----- NEGATIVE 2: input file does not exist → exit 3 + "could not open" --
+//
+// RUN: not %nslc -emit=tokens %t.nonexistent.nsl 2>&1 | FileCheck %s --check-prefix=NEG-NOFILE
+
+// NEG-NOFILE: could not open
+
+// ----- NEGATIVE 3: unknown -emit stage → exit 2 + "unknown emit stage" ----
+//
+// RUN: not %nslc -emit=blarg %t.nsl 2>&1 | FileCheck %s --check-prefix=NEG-BADSTAGE
+
+// NEG-BADSTAGE: unknown emit stage

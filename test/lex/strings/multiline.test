@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/strings/multiline.test — string containing the escape
+// sequence `\n`. The lexer scans this as ONE `tk_string_lit` token,
+// not two literals split by an embedded newline. Per `lang.ebnf §13`
+// `string_char = any_printable_except_dquote_and_newline | "\\"
+// escape_sequence` — a literal newline INSIDE quotes is not a
+// `string_char` (which is what `unterminated.test` exercises), but
+// `\n` as a backslash-n escape is.
+
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+"line1\nline2"
+// CHECK:      tk_string_lit	"line1\\nline2"	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK-NEXT: tk_eof

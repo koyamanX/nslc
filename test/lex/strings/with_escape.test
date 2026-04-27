@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/strings/with_escape.test — string with escape sequence
+// per `lang.ebnf §13` `escape_sequence = "n" | "t" | "r" | "\\" |
+// '"' | "0"`. The token's spelling is the LITERAL source span — the
+// six characters `"a\nb"` — NOT the post-decoded interpretation.
+// The contract's stdout schema C-escapes embedded `\n` and `\\`
+// inside the spelling field, so the rendered spelling here is
+// `"a\\nb"` (six on-disk chars rendered as eight after escaping).
+
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+"a\nb"
+// CHECK:      tk_string_lit	"a\\nb"	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK-NEXT: tk_eof

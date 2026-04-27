@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/numbers/leading_zero_decimal.test — bare `0` is the
+// shortest valid `decimal_integer` per `lang.ebnf §13`. The NSL
+// `c_style_number` production is gated on `0` followed by a
+// `c_radix_char` (`b` / `x`); a bare `0` falls through to plain
+// decimal classification.
+
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+0
+// CHECK:      tk_decimal_lit	0	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK-NEXT: tk_eof

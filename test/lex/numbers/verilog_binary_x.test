@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/numbers/verilog_binary_x.test — Verilog-style binary
+// literal with all-`X` value-run per `lang.ebnf §13`.
+
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+4'bXXXX
+// CHECK:      tk_binary_lit	4'bXXXX	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[X]
+// CHECK-NEXT: tk_eof

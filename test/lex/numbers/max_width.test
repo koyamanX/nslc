@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/numbers/max_width.test — boundary case: a long decimal
+// literal (32 digits) the lexer accepts as a single token. The spec
+// places no upper bound on numeric literal width (§13's
+// `decimal_integer` is open-ended); the lexer's job is recognition,
+// not range validation — that's M3 sema's job.
+
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+12345678901234567890123456789012
+// CHECK:      tk_decimal_lit	12345678901234567890123456789012	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK-NEXT: tk_eof

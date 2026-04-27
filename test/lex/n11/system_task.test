@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/n11/system_task.test — N11 class (a) system TASK names
+// per `lang.ebnf` lines 1083–1105. The lexer classifies underscore-
+// prefixed names invoked in statement position with parens as
+// `tk_system_task` (e.g., `_display`, `_finish`, `_init`, `_delay`,
+// `_monitor`, `_write`, `_readmemh`, `_readmemb`, `_stop`).
+//
+// This fixture asserts the recognition path: the lexer sees the
+// `_display` identifier and emits `tk_system_task` regardless of what
+// follows. Statement-vs-expression position is the parser's call,
+// not the lexer's; the lexer's job is the kind classification per
+// the identifier text alone.
+
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+_display
+// CHECK:      tk_system_task	_display	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK-NEXT: tk_eof

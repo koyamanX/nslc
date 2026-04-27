@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/comments/whitespace_only.test — buffer of whitespace per
+// `lang.ebnf §14` `whitespace = " " | "\t" | "\n" | "\r"`. The lexer
+// skips whitespace; only `tk_eof` appears.
+//
+// The fixture body is `\n\t \n` — two newlines, one tab, one space.
+
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+
+// The only token emitted should be tk_eof. CHECK-NOT before CHECK
+// asserts that the canonical content-bearing token kinds (any of
+// the lex outputs that would be produced if the lexer mis-classified
+// whitespace as content) do NOT appear before tk_eof in stdout.
+//
+// CHECK-NOT: tk_decimal_lit
+// CHECK-NOT: tk_identifier
+// CHECK-NOT: tk_string_lit
+// CHECK:     tk_eof

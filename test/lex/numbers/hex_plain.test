@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/numbers/hex_plain.test — C-style hex literal per
+// `lang.ebnf §13` `c_style_number = "0" c_radix_char value_run`
+// where `c_radix_char = "b" | "x"`. Plain hex digits → no Z/X/U flags.
+
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+0xff
+// CHECK:      tk_hex_lit	0xff	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK-NEXT: tk_eof

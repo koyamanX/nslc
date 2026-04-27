@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lex/n5/both_in_one_file.test — N5 disambiguation per
+// `lang.ebnf` lines 1035–1049 with BOTH forms in one buffer:
+//   line 1:  `#line 50 "f.nsl"` — start-of-line, classifies as
+//            `tk_line_directive`
+//   line 2:  `y = c#d;`         — `#` mid-expression, classifies as
+//            `tk_hash_sign_extend`
+//
+// This exercises the lexer's `at_line_start_` state-machine round-
+// trip: the flag is true entering line 1 (line-directive case), set
+// false by the consumed tokens, restored to true at the `\n` ending
+// line 1, then toggled false again as line 2's earlier tokens are
+// consumed before the `#` is seen.
+
+// RUN: %nslc -emit=tokens %s | FileCheck %s
+
+#line 50 "f.nsl"
+y = c#d;
+// CHECK: tk_line_directive
+// CHECK: tk_hash_sign_extend	#
+// CHECK: tk_eof
