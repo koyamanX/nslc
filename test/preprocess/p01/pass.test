@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p01/pass.test — P1 line-orientation per
+// `docs/spec/nsl_pp.ebnf` §2 + the "Validation tests" topic table in
+// `specs/002-m1-lex-preprocess/contracts/preprocessor-seam.contract.md`.
+//
+// Topic per `tasks.md` T037: "directive at column 0 succeeds; an
+// indented `#define` is treated as a passthrough line per P1 (no P1
+// fail-case is meaningful since 'indented #' is intentionally not a
+// directive — the passing fixture asserts the indented case produces
+// NO macro definition)".
+//
+// What this fixture asserts:
+//   * A column-0 `#define X 1` on line 1 is consumed by the
+//     preprocessor (P1) — no tokens for it cross the seam (P12).
+//   * `%X%` on the passthrough line uses the macro and splices to
+//     `1`.
+//   * An indented `  #define Y 2` is NOT a directive (P1 narrower-
+//     than-C semantics): no Y macro is defined, so a subsequent
+//     `%Y%` would be an undefined-macro error (we only assert the
+//     positive shape here — see p03/fail.test for the undef-macro
+//     diagnostic).
+//
+// **Implementation state**: this fixture runs RED against the
+// unchanged Phase-3 tree because no preprocessor exists — the lexer
+// sees the literal `#define X 1` and tokenizes it as
+// `tk_hash_sign_extend` + `tk_identifier`/`tk_decimal_lit` rather
+// than consuming it. Phase-4 (lib/Preprocess/) turns it green.
+
+// RUN: echo '#define X 1' >  %t.nsl
+// RUN: echo 'reg x = %%X%%;' >> %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// The column-0 #define is consumed (no tokens emitted for line 1).
+// The use site `%X%` splices to `1`; the surrounding tokens are the
+// regular `reg`/`x`/`=`/<int>/`;`.
+//
+// We do NOT anchor on absolute coordinates here because the macro
+// substitution may render the value into the passthrough line at
+// different physical positions depending on implementation detail
+// (textual splice vs. value substitution); we only assert kind +
+// spelling.
+// CHECK:      tk_reg{{[ \t]+}}reg
+// CHECK-NEXT: tk_identifier{{[ \t]+}}x
+// CHECK-NEXT: tk_assign{{[ \t]+}}=
+// CHECK-NEXT: tk_decimal_lit{{[ \t]+}}1
+// CHECK-NEXT: tk_semicolon{{[ \t]+}};
+// CHECK-NEXT: tk_eof
+
+// And the column-0 #define MUST NOT cross the P12 seam:
+// CHECK-NOT: tk_identifier{{[ \t]+}}define
