@@ -97,7 +97,7 @@ description: "Tasks for M1 — Lex + Preprocess (with Diagnostic Plumbing)"
 - [X] T022 [P] [US1] Author `test/lex/strings/{simple,with_escape,empty,multiline}.test` plus one fail fixture `test/lex/strings/unterminated.test` asserting the canonical `unterminated string literal` diagnostic (FR-037 / contracts/diagnostic-output.contract.md). **Note**: also added `test/lex/strings/with_special_chars.test` (tab/quote/backslash escapes) for completeness — 6 fixtures total.
 - [X] T023 [P] [US1] Author `test/lex/comments/{single_line,block,nested_block_safe,whitespace_only}.test` — four fixtures covering `lang.ebnf §14` whitespace + comment behavior.
 - [X] T024 [P] [US1] TDD — author `test_unit/source_manager_test/keyword_set_test.cpp`: GoogleTest fixtures over `KeywordSet.def` asserting every entry resolves to a unique `TokenKind` and the recognizer rejects identifiers that merely start with a keyword (e.g., `module_x` is `tk_identifier`, not `tk_module`). Run; observe FAILING. **Note**: also wires the new `nsl-lex` link dependency into `test_unit/source_manager_test/CMakeLists.txt`; the suite FAILS TO LINK against the unchanged tree (the parallel nsl-frontend-impl agent's lexer ships afterward).
-- [ ] T025 [P] [US1] Run all of T018–T023 against the unchanged tree; observe **all** lex fixtures FAILING (no `nslc -emit=tokens` flag exists yet → exit 2). Capture the failing run as the TDD evidence per FR-036.
+- [X] T025 [P] [US1] Run all of T018–T023 against the unchanged tree; observe **all** lex fixtures FAILING (no `nslc -emit=tokens` flag exists yet → exit 2). Capture the failing run as the TDD evidence per FR-036.
 
 ### Implementation for User Story 1
 
@@ -174,17 +174,17 @@ description: "Tasks for M1 — Lex + Preprocess (with Diagnostic Plumbing)"
 
 > Write these tests FIRST. They MUST be observed FAILING against the unchanged tree before any implementation task begins.
 
-- [ ] T063 [P] [US3] Author `test/preprocess/include-stack/error-in-inner.test` — three-file include chain (`outer.nsl` → `middle.nsl` → `inner.nsl`) with a deliberate error in `inner.nsl` (e.g., `%UNDEF%`). Assert: text-format diagnostic cites `inner.nsl:<line>:<col>:` then `note: included from middle.nsl:<line>:<col>` then `note: included from outer.nsl:<line>:<col>`. Files committed under `test/preprocess/include-stack/inputs/` (subdir to avoid polluting the lit test root with auxiliary files).
-- [ ] T064 [P] [US3] Author `test/preprocess/include-stack/error-in-inner.json.test` — same input as T063 but with `--diagnostic-format=json`. Assert NDJSON shape: 3 lines, each parses as JSON, each has the five mandatory fields, the two note objects have `included_from`.
-- [ ] T065 [P] [US3] Author `test/preprocess/line/diag-after-line.test` — input file with `#line 1000 "synth.nsl"` then a deliberate error two lines later. Assert diagnostic cites `synth.nsl:1002:…` (post-`#line` virtual coordinates per FR-027 / SC-006 / Principle IV).
-- [ ] T066 [P] [US3] Author `test/Driver/diag-format-json-smoke.test` — invoke `nslc --diagnostic-format=json -emit=tokens <fixture>` over a fixture with a single error. Assert output is one NDJSON line with valid JSON shape per research §9. Smoke-only — no schema content equality.
-- [ ] T067 [P] [US3] Run T063–T066 against the unchanged tree; observe **all** FAILING (include-stack note machinery not yet wired into `Preprocessor`). Capture per FR-036.
+- [X] T063 [P] [US3] Author `test/preprocess/include-stack/error-in-inner.test` — three-file include chain (`outer.nsl` → `middle.nsl` → `inner.nsl`) with a deliberate error in `inner.nsl` (e.g., `%UNDEF%`). Assert: text-format diagnostic cites `inner.nsl:<line>:<col>:` then `note: included from middle.nsl:<line>:<col>` then `note: included from outer.nsl:<line>:<col>`. Files committed under `test/preprocess/include-stack/inputs/` (subdir to avoid polluting the lit test root with auxiliary files).
+- [X] T064 [P] [US3] Author `test/preprocess/include-stack/error-in-inner.json.test` — same input as T063 but with `--diagnostic-format=json`. Assert NDJSON shape: 3 lines, each parses as JSON, each has the five mandatory fields, the two note objects have `included_from`.
+- [X] T065 [P] [US3] Author `test/preprocess/line/diag-after-line.test` — input file with `#line 1000 "synth.nsl"` then a deliberate error two lines later. Assert diagnostic cites `synth.nsl:1002:…` (post-`#line` virtual coordinates per FR-027 / SC-006 / Principle IV).
+- [X] T066 [P] [US3] Author `test/Driver/diag-format-json-smoke.test` — invoke `nslc --diagnostic-format=json -emit=tokens <fixture>` over a fixture with a single error. Assert output is one NDJSON line with valid JSON shape per research §9. Smoke-only — no schema content equality.
+- [X] T067 [P] [US3] Run T063–T066 against the unchanged tree; observe **all** FAILING (include-stack note machinery not yet wired into `Preprocessor`). Capture per FR-036.
 
 ### Implementation for User Story 3
 
-- [ ] T068 [US3] Wire the include-stack note machinery in `lib/Preprocess/Preprocessor.cpp` (extends T059): on `#include` resolution, call `SourceManager::pushIncludeFrame(at, included_fid)`; on EOF of an included file, call `SourceManager::popIncludeFrame()`. The `DiagnosticEngine::Builder` reads the active include stack at emit time (already implemented in T014 / verified in T013) and appends one `note` per ancestor.
-- [ ] T069 [US3] Wire `--diagnostic-format=json` flag handling in `tools/nslc/main.cpp` (T033) → `lib/Driver/EmitTokens.cpp` — pass the chosen `DiagnosticEngine::Format` to `DiagnosticEngine::renderAll` at the end of the run. Default is `Format::Text`.
-- [ ] T070 [US3] Build; run T063–T066 + Phase 4 + Phase 3 corpora; **all green**. Verify SC-004 regex match across the union of all diagnostics emitted by the M1 corpus (every one matches `^[^:]+:\d+:\d+: (error|warning|note): .+$`); verify SC-006 (include-stack notes correct).
+- [X] T068 [US3] Wire the include-stack note machinery in `lib/Preprocess/Preprocessor.cpp` (extends T059): on `#include` resolution, call `SourceManager::pushIncludeFrame(at, included_fid)`; on EOF of an included file, call `SourceManager::popIncludeFrame()`. The `DiagnosticEngine::Builder` reads the active include stack at emit time (already implemented in T014 / verified in T013) and appends one `note` per ancestor.
+- [X] T069 [US3] Wire `--diagnostic-format=json` flag handling in `tools/nslc/main.cpp` (T033) → `lib/Driver/EmitTokens.cpp` — pass the chosen `DiagnosticEngine::Format` to `DiagnosticEngine::renderAll` at the end of the run. Default is `Format::Text`.
+- [X] T070 [US3] Build; run T063–T066 + Phase 4 + Phase 3 corpora; **all green**. Verify SC-004 regex match across the union of all diagnostics emitted by the M1 corpus (every one matches `^[^:]+:\d+:\d+: (error|warning|note): .+$`); verify SC-006 (include-stack notes correct).
 
 **Checkpoint**: User Story 3 verified. M1 constitutional anchor (Principle IV — Source-Locating Diagnostics) honored end-to-end. Diagnostic-bearing FRs (FR-024..028) all green; SC-004 + SC-006 met.
 
@@ -211,8 +211,8 @@ description: "Tasks for M1 — Lex + Preprocess (with Diagnostic Plumbing)"
 
 ### Agent-driven audits
 
-- [ ] T077 [P] Spawn `nsl-coupling-audit` agent (READ-ONLY) to verify spec ↔ design coupling on the working tree. **Expect one finding**: the CLAUDE.md §1 helper-evaluation row Principle-VII coupling-fix follow-up flagged in /speckit-clarify Q1 + research §12. Acknowledge in PR description; address in a separate follow-up PR per the Q1 resolution. Any OTHER finding is a blocking review item to address in this PR.
-- [ ] T078 [P] Spawn `nsl-constitution-review` agent (READ-ONLY) to verify all 9 principles on the working tree. Expect zero blocking findings. Treat any blocking finding as a stop-the-line item.
+- [X] T077 [P] Spawn `nsl-coupling-audit` agent (READ-ONLY) to verify spec ↔ design coupling on the working tree. **Expect one finding**: the CLAUDE.md §1 helper-evaluation row Principle-VII coupling-fix follow-up flagged in /speckit-clarify Q1 + research §12. Acknowledge in PR description; address in a separate follow-up PR per the Q1 resolution. Any OTHER finding is a blocking review item to address in this PR.
+- [X] T078 [P] Spawn `nsl-constitution-review` agent (READ-ONLY) to verify all 9 principles on the working tree. Expect zero blocking findings. Treat any blocking finding as a stop-the-line item.
 - [ ] T079 [P] Spawn CodeRabbit review on the PR. Per Constitution External Integrations §1, classify findings as blocking vs advisory on first review; route disputes to `/nsl-constitution-review` for binding judgement.
 
 **Checkpoint**: M1 ready for PR. All 9 SCs measurable as met; all 9 Constitution Principles green; one expected coupling-fix follow-up scoped to a separate PR.
