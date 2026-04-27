@@ -488,16 +488,16 @@ other_lexical_token   = ? any token from nsl_lang.ebnf §13 that is
  *        without a matching opener, or end-of-file before "#endif", are
  *        both errors.
  *
- *  (P10) ORDERING OF EXPANSION INSIDE #define.
- *        Within a  #define  replacement body, the order of operations is:
- *          1.  Recognize  %IDENT%  splices, look up the inner macro, and
- *              splice in the replacement TEXT (not the value — splicing
- *              is textual).
+ *  (P10) ORDERING OF EXPANSION INSIDE #define / #if.
+ *        Within a  #define  replacement body or  #if  condition:
+ *          1.  TEXTUAL SUBSTITUTION: replace bare-identifier macro
+ *              references AND  %IDENT%  splices with the macro's
+ *              body TEXT (not its value); substituted text adjoins
+ *              surrounding characters without inserted whitespace;
+ *              result is re-tokenized.  Recursion bounded at 256.
  *          2.  Evaluate compile-time helper calls left-to-right.
- *          3.  Reduce the resulting expression with the operator
- *              precedence given in §3.
- *        The final value (integer or real) becomes the macro's value for
- *        future expansions and  #if  comparisons.
+ *          3.  Reduce per §3 operator-precedence.
+ *        Final value becomes the macro's value for future use.
  *
  *  (P11) ONE-LINE LIMIT.
  *        A directive ends at end-of-line.  There is no line-continuation

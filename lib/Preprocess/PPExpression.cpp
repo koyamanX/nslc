@@ -7,6 +7,7 @@
 #include "PPExpression.h"
 
 #include "nsl/Preprocess/HelperEvaluator.h"
+#include "nsl/Preprocess/MacroExpander.h"
 #include "nsl/Preprocess/MacroTable.h"
 
 #include "nsl/Basic/Diagnostic.h"
@@ -77,7 +78,8 @@ int hexDigitValue(char c) {
 class PPExpression::Parser {
 public:
   Parser(PPExpression &owner, llvm::StringRef text, SourceLocation base)
-      : owner_(owner), text_(text), base_(base) {}
+      : owner_(owner), text_(text), base_(base),
+        initial_error_count_(owner.diag_.numErrors()) {}
 
   PPValue parseTop() {
     skipWS();
@@ -96,6 +98,16 @@ private:
   SourceLocation base_;
   std::size_t pos_ = 0;
   bool errored_ = false;
+  // Snapshot of the diagnostic-engine error count at Parser
+  // construction. Used to detect whether errors were emitted DURING
+  // this Parser's lifetime (e.g. by MacroExpander pre-pass cycle
+  // detection) without misattributing unrelated earlier errors.
+  std::size_t initial_error_count_;
+  // Storage for MacroExpander-substituted bodies of macros referenced
+  // recursively from this Parser. The sub-Parser constructed inside
+  // parseIdentOrHelper / parsePercentMacroRef holds a StringRef into
+  // the substituted string; the string must outlive the sub-Parser.
+  std::vector<std::string> expanded_bodies_;
 
   void report(const std::string &msg, std::size_t at) {
     if (errored_) {
@@ -462,7 +474,17 @@ private:
     // Substitute textually and re-parse the result as an expression
     // (P10 step 1 / 2 ordering — we already are in the expression
     // sub-grammar, so the "splice" here is "parse the body in place").
-    Parser sub(owner_, def->body, base_);
+    // Per pp.ebnf P10 (003-macro-textual-concat): the body's bare
+    // identifiers are first run through MacroExpander so cycles trip
+    // the depth bound (kMaxExpansionDepth = 256) instead of segfaulting
+    // through unbounded Parser → parseTop → parseIdentOrHelper recursion.
+    // The use_loc points at the actual `%IDENT%` reference (begin..pos_)
+    // so any FR-007 cycle diagnostic is attributed to the use site,
+    // not the start of the enclosing expression.
+    MacroExpander expander(owner_.macros_, owner_.diag_);
+    expanded_bodies_.push_back(
+        expander.expand(def->body, rangeAt(base_, begin, pos_)));
+    Parser sub(owner_, expanded_bodies_.back(), base_);
     return sub.parseTop();
   }
 
@@ -644,8 +666,32 @@ private:
              begin);
       return PPValue(int64_t{0});
     }
-    Parser sub(owner_, def->body, base_);
-    return sub.parseTop();
+    // Per pp.ebnf P10 (003-macro-textual-concat): bare-identifier macro
+    // references in the input were already textually substituted by
+    // MacroExpander BEFORE this Parser saw the text (see
+    // PPExpression::parse and PPExpression::reduceDefineBody). Reaching
+    // this point with a bare identifier therefore means MacroExpander
+    // declined to substitute it — i.e. it was a cycle (depth bound
+    // reached, diagnostic already emitted) or otherwise unresolved.
+    // The legacy "construct a sub-Parser on the body" path is no
+    // longer correct: it would re-trigger the cycle through Parser
+    // recursion, which is unbounded and segfaults. Emit an unresolved
+    // error and return the safe default.
+    if (owner_.diag_.numErrors() > initial_error_count_) {
+      // A diagnostic was emitted during this Parser's lifetime —
+      // typically the FR-007 cycle diagnostic from MacroExpander's
+      // pre-pass on the input text. Suppress the cascading
+      // "unresolved macro" report so we don't pile on a second
+      // (less informative) error for the same root cause. Earlier
+      // unrelated errors (from prior directives or files) do NOT
+      // trigger this branch because we snapshot the count at
+      // Parser construction.
+      return PPValue(int64_t{0});
+    }
+    report("unresolved macro '" + name.str() +
+               "' in compile-time expression",
+           begin);
+    return PPValue(int64_t{0});
   }
 
   void skipBalancedParens() {
@@ -668,7 +714,15 @@ private:
 };
 
 PPValue PPExpression::parse(llvm::StringRef text, SourceLocation loc) {
-  Parser p(*this, text, loc);
+  // Per pp.ebnf P10 (amended in 003-macro-textual-concat): textual
+  // substitution of bare-identifier macro references happens BEFORE
+  // expression tokenization. Hand `text` to MacroExpander first; the
+  // parser then sees the fully-substituted character stream so
+  // adjacent-substitution cases like `DEPTH.0` → `8.0` work.
+  MacroExpander expander(macros_, diag_);
+  std::string substituted =
+      expander.expand(text, SourceRange(loc, loc));
+  Parser p(*this, substituted, loc);
   return p.parseTop();
 }
 
@@ -690,7 +744,15 @@ bool PPExpression::reduceDefineBody(llvm::StringRef body, SourceLocation loc,
     return false;
   }
   llvm::StringRef trimmed = body.substr(b, e - b);
-  Parser p(*this, trimmed, loc);
+  // Per pp.ebnf P10 (amended in 003-macro-textual-concat): textual
+  // substitution of bare-identifier macro references in the body
+  // happens BEFORE tokenization. This is what makes the canonical
+  // P5 example work: `_int(_pow(2.0, DEPTH.0))` becomes
+  // `_int(_pow(2.0, 8.0))` when DEPTH is `#define`d as `8`.
+  MacroExpander expander(macros_, diag_);
+  std::string substituted =
+      expander.expand(trimmed, SourceRange(loc, loc));
+  Parser p(*this, substituted, loc);
   if (out_value) {
     *out_value = p.parseTop();
   } else {

@@ -29,29 +29,26 @@
 //
 // Source:
 //   `#define DEPTH 8`
-//   `#define MEMSIZE _int(_pow(2.0, %DEPTH%.0))`     <-- 2^8 = 256 → 256
-//   `#if MEMSIZE > 0`
-//   `mem ram[MEMSIZE];`                                <-- after splice: `mem ram[256];`
+//   `#define MEMSIZE _int(_pow(2.0, DEPTH.0))`        <-- 2^8 = 256 → 256
+//   `#if %MEMSIZE% > 0`
+//   `mem ram[%MEMSIZE%];`                              <-- after splice: `mem ram[256];`
 //   `#endif`
 //
 // Tasks.md T048. Fail-case is covered by P6 + P7 (helper-at-seam
 // and float-at-seam are the violatable P12 sub-rules).
 //
-// **NOTE**: the pp.ebnf §3 grammar does not document `int.0` as a
-// legal helper-arg form (research §5 says integer args are widened
-// to long double automatically). We use `%DEPTH%.0` only for
-// readability; the implementation should treat `8.0` as a real
-// regardless of how it got there. If the implementer prefers the
-// stricter form `_real(%DEPTH%)` instead of `%DEPTH%.0` they are
-// free to update this fixture accordingly — the P12 invariant under
-// test is "no helpers/floats/%-refs at the seam", not the precise
-// helper-arg syntax.
-//
-// **RED state**: the unchanged Phase-3 lexer tokenizes the
-// directives + helpers + %DEPTH% literally. Phase-4 turns it green.
+// **NOTE**: post-003-macro-textual-concat the canonical pp.ebnf P5
+// form `DEPTH.0` (bare-identifier textual concatenation) is the
+// preferred way to widen `8` to `8.0` inside the helper arg list.
+// Earlier the M1 fixture used the workaround `_real(%DEPTH%)` to
+// dodge the textual-concat gap; with MacroExpander in place that
+// gap is closed and the canonical form works. The P12 invariant
+// under test is "no helpers/floats/%-refs at the seam", which is
+// orthogonal to the helper-arg syntax — both forms hit the same
+// invariant.
 
 // RUN: echo '#define DEPTH 8'                            >  %t.nsl
-// RUN: echo '#define MEMSIZE _int(_pow(2.0, _real(%%DEPTH%%)))' >> %t.nsl
+// RUN: echo '#define MEMSIZE _int(_pow(2.0, DEPTH.0))'  >> %t.nsl
 // RUN: echo '#if %%MEMSIZE%% > 0'                        >> %t.nsl
 // RUN: echo 'mem ram[%%MEMSIZE%%];'                      >> %t.nsl
 // RUN: echo '#endif'                                     >> %t.nsl

@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p05/adjacency-no-whitespace.pass.test — US2
+// acceptance scenario 1 of 003-macro-textual-concat.
+//
+//   #define A 4
+//   #define X _int(A.5)
+//   reg buf[%X%];
+//
+// `A.5` with no whitespace between A and `.5` substitutes textually
+// to `4.5`; `_int(4.5)` truncates to integer `4`. Pins the
+// "no inserted whitespace" invariant from data-model entity 1.
+
+// RUN: printf '#define A 4\n#define X _int(A.5)\nreg buf[\045X\045];\n' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_reg{{[ \t]+}}reg
+// CHECK-NEXT: tk_identifier{{[ \t]+}}buf
+// CHECK-NEXT: tk_lbracket{{[ \t]+}}[
+// CHECK-NEXT: tk_decimal_lit{{[ \t]+}}4
+// CHECK-NEXT: tk_rbracket{{[ \t]+}}]
+// CHECK-NEXT: tk_semicolon{{[ \t]+}};
+// CHECK-NEXT: tk_eof

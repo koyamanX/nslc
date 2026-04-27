@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p10/recursive-expansion.pass.test — US3 acceptance
+// scenario 1 of 003-macro-textual-concat.
+//
+//   #define A B
+//   #define B C
+//   #define C 8
+//   #define X _int(A.0)
+//   reg buf[%X%];
+//
+// `A` substitutes to `B`, then `B` substitutes to `C`, then `C`
+// substitutes to `8`. Post-substitution the body becomes
+// `_int(8.0)` which evaluates to `8`. Pins the transitive
+// resolution path for chained macro definitions.
+
+// RUN: printf '#define A B\n#define B C\n#define C 8\n#define X _int(A.0)\nreg buf[\045X\045];\n' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_reg{{[ \t]+}}reg
+// CHECK-NEXT: tk_identifier{{[ \t]+}}buf
+// CHECK-NEXT: tk_lbracket{{[ \t]+}}[
+// CHECK-NEXT: tk_decimal_lit{{[ \t]+}}8
+// CHECK-NEXT: tk_rbracket{{[ \t]+}}]
+// CHECK-NEXT: tk_semicolon{{[ \t]+}};
+// CHECK-NEXT: tk_eof

@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/p05/textual-concat.pass.test — the canonical
+// pp.ebnf P5 example per spec US1 (003-macro-textual-concat).
+//
+//   #define DEPTH 8
+//   #define MEMDEPTH _int(_pow(2.0, DEPTH.0))
+//   reg buf[%MEMDEPTH%];
+//
+// The bare identifier DEPTH is textually substituted with `8`
+// inside the helper-call argument list; post-substitution `8.0`
+// is recognized as a `float_literal` and the helper evaluator
+// computes `_pow(2.0, 8.0) = 256.0` → `_int(...)` = `256`.
+//
+// Per the FR-007 + FR-037 lock discipline this fixture asserts
+// the integer literal `256` token at the `%MEMDEPTH%` use site.
+
+// RUN: printf '#define DEPTH 8\n#define MEMDEPTH _int(_pow(2.0, DEPTH.0))\nreg buf[\045MEMDEPTH\045];\n' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
+
+// CHECK:      tk_reg{{[ \t]+}}reg
+// CHECK-NEXT: tk_identifier{{[ \t]+}}buf
+// CHECK-NEXT: tk_lbracket{{[ \t]+}}[
+// CHECK-NEXT: tk_decimal_lit{{[ \t]+}}256
+// CHECK-NEXT: tk_rbracket{{[ \t]+}}]
+// CHECK-NEXT: tk_semicolon{{[ \t]+}};
+// CHECK-NEXT: tk_eof
