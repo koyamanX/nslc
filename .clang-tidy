@@ -57,7 +57,9 @@ Checks: >
   -cppcoreguidelines-owning-memory,
   -bugprone-macro-parentheses,
   -bugprone-forward-declaration-namespace,
-  -bugprone-exception-escape
+  -bugprone-exception-escape,
+  -llvm-qualified-auto,
+  -readability-qualified-auto
 
 # === Rationale block (FR-009: rationale lives here, not in source) ===
 #
@@ -150,6 +152,14 @@ Checks: >
 #   pattern is intentional (e.g., a struct designed for aggregate-init
 #   with no constructor). Per-site exemptions documented here rather
 #   than in source per FR-009.
+#
+# llvm-qualified-auto / readability-qualified-auto:
+#   LLVM's MapVector iterator IS a pointer (SmallVector storage), so
+#   the check insists on `auto *it = container.find(key)` form. Per
+#   PR #5 review feedback, this confuses readers who expect iterator
+#   semantics; the `auto it = ...` form is more portable across
+#   container changes and consistent with the rest of the codebase.
+#   Style preference; correctness is unaffected.
 
 # Treat every enabled clang-tidy diagnostic as a hard error. Combined
 # with `clang-tidy --warnings-as-errors=*` in scripts/ci.sh:stage_static_checks,
