@@ -32,14 +32,14 @@ int64_t PPValue::toInt() const {
   if (std::holds_alternative<int64_t>(v_)) {
     return std::get<int64_t>(v_);
   }
-  long double r = std::get<long double>(v_);
+  long double const r = std::get<long double>(v_);
   // Truncate toward zero per `_int(...)` semantics (research §5).
   // Guard against NaN / infinity which would otherwise produce
   // implementation-defined results on the cast.
   if (std::isnan(r) || std::isinf(r)) {
     return 0;
   }
-  long double t = std::trunc(r);
+  long double const t = std::trunc(r);
   if (t > static_cast<long double>(std::numeric_limits<int64_t>::max())) {
     return std::numeric_limits<int64_t>::max();
   }
@@ -60,7 +60,7 @@ bool PPValue::isTruthy() const noexcept {
   if (isInt()) {
     return std::get<int64_t>(v_) != 0;
   }
-  long double r = std::get<long double>(v_);
+  long double const r = std::get<long double>(v_);
   return r != static_cast<long double>(0.0);
 }
 
@@ -81,7 +81,7 @@ std::string PPValue::render() const {
   // detects at the seam check; this keeps P7 enforcement honest).
   std::string s(buf);
   bool has_decimal = false;
-  for (char c : s) {
+  for (char const c : s) {
     if (c == '.' || c == 'e' || c == 'E' || c == 'n' /* nan */ ||
         c == 'i' /* inf */) {
       has_decimal = true;
@@ -154,9 +154,9 @@ PPValue HelperEvaluator::evalRealCoerce(PPValue arg) {
 }
 
 PPValue HelperEvaluator::evalPow(PPValue base, PPValue exp, SourceRange loc) {
-  long double b = base.toReal();
-  long double e = exp.toReal();
-  long double r = ::powl(b, e);
+  long double const b = base.toReal();
+  long double const e = exp.toReal();
+  long double const r = ::powl(b, e);
   if (isOverflowReal(r)) {
     diag_.report(Severity::Warning, loc.begin(),
                  "helper '_pow' result exceeds long-double range");
@@ -165,7 +165,7 @@ PPValue HelperEvaluator::evalPow(PPValue base, PPValue exp, SourceRange loc) {
 }
 
 PPValue HelperEvaluator::evalSqrt(PPValue arg, SourceRange loc) {
-  long double v = arg.toReal();
+  long double const v = arg.toReal();
   if (v < 0) {
     diag_.report(Severity::Error, loc.begin(),
                  "helper '_sqrt' domain error: argument must be non-negative");
@@ -185,7 +185,7 @@ PPValue HelperEvaluator::evalTan(PPValue arg) {
 }
 
 PPValue HelperEvaluator::evalAsin(PPValue arg, SourceRange loc) {
-  long double v = arg.toReal();
+  long double const v = arg.toReal();
   if (v < -1.0L || v > 1.0L) {
     diag_.report(Severity::Error, loc.begin(),
                  "helper '_asin' domain error: argument must be in [-1, 1]");
@@ -195,7 +195,7 @@ PPValue HelperEvaluator::evalAsin(PPValue arg, SourceRange loc) {
 }
 
 PPValue HelperEvaluator::evalAcos(PPValue arg, SourceRange loc) {
-  long double v = arg.toReal();
+  long double const v = arg.toReal();
   if (v < -1.0L || v > 1.0L) {
     diag_.report(Severity::Error, loc.begin(),
                  "helper '_acos' domain error: argument must be in [-1, 1]");
@@ -219,7 +219,7 @@ PPValue HelperEvaluator::evalTanh(PPValue arg) {
 }
 
 PPValue HelperEvaluator::evalLog(PPValue arg, SourceRange loc) {
-  long double v = arg.toReal();
+  long double const v = arg.toReal();
   if (v <= 0.0L) {
     diag_.report(Severity::Error, loc.begin(),
                  "helper '_log' domain error: argument must be positive");
@@ -229,7 +229,7 @@ PPValue HelperEvaluator::evalLog(PPValue arg, SourceRange loc) {
 }
 
 PPValue HelperEvaluator::evalLog10(PPValue arg, SourceRange loc) {
-  long double v = arg.toReal();
+  long double const v = arg.toReal();
   if (v <= 0.0L) {
     diag_.report(Severity::Error, loc.begin(),
                  "helper '_log10' domain error: argument must be positive");
@@ -239,7 +239,7 @@ PPValue HelperEvaluator::evalLog10(PPValue arg, SourceRange loc) {
 }
 
 PPValue HelperEvaluator::evalExp(PPValue arg, SourceRange loc) {
-  long double r = ::expl(arg.toReal());
+  long double const r = ::expl(arg.toReal());
   if (isOverflowReal(r)) {
     diag_.report(Severity::Warning, loc.begin(),
                  "helper '_exp' result exceeds long-double range");
@@ -260,37 +260,37 @@ PPValue HelperEvaluator::evalRound(PPValue arg) {
 PPValue HelperEvaluator::evalAbs(PPValue arg) {
   // KIND-PRESERVING: integer in -> integer out; real in -> real out.
   if (arg.isInt()) {
-    int64_t v = arg.toInt();
+    int64_t const v = arg.toInt();
     // Guard INT64_MIN: |INT64_MIN| is not representable.
     if (v == std::numeric_limits<int64_t>::min()) {
       return PPValue(std::numeric_limits<int64_t>::max());
     }
     return PPValue(v < 0 ? -v : v);
   }
-  long double v = arg.toReal();
+  long double const v = arg.toReal();
   return PPValue(::fabsl(v));
 }
 
 PPValue HelperEvaluator::evalMin(PPValue a, PPValue b) {
   // Mixed kinds widen to real. Same kind preserves kind.
   if (a.isInt() && b.isInt()) {
-    int64_t x = a.toInt();
-    int64_t y = b.toInt();
+    int64_t const x = a.toInt();
+    int64_t const y = b.toInt();
     return PPValue(x < y ? x : y);
   }
-  long double x = a.toReal();
-  long double y = b.toReal();
+  long double const x = a.toReal();
+  long double const y = b.toReal();
   return PPValue(x < y ? x : y);
 }
 
 PPValue HelperEvaluator::evalMax(PPValue a, PPValue b) {
   if (a.isInt() && b.isInt()) {
-    int64_t x = a.toInt();
-    int64_t y = b.toInt();
+    int64_t const x = a.toInt();
+    int64_t const y = b.toInt();
     return PPValue(x > y ? x : y);
   }
-  long double x = a.toReal();
-  long double y = b.toReal();
+  long double const x = a.toReal();
+  long double const y = b.toReal();
   return PPValue(x > y ? x : y);
 }
 

@@ -162,12 +162,12 @@ FileID SourceManager::addBufferInMemory(std::string path,
 llvm::StringRef SourceManager::getBuffer(FileID f) const {
   Buffer &b = impl_->buffer(f);
   // Visible bytes exclude the NUL sentinel.
-  size_t visible = b.bytes.empty() ? 0 : b.bytes.size() - 1;
+  size_t const visible = b.bytes.empty() ? 0 : b.bytes.size() - 1;
   return {b.bytes.data(), visible};
 }
 
 llvm::StringRef SourceManager::getPath(FileID f) const {
-  Buffer &b = impl_->buffer(f);
+  Buffer const &b = impl_->buffer(f);
   return llvm::StringRef(b.path);
 }
 
@@ -175,28 +175,28 @@ std::pair<uint32_t, uint32_t>
 SourceManager::getLineCol(SourceLocation loc) const {
   Buffer &b = impl_->buffer(loc.file());
   buildLineOffsetsIfNeeded(b);
-  uint32_t off = loc.offset();
+  uint32_t const off = loc.offset();
   // Binary search: largest line_offsets[i] <= off.
   auto it = std::upper_bound(b.line_offsets.begin(), b.line_offsets.end(), off);
   // upper_bound gives the first > off; the line index is one before.
-  size_t line_idx =
+  size_t const line_idx =
       static_cast<size_t>(std::distance(b.line_offsets.begin(), it)) - 1U;
-  uint32_t line = static_cast<uint32_t>(line_idx) + 1U; // 1-based
-  uint32_t line_start = b.line_offsets[line_idx];
-  uint32_t col = off - line_start + 1U; // 1-based
+  uint32_t const line = static_cast<uint32_t>(line_idx) + 1U; // 1-based
+  uint32_t const line_start = b.line_offsets[line_idx];
+  uint32_t const col = off - line_start + 1U; // 1-based
   return {line, col};
 }
 
 llvm::StringRef SourceManager::getLine(SourceLocation loc) const {
   Buffer &b = impl_->buffer(loc.file());
   buildLineOffsetsIfNeeded(b);
-  uint32_t off = loc.offset();
+  uint32_t const off = loc.offset();
   auto it = std::upper_bound(b.line_offsets.begin(), b.line_offsets.end(), off);
-  size_t line_idx =
+  size_t const line_idx =
       static_cast<size_t>(std::distance(b.line_offsets.begin(), it)) - 1U;
-  uint32_t line_start = b.line_offsets[line_idx];
+  uint32_t const line_start = b.line_offsets[line_idx];
 
-  size_t visible = b.bytes.empty() ? 0 : b.bytes.size() - 1;
+  size_t const visible = b.bytes.empty() ? 0 : b.bytes.size() - 1;
   // End of line: next line offset minus 1 (the '\n'), or the
   // visible end of the buffer for the last line.
   size_t line_end = 0;
@@ -240,17 +240,18 @@ SourceManager::resolveVirtual(SourceLocation loc) const {
   // Subsequent physical lines map by simple offset.
   buildLineOffsetsIfNeeded(b);
   // Compute the physical line number at the directive's origin offset.
-  uint32_t origin_off = active->origin_offset;
+  uint32_t const origin_off = active->origin_offset;
   auto it = std::upper_bound(b.line_offsets.begin(), b.line_offsets.end(),
                              origin_off);
-  size_t origin_line_idx =
+  size_t const origin_line_idx =
       static_cast<size_t>(std::distance(b.line_offsets.begin(), it)) - 1U;
-  uint32_t origin_phys_line = static_cast<uint32_t>(origin_line_idx) + 1U;
+  uint32_t const origin_phys_line = static_cast<uint32_t>(origin_line_idx) + 1U;
 
-  uint32_t virt_line = active->virtual_line + (phys_line - origin_phys_line);
-  llvm::StringRef virt_path = active->virtual_path.empty()
-                                  ? llvm::StringRef(b.path)
-                                  : llvm::StringRef(active->virtual_path);
+  uint32_t const virt_line =
+      active->virtual_line + (phys_line - origin_phys_line);
+  llvm::StringRef const virt_path = active->virtual_path.empty()
+                                        ? llvm::StringRef(b.path)
+                                        : llvm::StringRef(active->virtual_path);
   return VirtualLoc{virt_path, virt_line, phys_col};
 }
 

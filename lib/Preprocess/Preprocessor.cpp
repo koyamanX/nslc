@@ -83,7 +83,7 @@ std::string joinPath(llvm::StringRef dir, llvm::StringRef name) {
 /// Extract the directory portion of a path (everything up to and
 /// including the final `/`; empty if no `/`).
 std::string dirOf(llvm::StringRef path) {
-  std::size_t slash = path.rfind('/');
+  std::size_t const slash = path.rfind('/');
   if (slash == llvm::StringRef::npos) {
     return "";
   }
@@ -113,7 +113,7 @@ void IncludeSearchPath::populateAngleFromEnv() {
   }
   llvm::StringRef rest(env);
   while (!rest.empty()) {
-    std::size_t colon = rest.find(':');
+    std::size_t const colon = rest.find(':');
     if (colon == llvm::StringRef::npos) {
       angle_paths_.push_back(rest.str());
       break;
@@ -271,8 +271,8 @@ public:
   /// last line of a file with no trailing newline).
   bool readLine(llvm::StringRef &out_line, std::size_t &out_begin,
                 std::size_t &out_end, bool &out_had_newline) {
-    Frame &f = top();
-    llvm::StringRef buf = sm.getBuffer(f.fid);
+    Frame const &f = top();
+    llvm::StringRef const buf = sm.getBuffer(f.fid);
     if (f.cursor >= buf.size()) {
       return false;
     }
@@ -281,7 +281,7 @@ public:
     while (i < buf.size() && buf[i] != '\n') {
       ++i;
     }
-    std::size_t line_end_excl_newline = i;
+    std::size_t const line_end_excl_newline = i;
     out_had_newline = (i < buf.size());
     if (i < buf.size()) {
       ++i; // include the newline in `out_end`.
@@ -305,10 +305,10 @@ public:
                   "missing identifier in '#define' directive");
       return;
     }
-    SourceRange loc(locFor(f, d.line_begin_offset),
-                    locFor(f, d.line_end_offset));
+    SourceRange const loc(locFor(f, d.line_begin_offset),
+                          locFor(f, d.line_end_offset));
     SourceRange previous_loc;
-    bool was_defined = macros.defined(d.name);
+    bool const was_defined = macros.defined(d.name);
     macros.redefine(d.name, d.body, loc, &previous_loc);
     if (was_defined && previous_loc.isValid()) {
       // Redefinition -> attach a previous-definition note.
@@ -338,7 +338,7 @@ public:
   /// `parent_suppressed` so neither this branch nor its `#else` will
   /// emit until we pop back out.
   void pushCondFrame(Frame &f, bool taken_now, SourceRange opener_loc) {
-    bool parent_suppressed = !isEmitting(f);
+    bool const parent_suppressed = !isEmitting(f);
     Frame::CondFrame cf;
     cf.parent_suppressed = parent_suppressed;
     cf.any_branch_taken = parent_suppressed ? false : taken_now;
@@ -356,20 +356,20 @@ public:
                                 locFor(f, d.line_end_offset)));
       return;
     }
-    bool defined = macros.defined(d.name);
-    bool taken = negate ? !defined : defined;
+    bool const defined = macros.defined(d.name);
+    bool const taken = negate ? !defined : defined;
     pushCondFrame(f, taken,
                   SourceRange(locFor(f, d.line_begin_offset),
                               locFor(f, d.line_end_offset)));
   }
 
   void handleIf(const ParsedDirective &d, Frame &f) {
-    SourceRange loc(locFor(f, d.line_begin_offset),
-                    locFor(f, d.line_end_offset));
+    SourceRange const loc(locFor(f, d.line_begin_offset),
+                          locFor(f, d.line_end_offset));
     // Evaluate the expression. PPExpression handles errors internally
     // (returns 0 on failure).
-    PPValue v = expr.parse(d.if_expr, locFor(f, d.line_begin_offset));
-    bool taken = v.isTruthy();
+    PPValue const v = expr.parse(d.if_expr, locFor(f, d.line_begin_offset));
+    bool const taken = v.isTruthy();
     pushCondFrame(f, taken, loc);
   }
 
@@ -428,7 +428,7 @@ public:
       }
     };
     skipWS();
-    std::size_t num_begin = i;
+    std::size_t const num_begin = i;
     while (i < expanded.size() && expanded[i] >= '0' && expanded[i] <= '9') {
       ++i;
     }
@@ -446,7 +446,7 @@ public:
     if (i < expanded.size() && expanded[i] == '"') {
       // Variant 2: a quoted filename follows.
       ++i;
-      std::size_t fb = i;
+      std::size_t const fb = i;
       while (i < expanded.size() && expanded[i] != '"') {
         ++i;
       }
@@ -527,8 +527,8 @@ public:
                   "could not open include: '" + *resolved + "'");
       return;
     }
-    FileID inner = *fid_or;
-    SourceLocation include_loc = locFor(f, d.line_begin_offset);
+    FileID const inner = *fid_or;
+    SourceLocation const include_loc = locFor(f, d.line_begin_offset);
     sm.pushIncludeFrame(include_loc, inner);
 
     Frame inner_frame;
@@ -570,15 +570,15 @@ public:
       if (!readLine(line, line_begin, line_end, had_newline)) {
         // EOF on this frame. Pop. Then, if we still have a parent,
         // re-establish its #line.
-        bool unterminated_if = !f.cond_stack.empty();
+        bool const unterminated_if = !f.cond_stack.empty();
         if (unterminated_if) {
           for (const auto &cf : f.cond_stack) {
             diag.report(Severity::Error, cf.opener_loc.begin(),
                         "unterminated #if at end of file");
           }
         }
-        FileID popped_fid = f.fid;
-        bool was_root = (include_stack.size() == 1);
+        FileID const popped_fid = f.fid;
+        bool const was_root = (include_stack.size() == 1);
         include_stack.pop_back();
         if (!was_root) {
           // Pop the SourceManager's include frame too.
@@ -586,7 +586,7 @@ public:
           // Re-establish the outer file's location: emit a `#line`
           // directive with the OUTER frame's CURRENT physical line.
           if (!include_stack.empty()) {
-            Frame &outer = top();
+            Frame const &outer = top();
             emitLineForFrame(outer);
           }
         }
@@ -597,11 +597,12 @@ public:
       // We have a line. Advance cursor BEFORE classifying so any
       // recursion into included files starts cleanly.
       f.cursor = line_end;
-      std::size_t this_line_phys = f.physical_line;
+      std::size_t const this_line_phys = f.physical_line;
       ++f.physical_line;
 
-      ParsedDirective pd = classifyLine(line, static_cast<uint32_t>(line_begin),
-                                        static_cast<uint32_t>(line_end));
+      ParsedDirective const pd =
+          classifyLine(line, static_cast<uint32_t>(line_begin),
+                       static_cast<uint32_t>(line_end));
 
       // Conditional gating: directives ALWAYS run (we need #else /
       // #endif even inside a suppressed branch); passthrough lines
@@ -625,7 +626,7 @@ public:
           output += term;
           break;
         }
-        std::string spliced =
+        std::string const spliced =
             splicer.splice(line, locFor(f, static_cast<uint32_t>(line_begin)));
         // P12 boundary check: the helper-evaluator shouldn't be
         // reachable on passthrough lines (per P6 helpers are only
@@ -726,11 +727,11 @@ public:
     };
     std::size_t i = 0;
     while (i < text.size()) {
-      char c = text[i];
+      char const c = text[i];
       if (c == '"') {
         ++i;
         while (i < text.size()) {
-          char d = text[i];
+          char const d = text[i];
           if (d == '\\' && i + 1 < text.size()) {
             i += 2;
             continue;
@@ -760,12 +761,12 @@ public:
       }
       if (c == '_' && (i == 0 || !isIdentBody(text[i - 1]))) {
         // Possible helper. Read the identifier.
-        std::size_t b = i;
+        std::size_t const b = i;
         ++i;
         while (i < text.size() && isIdentBody(text[i])) {
           ++i;
         }
-        llvm::StringRef name = text.substr(b, i - b);
+        llvm::StringRef const name = text.substr(b, i - b);
         // Skip whitespace and check for `(`.
         std::size_t j = i;
         while (j < text.size() && (text[j] == ' ' || text[j] == '\t')) {
@@ -799,11 +800,11 @@ public:
     };
     std::size_t i = 0;
     while (i < text.size()) {
-      char c = text[i];
+      char const c = text[i];
       if (c == '"') {
         ++i;
         while (i < text.size()) {
-          char d = text[i];
+          char const d = text[i];
           if (d == '\\' && i + 1 < text.size()) {
             i += 2;
             continue;
@@ -836,7 +837,7 @@ public:
       // expressions). The pattern `<digits>.<digits>` or `<digits>e+-?<digits>`
       // is the seam violation we hunt for.
       if (isDigit(c) && (i == 0 || !isIdentBody(text[i - 1]))) {
-        std::size_t b = i;
+        std::size_t const b = i;
         bool is_float = false;
         while (i < text.size() && isDigit(text[i])) {
           ++i;
@@ -889,7 +890,7 @@ Preprocessor::Preprocessor(
 Preprocessor::~Preprocessor() = default;
 
 llvm::ErrorOr<std::string> Preprocessor::run(FileID input_fid) {
-  bool ok = impl_->runFile(input_fid);
+  bool const ok = impl_->runFile(input_fid);
   if (!ok) {
     return std::make_error_code(std::errc::invalid_argument);
   }

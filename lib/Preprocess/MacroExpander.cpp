@@ -65,7 +65,7 @@ std::size_t scanIdentEnd(llvm::StringRef text, std::size_t off) {
 std::size_t scanStringEnd(llvm::StringRef text, std::size_t off) {
   std::size_t i = off + 1;
   while (i < text.size()) {
-    char c = text[i];
+    char const c = text[i];
     if (c == '\\' && i + 1 < text.size()) {
       i += 2;
       continue;
@@ -94,11 +94,11 @@ std::string MacroExpander::expandImpl(llvm::StringRef text, SourceRange use_loc,
 
   std::size_t i = 0;
   while (i < text.size()) {
-    char c = text[i];
+    char const c = text[i];
 
     // Skip string literals verbatim.
     if (c == '"') {
-      std::size_t end = scanStringEnd(text, i);
+      std::size_t const end = scanStringEnd(text, i);
       out.append(text.data() + i, end - i);
       i = end;
       continue;
@@ -117,15 +117,15 @@ std::string MacroExpander::expandImpl(llvm::StringRef text, SourceRange use_loc,
     // (no identifier or no closing `%`) is passed through so the
     // expression parser can use it as the modulo operator.
     if (c == '%') {
-      std::size_t j = i + 1;
+      std::size_t const j = i + 1;
       if (j < text.size() && isIdentStart(text[j])) {
         std::size_t name_end = j + 1;
         while (name_end < text.size() && isIdentChar(text[name_end])) {
           ++name_end;
         }
         if (name_end < text.size() && text[name_end] == '%') {
-          llvm::StringRef name = text.substr(j, name_end - j);
-          std::size_t end = name_end + 1;
+          llvm::StringRef const name = text.substr(j, name_end - j);
+          std::size_t const end = name_end + 1;
           const MacroDef *def = macros_.lookup(name);
           if (def != nullptr) {
             if (depth >= kMaxExpansionDepth) {
@@ -136,7 +136,8 @@ std::string MacroExpander::expandImpl(llvm::StringRef text, SourceRange use_loc,
               i = end;
               continue;
             }
-            std::string substituted = expandImpl(def->body, use_loc, depth + 1);
+            std::string const substituted =
+                expandImpl(def->body, use_loc, depth + 1);
             out.append(substituted);
             i = end;
             continue;
@@ -157,8 +158,8 @@ std::string MacroExpander::expandImpl(llvm::StringRef text, SourceRange use_loc,
 
     // Identifier?
     if (isIdentStart(c)) {
-      std::size_t end = scanIdentEnd(text, i);
-      llvm::StringRef ident = text.substr(i, end - i);
+      std::size_t const end = scanIdentEnd(text, i);
+      llvm::StringRef const ident = text.substr(i, end - i);
       const MacroDef *def = macros_.lookup(ident);
       if (def != nullptr) {
         // Recursive expansion: substitute body and re-scan the
@@ -174,7 +175,8 @@ std::string MacroExpander::expandImpl(llvm::StringRef text, SourceRange use_loc,
           i = end;
           continue;
         }
-        std::string substituted = expandImpl(def->body, use_loc, depth + 1);
+        std::string const substituted =
+            expandImpl(def->body, use_loc, depth + 1);
         out.append(substituted);
         i = end;
         continue;

@@ -77,8 +77,8 @@ namespace {
 // the `defining_loc` field has a valid value without the test
 // having to mock a file.
 SourceRange syntheticRange(SourceManager &sm, FileID f) {
-  SourceLocation b = SourceLocation::make(f, 0);
-  SourceLocation e = SourceLocation::make(f, 1);
+  SourceLocation const b = SourceLocation::make(f, 0);
+  SourceLocation const e = SourceLocation::make(f, 1);
   return {b, e};
 }
 
@@ -95,8 +95,8 @@ FileID makeBuf(SourceManager &sm) {
 
 TEST(MacroTableTest, InsertionOrderIsPreservedAcrossThreeAdds) {
   SourceManager sm;
-  DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  DiagnosticEngine const diag(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
 
   mt.insert("A", "1", syntheticRange(sm, f));
@@ -118,8 +118,8 @@ TEST(MacroTableTest, InsertionOrderSurvivesPathologicalNames) {
   // unpredictably (the canonical FR-039 trap). Insertion-ordered
   // iteration MUST report ZZZ first, AAA last.
   SourceManager sm;
-  DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  DiagnosticEngine const diag(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
 
   mt.insert("ZZZ", "1", syntheticRange(sm, f));
@@ -142,8 +142,8 @@ TEST(MacroTableTest, InsertionOrderSurvivesPathologicalNames) {
 
 TEST(MacroTableTest, UndefRemovesEntry) {
   SourceManager sm;
-  DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  DiagnosticEngine const diag(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
 
   mt.insert("A", "1", syntheticRange(sm, f));
@@ -159,8 +159,8 @@ TEST(MacroTableTest, UndefRemovesEntry) {
 
 TEST(MacroTableTest, UndefPreservesSurvivorOrder) {
   SourceManager sm;
-  DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  DiagnosticEngine const diag(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
 
   mt.insert("A", "1", syntheticRange(sm, f));
@@ -183,8 +183,8 @@ TEST(MacroTableTest, UndefPreservesSurvivorOrder) {
 
 TEST(MacroTableTest, UndefOfMissingNameIsNoOp) {
   SourceManager sm;
-  DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  DiagnosticEngine const diag(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
 
   mt.insert("A", "1", syntheticRange(sm, f));
@@ -199,8 +199,8 @@ TEST(MacroTableTest, UndefOfMissingNameIsNoOp) {
 
 TEST(MacroTableTest, RedefinitionReplacesBody) {
   SourceManager sm;
-  DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  DiagnosticEngine const diag(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
 
   mt.insert("X", "OLD_BODY", syntheticRange(sm, f));
@@ -217,8 +217,8 @@ TEST(MacroTableTest, RedefinitionReplacesBody) {
 
 TEST(MacroTableTest, RedefinitionEmitsPreviousDefinitionNote) {
   SourceManager sm;
-  DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  DiagnosticEngine const diag(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
 
   mt.insert("X", "OLD", syntheticRange(sm, f));
@@ -237,8 +237,8 @@ TEST(MacroTableTest, RedefinitionPreservesInsertionOrder) {
   // Redefinition replaces the entry IN PLACE — its insertion-order
   // position does NOT change.
   SourceManager sm;
-  DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  DiagnosticEngine const diag(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
 
   mt.insert("A", "1", syntheticRange(sm, f));
@@ -274,8 +274,8 @@ TEST(MacroTableTest, RedefinitionPreservesInsertionOrder) {
 
 TEST(MacroTableTest, PredefinedMacrosLandFirstInOrder) {
   SourceManager sm;
-  DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  DiagnosticEngine const diag(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
 
   // Step 1: simulate driver applying -D flags in order.
@@ -304,8 +304,8 @@ TEST(MacroTableTest, PredefinedMacrosLandFirstInOrder) {
 
 TEST(MacroTableTest, LookupRejectsPrefixOnlyMatch) {
   SourceManager sm;
-  DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  DiagnosticEngine const diag(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
 
   mt.insert("FOO", "1", syntheticRange(sm, f));

@@ -46,14 +46,14 @@ std::string render(DiagnosticEngine &diag, DiagnosticEngine::Format fmt) {
 
 TEST(DiagnosticEngineTextTest, EmitsCanonicalFormat) {
   SourceManager sm;
-  FileID fid = sm.addBufferInMemory("a.nsl", bytesOf("abc\ndef\n"));
+  FileID const fid = sm.addBufferInMemory("a.nsl", bytesOf("abc\ndef\n"));
   DiagnosticEngine diag(sm);
   diag.report(Severity::Error, SourceLocation::make(fid, 4),
               "unterminated string literal");
 
-  std::string out = render(diag, DiagnosticEngine::Format::Text);
+  std::string const out = render(diag, DiagnosticEngine::Format::Text);
   // FR-025 / SC-004: every diagnostic line MUST match the regex.
-  std::regex line_regex("^[^:]+:\\d+:\\d+: (error|warning|note): .+$");
+  std::regex const line_regex("^[^:]+:\\d+:\\d+: (error|warning|note): .+$");
 
   // Split on newlines and check the first line of the first diagnostic.
   std::istringstream lines(out);
@@ -69,13 +69,13 @@ TEST(DiagnosticEngineTextTest, EmitsCanonicalFormat) {
 
 TEST(DiagnosticEngineTextTest, SeverityRenderedLowercase) {
   SourceManager sm;
-  FileID fid = sm.addBufferInMemory("x.nsl", bytesOf("hello"));
+  FileID const fid = sm.addBufferInMemory("x.nsl", bytesOf("hello"));
   DiagnosticEngine diag(sm);
   diag.report(Severity::Warning, SourceLocation::make(fid, 0), "wrn-msg");
   diag.report(Severity::Note, SourceLocation::make(fid, 1), "note-msg");
   diag.report(Severity::Error, SourceLocation::make(fid, 2), "err-msg");
 
-  std::string out = render(diag, DiagnosticEngine::Format::Text);
+  std::string const out = render(diag, DiagnosticEngine::Format::Text);
   EXPECT_NE(out.find(" warning: "), std::string::npos);
   EXPECT_NE(out.find(" note: "), std::string::npos);
   EXPECT_NE(out.find(" error: "), std::string::npos);
@@ -86,7 +86,7 @@ TEST(DiagnosticEngineTextTest, SeverityRenderedLowercase) {
 
 TEST(DiagnosticEngineTextTest, NumErrorsAndWarningsCount) {
   SourceManager sm;
-  FileID fid = sm.addBufferInMemory("c.nsl", bytesOf("abcdef"));
+  FileID const fid = sm.addBufferInMemory("c.nsl", bytesOf("abcdef"));
   DiagnosticEngine diag(sm);
   EXPECT_EQ(diag.numErrors(), 0U);
   EXPECT_EQ(diag.numWarnings(), 0U);
@@ -103,7 +103,7 @@ TEST(DiagnosticEngineTextTest, NumErrorsAndWarningsCount) {
 
 TEST(DiagnosticEngineTextTest, ClearResetsBuffer) {
   SourceManager sm;
-  FileID fid = sm.addBufferInMemory("c.nsl", bytesOf("abc"));
+  FileID const fid = sm.addBufferInMemory("c.nsl", bytesOf("abc"));
   DiagnosticEngine diag(sm);
   diag.report(Severity::Error, SourceLocation::make(fid, 0), "x");
   EXPECT_EQ(diag.numErrors(), 1U);
@@ -115,15 +115,15 @@ TEST(DiagnosticEngineTextTest, ClearResetsBuffer) {
 
 TEST(DiagnosticEngineTextTest, AllRenderedLinesMatchRegex) {
   SourceManager sm;
-  FileID fid = sm.addBufferInMemory("multi.nsl",
-                                    bytesOf("line1\nline2\nline3\nline4\n"));
+  FileID const fid = sm.addBufferInMemory(
+      "multi.nsl", bytesOf("line1\nline2\nline3\nline4\n"));
   DiagnosticEngine diag(sm);
   diag.report(Severity::Error, SourceLocation::make(fid, 0), "e1");
   diag.report(Severity::Warning, SourceLocation::make(fid, 6), "w1");
   diag.report(Severity::Note, SourceLocation::make(fid, 12), "n1");
 
-  std::string out = render(diag, DiagnosticEngine::Format::Text);
-  std::regex line_regex("^[^:]+:\\d+:\\d+: (error|warning|note): .+$");
+  std::string const out = render(diag, DiagnosticEngine::Format::Text);
+  std::regex const line_regex("^[^:]+:\\d+:\\d+: (error|warning|note): .+$");
 
   // Walk every line that begins a diagnostic (starts with the path);
   // skip trailing context lines (source-line + caret) which are not

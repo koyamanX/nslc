@@ -85,8 +85,8 @@ FileID makeBuf(SourceManager &sm) {
 }
 
 nsl::SourceRange syntheticLoc(SourceManager &sm, FileID f) {
-  SourceLocation b = SourceLocation::make(f, 0);
-  SourceLocation e = SourceLocation::make(f, 1);
+  SourceLocation const b = SourceLocation::make(f, 0);
+  SourceLocation const e = SourceLocation::make(f, 1);
   return {b, e};
 }
 
@@ -122,8 +122,8 @@ bool hasError(const DiagnosticEngine &diag, llvm::StringRef needle) {
     return ::testing::AssertionFailure()
            << "expected real-valued PPValue; got integer " << got.toInt();
   }
-  long double g = got.toReal();
-  long double diff = fabsl(g - want);
+  long double const g = got.toReal();
+  long double const diff = fabsl(g - want);
   if (diff > eps) {
     return ::testing::AssertionFailure()
            << "real value " << static_cast<double>(g) << " differs from "
@@ -140,15 +140,15 @@ bool hasError(const DiagnosticEngine &diag, llvm::StringRef needle) {
 TEST(HelperEvaluatorTest, IntCoercesRealToInteger_TruncTowardZero) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r1 = h.invoke("_int", {R(2.7L)}, syntheticLoc(sm, f));
+  PPValue const r1 = h.invoke("_int", {R(2.7L)}, syntheticLoc(sm, f));
   ASSERT_TRUE(r1.isInt());
   EXPECT_EQ(r1.toInt(), 2);
 
   // Negative — truncate TOWARD ZERO, not floor.
-  PPValue r2 = h.invoke("_int", {R(-2.7L)}, syntheticLoc(sm, f));
+  PPValue const r2 = h.invoke("_int", {R(-2.7L)}, syntheticLoc(sm, f));
   ASSERT_TRUE(r2.isInt());
   EXPECT_EQ(r2.toInt(), -2);
 }
@@ -156,10 +156,10 @@ TEST(HelperEvaluatorTest, IntCoercesRealToInteger_TruncTowardZero) {
 TEST(HelperEvaluatorTest, IntPassesIntegerThrough) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_int", {I(42)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_int", {I(42)}, syntheticLoc(sm, f));
   ASSERT_TRUE(r.isInt());
   EXPECT_EQ(r.toInt(), 42);
 }
@@ -167,10 +167,10 @@ TEST(HelperEvaluatorTest, IntPassesIntegerThrough) {
 TEST(HelperEvaluatorTest, RealWidensIntegerToReal) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_real", {I(3)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_real", {I(3)}, syntheticLoc(sm, f));
   ASSERT_TRUE(r.isReal());
   EXPECT_EQ(r.toReal(), 3.0L);
 }
@@ -178,10 +178,10 @@ TEST(HelperEvaluatorTest, RealWidensIntegerToReal) {
 TEST(HelperEvaluatorTest, RealPassesRealThrough) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_real", {R(2.5L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_real", {R(2.5L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 2.5L));
 }
 
@@ -192,40 +192,40 @@ TEST(HelperEvaluatorTest, RealPassesRealThrough) {
 TEST(HelperEvaluatorTest, PowBasic) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_pow", {R(2.0L), R(8.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_pow", {R(2.0L), R(8.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 256.0L));
 }
 
 TEST(HelperEvaluatorTest, PowIntegerArgsWiden) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_pow", {I(2), I(8)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_pow", {I(2), I(8)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 256.0L));
 }
 
 TEST(HelperEvaluatorTest, SqrtBasic) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_sqrt", {R(16.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_sqrt", {R(16.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 4.0L));
 }
 
 TEST(HelperEvaluatorTest, SqrtNegativeIsDomainError_FailsoftZero) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_sqrt", {R(-1.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_sqrt", {R(-1.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(hasError(diag, "domain error"))
       << "_sqrt(-1) should emit a domain-error diagnostic";
   // Failsoft path returns integer 0 per research §10.
@@ -240,30 +240,30 @@ TEST(HelperEvaluatorTest, SqrtNegativeIsDomainError_FailsoftZero) {
 TEST(HelperEvaluatorTest, SinZero) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_sin", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_sin", {R(0.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 0.0L));
 }
 
 TEST(HelperEvaluatorTest, CosZero) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_cos", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_cos", {R(0.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 1.0L));
 }
 
 TEST(HelperEvaluatorTest, TanZero) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_tan", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_tan", {R(0.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 0.0L));
 }
 
@@ -274,20 +274,20 @@ TEST(HelperEvaluatorTest, TanZero) {
 TEST(HelperEvaluatorTest, AsinZero) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_asin", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_asin", {R(0.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 0.0L));
 }
 
 TEST(HelperEvaluatorTest, AsinOutOfRangeIsDomainError_FailsoftZero) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_asin", {R(2.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_asin", {R(2.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(hasError(diag, "domain error"))
       << "_asin(2) should emit a domain-error diagnostic";
   ASSERT_TRUE(r.isInt());
@@ -297,20 +297,20 @@ TEST(HelperEvaluatorTest, AsinOutOfRangeIsDomainError_FailsoftZero) {
 TEST(HelperEvaluatorTest, AcosOne) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_acos", {R(1.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_acos", {R(1.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 0.0L));
 }
 
 TEST(HelperEvaluatorTest, AcosOutOfRangeIsDomainError_FailsoftZero) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_acos", {R(-2.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_acos", {R(-2.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(hasError(diag, "domain error"));
   ASSERT_TRUE(r.isInt());
   EXPECT_EQ(r.toInt(), 0);
@@ -319,10 +319,10 @@ TEST(HelperEvaluatorTest, AcosOutOfRangeIsDomainError_FailsoftZero) {
 TEST(HelperEvaluatorTest, AtanZero) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_atan", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_atan", {R(0.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 0.0L));
 }
 
@@ -333,30 +333,30 @@ TEST(HelperEvaluatorTest, AtanZero) {
 TEST(HelperEvaluatorTest, SinhZero) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_sinh", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_sinh", {R(0.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 0.0L));
 }
 
 TEST(HelperEvaluatorTest, CoshZero) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_cosh", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_cosh", {R(0.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 1.0L));
 }
 
 TEST(HelperEvaluatorTest, TanhZero) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_tanh", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_tanh", {R(0.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 0.0L));
 }
 
@@ -367,20 +367,20 @@ TEST(HelperEvaluatorTest, TanhZero) {
 TEST(HelperEvaluatorTest, LogOneIsZero) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_log", {R(1.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_log", {R(1.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 0.0L));
 }
 
 TEST(HelperEvaluatorTest, LogZeroIsDomainError_FailsoftZero) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_log", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_log", {R(0.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(hasError(diag, "domain error"))
       << "_log(0) should emit a domain-error diagnostic";
   ASSERT_TRUE(r.isInt());
@@ -390,10 +390,10 @@ TEST(HelperEvaluatorTest, LogZeroIsDomainError_FailsoftZero) {
 TEST(HelperEvaluatorTest, LogNegativeIsDomainError_FailsoftZero) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_log", {R(-1.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_log", {R(-1.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(hasError(diag, "domain error"));
   ASSERT_TRUE(r.isInt());
   EXPECT_EQ(r.toInt(), 0);
@@ -402,20 +402,20 @@ TEST(HelperEvaluatorTest, LogNegativeIsDomainError_FailsoftZero) {
 TEST(HelperEvaluatorTest, Log10TenIsOne) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_log10", {R(10.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_log10", {R(10.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 1.0L));
 }
 
 TEST(HelperEvaluatorTest, Log10ZeroIsDomainError_FailsoftZero) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_log10", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_log10", {R(0.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(hasError(diag, "domain error"));
   ASSERT_TRUE(r.isInt());
   EXPECT_EQ(r.toInt(), 0);
@@ -424,10 +424,10 @@ TEST(HelperEvaluatorTest, Log10ZeroIsDomainError_FailsoftZero) {
 TEST(HelperEvaluatorTest, ExpZero) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_exp", {R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_exp", {R(0.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 1.0L));
 }
 
@@ -438,50 +438,50 @@ TEST(HelperEvaluatorTest, ExpZero) {
 TEST(HelperEvaluatorTest, FloorPositiveFractional) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_floor", {R(2.7L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_floor", {R(2.7L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 2.0L));
 }
 
 TEST(HelperEvaluatorTest, FloorNegativeFractional) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_floor", {R(-2.3L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_floor", {R(-2.3L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, -3.0L));
 }
 
 TEST(HelperEvaluatorTest, CeilPositiveFractional) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_ceil", {R(2.3L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_ceil", {R(2.3L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 3.0L));
 }
 
 TEST(HelperEvaluatorTest, CeilNegativeFractional) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_ceil", {R(-2.7L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_ceil", {R(-2.7L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, -2.0L));
 }
 
 TEST(HelperEvaluatorTest, RoundHalfPositive) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_round", {R(0.5L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_round", {R(0.5L)}, syntheticLoc(sm, f));
   // std::roundl(0.5) is 1.0 (away-from-zero on .5).
   EXPECT_TRUE(NearReal(r, 1.0L));
 }
@@ -496,10 +496,10 @@ TEST(HelperEvaluatorTest, RoundHalfPositive) {
 TEST(HelperEvaluatorTest, AbsIntegerStaysInteger) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_abs", {I(-3)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_abs", {I(-3)}, syntheticLoc(sm, f));
   ASSERT_TRUE(r.isInt());
   EXPECT_EQ(r.toInt(), 3);
 }
@@ -507,20 +507,20 @@ TEST(HelperEvaluatorTest, AbsIntegerStaysInteger) {
 TEST(HelperEvaluatorTest, AbsRealStaysReal) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_abs", {R(-2.5L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_abs", {R(-2.5L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 2.5L));
 }
 
 TEST(HelperEvaluatorTest, MinTwoIntegersStaysInteger) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_min", {I(3), I(5)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_min", {I(3), I(5)}, syntheticLoc(sm, f));
   ASSERT_TRUE(r.isInt());
   EXPECT_EQ(r.toInt(), 3);
 }
@@ -528,10 +528,10 @@ TEST(HelperEvaluatorTest, MinTwoIntegersStaysInteger) {
 TEST(HelperEvaluatorTest, MaxTwoIntegersStaysInteger) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_max", {I(3), I(5)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_max", {I(3), I(5)}, syntheticLoc(sm, f));
   ASSERT_TRUE(r.isInt());
   EXPECT_EQ(r.toInt(), 5);
 }
@@ -540,30 +540,30 @@ TEST(HelperEvaluatorTest, MinMixedKindWidensToReal) {
   // Mixed integer + real → result is real per research §5.
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_min", {I(3), R(2.5L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_min", {I(3), R(2.5L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 2.5L));
 }
 
 TEST(HelperEvaluatorTest, MaxMixedKindWidensToReal) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_max", {I(3), R(2.5L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_max", {I(3), R(2.5L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 3.0L));
 }
 
 TEST(HelperEvaluatorTest, MinTwoRealsStaysReal) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
-  PPValue r = h.invoke("_min", {R(1.5L), R(0.5L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_min", {R(1.5L), R(0.5L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(NearReal(r, 0.5L));
 }
 
@@ -586,11 +586,11 @@ TEST(HelperEvaluatorTest, MinTwoRealsStaysReal) {
 TEST(HelperEvaluatorTest, DISABLED_ArityMismatch_Min_TooFew) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
   // _min has arity 2; calling with one arg is an arity error.
-  PPValue r = h.invoke("_min", {I(1)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_min", {I(1)}, syntheticLoc(sm, f));
   EXPECT_TRUE(hasError(diag, "expects"))
       << "_min(1) should emit an arity-mismatch diagnostic";
   // The result on arity error is unspecified; we just ensure
@@ -601,11 +601,11 @@ TEST(HelperEvaluatorTest, DISABLED_ArityMismatch_Min_TooFew) {
 TEST(HelperEvaluatorTest, DISABLED_ArityMismatch_Sin_TooMany) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
   // _sin has arity 1; calling with two args is an arity error.
-  PPValue r = h.invoke("_sin", {R(0.0L), R(0.0L)}, syntheticLoc(sm, f));
+  PPValue const r = h.invoke("_sin", {R(0.0L), R(0.0L)}, syntheticLoc(sm, f));
   EXPECT_TRUE(hasError(diag, "expects"))
       << "_sin(0,0) should emit an arity-mismatch diagnostic";
   (void)r;
@@ -625,7 +625,7 @@ TEST(HelperEvaluatorTest, DISABLED_ArityMismatch_Sin_TooMany) {
 TEST(HelperEvaluatorTest, EveryDefEntryIsRecognized) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   HelperEvaluator h(diag);
 
   // Domain-safe args per group:

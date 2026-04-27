@@ -47,11 +47,11 @@ TEST(IncludeStackTest, NotesAppendedInInnermostFirstOrder) {
   SourceManager sm;
   // Outer.nsl line 1 has `#include "middle.nsl"` at column 1; the
   // include directive's location is offset 0 of outer.nsl.
-  FileID outer =
+  FileID const outer =
       sm.addBufferInMemory("outer.nsl", bytesOf("#include \"middle.nsl\"\n"));
-  FileID middle =
+  FileID const middle =
       sm.addBufferInMemory("middle.nsl", bytesOf("#include \"inner.nsl\"\n"));
-  FileID inner =
+  FileID const inner =
       sm.addBufferInMemory("inner.nsl", bytesOf("aaaa\nbbbb\ncccc\n"));
 
   // Push include frames as the preprocessor would.
@@ -65,7 +65,7 @@ TEST(IncludeStackTest, NotesAppendedInInnermostFirstOrder) {
               "unterminated string literal")
       .addIncludedFromNotes();
 
-  std::string out = render(diag, DiagnosticEngine::Format::Text);
+  std::string const out = render(diag, DiagnosticEngine::Format::Text);
 
   // The first diagnostic line cites inner.nsl:2:1 (offset 5 = line 2).
   EXPECT_NE(out.find("inner.nsl:2:1: error: unterminated string literal"),
@@ -73,8 +73,8 @@ TEST(IncludeStackTest, NotesAppendedInInnermostFirstOrder) {
       << out;
 
   // Two trailing notes, innermost first.
-  size_t note_middle = out.find("note: included from middle.nsl:1:1");
-  size_t note_outer = out.find("note: included from outer.nsl:1:1");
+  size_t const note_middle = out.find("note: included from middle.nsl:1:1");
+  size_t const note_outer = out.find("note: included from outer.nsl:1:1");
   ASSERT_NE(note_middle, std::string::npos) << out;
   ASSERT_NE(note_outer, std::string::npos) << out;
   EXPECT_LT(note_middle, note_outer);
@@ -82,29 +82,29 @@ TEST(IncludeStackTest, NotesAppendedInInnermostFirstOrder) {
 
 TEST(IncludeStackTest, NoNotesWhenStackEmpty) {
   SourceManager sm;
-  FileID f = sm.addBufferInMemory("solo.nsl", bytesOf("alpha\n"));
+  FileID const f = sm.addBufferInMemory("solo.nsl", bytesOf("alpha\n"));
   DiagnosticEngine diag(sm);
   diag.report(Severity::Error, SourceLocation::make(f, 0), "boom")
       .addIncludedFromNotes();
 
-  std::string out = render(diag, DiagnosticEngine::Format::Text);
+  std::string const out = render(diag, DiagnosticEngine::Format::Text);
   EXPECT_EQ(out.find("note: included from"), std::string::npos);
 }
 
 TEST(IncludeStackTest, NotesPropagateToJsonOutput) {
   SourceManager sm;
-  FileID outer = sm.addBufferInMemory("outer.nsl", bytesOf("xxxx\n"));
-  FileID inner = sm.addBufferInMemory("inner.nsl", bytesOf("yyy"));
+  FileID const outer = sm.addBufferInMemory("outer.nsl", bytesOf("xxxx\n"));
+  FileID const inner = sm.addBufferInMemory("inner.nsl", bytesOf("yyy"));
   sm.pushIncludeFrame(SourceLocation::make(outer, 0), inner);
 
   DiagnosticEngine diag(sm);
   diag.report(Severity::Error, SourceLocation::make(inner, 0), "err")
       .addIncludedFromNotes();
 
-  std::string out = render(diag, DiagnosticEngine::Format::JSON);
+  std::string const out = render(diag, DiagnosticEngine::Format::JSON);
   // The smoke test expects two NDJSON lines (the error + one note).
   size_t newline_count = 0;
-  for (char c : out) {
+  for (char const c : out) {
     if (c == '\n') {
       ++newline_count;
     }

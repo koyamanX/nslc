@@ -111,7 +111,7 @@ public:
   /// Maintains `at_line_start` across newlines.
   void skipWhitespaceAndComments() {
     while (cur < buf.size()) {
-      char c = buf[cur];
+      char const c = buf[cur];
       if (c == '\n') {
         ++cur;
         at_line_start = true;
@@ -122,7 +122,7 @@ public:
         continue;
       }
       if (c == '/' && cur + 1 < buf.size()) {
-        char n = buf[cur + 1];
+        char const n = buf[cur + 1];
         if (n == '/') {
           // Line comment: consume up to (not including) the '\n'.
           cur += 2;
@@ -159,13 +159,13 @@ public:
   /// Scan an identifier or keyword starting at `cur` (caller has
   /// confirmed `isIdentStart(buf[cur])` or `buf[cur] == '_'`).
   Token scanIdentifierOrKeyword() {
-    uint32_t begin = cur;
-    bool starts_with_underscore = (buf[cur] == '_');
+    uint32_t const begin = cur;
+    bool const starts_with_underscore = (buf[cur] == '_');
     ++cur;
     while (cur < buf.size() && isIdentBody(buf[cur])) {
       ++cur;
     }
-    llvm::StringRef text = buf.substr(begin, cur - begin);
+    llvm::StringRef const text = buf.substr(begin, cur - begin);
     TokenKind kind;
     if (starts_with_underscore) {
       kind = classifyUnderscoreName(text);
@@ -180,13 +180,13 @@ public:
   /// `\t`, `\r`, `\\`, `\"`, `\0`). Newlines inside the literal are
   /// not permitted (they trigger the unterminated diagnostic).
   Token scanString() {
-    uint32_t begin = cur;
+    uint32_t const begin = cur;
     ++cur; // consume opening `"`
     while (cur < buf.size()) {
-      char c = buf[cur];
+      char const c = buf[cur];
       if (c == '"') {
         ++cur;
-        llvm::StringRef text = buf.substr(begin, cur - begin);
+        llvm::StringRef const text = buf.substr(begin, cur - begin);
         return {TokenKind::tk_string_lit, makeRange(begin, cur), text};
       }
       if (c == '\n') {
@@ -195,7 +195,7 @@ public:
         // message text.
         diag.report(Severity::Error, SourceLocation::make(fid, begin),
                     "unterminated string literal");
-        llvm::StringRef text = buf.substr(begin, cur - begin);
+        llvm::StringRef const text = buf.substr(begin, cur - begin);
         return {TokenKind::tk_unknown, makeRange(begin, cur), text};
       }
       if (c == '\\' && cur + 1 < buf.size()) {
@@ -211,7 +211,7 @@ public:
     // Hit EOF without finding closing quote.
     diag.report(Severity::Error, SourceLocation::make(fid, begin),
                 "unterminated string literal");
-    llvm::StringRef text = buf.substr(begin, cur - begin);
+    llvm::StringRef const text = buf.substr(begin, cur - begin);
     return {TokenKind::tk_unknown, makeRange(begin, cur), text};
   }
 
@@ -222,19 +222,19 @@ public:
   /// (but not including) the next newline; the inner content is
   /// preserved for the M2 parser to re-parse.
   Token scanLineDirective() {
-    uint32_t begin = cur;
+    uint32_t const begin = cur;
     while (cur < buf.size() && buf[cur] != '\n') {
       ++cur;
     }
-    llvm::StringRef text = buf.substr(begin, cur - begin);
+    llvm::StringRef const text = buf.substr(begin, cur - begin);
     return {TokenKind::tk_line_directive, makeRange(begin, cur), text};
   }
 
   /// Scan a numeric literal starting at `cur`. Delegates to the
   /// pure-function `scanNumber` recognizer.
   Token scanNumberToken() {
-    uint32_t begin = cur;
-    detail::NumberScanResult r = detail::scanNumber(buf, cur);
+    uint32_t const begin = cur;
+    detail::NumberScanResult const r = detail::scanNumber(buf, cur);
     if (r.end == begin) {
       // Defensive: should not happen given caller pre-check, but if
       // it does, advance one byte and emit `tk_unknown` rather than
@@ -253,8 +253,8 @@ public:
   /// what should be a punctuation token.
   Token scanPunctuation() {
     uint32_t begin = cur;
-    char c = buf[cur];
-    char n = (cur + 1 < buf.size()) ? buf[cur + 1] : '\0';
+    char const c = buf[cur];
+    char const n = (cur + 1 < buf.size()) ? buf[cur + 1] : '\0';
 
     // Two-char operators first to win precedence.
     auto emit2 = [&](TokenKind k) -> Token {
@@ -392,7 +392,7 @@ public:
       // Match `#line` literally: cur..cur+4 == "#line", cur+5 is space.
       if (cur + 5 < buf.size() && buf.substr(cur + 1, 4) == "line" &&
           (buf[cur + 5] == ' ' || buf[cur + 5] == '\t')) {
-        uint32_t look = peekPastSpaces(cur + 5);
+        uint32_t const look = peekPastSpaces(cur + 5);
         if (look < buf.size() && isDecDigit(buf[look])) {
           Token t = scanLineDirective();
           // The directive consumed up to (not including) '\n'; the
@@ -409,7 +409,7 @@ public:
     // the flag for the rest of the line.
     at_line_start = false;
 
-    char c = buf[cur];
+    char const c = buf[cur];
     if (isIdentStart(c) || c == '_') {
       return scanIdentifierOrKeyword();
     }

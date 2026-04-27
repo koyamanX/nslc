@@ -79,10 +79,10 @@ description: "Tasks for 004-clang-tidy-cleanup — retire CI static-checks debt"
 
 **Const-correctness block** (biggest single category — split per-directory per `research.md` §3 step 5 to keep per-commit diff reviewable):
 
-- [ ] T011 [US1] `misc-const-correctness` (~150 sites in `include/`): scope to `include/nsl/**/*.h`. Verify GREEN. Commit; expect approximately `751 → 601`.
-- [ ] T012 [US1] `misc-const-correctness` (~100 sites in `lib/Basic` + `lib/Lex` + `lib/Driver`): scope to those three layer directories. Verify GREEN. Commit; expect approximately `601 → 501`.
-- [ ] T013 [US1] `misc-const-correctness` (~150 sites in `lib/Preprocess` + `lib/Parse` + `lib/AST` + `lib/Sema`): **CAUTION** — `lib/Preprocess` carries feature 003's `MacroExpander` + the FR-007 locked diagnostic. Verify the macro_expander_test gtest still passes byte-identically before commit. Commit; expect approximately `501 → 351`.
-- [ ] T014 [US1] `misc-const-correctness` (~30 sites in `tools/` + `test_unit/`): scope to `tools/` + `test_unit/`. Verify GREEN. Commit; expect approximately `351 → 317`.
+- [X] T011 [US1] `misc-const-correctness` (~150 sites in `include/`): scope to `include/nsl/**/*.h`. Verify GREEN. Commit; expect approximately `751 → 601`.
+- [X] T012 [US1] `misc-const-correctness` (~100 sites in `lib/Basic` + `lib/Lex` + `lib/Driver`): scope to those three layer directories. Verify GREEN. Commit; expect approximately `601 → 501`.
+- [X] T013 [US1] `misc-const-correctness` (~150 sites in `lib/Preprocess` + `lib/Parse` + `lib/AST` + `lib/Sema`): **CAUTION** — `lib/Preprocess` carries feature 003's `MacroExpander` + the FR-007 locked diagnostic. Verify the macro_expander_test gtest still passes byte-identically before commit. Commit; expect approximately `501 → 351`.
+- [X] T014 [US1] `misc-const-correctness` (~30 sites in `tools/` + `test_unit/`): scope to `tools/` + `test_unit/`. Verify GREEN. Commit; expect approximately `351 → 317`.
 
 **Identifier-naming block** — done after const-correctness so the resulting renames are already on `const` references:
 

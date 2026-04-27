@@ -33,7 +33,7 @@ SourceLocation locAt(SourceLocation base, std::size_t delta) {
   if (!base.isValid()) {
     return {};
   }
-  uint32_t off = base.offset() + static_cast<uint32_t>(delta);
+  uint32_t const off = base.offset() + static_cast<uint32_t>(delta);
   if (off >= SourceLocation::kMaxOffset) {
     return base;
   }
@@ -41,8 +41,8 @@ SourceLocation locAt(SourceLocation base, std::size_t delta) {
 }
 
 SourceRange rangeAt(SourceLocation base, std::size_t begin, std::size_t end) {
-  SourceLocation b = locAt(base, begin);
-  SourceLocation e = locAt(base, end);
+  SourceLocation const b = locAt(base, begin);
+  SourceLocation const e = locAt(base, end);
   if (!b.isValid() || !e.isValid()) {
     return {};
   }
@@ -124,7 +124,7 @@ private:
 
   void skipWS() {
     while (pos_ < text_.size()) {
-      char c = text_[pos_];
+      char const c = text_[pos_];
       if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
         ++pos_;
       } else {
@@ -168,8 +168,8 @@ private:
     while (true) {
       if (peek2('|', '|')) {
         match2('|', '|');
-        PPValue r = parseLogicalAnd();
-        bool result = v.isTruthy() || r.isTruthy();
+        PPValue const r = parseLogicalAnd();
+        bool const result = v.isTruthy() || r.isTruthy();
         v = PPValue(static_cast<int64_t>(result ? 1 : 0));
       } else {
         break;
@@ -183,8 +183,8 @@ private:
     while (true) {
       if (peek2('&', '&')) {
         match2('&', '&');
-        PPValue r = parseEquality();
-        bool result = v.isTruthy() && r.isTruthy();
+        PPValue const r = parseEquality();
+        bool const result = v.isTruthy() && r.isTruthy();
         v = PPValue(static_cast<int64_t>(result ? 1 : 0));
       } else {
         break;
@@ -198,7 +198,7 @@ private:
     while (true) {
       if (peek2('=', '=')) {
         match2('=', '=');
-        PPValue r = parseRelational();
+        PPValue const r = parseRelational();
         bool result = false;
         if (v.isInt() && r.isInt()) {
           result = v.toInt() == r.toInt();
@@ -208,7 +208,7 @@ private:
         v = PPValue(static_cast<int64_t>(result ? 1 : 0));
       } else if (peek2('!', '=')) {
         match2('!', '=');
-        PPValue r = parseRelational();
+        PPValue const r = parseRelational();
         bool result = false;
         if (v.isInt() && r.isInt()) {
           result = v.toInt() != r.toInt();
@@ -228,7 +228,7 @@ private:
     while (true) {
       if (peek2('<', '=')) {
         match2('<', '=');
-        PPValue r = parseAdditive();
+        PPValue const r = parseAdditive();
         bool result = false;
         if (v.isInt() && r.isInt()) {
           result = v.toInt() <= r.toInt();
@@ -238,7 +238,7 @@ private:
         v = PPValue(static_cast<int64_t>(result ? 1 : 0));
       } else if (peek2('>', '=')) {
         match2('>', '=');
-        PPValue r = parseAdditive();
+        PPValue const r = parseAdditive();
         bool result = false;
         if (v.isInt() && r.isInt()) {
           result = v.toInt() >= r.toInt();
@@ -248,7 +248,7 @@ private:
         v = PPValue(static_cast<int64_t>(result ? 1 : 0));
       } else if (peek('<') && !peek2('<', '<')) {
         match('<');
-        PPValue r = parseAdditive();
+        PPValue const r = parseAdditive();
         bool result = false;
         if (v.isInt() && r.isInt()) {
           result = v.toInt() < r.toInt();
@@ -258,7 +258,7 @@ private:
         v = PPValue(static_cast<int64_t>(result ? 1 : 0));
       } else if (peek('>') && !peek2('>', '>')) {
         match('>');
-        PPValue r = parseAdditive();
+        PPValue const r = parseAdditive();
         bool result = false;
         if (v.isInt() && r.isInt()) {
           result = v.toInt() > r.toInt();
@@ -278,7 +278,7 @@ private:
     while (true) {
       if (peek('+')) {
         match('+');
-        PPValue r = parseMultiplicative();
+        PPValue const r = parseMultiplicative();
         if (v.isInt() && r.isInt()) {
           v = PPValue(v.toInt() + r.toInt());
         } else {
@@ -286,7 +286,7 @@ private:
         }
       } else if (peek('-')) {
         match('-');
-        PPValue r = parseMultiplicative();
+        PPValue const r = parseMultiplicative();
         if (v.isInt() && r.isInt()) {
           v = PPValue(v.toInt() - r.toInt());
         } else {
@@ -304,7 +304,7 @@ private:
     while (true) {
       if (peek('*')) {
         match('*');
-        PPValue r = parseUnary();
+        PPValue const r = parseUnary();
         if (v.isInt() && r.isInt()) {
           v = PPValue(v.toInt() * r.toInt());
         } else {
@@ -312,8 +312,8 @@ private:
         }
       } else if (peek('/')) {
         match('/');
-        std::size_t op_at = pos_;
-        PPValue r = parseUnary();
+        std::size_t const op_at = pos_;
+        PPValue const r = parseUnary();
         if (v.isInt() && r.isInt()) {
           if (r.toInt() == 0) {
             report("compile-time division by zero", op_at);
@@ -322,7 +322,7 @@ private:
             v = PPValue(v.toInt() / r.toInt());
           }
         } else {
-          long double rd = r.toReal();
+          long double const rd = r.toReal();
           if (rd == 0.0L) {
             report("compile-time division by zero", op_at);
             v = PPValue(int64_t{0});
@@ -337,8 +337,8 @@ private:
         // get here only AFTER a `parseUnary` returned, so a stray `%`
         // here is unambiguously the modulo operator.
         match('%');
-        std::size_t op_at = pos_;
-        PPValue r = parseUnary();
+        std::size_t const op_at = pos_;
+        PPValue const r = parseUnary();
         if (v.isInt() && r.isInt()) {
           if (r.toInt() == 0) {
             report("compile-time modulo by zero", op_at);
@@ -347,7 +347,7 @@ private:
             v = PPValue(v.toInt() % r.toInt());
           }
         } else {
-          long double rd = r.toReal();
+          long double const rd = r.toReal();
           if (rd == 0.0L) {
             report("compile-time modulo by zero", op_at);
             v = PPValue(int64_t{0});
@@ -370,14 +370,14 @@ private:
       report("unexpected end of compile-time expression", pos_);
       return PPValue(int64_t{0});
     }
-    char c = text_[pos_];
+    char const c = text_[pos_];
     if (c == '+') {
       ++pos_;
       return parseUnary();
     }
     if (c == '-') {
       ++pos_;
-      PPValue v = parseUnary();
+      PPValue const v = parseUnary();
       if (v.isInt()) {
         return PPValue(-v.toInt());
       }
@@ -385,12 +385,12 @@ private:
     }
     if (c == '!') {
       ++pos_;
-      PPValue v = parseUnary();
+      PPValue const v = parseUnary();
       return PPValue(static_cast<int64_t>(v.isTruthy() ? 0 : 1));
     }
     if (c == '~') {
       ++pos_;
-      PPValue v = parseUnary();
+      PPValue const v = parseUnary();
       // Bitwise complement is integer-only.
       return PPValue(~v.toInt());
     }
@@ -403,7 +403,7 @@ private:
       report("unexpected end of compile-time expression", pos_);
       return PPValue(int64_t{0});
     }
-    char c = text_[pos_];
+    char const c = text_[pos_];
 
     // Parenthesized expression.
     if (c == '(') {
@@ -442,9 +442,9 @@ private:
   }
 
   PPValue parsePercentMacroRef() {
-    std::size_t begin = pos_;
+    std::size_t const begin = pos_;
     ++pos_; // consume opening '%'
-    std::size_t name_begin = pos_;
+    std::size_t const name_begin = pos_;
     while (pos_ < text_.size() && isIdentBody(text_[pos_])) {
       ++pos_;
     }
@@ -452,7 +452,7 @@ private:
       report("missing identifier in '%IDENT%' macro reference", begin);
       return PPValue(int64_t{0});
     }
-    llvm::StringRef name = text_.substr(name_begin, pos_ - name_begin);
+    llvm::StringRef const name = text_.substr(name_begin, pos_ - name_begin);
     if (pos_ >= text_.size() || text_[pos_] != '%') {
       report("missing closing '%' in '%IDENT%' macro reference", begin);
       return PPValue(int64_t{0});
@@ -489,7 +489,7 @@ private:
   }
 
   PPValue parseNumber() {
-    std::size_t begin = pos_;
+    std::size_t const begin = pos_;
 
     // Detect base prefix.
     auto consumeWhile = [&](bool (*pred)(char)) {
@@ -531,11 +531,11 @@ private:
       }
     }
 
-    llvm::StringRef text = text_.substr(begin, pos_ - begin);
+    llvm::StringRef const text = text_.substr(begin, pos_ - begin);
     // Strip embedded `_` separators per pp.ebnf §5 decimal_digits.
     std::string filtered;
     filtered.reserve(text.size());
-    for (char c : text) {
+    for (char const c : text) {
       if (c != '_') {
         filtered.push_back(c);
       }
@@ -543,7 +543,7 @@ private:
 
     if (is_float) {
       try {
-        long double v = std::stold(filtered);
+        long double const v = std::stold(filtered);
         return PPValue(v);
       } catch (...) {
         report("malformed compile-time float literal: '" + filtered + "'",
@@ -556,7 +556,7 @@ private:
     if (is_hex) {
       // Skip the `0x` prefix in `filtered`.
       for (std::size_t i = 2; i < filtered.size(); ++i) {
-        int d = hexDigitValue(filtered[i]);
+        int const d = hexDigitValue(filtered[i]);
         if (d < 0) {
           report("malformed hex literal: '" + filtered + "'", begin);
           return PPValue(int64_t{0});
@@ -565,7 +565,7 @@ private:
       }
     } else if (is_binary) {
       for (std::size_t i = 2; i < filtered.size(); ++i) {
-        char c = filtered[i];
+        char const c = filtered[i];
         if (c != '0' && c != '1') {
           report("malformed binary literal: '" + filtered + "'", begin);
           return PPValue(int64_t{0});
@@ -573,7 +573,7 @@ private:
         v = (v << 1) | (c - '0');
       }
     } else {
-      for (char c : filtered) {
+      for (char const c : filtered) {
         if (!isDigit(c)) {
           report("malformed decimal literal: '" + filtered + "'", begin);
           return PPValue(int64_t{0});
@@ -585,11 +585,11 @@ private:
   }
 
   PPValue parseIdentOrHelper() {
-    std::size_t begin = pos_;
+    std::size_t const begin = pos_;
     while (pos_ < text_.size() && isIdentBody(text_[pos_])) {
       ++pos_;
     }
-    llvm::StringRef name = text_.substr(begin, pos_ - begin);
+    llvm::StringRef const name = text_.substr(begin, pos_ - begin);
 
     // Helper call? `_NAME (` form.
     skipWS();
@@ -642,7 +642,7 @@ private:
         report(msg, begin);
         return PPValue(int64_t{0});
       }
-      SourceRange call_loc = rangeAt(base_, begin, pos_);
+      SourceRange const call_loc = rangeAt(base_, begin, pos_);
       return owner_.helpers_.invoke(name, args, call_loc);
     }
 
@@ -697,7 +697,7 @@ private:
     }
     int depth = 0;
     while (pos_ < text_.size()) {
-      char c = text_[pos_++];
+      char const c = text_[pos_++];
       if (c == '(') {
         ++depth;
       } else if (c == ')') {
@@ -717,7 +717,7 @@ PPValue PPExpression::parse(llvm::StringRef text, SourceLocation loc) {
   // parser then sees the fully-substituted character stream so
   // adjacent-substitution cases like `DEPTH.0` → `8.0` work.
   MacroExpander expander(macros_, diag_);
-  std::string substituted = expander.expand(text, SourceRange(loc, loc));
+  std::string const substituted = expander.expand(text, SourceRange(loc, loc));
   Parser p(*this, substituted, loc);
   return p.parseTop();
 }
@@ -738,14 +738,15 @@ bool PPExpression::reduceDefineBody(llvm::StringRef body, SourceLocation loc,
   if (b == e) {
     return false;
   }
-  llvm::StringRef trimmed = body.substr(b, e - b);
+  llvm::StringRef const trimmed = body.substr(b, e - b);
   // Per pp.ebnf P10 (amended in 003-macro-textual-concat): textual
   // substitution of bare-identifier macro references in the body
   // happens BEFORE tokenization. This is what makes the canonical
   // P5 example work: `_int(_pow(2.0, DEPTH.0))` becomes
   // `_int(_pow(2.0, 8.0))` when DEPTH is `#define`d as `8`.
   MacroExpander expander(macros_, diag_);
-  std::string substituted = expander.expand(trimmed, SourceRange(loc, loc));
+  std::string const substituted =
+      expander.expand(trimmed, SourceRange(loc, loc));
   Parser p(*this, substituted, loc);
   if (out_value != nullptr) {
     *out_value = p.parseTop();

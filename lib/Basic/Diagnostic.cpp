@@ -71,7 +71,7 @@ void writeTextHeaderLine(llvm::raw_ostream &os, const SourceManager &sm,
 /// order) and would break Principle V determinism.
 void writeJsonString(llvm::raw_ostream &os, llvm::StringRef s) {
   os << '"';
-  for (unsigned char c : s) {
+  for (unsigned char const c : s) {
     switch (c) {
     case '"':
       os << "\\\"";
@@ -160,7 +160,7 @@ DiagnosticEngine::report(Severity sev, SourceLocation loc, std::string msg) {
   d.severity = sev;
   d.loc = loc;
   d.message = std::move(msg);
-  size_t idx = impl_->diags.size();
+  size_t const idx = impl_->diags.size();
   impl_->diags.push_back(std::move(d));
   if (sev == Severity::Error) {
     ++impl_->error_count;
@@ -252,14 +252,15 @@ DiagnosticEngine::Builder::addFixIt(SourceRange range,
 }
 
 DiagnosticEngine::Builder &DiagnosticEngine::Builder::addIncludedFromNotes() {
-  SourceManager &sm = engine_->sourceManager();
+  SourceManager const &sm = engine_->sourceManager();
   // The diagnostic's loc tells us which file we're currently in; the
   // include stack frames trace the ancestry up to the original input.
-  SourceLocation parent_loc = engine_->impl_->diags[index_].loc;
+  SourceLocation const parent_loc = engine_->impl_->diags[index_].loc;
   if (!parent_loc.isValid()) {
     return *this;
   }
-  std::vector<SourceLocation> stack = sm.getIncludeStackFor(parent_loc.file());
+  std::vector<SourceLocation> const stack =
+      sm.getIncludeStackFor(parent_loc.file());
   for (const SourceLocation &include_site : stack) {
     Diagnostic note;
     note.severity = Severity::Note;

@@ -45,8 +45,8 @@ FileID makeBuf(SourceManager &sm) {
 }
 
 SourceRange syntheticLoc(SourceManager &sm, FileID f) {
-  SourceLocation b = SourceLocation::make(f, 0);
-  SourceLocation e = SourceLocation::make(f, 1);
+  SourceLocation const b = SourceLocation::make(f, 0);
+  SourceLocation const e = SourceLocation::make(f, 1);
   return {b, e};
 }
 
@@ -67,12 +67,12 @@ bool diagHasError(const DiagnosticEngine &diag, llvm::StringRef needle) {
 TEST(MacroExpanderTest, BareIdentifierWithDefinedMacroSubstitutes) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
   mt.insert("DEPTH", "8", syntheticLoc(sm, f));
 
   MacroExpander expander(mt, diag);
-  std::string result = expander.expand("DEPTH", syntheticLoc(sm, f));
+  std::string const result = expander.expand("DEPTH", syntheticLoc(sm, f));
   EXPECT_EQ(result, "8");
 }
 
@@ -83,12 +83,12 @@ TEST(MacroExpanderTest, BareIdentifierAdjacentToDotZeroFormsFloat) {
   // literal.
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
   mt.insert("DEPTH", "8", syntheticLoc(sm, f));
 
   MacroExpander expander(mt, diag);
-  std::string result = expander.expand("DEPTH.0", syntheticLoc(sm, f));
+  std::string const result = expander.expand("DEPTH.0", syntheticLoc(sm, f));
   EXPECT_EQ(result, "8.0");
 }
 
@@ -99,11 +99,11 @@ TEST(MacroExpanderTest, UndefinedIdentifierLeftAsIs) {
   // when it tries to evaluate).
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
 
   MacroExpander expander(mt, diag);
-  std::string result = expander.expand("UNDEF", syntheticLoc(sm, f));
+  std::string const result = expander.expand("UNDEF", syntheticLoc(sm, f));
   EXPECT_EQ(result, "UNDEF");
   EXPECT_FALSE(diag.hasError());
 }
@@ -112,10 +112,10 @@ TEST(MacroExpanderTest, EmptyInputReturnsEmptyOutput) {
   SourceManager sm;
   DiagnosticEngine diag(sm);
   MacroTable mt;
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
 
   MacroExpander expander(mt, diag);
-  std::string result = expander.expand("", syntheticLoc(sm, f));
+  std::string const result = expander.expand("", syntheticLoc(sm, f));
   EXPECT_EQ(result, "");
 }
 
@@ -124,12 +124,13 @@ TEST(MacroExpanderTest, NonIdentifierCharactersPreserved) {
   // through unchanged.
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
   mt.insert("X", "42", syntheticLoc(sm, f));
 
   MacroExpander expander(mt, diag);
-  std::string result = expander.expand("(X + 1) * 2", syntheticLoc(sm, f));
+  std::string const result =
+      expander.expand("(X + 1) * 2", syntheticLoc(sm, f));
   EXPECT_EQ(result, "(42 + 1) * 2");
 }
 
@@ -142,12 +143,12 @@ TEST(MacroExpanderTest, AdjacentDotZeroNoWhitespace) {
   // contract's adjacency table line 1.
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
   mt.insert("A", "8", syntheticLoc(sm, f));
 
   MacroExpander expander(mt, diag);
-  std::string result = expander.expand("A.0", syntheticLoc(sm, f));
+  std::string const result = expander.expand("A.0", syntheticLoc(sm, f));
   EXPECT_EQ(result, "8.0");
 }
 
@@ -157,12 +158,12 @@ TEST(MacroExpanderTest, WhitespaceBetweenIdentAndSuffixPreserved) {
   // removed). The contract's adjacency table line 2.
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
   mt.insert("A", "8", syntheticLoc(sm, f));
 
   MacroExpander expander(mt, diag);
-  std::string result = expander.expand("A 0", syntheticLoc(sm, f));
+  std::string const result = expander.expand("A 0", syntheticLoc(sm, f));
   EXPECT_EQ(result, "8 0");
 }
 
@@ -174,12 +175,12 @@ TEST(MacroExpanderTest, GreedyIdentifierScanDoesNotSplitAtUnderscore) {
   // table line 3.
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
   mt.insert("A", "8", syntheticLoc(sm, f));
 
   MacroExpander expander(mt, diag);
-  std::string result = expander.expand("A_extra", syntheticLoc(sm, f));
+  std::string const result = expander.expand("A_extra", syntheticLoc(sm, f));
   EXPECT_EQ(result, "A_extra");
 }
 
@@ -192,13 +193,13 @@ TEST(MacroExpanderTest, ThreeLevelChainResolvesTransitively) {
   // textual-substitution steps.
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
   mt.insert("A", "B", syntheticLoc(sm, f));
   mt.insert("B", "8", syntheticLoc(sm, f));
 
   MacroExpander expander(mt, diag);
-  std::string result = expander.expand("A", syntheticLoc(sm, f));
+  std::string const result = expander.expand("A", syntheticLoc(sm, f));
   EXPECT_EQ(result, "8");
   EXPECT_FALSE(diag.hasError());
 }
@@ -207,14 +208,14 @@ TEST(MacroExpanderTest, FourLevelChainResolvesTransitively) {
   // `A → B → C → 8` chain: expand("A") returns "8".
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
   mt.insert("A", "B", syntheticLoc(sm, f));
   mt.insert("B", "C", syntheticLoc(sm, f));
   mt.insert("C", "8", syntheticLoc(sm, f));
 
   MacroExpander expander(mt, diag);
-  std::string result = expander.expand("A", syntheticLoc(sm, f));
+  std::string const result = expander.expand("A", syntheticLoc(sm, f));
   EXPECT_EQ(result, "8");
   EXPECT_FALSE(diag.hasError());
 }
@@ -229,7 +230,7 @@ TEST(MacroExpanderTest, SelfCycleEmitsLockedDiagnosticAndFailsoft) {
   // fixture test/preprocess/p10/cycle.fail.test.
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
   mt.insert("A", "A", syntheticLoc(sm, f));
 
@@ -245,7 +246,7 @@ TEST(MacroExpanderTest, MutualCycleEmitsLockedDiagnostic) {
   // whichever name was being expanded when the bound was hit.
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
   mt.insert("A", "B", syntheticLoc(sm, f));
   mt.insert("B", "A", syntheticLoc(sm, f));
@@ -254,8 +255,8 @@ TEST(MacroExpanderTest, MutualCycleEmitsLockedDiagnostic) {
   (void)expander.expand("A", syntheticLoc(sm, f));
   EXPECT_TRUE(diag.hasError());
   // Either A or B is named in the diagnostic; both are valid.
-  bool named = diagHasError(diag, "recursive macro expansion: A") ||
-               diagHasError(diag, "recursive macro expansion: B");
+  bool const named = diagHasError(diag, "recursive macro expansion: A") ||
+                     diagHasError(diag, "recursive macro expansion: B");
   EXPECT_TRUE(named);
 }
 
@@ -269,12 +270,12 @@ TEST(MacroExpanderTest, PercentSpliceTextuallySubstituted) {
   // example work for both bare-`DEPTH.0` AND `%DEPTH%.0` forms.
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
   mt.insert("Y", "3", syntheticLoc(sm, f));
 
   MacroExpander expander(mt, diag);
-  std::string result =
+  std::string const result =
       expander.expand("_int(_pow(%Y%, 2.0))", syntheticLoc(sm, f));
   EXPECT_EQ(result, "_int(_pow(3, 2.0))");
 }
@@ -286,12 +287,12 @@ TEST(MacroExpanderTest, PercentSpliceConcatenatesAdjacentDot) {
   // CodeRabbit-flagged case the M1-vintage skip-rule got wrong.
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
   mt.insert("DEPTH", "8", syntheticLoc(sm, f));
 
   MacroExpander expander(mt, diag);
-  std::string result = expander.expand("%DEPTH%.0", syntheticLoc(sm, f));
+  std::string const result = expander.expand("%DEPTH%.0", syntheticLoc(sm, f));
   EXPECT_EQ(result, "8.0");
 }
 
@@ -301,11 +302,11 @@ TEST(MacroExpanderTest, UndefinedPercentSpliceLeftAsIs) {
   // the canonical FR-037 diagnostic at its native site.
   SourceManager sm;
   DiagnosticEngine diag(sm);
-  FileID f = makeBuf(sm);
+  FileID const f = makeBuf(sm);
   MacroTable mt;
 
   MacroExpander expander(mt, diag);
-  std::string result = expander.expand("%UNDEF%", syntheticLoc(sm, f));
+  std::string const result = expander.expand("%UNDEF%", syntheticLoc(sm, f));
   EXPECT_EQ(result, "%UNDEF%");
   EXPECT_FALSE(diag.hasError());
 }

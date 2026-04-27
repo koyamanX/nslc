@@ -78,7 +78,7 @@ void setMarkerFlag(char marker, uint16_t &flags) {
 uint32_t consumeValueRun(llvm::StringRef buf, uint32_t pos, int base,
                          uint16_t &flags) {
   while (pos < buf.size()) {
-    char c = buf[pos];
+    char const c = buf[pos];
     char marker = '\0';
     if (c == '_') {
       ++pos;
@@ -147,15 +147,15 @@ NumberScanResult scanNumber(llvm::StringRef buf, uint32_t cur) {
 
   // ---- C-style: `0b...` / `0B...` / `0x...` / `0X...` ----
   if (buf[cur] == '0' && cur + 1 < buf.size()) {
-    char p = buf[cur + 1];
+    char const p = buf[cur + 1];
     if (p == 'x' || p == 'X') {
       uint16_t flags = 0;
-      uint32_t end = consumeValueRun(buf, cur + 2, /*base=*/16, flags);
+      uint32_t const end = consumeValueRun(buf, cur + 2, /*base=*/16, flags);
       return {TokenKind::tk_hex_lit, end, flags};
     }
     if (p == 'b' || p == 'B') {
       uint16_t flags = 0;
-      uint32_t end = consumeValueRun(buf, cur + 2, /*base=*/2, flags);
+      uint32_t const end = consumeValueRun(buf, cur + 2, /*base=*/2, flags);
       return {TokenKind::tk_binary_lit, end, flags};
     }
     // `0o` / `0O` is NOT in lang.ebnf §13's c_radix_char alternation
@@ -173,7 +173,7 @@ NumberScanResult scanNumber(llvm::StringRef buf, uint32_t cur) {
   // ---- Verilog-style `<width>'<radix><value_run>` ----
   if (pos < buf.size() && buf[pos] == '\'') {
     if (pos + 1 < buf.size()) {
-      RadixInfo r = radixFromChar(buf[pos + 1]);
+      RadixInfo const r = radixFromChar(buf[pos + 1]);
       if (r.kind != TokenKind::tk_unknown) {
         uint16_t flags = 0;
         // Decimal verilog-style ('d) does not permit Z/X/U markers

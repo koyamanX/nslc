@@ -51,12 +51,12 @@ bool hasField(const llvm::json::Object &obj, llvm::StringRef key) {
 
 TEST(DiagnosticEngineJsonTest, EachLineParses) {
   SourceManager sm;
-  FileID fid = sm.addBufferInMemory("a.nsl", bytesOf("abc\ndef\n"));
+  FileID const fid = sm.addBufferInMemory("a.nsl", bytesOf("abc\ndef\n"));
   DiagnosticEngine diag(sm);
   diag.report(Severity::Error, SourceLocation::make(fid, 0), "e1");
   diag.report(Severity::Warning, SourceLocation::make(fid, 4), "w1");
 
-  std::string out = render(diag, DiagnosticEngine::Format::JSON);
+  std::string const out = render(diag, DiagnosticEngine::Format::JSON);
 
   std::istringstream lines(out);
   std::string line;
@@ -74,12 +74,12 @@ TEST(DiagnosticEngineJsonTest, EachLineParses) {
 
 TEST(DiagnosticEngineJsonTest, FiveMandatoryFieldsPerObject) {
   SourceManager sm;
-  FileID fid = sm.addBufferInMemory("a.nsl", bytesOf("abcdef"));
+  FileID const fid = sm.addBufferInMemory("a.nsl", bytesOf("abcdef"));
   DiagnosticEngine diag(sm);
   diag.report(Severity::Error, SourceLocation::make(fid, 0), "msg1");
   diag.report(Severity::Note, SourceLocation::make(fid, 2), "msg2");
 
-  std::string out = render(diag, DiagnosticEngine::Format::JSON);
+  std::string const out = render(diag, DiagnosticEngine::Format::JSON);
 
   std::istringstream lines(out);
   std::string line;
@@ -127,11 +127,11 @@ TEST(DiagnosticEngineJsonTest, NoTrailingContextLinesInJson) {
   // Text mode emits source-line + caret context after the header
   // line; JSON mode must NOT emit those — every line must be JSON.
   SourceManager sm;
-  FileID fid = sm.addBufferInMemory("a.nsl", bytesOf("source-line"));
+  FileID const fid = sm.addBufferInMemory("a.nsl", bytesOf("source-line"));
   DiagnosticEngine diag(sm);
   diag.report(Severity::Error, SourceLocation::make(fid, 0), "msg");
 
-  std::string out = render(diag, DiagnosticEngine::Format::JSON);
+  std::string const out = render(diag, DiagnosticEngine::Format::JSON);
 
   std::istringstream lines(out);
   std::string line;
