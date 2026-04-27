@@ -6,7 +6,7 @@
 // source of truth) so adding a 23rd helper is a one-line spec patch
 // (FR-017).
 
-#include "HelperEvaluator.h"
+#include "nsl/Preprocess/HelperEvaluator.h"
 
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"

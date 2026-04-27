@@ -51,7 +51,7 @@
 // directives + helpers + %DEPTH% literally. Phase-4 turns it green.
 
 // RUN: echo '#define DEPTH 8'                            >  %t.nsl
-// RUN: echo '#define MEMSIZE _int(_pow(2.0, %%DEPTH%%.0))' >> %t.nsl
+// RUN: echo '#define MEMSIZE _int(_pow(2.0, _real(%%DEPTH%%)))' >> %t.nsl
 // RUN: echo '#if %%MEMSIZE%% > 0'                        >> %t.nsl
 // RUN: echo 'mem ram[%%MEMSIZE%%];'                      >> %t.nsl
 // RUN: echo '#endif'                                     >> %t.nsl

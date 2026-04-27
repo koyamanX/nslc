@@ -27,9 +27,9 @@
 #include "nsl/Preprocess/Preprocessor.h"
 
 #include "DirectiveParser.h"
-#include "HelperEvaluator.h"
+#include "nsl/Preprocess/HelperEvaluator.h"
 #include "IdentSplicer.h"
-#include "MacroTable.h"
+#include "nsl/Preprocess/MacroTable.h"
 #include "PPExpression.h"
 
 #include "nsl/Basic/Diagnostic.h"

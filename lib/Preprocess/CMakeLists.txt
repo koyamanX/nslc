@@ -15,6 +15,8 @@ add_nsl_library(nsl-preprocess
   IdentSplicer.cpp
   HEADERS
     ${CMAKE_SOURCE_DIR}/include/nsl/Preprocess/Preprocessor.h
+    ${CMAKE_SOURCE_DIR}/include/nsl/Preprocess/MacroTable.h
+    ${CMAKE_SOURCE_DIR}/include/nsl/Preprocess/HelperEvaluator.h
   DEPENDS
     nsl-basic
   LINK_LIBS

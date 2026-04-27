@@ -42,10 +42,13 @@
 // RUN: echo '#include <gadget.nsl>' >> %t.nsl
 // RUN: env NSL_INCLUDE=%S/Inputs/angle %nslc -I %S/Inputs/quote -emit=tokens %t.nsl | FileCheck %s
 
+// Plain (non-NEXT) check directives below tolerate intervening
+// tk_line_directive markers, which the preprocessor emits at each
+// #include enter/return per P13.
 // CHECK:      tk_reg{{[ \t]+}}reg
 // CHECK-NEXT: tk_identifier{{[ \t]+}}quote_marker
 // CHECK-NEXT: tk_semicolon{{[ \t]+}};
-// CHECK-NEXT: tk_reg{{[ \t]+}}reg
+// CHECK:      tk_reg{{[ \t]+}}reg
 // CHECK-NEXT: tk_identifier{{[ \t]+}}angle_marker
 // CHECK-NEXT: tk_semicolon{{[ \t]+}};
 

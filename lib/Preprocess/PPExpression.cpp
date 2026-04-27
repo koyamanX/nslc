@@ -6,8 +6,8 @@
 
 #include "PPExpression.h"
 
-#include "HelperEvaluator.h"
-#include "MacroTable.h"
+#include "nsl/Preprocess/HelperEvaluator.h"
+#include "nsl/Preprocess/MacroTable.h"
 
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"

@@ -67,7 +67,7 @@
 
 using nsl::DiagnosticEngine;
 using nsl::FileID;
-using nsl::MacroTable;
+using nsl::preprocess::MacroTable;
 using nsl::SourceLocation;
 using nsl::SourceManager;
 using nsl::SourceRange;
@@ -101,13 +101,13 @@ TEST(MacroTableTest, InsertionOrderIsPreservedAcrossThreeAdds) {
   FileID f = makeBuf(sm);
   MacroTable mt;
 
-  mt.define("A", "1", syntheticRange(sm, f), diag);
-  mt.define("B", "2", syntheticRange(sm, f), diag);
-  mt.define("C", "3", syntheticRange(sm, f), diag);
+  mt.insert("A", "1", syntheticRange(sm, f));
+  mt.insert("B", "2", syntheticRange(sm, f));
+  mt.insert("C", "3", syntheticRange(sm, f));
 
   std::vector<std::string> seen;
   for (auto it = mt.begin(); it != mt.end(); ++it) {
-    seen.emplace_back(it->first.str());
+    seen.emplace_back(it->first);
   }
   ASSERT_EQ(seen.size(), 3u);
   EXPECT_EQ(seen[0], "A");
@@ -124,13 +124,13 @@ TEST(MacroTableTest, InsertionOrderSurvivesPathologicalNames) {
   FileID f = makeBuf(sm);
   MacroTable mt;
 
-  mt.define("ZZZ", "1", syntheticRange(sm, f), diag);
-  mt.define("MID", "2", syntheticRange(sm, f), diag);
-  mt.define("AAA", "3", syntheticRange(sm, f), diag);
+  mt.insert("ZZZ", "1", syntheticRange(sm, f));
+  mt.insert("MID", "2", syntheticRange(sm, f));
+  mt.insert("AAA", "3", syntheticRange(sm, f));
 
   std::vector<std::string> seen;
   for (auto it = mt.begin(); it != mt.end(); ++it) {
-    seen.emplace_back(it->first.str());
+    seen.emplace_back(it->first);
   }
   ASSERT_EQ(seen.size(), 3u);
   EXPECT_EQ(seen[0], "ZZZ");
@@ -148,14 +148,14 @@ TEST(MacroTableTest, UndefRemovesEntry) {
   FileID f = makeBuf(sm);
   MacroTable mt;
 
-  mt.define("A", "1", syntheticRange(sm, f), diag);
-  mt.define("B", "2", syntheticRange(sm, f), diag);
-  EXPECT_TRUE(mt.contains("A"));
-  EXPECT_TRUE(mt.contains("B"));
+  mt.insert("A", "1", syntheticRange(sm, f));
+  mt.insert("B", "2", syntheticRange(sm, f));
+  EXPECT_TRUE(mt.defined("A"));
+  EXPECT_TRUE(mt.defined("B"));
 
   mt.undef("A");
-  EXPECT_FALSE(mt.contains("A"));
-  EXPECT_TRUE (mt.contains("B"));
+  EXPECT_FALSE(mt.defined("A"));
+  EXPECT_TRUE (mt.defined("B"));
   EXPECT_EQ(mt.size(), 1u);
 }
 
@@ -165,17 +165,17 @@ TEST(MacroTableTest, UndefPreservesSurvivorOrder) {
   FileID f = makeBuf(sm);
   MacroTable mt;
 
-  mt.define("A", "1", syntheticRange(sm, f), diag);
-  mt.define("B", "2", syntheticRange(sm, f), diag);
-  mt.define("C", "3", syntheticRange(sm, f), diag);
-  mt.define("D", "4", syntheticRange(sm, f), diag);
+  mt.insert("A", "1", syntheticRange(sm, f));
+  mt.insert("B", "2", syntheticRange(sm, f));
+  mt.insert("C", "3", syntheticRange(sm, f));
+  mt.insert("D", "4", syntheticRange(sm, f));
 
   // Remove the middle entry; A → C → D order MUST hold.
   mt.undef("B");
 
   std::vector<std::string> seen;
   for (auto it = mt.begin(); it != mt.end(); ++it) {
-    seen.emplace_back(it->first.str());
+    seen.emplace_back(it->first);
   }
   ASSERT_EQ(seen.size(), 3u);
   EXPECT_EQ(seen[0], "A");
@@ -189,9 +189,9 @@ TEST(MacroTableTest, UndefOfMissingNameIsNoOp) {
   FileID f = makeBuf(sm);
   MacroTable mt;
 
-  mt.define("A", "1", syntheticRange(sm, f), diag);
+  mt.insert("A", "1", syntheticRange(sm, f));
   mt.undef("NEVER_DEFINED");
-  EXPECT_TRUE(mt.contains("A"));
+  EXPECT_TRUE(mt.defined("A"));
   EXPECT_EQ(mt.size(), 1u);
 }
 
@@ -205,10 +205,13 @@ TEST(MacroTableTest, RedefinitionReplacesBody) {
   FileID f = makeBuf(sm);
   MacroTable mt;
 
-  mt.define("X", "OLD_BODY", syntheticRange(sm, f), diag);
-  mt.define("X", "NEW_BODY", syntheticRange(sm, f), diag);
+  mt.insert("X", "OLD_BODY", syntheticRange(sm, f));
+  // Track B's API: insert() returns false if name exists; redefine()
+  // is the explicit replace path.
+  nsl::SourceRange prev;
+  mt.redefine("X", "NEW_BODY", syntheticRange(sm, f), &prev);
 
-  ASSERT_TRUE(mt.contains("X"));
+  ASSERT_TRUE(mt.defined("X"));
   const auto *e = mt.lookup("X");
   ASSERT_NE(e, nullptr);
   EXPECT_EQ(e->body, "NEW_BODY");
@@ -220,27 +223,16 @@ TEST(MacroTableTest, RedefinitionEmitsPreviousDefinitionNote) {
   FileID f = makeBuf(sm);
   MacroTable mt;
 
-  mt.define("X", "OLD", syntheticRange(sm, f), diag);
-  // The redefinition path emits a `note: previous definition was
-  // here` via the engine. We don't assert exact text, just that a
-  // `note`-severity diagnostic was raised.
-  mt.define("X", "NEW", syntheticRange(sm, f), diag);
-
-  bool found_note = false;
-  for (const auto &d : diag.diagnostics()) {
-    if (d.severity == Severity::Note) {
-      found_note = true;
-      break;
-    }
-    for (const auto &n : d.notes) {
-      if (n.severity == Severity::Note) {
-        found_note = true;
-        break;
-      }
-    }
-  }
-  EXPECT_TRUE(found_note)
-      << "Redefinition of 'X' should emit a 'previous definition' note";
+  mt.insert("X", "OLD", syntheticRange(sm, f));
+  // Track B's API: insert() returns false if name exists (caller
+  // decides redefine vs error). The redefine() path captures the
+  // previous SourceRange so the caller can attach a `note: previous
+  // definition was here` to its diagnostic.
+  nsl::SourceRange previous_loc;
+  mt.redefine("X", "NEW", syntheticRange(sm, f), &previous_loc);
+  EXPECT_TRUE(previous_loc.isValid())
+      << "redefine() must surface the previous SourceRange so the caller "
+         "can attach a 'previous definition was here' note.";
 }
 
 TEST(MacroTableTest, RedefinitionPreservesInsertionOrder) {
@@ -251,15 +243,16 @@ TEST(MacroTableTest, RedefinitionPreservesInsertionOrder) {
   FileID f = makeBuf(sm);
   MacroTable mt;
 
-  mt.define("A", "1", syntheticRange(sm, f), diag);
-  mt.define("B", "2", syntheticRange(sm, f), diag);
-  mt.define("C", "3", syntheticRange(sm, f), diag);
+  mt.insert("A", "1", syntheticRange(sm, f));
+  mt.insert("B", "2", syntheticRange(sm, f));
+  mt.insert("C", "3", syntheticRange(sm, f));
   // Redefine B; iteration order MUST stay A → B → C.
-  mt.define("B", "2_NEW", syntheticRange(sm, f), diag);
+  nsl::SourceRange prev;
+  mt.redefine("B", "2_NEW", syntheticRange(sm, f), &prev);
 
   std::vector<std::string> seen;
   for (auto it = mt.begin(); it != mt.end(); ++it) {
-    seen.emplace_back(it->first.str());
+    seen.emplace_back(it->first);
   }
   ASSERT_EQ(seen.size(), 3u);
   EXPECT_EQ(seen[0], "A");
@@ -288,16 +281,16 @@ TEST(MacroTableTest, PredefinedMacrosLandFirstInOrder) {
   MacroTable mt;
 
   // Step 1: simulate driver applying -D flags in order.
-  mt.define("D1_FIRST",  "1", syntheticRange(sm, f), diag);
-  mt.define("D2_SECOND", "2", syntheticRange(sm, f), diag);
+  mt.insert("D1_FIRST",  "1", syntheticRange(sm, f));
+  mt.insert("D2_SECOND", "2", syntheticRange(sm, f));
 
   // Step 2: simulate source #define directives.
-  mt.define("SRC_FIRST",  "X", syntheticRange(sm, f), diag);
-  mt.define("SRC_SECOND", "Y", syntheticRange(sm, f), diag);
+  mt.insert("SRC_FIRST",  "X", syntheticRange(sm, f));
+  mt.insert("SRC_SECOND", "Y", syntheticRange(sm, f));
 
   std::vector<std::string> seen;
   for (auto it = mt.begin(); it != mt.end(); ++it) {
-    seen.emplace_back(it->first.str());
+    seen.emplace_back(it->first);
   }
   ASSERT_EQ(seen.size(), 4u);
   EXPECT_EQ(seen[0], "D1_FIRST");
@@ -317,8 +310,8 @@ TEST(MacroTableTest, LookupRejectsPrefixOnlyMatch) {
   FileID f = makeBuf(sm);
   MacroTable mt;
 
-  mt.define("FOO",     "1", syntheticRange(sm, f), diag);
-  mt.define("FOO_BAR", "2", syntheticRange(sm, f), diag);
+  mt.insert("FOO",     "1", syntheticRange(sm, f));
+  mt.insert("FOO_BAR", "2", syntheticRange(sm, f));
 
   EXPECT_NE(mt.lookup("FOO"),     nullptr);
   EXPECT_NE(mt.lookup("FOO_BAR"), nullptr);

@@ -18,7 +18,7 @@
 #ifndef NSL_LIB_PREPROCESS_IDENTSPLICER_H
 #define NSL_LIB_PREPROCESS_IDENTSPLICER_H
 
-#include "MacroTable.h"
+#include "nsl/Preprocess/MacroTable.h"
 #include "PPExpression.h"
 
 #include "nsl/Basic/Diagnostic.h"

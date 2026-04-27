@@ -7,7 +7,7 @@
 // so they survive include-stack pops that would otherwise invalidate
 // `StringRef`s into popped buffers.
 
-#include "MacroTable.h"
+#include "nsl/Preprocess/MacroTable.h"
 
 #include "nsl/Basic/SourceLocation.h"
 
