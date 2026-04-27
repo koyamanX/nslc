@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/preprocess/line/diag-after-line.test — virtual-coordinate
+// resolution for diagnostics post-#line (US3 / Phase 5 / T065).
+//
+// The preprocessor consumes `#line 1000 "synth.nsl"`, registers the
+// override on the SourceManager, then a deliberate error two input
+// lines later raises a diagnostic. Per FR-027 + Principle IV +
+// scenario 8 of US2, the rendered `path:line:col` MUST cite the
+// post-`#line` virtual coordinates: `synth.nsl:1002:1`.
+//
+// Constraints:
+//   * `#line 1000 "synth.nsl"` on physical line 1 of the input.
+//   * Physical line 2 is empty (consumed but no diagnostic).
+//   * Physical line 3 has the `%UNDEF%` error → virtual line 1002.
+
+// RUN: printf '#line 1000 "synth.nsl"\n\n%%UNDEF%%\n' > %t.nsl
+// RUN: not %nslc -emit=tokens %t.nsl 2>&1 | FileCheck %s
+
+// CHECK: synth.nsl:1002:{{[0-9]+}}: error: undefined macro reference: '%UNDEF%'
