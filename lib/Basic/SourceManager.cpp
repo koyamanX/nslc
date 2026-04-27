@@ -177,10 +177,10 @@ SourceManager::getLineCol(SourceLocation loc) const {
   auto it = std::upper_bound(b.line_offsets.begin(), b.line_offsets.end(), off);
   // upper_bound gives the first > off; the line index is one before.
   size_t line_idx =
-      static_cast<size_t>(std::distance(b.line_offsets.begin(), it)) - 1u;
-  uint32_t line = static_cast<uint32_t>(line_idx) + 1u; // 1-based
+      static_cast<size_t>(std::distance(b.line_offsets.begin(), it)) - 1U;
+  uint32_t line = static_cast<uint32_t>(line_idx) + 1U; // 1-based
   uint32_t line_start = b.line_offsets[line_idx];
-  uint32_t col = off - line_start + 1u; // 1-based
+  uint32_t col = off - line_start + 1U; // 1-based
   return {line, col};
 }
 
@@ -190,7 +190,7 @@ llvm::StringRef SourceManager::getLine(SourceLocation loc) const {
   uint32_t off = loc.offset();
   auto it = std::upper_bound(b.line_offsets.begin(), b.line_offsets.end(), off);
   size_t line_idx =
-      static_cast<size_t>(std::distance(b.line_offsets.begin(), it)) - 1u;
+      static_cast<size_t>(std::distance(b.line_offsets.begin(), it)) - 1U;
   uint32_t line_start = b.line_offsets[line_idx];
 
   size_t visible = b.bytes.empty() ? 0 : b.bytes.size() - 1;
@@ -199,7 +199,7 @@ llvm::StringRef SourceManager::getLine(SourceLocation loc) const {
   size_t line_end;
   if (line_idx + 1 < b.line_offsets.size()) {
     // Subtract one to exclude the '\n' at the end of this line.
-    line_end = static_cast<size_t>(b.line_offsets[line_idx + 1]) - 1u;
+    line_end = static_cast<size_t>(b.line_offsets[line_idx + 1]) - 1U;
   } else {
     line_end = visible;
   }
@@ -241,8 +241,8 @@ SourceManager::resolveVirtual(SourceLocation loc) const {
   auto it = std::upper_bound(b.line_offsets.begin(), b.line_offsets.end(),
                              origin_off);
   size_t origin_line_idx =
-      static_cast<size_t>(std::distance(b.line_offsets.begin(), it)) - 1u;
-  uint32_t origin_phys_line = static_cast<uint32_t>(origin_line_idx) + 1u;
+      static_cast<size_t>(std::distance(b.line_offsets.begin(), it)) - 1U;
+  uint32_t origin_phys_line = static_cast<uint32_t>(origin_line_idx) + 1U;
 
   uint32_t virt_line = active->virtual_line + (phys_line - origin_phys_line);
   llvm::StringRef virt_path = active->virtual_path.empty()

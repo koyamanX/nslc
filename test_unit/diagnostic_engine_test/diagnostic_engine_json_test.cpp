@@ -67,7 +67,7 @@ TEST(DiagnosticEngineJsonTest, EachLineParses) {
     ASSERT_TRUE(static_cast<bool>(parsed)) << "line failed to parse: " << line;
     ++line_count;
   }
-  EXPECT_EQ(line_count, 2u);
+  EXPECT_EQ(line_count, 2U);
 }
 
 TEST(DiagnosticEngineJsonTest, FiveMandatoryFieldsPerObject) {
@@ -143,7 +143,7 @@ TEST(DiagnosticEngineJsonTest, NoTrailingContextLinesInJson) {
         << "non-JSON line in NDJSON output: " << line;
     ++json_line_count;
   }
-  EXPECT_EQ(json_line_count, 1u);
+  EXPECT_EQ(json_line_count, 1U);
 }
 
 } // namespace

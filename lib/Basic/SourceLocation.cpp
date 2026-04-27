@@ -20,7 +20,7 @@ SourceLocation SourceLocation::make(FileID fid, uint32_t off) {
   NSL_ABORT(off < kMaxOffset, "SourceLocation offset >= 16 MiB");
 
   SourceLocation result;
-  result.bits_ = (static_cast<uint32_t>(fid.raw()) << 24) | (off & 0x00FFFFFFu);
+  result.bits_ = (static_cast<uint32_t>(fid.raw()) << 24) | (off & 0x00FFFFFFU);
   return result;
 }
 

@@ -87,16 +87,16 @@ TEST(DiagnosticEngineTextTest, NumErrorsAndWarningsCount) {
   SourceManager sm;
   FileID fid = sm.addBufferInMemory("c.nsl", bytesOf("abcdef"));
   DiagnosticEngine diag(sm);
-  EXPECT_EQ(diag.numErrors(), 0u);
-  EXPECT_EQ(diag.numWarnings(), 0u);
+  EXPECT_EQ(diag.numErrors(), 0U);
+  EXPECT_EQ(diag.numWarnings(), 0U);
 
   diag.report(Severity::Error, SourceLocation::make(fid, 0), "e1");
   diag.report(Severity::Warning, SourceLocation::make(fid, 1), "w1");
   diag.report(Severity::Note, SourceLocation::make(fid, 2), "n1");
   diag.report(Severity::Error, SourceLocation::make(fid, 3), "e2");
 
-  EXPECT_EQ(diag.numErrors(), 2u);
-  EXPECT_EQ(diag.numWarnings(), 1u);
+  EXPECT_EQ(diag.numErrors(), 2U);
+  EXPECT_EQ(diag.numWarnings(), 1U);
   EXPECT_TRUE(diag.hasError());
 }
 
@@ -105,10 +105,10 @@ TEST(DiagnosticEngineTextTest, ClearResetsBuffer) {
   FileID fid = sm.addBufferInMemory("c.nsl", bytesOf("abc"));
   DiagnosticEngine diag(sm);
   diag.report(Severity::Error, SourceLocation::make(fid, 0), "x");
-  EXPECT_EQ(diag.numErrors(), 1u);
+  EXPECT_EQ(diag.numErrors(), 1U);
   diag.clear();
-  EXPECT_EQ(diag.numErrors(), 0u);
-  EXPECT_EQ(diag.numWarnings(), 0u);
+  EXPECT_EQ(diag.numErrors(), 0U);
+  EXPECT_EQ(diag.numWarnings(), 0U);
   EXPECT_FALSE(diag.hasError());
 }
 
@@ -137,7 +137,7 @@ TEST(DiagnosticEngineTextTest, AllRenderedLinesMatchRegex) {
       ++header_count;
     }
   }
-  EXPECT_EQ(header_count, 3u);
+  EXPECT_EQ(header_count, 3U);
 }
 
 } // namespace

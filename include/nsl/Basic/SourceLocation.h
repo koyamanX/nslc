@@ -60,7 +60,7 @@ class SourceLocation {
 public:
   /// Maximum representable byte offset (exclusive). Equivalent to
   /// 16 MiB; offsets in `[0, kMaxOffset)` are valid.
-  static constexpr uint32_t kMaxOffset = 1u << 24;
+  static constexpr uint32_t kMaxOffset = 1U << 24;
 
   /// Default-construct the invalid sentinel.
   SourceLocation() noexcept : bits_(0) {}
@@ -70,10 +70,10 @@ public:
   static SourceLocation make(FileID fid, uint32_t off);
 
   FileID file() const noexcept {
-    return FileID(static_cast<uint8_t>((bits_ >> 24) & 0xFFu));
+    return FileID(static_cast<uint8_t>((bits_ >> 24) & 0xFFU));
   }
 
-  uint32_t offset() const noexcept { return bits_ & 0x00FFFFFFu; }
+  uint32_t offset() const noexcept { return bits_ & 0x00FFFFFFU; }
 
   /// True iff this is not the default-constructed sentinel.
   ///

@@ -108,7 +108,7 @@ TEST(IncludeStackTest, NotesPropagateToJsonOutput) {
       ++newline_count;
     }
   }
-  EXPECT_GE(newline_count, 2u) << out;
+  EXPECT_GE(newline_count, 2U) << out;
   EXPECT_NE(out.find("included_from"), std::string::npos) << out;
 }
 

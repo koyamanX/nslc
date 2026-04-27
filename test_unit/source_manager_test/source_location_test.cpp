@@ -25,13 +25,13 @@ namespace {
 TEST(FileIDTest, DefaultIsInvalid) {
   FileID f;
   EXPECT_FALSE(f.isValid());
-  EXPECT_EQ(f.raw(), 0u);
+  EXPECT_EQ(f.raw(), 0U);
 }
 
 TEST(FileIDTest, NonZeroIsValid) {
   FileID f(1);
   EXPECT_TRUE(f.isValid());
-  EXPECT_EQ(f.raw(), 1u);
+  EXPECT_EQ(f.raw(), 1U);
 }
 
 TEST(FileIDTest, EqualityOperator) {
@@ -52,13 +52,13 @@ TEST(SourceLocationTest, MakeStoresFileIDAndOffset) {
   SourceLocation loc = SourceLocation::make(fid, 42);
   EXPECT_TRUE(loc.isValid());
   EXPECT_EQ(loc.file().raw(), fid.raw());
-  EXPECT_EQ(loc.offset(), 42u);
+  EXPECT_EQ(loc.offset(), 42U);
 }
 
 TEST(SourceLocationTest, MakeAcceptsMaxOffset) {
   FileID fid(1);
   // 24-bit offset field allows offsets in [0, 2^24).
-  uint32_t kMax = (1u << 24) - 1;
+  uint32_t kMax = (1U << 24) - 1;
   SourceLocation loc = SourceLocation::make(fid, kMax);
   EXPECT_TRUE(loc.isValid());
   EXPECT_EQ(loc.offset(), kMax);
@@ -67,7 +67,7 @@ TEST(SourceLocationTest, MakeAcceptsMaxOffset) {
 
 TEST(SourceLocationDeathTest, MakeRejectsOffsetAtSixteenMib) {
   FileID fid(1);
-  EXPECT_DEATH({ (void)SourceLocation::make(fid, 1u << 24); }, ".*");
+  EXPECT_DEATH({ (void)SourceLocation::make(fid, 1U << 24); }, ".*");
 }
 
 TEST(SourceLocationTest, EqualityWithinSameFile) {
@@ -106,7 +106,7 @@ TEST(SourceRangeTest, ConstructAndQuery) {
   EXPECT_TRUE(r.isValid());
   EXPECT_TRUE(r.begin() == begin);
   EXPECT_TRUE(r.end() == end);
-  EXPECT_EQ(r.length(), 15u);
+  EXPECT_EQ(r.length(), 15U);
 }
 
 TEST(SourceRangeTest, EmptyRangeAllowed) {
@@ -114,7 +114,7 @@ TEST(SourceRangeTest, EmptyRangeAllowed) {
   SourceLocation p = SourceLocation::make(fid, 5);
   SourceRange r(p, p);
   EXPECT_TRUE(r.isValid());
-  EXPECT_EQ(r.length(), 0u);
+  EXPECT_EQ(r.length(), 0U);
 }
 
 TEST(SourceRangeTest, ContainsHalfOpen) {

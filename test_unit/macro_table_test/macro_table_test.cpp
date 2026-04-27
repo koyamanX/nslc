@@ -107,7 +107,7 @@ TEST(MacroTableTest, InsertionOrderIsPreservedAcrossThreeAdds) {
   for (auto it = mt.begin(); it != mt.end(); ++it) {
     seen.emplace_back(it->first);
   }
-  ASSERT_EQ(seen.size(), 3u);
+  ASSERT_EQ(seen.size(), 3U);
   EXPECT_EQ(seen[0], "A");
   EXPECT_EQ(seen[1], "B");
   EXPECT_EQ(seen[2], "C");
@@ -130,7 +130,7 @@ TEST(MacroTableTest, InsertionOrderSurvivesPathologicalNames) {
   for (auto it = mt.begin(); it != mt.end(); ++it) {
     seen.emplace_back(it->first);
   }
-  ASSERT_EQ(seen.size(), 3u);
+  ASSERT_EQ(seen.size(), 3U);
   EXPECT_EQ(seen[0], "ZZZ");
   EXPECT_EQ(seen[1], "MID");
   EXPECT_EQ(seen[2], "AAA");
@@ -154,7 +154,7 @@ TEST(MacroTableTest, UndefRemovesEntry) {
   mt.undef("A");
   EXPECT_FALSE(mt.defined("A"));
   EXPECT_TRUE(mt.defined("B"));
-  EXPECT_EQ(mt.size(), 1u);
+  EXPECT_EQ(mt.size(), 1U);
 }
 
 TEST(MacroTableTest, UndefPreservesSurvivorOrder) {
@@ -175,7 +175,7 @@ TEST(MacroTableTest, UndefPreservesSurvivorOrder) {
   for (auto it = mt.begin(); it != mt.end(); ++it) {
     seen.emplace_back(it->first);
   }
-  ASSERT_EQ(seen.size(), 3u);
+  ASSERT_EQ(seen.size(), 3U);
   EXPECT_EQ(seen[0], "A");
   EXPECT_EQ(seen[1], "C");
   EXPECT_EQ(seen[2], "D");
@@ -190,7 +190,7 @@ TEST(MacroTableTest, UndefOfMissingNameIsNoOp) {
   mt.insert("A", "1", syntheticRange(sm, f));
   mt.undef("NEVER_DEFINED");
   EXPECT_TRUE(mt.defined("A"));
-  EXPECT_EQ(mt.size(), 1u);
+  EXPECT_EQ(mt.size(), 1U);
 }
 
 // =============================================================
@@ -252,7 +252,7 @@ TEST(MacroTableTest, RedefinitionPreservesInsertionOrder) {
   for (auto it = mt.begin(); it != mt.end(); ++it) {
     seen.emplace_back(it->first);
   }
-  ASSERT_EQ(seen.size(), 3u);
+  ASSERT_EQ(seen.size(), 3U);
   EXPECT_EQ(seen[0], "A");
   EXPECT_EQ(seen[1], "B");
   EXPECT_EQ(seen[2], "C");
@@ -290,7 +290,7 @@ TEST(MacroTableTest, PredefinedMacrosLandFirstInOrder) {
   for (auto it = mt.begin(); it != mt.end(); ++it) {
     seen.emplace_back(it->first);
   }
-  ASSERT_EQ(seen.size(), 4u);
+  ASSERT_EQ(seen.size(), 4U);
   EXPECT_EQ(seen[0], "D1_FIRST");
   EXPECT_EQ(seen[1], "D2_SECOND");
   EXPECT_EQ(seen[2], "SRC_FIRST");

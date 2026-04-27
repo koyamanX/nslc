@@ -131,9 +131,9 @@ public:
   /// later milestones (e.g., `tk_string_lit` raw vs cooked at M5).
   enum NumericFlag : uint16_t {
     NF_Plain = 0,
-    NF_HasZ = 1u << 0,
-    NF_HasX = 1u << 1,
-    NF_HasU = 1u << 2,
+    NF_HasZ = 1U << 0,
+    NF_HasX = 1U << 1,
+    NF_HasU = 1U << 2,
   };
 
   /// Default-construct an `tk_unknown` token (sentinel).

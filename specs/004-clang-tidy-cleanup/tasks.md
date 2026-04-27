@@ -62,8 +62,8 @@ description: "Tasks for 004-clang-tidy-cleanup — retire CI static-checks debt"
 
 **Mechanical-fix block** — automated `--fix` works safely per category:
 
-- [ ] T003 [US1] `llvm-include-order` (12 sites): `run-clang-tidy -checks='-*,llvm-include-order' -fix` across the tree. Verify lit + ctest GREEN. Commit per contract; expect static-checks delta `927 → 915`.
-- [ ] T004 [US1] `readability-uppercase-literal-suffix` (59 sites): `run-clang-tidy -checks='-*,readability-uppercase-literal-suffix' -fix`. Verify GREEN. Commit; expect `915 → 856`.
+- [X] T003 [US1] `llvm-include-order` (12 sites) — **no-op**: the clang-format sweep in T002 already reordered the include blocks; post-T002 there are 0 llvm-include-order warnings remaining. No commit needed.
+- [X] T004 [US1] `readability-uppercase-literal-suffix` (59 sites): `run-clang-tidy -checks='-*,readability-uppercase-literal-suffix' -fix`. Verify GREEN. Commit; expect `915 → 856`.
 - [ ] T005 [US1] `readability-braces-around-statements` (4 sites): same shape. Commit; expect `856 → 852`.
 - [ ] T006 [US1] `modernize-use-auto` (6 sites): same shape. Commit; expect `852 → 846`.
 - [ ] T007 [US1] `modernize-return-braced-init-list` (24 sites): same shape. Commit; expect `846 → 822`.
