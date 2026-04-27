@@ -96,14 +96,14 @@ public:
     buffers.push_back(nullptr);
   }
 
-  Buffer *bufferOrNull(FileID f) const {
+  [[nodiscard]] Buffer *bufferOrNull(FileID f) const {
     if (!f.isValid() || f.raw() >= buffers.size()) {
       return nullptr;
     }
     return buffers[f.raw()].get();
   }
 
-  Buffer &buffer(FileID f) const {
+  [[nodiscard]] Buffer &buffer(FileID f) const {
     Buffer *b = bufferOrNull(f);
     NSL_ABORT(b, "FileID out of range");
     return *b;

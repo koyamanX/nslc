@@ -219,7 +219,7 @@ public:
   /// Are we currently in an "emitting" context per the conditional
   /// stack? An empty conditional stack means yes; otherwise the
   /// innermost frame's flag wins.
-  bool isEmitting(const Frame &f) const {
+  [[nodiscard]] bool isEmitting(const Frame &f) const {
     if (f.cond_stack.empty()) {
       return true;
     }
@@ -227,7 +227,8 @@ public:
   }
 
   /// SourceLocation for a given byte offset within the active frame.
-  SourceLocation locFor(const Frame &f, std::size_t offset) const {
+  [[nodiscard]] SourceLocation locFor(const Frame &f,
+                                      std::size_t offset) const {
     return SourceLocation::make(
         f.fid, static_cast<uint32_t>(offset >= SourceLocation::kMaxOffset
                                          ? SourceLocation::kMaxOffset - 1

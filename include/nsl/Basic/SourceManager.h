@@ -63,20 +63,21 @@ public:
 
   /// Bytes of the buffer for `f` (NUL-terminator NOT included in the
   /// returned `StringRef`).
-  llvm::StringRef getBuffer(FileID f) const;
+  [[nodiscard]] llvm::StringRef getBuffer(FileID f) const;
 
   /// The path label registered for `f`.
-  llvm::StringRef getPath(FileID f) const;
+  [[nodiscard]] llvm::StringRef getPath(FileID f) const;
 
   // ------------------ Physical location queries ------------------
 
   /// 1-based `(line, col)` for `loc` against its physical file.
   /// O(log lines) after the lazy line-offset table is built.
-  std::pair<uint32_t, uint32_t> getLineCol(SourceLocation loc) const;
+  [[nodiscard]] std::pair<uint32_t, uint32_t>
+  getLineCol(SourceLocation loc) const;
 
   /// The raw bytes of the source line containing `loc` (excluding
   /// the trailing newline).
-  llvm::StringRef getLine(SourceLocation loc) const;
+  [[nodiscard]] llvm::StringRef getLine(SourceLocation loc) const;
 
   // ------------------ Virtual location queries (post-#line) ------------------
 
@@ -89,7 +90,7 @@ public:
   /// Resolve `loc` to its post-`#line` virtual coordinates if any
   /// matching `LineDirective` exists at or before `loc.offset()`;
   /// otherwise returns the physical coordinates.
-  VirtualLoc resolveVirtual(SourceLocation loc) const;
+  [[nodiscard]] VirtualLoc resolveVirtual(SourceLocation loc) const;
 
   // ------------------ #line directive registration ------------------
 
@@ -120,7 +121,7 @@ public:
   /// Return the chain of `#include` directive locations that led to
   /// `f`, innermost first. Empty when `f` is the original input file
   /// or when no include frame for `f` is currently active.
-  std::vector<SourceLocation> getIncludeStackFor(FileID f) const;
+  [[nodiscard]] std::vector<SourceLocation> getIncludeStackFor(FileID f) const;
 
 private:
   // Pimpl-style impl pointer to keep the public header stable while

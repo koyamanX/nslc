@@ -43,26 +43,28 @@ public:
   explicit PPValue(int64_t i) noexcept : v_(i) {}
   explicit PPValue(long double r) noexcept : v_(r) {}
 
-  bool isInt() const noexcept { return std::holds_alternative<int64_t>(v_); }
-  bool isReal() const noexcept {
+  [[nodiscard]] bool isInt() const noexcept {
+    return std::holds_alternative<int64_t>(v_);
+  }
+  [[nodiscard]] bool isReal() const noexcept {
     return std::holds_alternative<long double>(v_);
   }
 
   /// Return the value as `int64_t`. Reals truncate toward zero
   /// (matches `_int(...)` semantics per research §5).
-  int64_t toInt() const;
+  [[nodiscard]] int64_t toInt() const;
 
   /// Return the value as `long double`. Integers widen.
-  long double toReal() const;
+  [[nodiscard]] long double toReal() const;
 
   /// P4 truth test: non-zero on either kind.
-  bool isTruthy() const noexcept;
+  [[nodiscard]] bool isTruthy() const noexcept;
 
   /// Render for substitution into the output stream:
   /// integer -> base-10 signed decimal;
   /// real    -> 17-significant-digit decimal (long-double precision
   ///            sufficient to round-trip a `double`). Per research §5.
-  std::string render() const;
+  [[nodiscard]] std::string render() const;
 
 private:
   std::variant<int64_t, long double> v_;

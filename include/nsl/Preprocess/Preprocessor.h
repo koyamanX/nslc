@@ -72,13 +72,14 @@ public:
   ///      `#include` directive).
   ///   2. Each `-I` directory in registration order.
   /// Returns the resolved absolute path or an error if not found.
-  llvm::ErrorOr<std::string> findQuote(llvm::StringRef filename,
-                                       llvm::StringRef including_dir) const;
+  [[nodiscard]] llvm::ErrorOr<std::string>
+  findQuote(llvm::StringRef filename, llvm::StringRef including_dir) const;
 
   /// Resolve an angle-form `#include <filename>`. Search order: each
   /// entry in the `NSL_INCLUDE`-derived path list, in registration
   /// order. **`-I` is NOT consulted** for angle-form per P8.
-  llvm::ErrorOr<std::string> findAngle(llvm::StringRef filename) const;
+  [[nodiscard]] llvm::ErrorOr<std::string>
+  findAngle(llvm::StringRef filename) const;
 
 private:
   std::vector<std::string> quote_paths_;

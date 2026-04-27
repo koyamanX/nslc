@@ -144,10 +144,10 @@ public:
         uint16_t flags = NF_Plain) noexcept
       : kind_(kind), flags_(flags), range_(range), spelling_(spelling) {}
 
-  TokenKind kind() const noexcept { return kind_; }
-  SourceRange range() const noexcept { return range_; }
-  llvm::StringRef spelling() const noexcept { return spelling_; }
-  uint16_t flags() const noexcept { return flags_; }
+  [[nodiscard]] TokenKind kind() const noexcept { return kind_; }
+  [[nodiscard]] SourceRange range() const noexcept { return range_; }
+  [[nodiscard]] llvm::StringRef spelling() const noexcept { return spelling_; }
+  [[nodiscard]] uint16_t flags() const noexcept { return flags_; }
 
 private:
   TokenKind kind_ = TokenKind::tk_unknown;

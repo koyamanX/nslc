@@ -102,13 +102,13 @@ public:
   /// sorted by `(loc, severity)` for determinism (FR-039).
   void renderAll(llvm::raw_ostream &os, Format fmt) const;
 
-  size_t numErrors() const noexcept;
-  size_t numWarnings() const noexcept;
-  bool hasError() const noexcept { return numErrors() > 0; }
+  [[nodiscard]] size_t numErrors() const noexcept;
+  [[nodiscard]] size_t numWarnings() const noexcept;
+  [[nodiscard]] bool hasError() const noexcept { return numErrors() > 0; }
   void clear() noexcept;
 
   /// Read-only access to the buffered diagnostics for tests / LSP.
-  llvm::ArrayRef<Diagnostic> diagnostics() const noexcept;
+  [[nodiscard]] llvm::ArrayRef<Diagnostic> diagnostics() const noexcept;
 
   /// Engine-internal: attach a fixit to the diagnostic at `index`.
   /// Public so the `Builder` returned by `report()` can call it.
@@ -119,7 +119,7 @@ public:
 
   /// Engine-internal: access the bound `SourceManager` for the
   /// `Builder` to read the include stack.
-  SourceManager &sourceManager() const noexcept;
+  [[nodiscard]] SourceManager &sourceManager() const noexcept;
 
 private:
   class Impl;

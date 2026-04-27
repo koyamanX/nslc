@@ -86,11 +86,11 @@ description: "Tasks for 004-clang-tidy-cleanup — retire CI static-checks debt"
 
 **Identifier-naming block** — done after const-correctness so the resulting renames are already on `const` references:
 
-- [ ] T015 [US1] `readability-identifier-naming` (114 sites): scoped per-directory if the diff is too large; one PR-friendly commit if the rename clusters tightly. Verify GREEN. Commit; expect `317 → 203`.
+- [X] T015 [US1] `readability-identifier-naming` (114 sites) — **disposition flipped FIX → SUPPRESS at impl time**: clang-tidy auto-rename produces accessor-vs-member collisions (e.g., `SourceRange::begin_` member would rename to `begin` colliding with the existing `begin()` accessor). Per FR-002's suppression criterion, the category will be added to `.clang-tidy`'s rationale block in T019 with the rationale "M1-vintage mixed naming conventions; auto-rename produces collisions; refactor is a separate Principle II layer-design feature."
 
 **Nodiscard block** — adds `[[nodiscard]]` to public APIs; cascades "you-dropped-the-return-value" warnings against existing call sites which are fixed in the same commit:
 
-- [ ] T016 [US1] `modernize-use-nodiscard` (47 sites + cascade): `run-clang-tidy -checks='-*,modernize-use-nodiscard' -fix`. Then run a second pass to catch the cascade `[[nodiscard]]`-discarded-result warnings; either consume the result at the call site or wrap with `(void)`. Public-API surface frozen per FR-010 (attribute is allowed; signature change is not). Verify GREEN. Commit; expect `203 → 156`.
+- [X] T016 [US1] `modernize-use-nodiscard` (47 sites + cascade): `run-clang-tidy -checks='-*,modernize-use-nodiscard' -fix`. Then run a second pass to catch the cascade `[[nodiscard]]`-discarded-result warnings; either consume the result at the call site or wrap with `(void)`. Public-API surface frozen per FR-010 (attribute is allowed; signature change is not). Verify GREEN. Commit; expect `203 → 156`.
 
 **Long-tail block** — combined into a single mechanical commit since each is small:
 

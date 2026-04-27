@@ -103,7 +103,7 @@ public:
 
   /// Wrap `(begin, end)` byte offsets into a `SourceRange` rooted at
   /// `fid`. End is exclusive; `length() == end - begin`.
-  SourceRange makeRange(uint32_t begin, uint32_t end) const {
+  [[nodiscard]] SourceRange makeRange(uint32_t begin, uint32_t end) const {
     return {SourceLocation::make(fid, begin), SourceLocation::make(fid, end)};
   }
 
@@ -366,7 +366,7 @@ public:
 
   /// Peek past whitespace from a cursor `p` without consuming. Used
   /// by N5 to look one non-whitespace char ahead of `#` for a digit.
-  uint32_t peekPastSpaces(uint32_t p) const {
+  [[nodiscard]] uint32_t peekPastSpaces(uint32_t p) const {
     while (p < buf.size() && (buf[p] == ' ' || buf[p] == '\t')) {
       ++p;
     }
