@@ -8,7 +8,7 @@
 
 #include "nsl/Basic/SourceLocation.h"
 
-#include <cassert>
+#include "AssertImpl.h"
 
 namespace nsl {
 
@@ -17,7 +17,7 @@ SourceLocation SourceLocation::make(FileID fid, uint32_t off) {
   // exceeds 16 MiB; if a future user hits the limit, the right
   // answer is to widen the field, not silently truncate (data-model
   // entity 1 invariant).
-  assert(off < kMaxOffset && "SourceLocation offset >= 16 MiB");
+  NSL_ABORT(off < kMaxOffset, "SourceLocation offset >= 16 MiB");
 
   SourceLocation result;
   result.bits_ = (static_cast<uint32_t>(fid.raw()) << 24) | (off & 0x00FFFFFFu);
@@ -26,9 +26,9 @@ SourceLocation SourceLocation::make(FileID fid, uint32_t off) {
 
 SourceRange::SourceRange(SourceLocation b, SourceLocation e) : begin_(b), end_(e) {
   // Same-file invariant per data-model entity 2.
-  assert(b.file() == e.file() && "SourceRange endpoints must be in the same file");
+  NSL_ABORT(b.file() == e.file(), "SourceRange endpoints must be in the same file");
   // Half-open: begin <= end.
-  assert(!(e < b) && "SourceRange begin must be <= end");
+  NSL_ABORT(!(e < b), "SourceRange begin must be <= end");
 }
 
 } // namespace nsl

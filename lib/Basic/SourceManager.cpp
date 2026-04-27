@@ -7,7 +7,7 @@
 #include "nsl/Basic/SourceManager.h"
 
 #include <algorithm>
-#include <cassert>
+#include "AssertImpl.h"
 #include <cstdint>
 #include <fstream>
 #include <iterator>
@@ -101,7 +101,7 @@ public:
 
   Buffer &buffer(FileID f) const {
     Buffer *b = bufferOrNull(f);
-    assert(b && "FileID out of range");
+    NSL_ABORT(b, "FileID out of range");
     return *b;
   }
 
@@ -113,7 +113,7 @@ public:
     buf->path = std::move(path);
     buf->bytes = std::move(bytes);
 
-    assert(buffers.size() <= 255 && "FileID exhausted: 256-file limit");
+    NSL_ABORT(buffers.size() <= 255, "FileID exhausted: 256-file limit");
     uint8_t id = static_cast<uint8_t>(buffers.size());
     buffers.push_back(std::move(buf));
     return FileID(id);
@@ -253,8 +253,8 @@ void SourceManager::addLineDirective(SourceLocation at, uint32_t virtual_line,
                                      llvm::StringRef virtual_path) {
   Buffer &b = impl_->buffer(at.file());
   if (!b.line_overrides.empty()) {
-    assert(at.offset() > b.line_overrides.back().origin_offset &&
-           "addLineDirective: out-of-order insertion");
+    NSL_ABORT(at.offset() > b.line_overrides.back().origin_offset,
+              "addLineDirective: out-of-order insertion");
   }
   b.line_overrides.push_back(
       LineDirective{at.offset(), virtual_line, virtual_path.str()});
@@ -267,8 +267,8 @@ void SourceManager::pushIncludeFrame(SourceLocation include_directive_loc,
 }
 
 void SourceManager::popIncludeFrame() {
-  assert(!impl_->include_stack.empty() &&
-         "popIncludeFrame on empty include stack");
+  NSL_ABORT(!impl_->include_stack.empty(),
+            "popIncludeFrame on empty include stack");
   impl_->include_stack.pop_back();
 }
 
