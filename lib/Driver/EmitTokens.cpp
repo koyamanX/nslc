@@ -1,22 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// lib/Driver/EmitTokens.cpp — `nslc -emit=tokens` Phase 3 (US1) form.
+// lib/Driver/EmitTokens.cpp — `nslc -emit=tokens` driver glue.
 //
-// Loads the input file via `SourceManager`, runs the lexer over raw
-// bytes (no preprocess yet — Phase 4 / T061 wires the preprocessor),
-// and prints the buffered token stream to stdout in the canonical
-// format from
-// `specs/002-m1-lex-preprocess/contracts/nslc-emit-tokens.contract.md`.
+// At Phase 4 (T061) the pipeline is:
+//
+//   load(input)  ──►  Preprocessor::run  ──►  addBufferInMemory
+//        │                                          │
+//        │                                          ▼
+//        │                                       Lexer::next
+//        │                                          │
+//        ▼                                          ▼
+//    SourceManager (owns physical buffer + #line map; the
+//    preprocessed buffer is registered as a synthetic in-memory
+//    buffer after preprocess so the lexer scans canonical bytes
+//    and downstream consumers see post-#line virtual coordinates).
 //
 // Buffering note: tokens are accumulated into a `std::vector<Token>`
-// before any byte is written to stdout. Per the contract "No partial
-// token output is printed on error" — buffering is the mechanism.
-// On a diagnostic-bearing run the diagnostics flush to stderr and
-// stdout receives nothing (exit code 1).
+// before any byte is written to stdout. Per
+// `contracts/nslc-emit-tokens.contract.md` "No partial token output
+// is printed on error" — buffering is the mechanism. On a diagnostic-
+// bearing run the diagnostics flush to stderr and stdout receives
+// nothing (exit code 1).
 //
-// SPDX-locked diagnostic strings (FR-037) live in
-// `lib/Lex/Lexer.cpp` (`unterminated string literal`); this file
-// only ferries them through `DiagnosticEngine::renderAll`.
+// SPDX-locked diagnostic strings (FR-037) live with their producing
+// layer (the preprocessor / lexer); this file only ferries them
+// through `DiagnosticEngine::renderAll`.
 
 #include "nsl/Driver/EmitTokens.h"
 
@@ -25,6 +33,7 @@
 #include "nsl/Basic/SourceManager.h"
 #include "nsl/Lex/Lexer.h"
 #include "nsl/Lex/Token.h"
+#include "nsl/Preprocess/Preprocessor.h"
 
 #include <cstdint>
 #include <string>
@@ -95,6 +104,17 @@ std::string renderFlags(uint16_t flags) {
   return out;
 }
 
+/// Split a `-D NAME=value` argument into `(name, value)`. A bare
+/// `-D NAME` (no `=`) maps to `(NAME, "1")` matching the convention
+/// for `-D NAME` shorthand in C compilers.
+std::pair<std::string, std::string> splitMacroDef(llvm::StringRef arg) {
+  std::size_t eq = arg.find('=');
+  if (eq == llvm::StringRef::npos) {
+    return {arg.str(), "1"};
+  }
+  return {arg.substr(0, eq).str(), arg.substr(eq + 1).str()};
+}
+
 } // namespace
 
 int emitTokens(llvm::StringRef input_path, const EmitTokensOptions &opts,
@@ -102,22 +122,119 @@ int emitTokens(llvm::StringRef input_path, const EmitTokensOptions &opts,
   SourceManager sm;
   DiagnosticEngine diag(sm);
 
-  // -I and -D plumbing is accepted at M1 but unused until Phase 4
-  // wires the preprocessor (T061). Reference the fields once so the
-  // compiler doesn't warn about unused members.
-  (void)opts.include_paths;
-  (void)opts.predefined_macros;
-
   llvm::ErrorOr<FileID> fid_or = sm.loadFile(input_path);
   if (!fid_or) {
     err << "could not open " << input_path << ": "
         << fid_or.getError().message() << "\n";
     return 3;
   }
-  FileID fid = *fid_or;
+  FileID input_fid = *fid_or;
 
-  // Phase 3: no preprocess. Lex raw bytes.
-  Lexer lexer(sm, fid, diag);
+  // Construct the include-search path. Quote-form paths from `-I`;
+  // angle-form paths from NSL_INCLUDE (read once at construction per
+  // Principle V).
+  preprocess::IncludeSearchPath search;
+  for (const auto &dir : opts.include_paths) {
+    search.appendQuotePath(dir);
+  }
+  search.populateAngleFromEnv();
+
+  // Predefine macros from `-D NAME=value`.
+  std::vector<std::pair<std::string, std::string>> predefined;
+  predefined.reserve(opts.predefined_macros.size());
+  for (const auto &arg : opts.predefined_macros) {
+    predefined.push_back(splitMacroDef(arg));
+  }
+
+  preprocess::Preprocessor pp(sm, diag, search, predefined);
+  llvm::ErrorOr<std::string> pp_out = pp.run(input_fid);
+
+  // If preprocessing errored (or yielded an error result), surface
+  // diagnostics and return 1.
+  if (diag.hasError() || !pp_out) {
+    diag.renderAll(err, opts.diagnostic_json
+                            ? DiagnosticEngine::Format::JSON
+                            : DiagnosticEngine::Format::Text);
+    return 1;
+  }
+
+  // Register the preprocessed buffer as a synthetic in-memory buffer.
+  // The downstream lexer scans this canonical-NSL stream, while the
+  // SourceManager carries the line-override map populated below from
+  // the preprocessor's emitted `#line` directives.
+  //
+  // Why scan the output here: the preprocessor's `addLineDirective`
+  // calls during preprocess-time register on the ORIGINAL input
+  // FileID, but the lexer scans the SYNTHETIC buffer (a different
+  // FileID). For Principle-IV virtual-location resolution to work on
+  // tokens emitted by the lexer, we must replay the `#line`
+  // directives onto the synthetic FileID. The output buffer is the
+  // ground truth — every `#line` we want the lexer to honor is
+  // present there in canonical form.
+  std::string synth_path = input_path.str();
+  std::vector<char> synth_bytes(pp_out->begin(), pp_out->end());
+  FileID synth_fid =
+      sm.addBufferInMemory(std::move(synth_path), std::move(synth_bytes));
+
+  // Replay #line directives onto the synthetic buffer. We scan the
+  // preprocessed text line by line; each `#line N "FILE"` (or
+  // `#line N`) at column 0 calls addLineDirective on synth_fid.
+  {
+    llvm::StringRef syn = sm.getBuffer(synth_fid);
+    std::size_t off = 0;
+    while (off < syn.size()) {
+      std::size_t line_begin = off;
+      while (off < syn.size() && syn[off] != '\n') {
+        ++off;
+      }
+      std::size_t line_end_excl = off;
+      if (off < syn.size()) {
+        ++off; // consume newline
+      }
+      llvm::StringRef line = syn.substr(line_begin, line_end_excl - line_begin);
+      // Match `#line ` at column 0.
+      if (!line.starts_with("#line ")) {
+        continue;
+      }
+      std::size_t i = 6; // past "#line "
+      while (i < line.size() && (line[i] == ' ' || line[i] == '\t')) {
+        ++i;
+      }
+      if (i >= line.size() || line[i] < '0' || line[i] > '9') {
+        continue;
+      }
+      long long ln = 0;
+      while (i < line.size() && line[i] >= '0' && line[i] <= '9') {
+        ln = ln * 10 + (line[i] - '0');
+        ++i;
+      }
+      while (i < line.size() && (line[i] == ' ' || line[i] == '\t')) {
+        ++i;
+      }
+      std::string vpath;
+      if (i < line.size() && line[i] == '"') {
+        ++i;
+        std::size_t fb = i;
+        while (i < line.size() && line[i] != '"') {
+          ++i;
+        }
+        if (i < line.size()) {
+          vpath = line.substr(fb, i - fb).str();
+        }
+      }
+      // The override takes effect at the byte AFTER the directive's
+      // trailing newline. Per pp.ebnf P13 + spec acceptance scenario
+      // 8: "the very next line of input is reported as line LINENUM"
+      // — so `virtual_line == ln` (NOT `ln+1`). `#line 100 "synth.v"`
+      // means the line AFTER the directive is `synth.v:100`.
+      uint32_t at_off = static_cast<uint32_t>(off);
+      sm.addLineDirective(SourceLocation::make(synth_fid, at_off),
+                          static_cast<uint32_t>(ln),
+                          llvm::StringRef(vpath));
+    }
+  }
+
+  Lexer lexer(sm, synth_fid, diag);
 
   // Buffer all tokens before any stdout write — partial output on
   // error is forbidden by the contract.

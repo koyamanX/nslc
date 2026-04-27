@@ -24,11 +24,6 @@ if(_have_sources)
   include(GoogleTest)
   add_executable(helper_evaluator_test ${_helper_evaluator_sources})
   # Phase-4 wiring (T052): HelperEvaluator lives in `nsl-preprocess`.
-  # The link is set up here even though `nsl-preprocess` is currently
-  # a M0-anchor-TU skeleton (no real symbols) — that's the intended
-  # FR-036 RED state per Constitution Principle VIII. The parallel
-  # `nsl-frontend-impl` agent's HelperEvaluator.cpp lands the symbols
-  # and the suite turns green.
   target_link_libraries(helper_evaluator_test
     PRIVATE
       nsl-basic
