@@ -6,8 +6,13 @@
 // Per-keyword lex fixture for `inout` per Constitution Principle
 // VIII (TDD). One token + tk_eof; SPDX header per FR-010..012.
 //
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// The keyword is written to a temp file via lit's %t substitution
+// rather than embedded in this .test file, so the SPDX header /
+// CHECK lines do NOT enter the lex stream and the keyword is
+// guaranteed to land at line 1 col 1 offset 0.
+//
+// RUN: echo inout > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-inout
 // CHECK:      tk_inout	inout	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
 // CHECK-NEXT: tk_eof		{{[^:]+}}:2:1:6	{{[^:]+}}:2:1	[]

@@ -12,8 +12,8 @@
 // not the lexer's; the lexer's job is the kind classification per
 // the identifier text alone.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '_display' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-_display
 // CHECK:      tk_system_task	_display	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
 // CHECK-NEXT: tk_eof

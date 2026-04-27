@@ -10,9 +10,9 @@
 // The minimal fixture: a single statement `x = a#b;` where the `#`
 // is unambiguously the sign-extend operator (it's not at column 1).
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo 'x = a#b;' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-x = a#b;
 // CHECK:      tk_identifier	x	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
 // CHECK-NEXT: tk_assign	=	{{[^:]+}}:1:3:2	{{[^:]+}}:1:3	[]
 // CHECK-NEXT: tk_identifier	a	{{[^:]+}}:1:5:4	{{[^:]+}}:1:5	[]

@@ -8,8 +8,8 @@
 // expression-position-without-parens reading: the value is *fetched*
 // by the read.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '_random' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-_random
 // CHECK:      tk_system_function	_random	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
 // CHECK-NEXT: tk_eof

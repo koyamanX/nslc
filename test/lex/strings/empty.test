@@ -5,8 +5,8 @@
 // zero `string_char` repetitions are valid. Spelling is the two-
 // character `""`.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '""' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-""
-// CHECK:      tk_string_lit	""	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK:      tk_string_lit	\"\"	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
 // CHECK-NEXT: tk_eof

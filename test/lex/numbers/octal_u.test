@@ -3,8 +3,8 @@
 // test/lex/numbers/octal_u.test — Verilog-style octal literal with
 // `U` digit per `lang.ebnf §13`.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '8'\''oU' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-8'oU
 // CHECK:      tk_octal_lit	8'oU	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[U]
 // CHECK-NEXT: tk_eof

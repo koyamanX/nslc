@@ -6,8 +6,8 @@
 // } ;`). Plain decimal accepts the `_` separator; the spelling
 // preserves the underscores literally.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '1_000_000' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-1_000_000
 // CHECK:      tk_decimal_lit	1_000_000	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
 // CHECK-NEXT: tk_eof

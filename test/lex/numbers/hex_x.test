@@ -3,8 +3,8 @@
 // test/lex/numbers/hex_x.test — C-style hex literal with `X` digit
 // (Indefinite marker) per `lang.ebnf §13`.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '0xfX' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-0xfX
 // CHECK:      tk_hex_lit	0xfX	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[X]
 // CHECK-NEXT: tk_eof

@@ -13,8 +13,8 @@
 // belong to the directive body and the parser/preprocessor consume
 // them as part of the seam handling.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '#line 100 "synth.nsl"' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-#line 100 "synth.nsl"
 // CHECK: tk_line_directive	{{.*}}	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
 // CHECK: tk_eof

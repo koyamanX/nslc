@@ -5,8 +5,8 @@
 // plain — accept ONLY digits (no Z/X/U) per the §13 line 736 comment;
 // this fixture exercises the bare `'d` Verilog form recognition path.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '8'\''d42' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-8'd42
 // CHECK:      tk_decimal_lit	8'd42	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
 // CHECK-NEXT: tk_eof

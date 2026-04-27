@@ -4,8 +4,8 @@
 // `lang.ebnf §13` `decimal_integer`. No Z/X/U flags (only digits and
 // `_` are meaningful in a plain decimal — see §13 line 736 comment).
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '42' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-42
 // CHECK:      tk_decimal_lit	42	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
 // CHECK-NEXT: tk_eof

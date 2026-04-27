@@ -6,8 +6,8 @@
 // `c_radix_char` (`b` / `x`); a bare `0` falls through to plain
 // decimal classification.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '0' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-0
 // CHECK:      tk_decimal_lit	0	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
 // CHECK-NEXT: tk_eof

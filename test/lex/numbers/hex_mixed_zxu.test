@@ -7,8 +7,8 @@
 // different separator, this fixture must be regenerated alongside
 // the contract amendment.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '0xZXU' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-0xZXU
 // CHECK:      tk_hex_lit	0xZXU	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[Z,X,U]
 // CHECK-NEXT: tk_eof

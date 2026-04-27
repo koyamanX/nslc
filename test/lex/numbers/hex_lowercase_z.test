@@ -6,8 +6,8 @@
 // spelling preserves the original case (`z`); the [Z] flag is
 // case-normalized.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '0xfz' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-0xfz
 // CHECK:      tk_hex_lit	0xfz	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[Z]
 // CHECK-NEXT: tk_eof

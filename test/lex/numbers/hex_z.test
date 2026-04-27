@@ -5,8 +5,8 @@
 // the token's flags column reflects the digit class; case is
 // normalized to upper-Z in the flags rendering.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '0xfZ' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-0xfZ
 // CHECK:      tk_hex_lit	0xfZ	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[Z]
 // CHECK-NEXT: tk_eof

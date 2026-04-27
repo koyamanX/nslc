@@ -11,9 +11,9 @@
 // who flips the lexer to nesting-aware would have to update the
 // CHECK lines — and would catch the spec departure in the same PR.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '/* /* */ end */' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-/* /* */ end */
 // CHECK:      tk_identifier	end	{{[^:]+}}:1:10:{{[0-9]+}}	{{[^:]+}}:1:10	[]
 // CHECK-NEXT: tk_star	*
 // CHECK-NEXT: tk_slash	/

@@ -11,8 +11,8 @@
 // `_xyzzy` is a deliberately-fictional name that cannot collide with
 // any current N11 (a)/(b) entry or `pp.ebnf §3.1` helper.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '_xyzzy' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-_xyzzy
 // CHECK:      tk_unused_underscore	_xyzzy	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
 // CHECK-NEXT: tk_eof

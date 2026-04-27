@@ -6,8 +6,8 @@
 // `decimal_integer` is open-ended); the lexer's job is recognition,
 // not range validation — that's M3 sema's job.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '12345678901234567890123456789012' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-12345678901234567890123456789012
 // CHECK:      tk_decimal_lit	12345678901234567890123456789012	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
 // CHECK-NEXT: tk_eof

@@ -384,19 +384,27 @@ public:
       return Token(TokenKind::tk_eof, makeRange(end, end), llvm::StringRef());
     }
 
-    // N5 disambiguation: `#` at start of line, followed (after
-    // whitespace) by a decimal digit, is the `#line` form.
+    // N5 disambiguation: `#line` at start of line is the line-marker
+    // form (P13's canonical post-preprocess form is `#line N [ "file" ]`).
+    // A bare mid-line `#` is the sign-extend operator. We accept the
+    // literal `#line` keyword followed by whitespace + a decimal digit;
+    // anything else with `#` falls through to the punctuation scan
+    // (becoming `tk_hash_sign_extend`).
     if (at_line_start && buf[cur] == '#') {
-      uint32_t look = peekPastSpaces(cur + 1);
-      if (look < buf.size() && isDecDigit(buf[look])) {
-        Token t = scanLineDirective();
-        // The directive consumed up to (not including) '\n'; the
-        // newline itself is consumed on the next pass through
-        // `skipWhitespaceAndComments` and re-arms `at_line_start`.
-        at_line_start = false;
-        return t;
+      // Match `#line` literally: cur..cur+4 == "#line", cur+5 is space.
+      if (cur + 5 < buf.size() && buf.substr(cur + 1, 4) == "line" &&
+          (buf[cur + 5] == ' ' || buf[cur + 5] == '\t')) {
+        uint32_t look = peekPastSpaces(cur + 5);
+        if (look < buf.size() && isDecDigit(buf[look])) {
+          Token t = scanLineDirective();
+          // The directive consumed up to (not including) '\n'; the
+          // newline itself is consumed on the next pass through
+          // `skipWhitespaceAndComments` and re-arms `at_line_start`.
+          at_line_start = false;
+          return t;
+        }
       }
-      // Mid-line `#`: fall through to punctuation scan.
+      // Not a `#line` directive: fall through to punctuation scan.
     }
 
     // Past the at-line-start window: any non-whitespace token clears

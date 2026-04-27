@@ -6,8 +6,8 @@
 // the literal source span per data-model entity 8 invariant
 // (`range_.length() == spelling_.size()`).
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '"hello"' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-"hello"
-// CHECK:      tk_string_lit	"hello"	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK:      tk_string_lit	\"hello\"	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
 // CHECK-NEXT: tk_eof

@@ -6,14 +6,9 @@
 //
 // The fixture body is `\n\t \n` — two newlines, one tab, one space.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: printf '\n\t \n' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-
-// The only token emitted should be tk_eof. CHECK-NOT before CHECK
-// asserts that the canonical content-bearing token kinds (any of
-// the lex outputs that would be produced if the lexer mis-classified
-// whitespace as content) do NOT appear before tk_eof in stdout.
-//
 // CHECK-NOT: tk_decimal_lit
 // CHECK-NOT: tk_identifier
 // CHECK-NOT: tk_string_lit

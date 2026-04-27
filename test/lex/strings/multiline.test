@@ -8,8 +8,8 @@
 // `string_char` (which is what `unterminated.test` exercises), but
 // `\n` as a backslash-n escape is.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: printf '"line1\\nline2"\n' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-"line1\nline2"
-// CHECK:      tk_string_lit	"line1\\nline2"	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK:      tk_string_lit	\"line1\\nline2\"	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
 // CHECK-NEXT: tk_eof

@@ -4,8 +4,8 @@
 // `Z` digit per `lang.ebnf §13` (Z/X/U markers legal in `'o` form
 // per §13 line 733 comment).
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '8'\''oZ' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-8'oZ
 // CHECK:      tk_octal_lit	8'oZ	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[Z]
 // CHECK-NEXT: tk_eof

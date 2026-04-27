@@ -26,9 +26,7 @@
 // the golden. A temp file under %t.* gives a stable path the lexer
 // reports cleanly.
 //
-// RUN: echo 'module foo {' > %t.nsl
-// RUN: echo '  reg w[8] = 0xZ_F;' >> %t.nsl
-// RUN: echo '}' >> %t.nsl
+// RUN: printf 'module foo {\n  reg w[8] = 0xZ_F;\n}' > %t.nsl
 // RUN: %nslc -emit=tokens %t.nsl | FileCheck %s --check-prefix=POS
 
 // POS:      tk_module	module	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]

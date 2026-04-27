@@ -4,8 +4,8 @@
 // `lang.ebnf §13` `c_style_number = "0" c_radix_char value_run`
 // where `c_radix_char = "b" | "x"`. Plain hex digits → no Z/X/U flags.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '0xff' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-0xff
 // CHECK:      tk_hex_lit	0xff	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
 // CHECK-NEXT: tk_eof

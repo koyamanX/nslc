@@ -6,8 +6,8 @@
 // pins this — "NON-nestable per Ref §0"). The lexer skips the
 // comment span; only the trailing `42` appears in the token stream.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: echo '/* a block comment */ 42' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-/* a block comment */ 42
 // CHECK:      tk_decimal_lit	42	{{[^:]+}}:1:23:22	{{[^:]+}}:1:23	[]
 // CHECK-NEXT: tk_eof

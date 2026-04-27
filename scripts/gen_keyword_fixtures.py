@@ -49,11 +49,16 @@ FIXTURE_TEMPLATE = """\
 // Per-keyword lex fixture for `{spelling}` per Constitution Principle
 // VIII (TDD). One token + tk_eof; SPDX header per FR-010..012.
 //
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// The keyword is written to a temp file via lit's %t substitution
+// rather than embedded in this .test file, so the SPDX header /
+// CHECK lines do NOT enter the lex stream and the keyword is
+// guaranteed to land at line 1 col 1 offset 0.
+//
+// RUN: echo {spelling} > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-{spelling}
 // CHECK:      tk_{enum_suffix}{TAB}{spelling}{TAB}{{{{[^:]+}}}}:1:1:0{TAB}{{{{[^:]+}}}}:1:1{TAB}[]
-// CHECK-NEXT: tk_eof{TAB}{TAB}{{{{[^:]+}}}}:{eof_line}:{eof_col}:{eof_off}{TAB}{{{{[^:]+}}}}:{eof_line}:{eof_col}{TAB}[]
+// CHECK-NEXT: tk_eof{TAB}{TAB}{{{{[^:]+}}}}:2:1:{eof_off}{TAB}{{{{[^:]+}}}}:2:1{TAB}[]
 """
 
 

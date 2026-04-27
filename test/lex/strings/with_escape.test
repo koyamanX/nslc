@@ -8,8 +8,8 @@
 // inside the spelling field, so the rendered spelling here is
 // `"a\\nb"` (six on-disk chars rendered as eight after escaping).
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: printf '"a\\nb"\n' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-"a\nb"
-// CHECK:      tk_string_lit	"a\\nb"	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// CHECK:      tk_string_lit	\"a\\nb\"	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
 // CHECK-NEXT: tk_eof

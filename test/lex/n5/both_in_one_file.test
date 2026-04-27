@@ -13,10 +13,9 @@
 // line 1, then toggled false again as line 2's earlier tokens are
 // consumed before the `#` is seen.
 
-// RUN: %nslc -emit=tokens %s | FileCheck %s
+// RUN: printf '#line 50 "f.nsl"\ny = c#d;\n' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s
 
-#line 50 "f.nsl"
-y = c#d;
 // CHECK: tk_line_directive
 // CHECK: tk_hash_sign_extend	#
 // CHECK: tk_eof
