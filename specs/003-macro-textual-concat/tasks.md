@@ -137,7 +137,7 @@ description: "Tasks for 003-macro-textual-concat — bare-macro textual concaten
 ### Final checks
 
 - [X] T027 [P] Run `./scripts/ci.sh` end-to-end inside the container — all 6 stages exit 0 (build-matrix, static-checks, unit-tests, lowering-tests, e2e-wired-but-empty, formal-wired-but-empty). The new gtest suite + 3 new lit fixtures should be picked up automatically.
-- [X] T028 [P] Run `python3 scripts/check_spdx.py --all` — every new file (`MacroExpander.{h,cpp}`, `macro_expander_test.cpp`, the 4 new `.test` files, `macro_expander_test/CMakeLists.txt`) carries the SPDX header. Expect 0 failures.
+- [X] T028 [P] Run `python3 scripts/check_spdx.py --all` — every new file (`MacroExpander.{h,cpp}`, `macro_expander_test.cpp`, the 5 new `.test` files, `macro_expander_test/CMakeLists.txt`) carries the SPDX header. Expect 0 failures.
 - [X] T029 [P] SC roll-up: write a one-paragraph PR-comment summary citing each of SC-001..SC-006 and the corresponding green fixture / test_unit case. SC-006 (pp.ebnf line count ±2) verified by `wc -l docs/spec/nsl_pp.ebnf` returning exactly 559.
 
 ### Agent-driven audits
