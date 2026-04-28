@@ -92,11 +92,20 @@ Every recovery-emitted diagnostic uses the canonical M1 format
 <path>:<line>:<col>: error: <message>
 ```
 
-The `<message>` is parser-specific — examples:
+The `<message>` is parser-specific. The following are
+**non-normative wording samples** showing the canonical format —
+the actual emitted text may be shorter or differ in wording. The
+locked-text fixtures under `test/parse/recovery/expected-*.test`
+pin the *currently emitted* phrasing as the source of truth; if
+those phrasings change, the fixtures get re-cut in the same patch
+(same as the AST format-golden discipline per Invariant 7 of
+`ast-stability.contract.md`).
 
 - `expected ';' after register declaration`
-- `expected '}' to close 'module' body`
-- `expected expression after binary operator`
+- `expected '}' to close module` (impl drops the contract's
+  earlier `'module' body` form to a shorter `module` form)
+- `expected expression` (impl drops the contract's earlier
+  `expression after binary operator` to the shorter form)
 - `'label' is reserved; using as identifier (parser-note N10)` (warning, not error)
 - `'#line' directive must be followed by a positive integer (parser-note N14)`
 

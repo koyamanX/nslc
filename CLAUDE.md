@@ -22,6 +22,13 @@ References to `lang.ebnf §X` are sections in
 `pp.ebnf §X` are sections in
 [`docs/spec/nsl_pp.ebnf`](./docs/spec/nsl_pp.ebnf).
 
+> **Status as of 2026-04-28**: M1 and M2 are delivered. The "M2"
+> column entries below (covering `lang.ebnf §§1–11` parse + AST +
+> N1/N2/N3/N5/N6/N7/N10/N11/N14 disambiguation + multi-error
+> recovery) are all green: `nslc -emit=ast` works end-to-end;
+> 169/169 ctest + 198/198 lit pass inside the dev container. M3
+> (Sema for `Sn` constraints) and beyond remain forward-looking.
+
 | Language area | Spec reference | Lex / parse / sema | Lower to dialect | Lower to CIRCT |
 |---|---|---|---|---|
 | Lexical: identifiers, numbers (Z/X/U), strings, `_`-prefix names | lang.ebnf §13; N11 | M1 (lex) | — | — |
