@@ -8,10 +8,19 @@
 // Diagnostics route through the M1 `DiagnosticEngine` (FR-019); the
 // parser MUST NOT write to `stderr` directly.
 //
-// Recovery is OUT of M2 Phase 3 scope — at this milestone the parser
-// uses single-error bail (return nullptr / propagate) when it detects
-// a syntax error. The Phase 5 (US3) track adds full multi-error
-// recovery on top of the same `parseFoo()` shape.
+// Recovery: full clangd-style multi-error recovery is wired (M2
+// Phase 5 / US3, per /speckit-clarify Q1). Per-rule recovery sets
+// at every `parseFoo()` site emit a diagnostic, `skipUntil()` to a
+// resync token, and continue iterating; multiple independent syntax
+// errors in one source surface in a single parse run. The returned
+// `CompilationUnit` is non-null on the well-formed prefix even when
+// some children fail to parse — well-formed siblings between/after
+// error sites are preserved, malformed sub-parses are simply absent
+// from their parent's vector. `nullptr` is returned only if recovery
+// exhausts to EOF (a true unrecoverable failure). Callers consult
+// `diag.hasError()` to decide whether to print the partial AST; the
+// `nslc -emit=ast` driver suppresses stdout when any error fired
+// (per `nslc-emit-ast.contract.md` §Behavior step 5).
 //
 // Layered position: layer 5. Depends on `nsl-basic` (SourceLocation /
 // DiagnosticEngine), `nsl-lex` (Lexer / Token), and `nsl-ast` (the AST
