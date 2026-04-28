@@ -226,21 +226,20 @@ description: "Tasks for M2 — Parser + AST (with `-emit=ast`)"
 
 **Checkpoint**: M2 ready for PR. All 9 SCs measurable as met; all 9 Constitution Principles green. Per /speckit-clarify Q2, JSON-mode AST output is explicitly NOT in M2 scope (T-track will revisit when the LSP consumer is concrete).
 
-### Phase 3+4 integration final state — 187/192 lit (97.4%) + 156/156 ctest (100%)
+### Phase 3+4 integration final state — 190/192 lit (98.96%) + 156/156 ctest (100%)
 
-After Tracks A–F landed (initial integration), then Tracks G + H (closed Groups α and γ+δ), lit pass rate moves from 168/192 → **187/192 (97.4%)** with ctest still **156/156 (100%)**. Five fixtures remain failing — all in **Group β** (parser-feature gaps requiring spec-author judgment or future parser work):
+After Tracks A–I landed (initial integration + α/γ/δ/β-partial), lit pass rate climbs from 168/192 → **190/192 (98.96%)** with ctest still **156/156 (100%)**. Track I closed 3 of the 5 Group β fixtures by adding `++`/`--` support across the lex + parse layers (a Principle VII coupling fix — M1's lexer didn't ship the punctuators despite `lang.ebnf §11:654-657` listing them).
 
-| Fixture | Group | Cause | Recommended fix |
-|---|---|---|---|
-| `expr-incdec/pass.test` | β | Parser doesn't construct `IncDecExpr` from `++`/`--` despite `lang.ebnf §11:654-657` listing it under `primary_expr` | Parser feature: add `++`/`--` as Pratt nud (prefix) + led (postfix) in `PrecedenceTable.h` + `ParseExpr.cpp` |
-| `atomic-incdec/pass.test` | β | Same as expr-incdec at statement position — parser bails before constructing `IncDecStmt` | Same parser feature; statement-position dispatch in `ParseStmt.cpp::parseLValueLedStatement` |
-| `action-for/pass.test` | β | Parser requires `:=` in for-step; fixture uses `i++` | Either fixture rewrite (`i := i + 1`) OR add `++`/`--` parser support (subsumed by IncDecExpr fix above) |
-| `action-generate/pass.test` | β | Parser requires `:=` in generate-step; fixture uses `i = 0` | Spec-author review: does EBNF §8 generate-step allow `=` (transfer) or only `:=` (statement)? Likely fixture rewrite |
-| `state-definition/pass.test` | β | `state s1 { }` inside `proc` rejected as "expected action statement" | Spec-author review: `state_definition` is a `module_item` per §5; fixture nests it inside `proc` which may be illegal. Likely fixture rewrite |
+**Two fixtures remain failing — both need `nsl-spec-author` judgment, not implementation work**:
 
-**Recommended next**: a single follow-up track (`nsl-frontend-impl`) implements `IncDecExpr` / `IncDecStmt` parsing from `++`/`--`; closes 3 of the 5 fixtures (`expr-incdec`, `atomic-incdec`, `action-for`). The remaining 2 (`action-generate`, `state-definition`) need an `nsl-spec-author` pass to determine whether they're parser bugs or fixture bugs.
+| Fixture | Cause | Disposition |
+|---|---|---|
+| `action-generate/pass.test` | Parser requires `:=` in generate-step; fixture uses `i = 0` | **Spec-author**: does `lang.ebnf §8` generate-step allow `=` (transfer) or only `:=` (statement)? If parser is right, fixture rewrites to `i := 0`. If spec is ambiguous, clarify §8 first. |
+| `state-definition/pass.test` | `state s1 { }` inside `proc` rejected | **Spec-author**: `state_definition` is a `module_item` per §5; the fixture nests it inside `proc` which may be illegal NSL. If parser is right, fixture rewrites to top-level `state` defn. |
 
-**M2 Phase 3+4 status**: parser surface is functionally complete. The `nslc -emit=ast` driver works end-to-end. 156/156 unit tests pass. 187/192 lit fixtures pass. The remaining 5 are documented Group β gaps.
+Neither blocks M2's acceptance gate — they reveal genuine spec ambiguity that needs explicit resolution. A small `nsl-spec-author` pass produces either fixture rewrites (no parser changes) or a `lang.ebnf` clarification + parser update.
+
+**M2 Phase 3+4 status**: parser surface is functionally complete. `nslc -emit=ast` works end-to-end on every well-formed input. 156/156 unit tests pass. 190/192 lit fixtures pass. The remaining 2 are documented Group β spec-clarification items.
 
 ### Original Phase 3+4 outstanding findings (historical record — already largely resolved)
 
