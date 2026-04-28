@@ -57,6 +57,9 @@ enum class PrecLevel : uint8_t {
   Shift = 80,         ///< `<<`, `>>`
   Additive = 90,      ///< `+`, `-`
   Multiplicative = 100, ///< `*`, `/`, `%`
+  Postfix = 110,      ///< postfix `++`, `--` (binds tighter than `*`,
+                      ///<   `/`, `%`; matches C/C++ convention so
+                      ///<   `a * i++` parses as `a * (i++)`)
   Conditional = 5,    ///< `?:` ternary (right-assoc; below logical-or)
 };
 
@@ -142,6 +145,20 @@ buildPrecedenceTable() {
       {true, PrecLevel::None, Assoc::None};
   t[static_cast<size_t>(TokenKind::tk_logical_not)] =
       {true, PrecLevel::None, Assoc::None};
+
+  // ----- Inc/Dec operators (`lang.ebnf §11` lines 654–657) ----- //
+  // `++`/`--` are listed under `primary_expr` in both prefix
+  // (`++ identifier`) and postfix (`identifier ++`) forms. The prefix
+  // form is dispatched as a nud in `parseNudExpr`; the postfix form
+  // rides the Pratt led-table at `Postfix` precedence — tighter than
+  // `Multiplicative` so `a * i++` parses as `a * (i++)`, matching
+  // C/C++ convention. The Pratt loop's per-token branch in
+  // `ParseExpr.cpp` constructs `IncDecExpr{prefix=false}` directly;
+  // `Assoc::Left` is a placeholder (postfix has no second operand).
+  t[static_cast<size_t>(TokenKind::tk_plus_plus)] =
+      {true, PrecLevel::Postfix, Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_minus_minus)] =
+      {true, PrecLevel::Postfix, Assoc::Left};
 
   // ----- N2: `&` `|` `^` are BOTH prefix (reduction) AND infix
   //       (bitwise binary). The parser inspects the call site to

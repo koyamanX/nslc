@@ -74,6 +74,10 @@ llvm::StringRef toString(TokenKind k) {
     return "tk_plus";
   case TokenKind::tk_minus:
     return "tk_minus";
+  case TokenKind::tk_plus_plus:
+    return "tk_plus_plus";
+  case TokenKind::tk_minus_minus:
+    return "tk_minus_minus";
   case TokenKind::tk_star:
     return "tk_star";
   case TokenKind::tk_slash:
