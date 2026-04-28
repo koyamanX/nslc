@@ -226,9 +226,25 @@ description: "Tasks for M2 — Parser + AST (with `-emit=ast`)"
 
 **Checkpoint**: M2 ready for PR. All 9 SCs measurable as met; all 9 Constitution Principles green. Per /speckit-clarify Q2, JSON-mode AST output is explicitly NOT in M2 scope (T-track will revisit when the LSP consumer is concrete).
 
-### Phase 3+4 outstanding integration findings (24 lit fixtures @ 87.5% pass)
+### Phase 3+4 integration final state — 187/192 lit (97.4%) + 156/156 ctest (100%)
 
-After Tracks A-F landed, lit reports **168/192 (87.5%)** — ctest is **156/156 (100%)** and the `nslc -emit=ast` driver works end-to-end. The 24 remaining lit failures surfaced **real bugs and spec/design coupling work** rather than mechanical drift. Cataloged here for follow-up tracks; **none block the M2 acceptance gate** in spirit (parser surface is complete, well-formed inputs all produce correct AST). Anchored to specific findings:
+After Tracks A–F landed (initial integration), then Tracks G + H (closed Groups α and γ+δ), lit pass rate moves from 168/192 → **187/192 (97.4%)** with ctest still **156/156 (100%)**. Five fixtures remain failing — all in **Group β** (parser-feature gaps requiring spec-author judgment or future parser work):
+
+| Fixture | Group | Cause | Recommended fix |
+|---|---|---|---|
+| `expr-incdec/pass.test` | β | Parser doesn't construct `IncDecExpr` from `++`/`--` despite `lang.ebnf §11:654-657` listing it under `primary_expr` | Parser feature: add `++`/`--` as Pratt nud (prefix) + led (postfix) in `PrecedenceTable.h` + `ParseExpr.cpp` |
+| `atomic-incdec/pass.test` | β | Same as expr-incdec at statement position — parser bails before constructing `IncDecStmt` | Same parser feature; statement-position dispatch in `ParseStmt.cpp::parseLValueLedStatement` |
+| `action-for/pass.test` | β | Parser requires `:=` in for-step; fixture uses `i++` | Either fixture rewrite (`i := i + 1`) OR add `++`/`--` parser support (subsumed by IncDecExpr fix above) |
+| `action-generate/pass.test` | β | Parser requires `:=` in generate-step; fixture uses `i = 0` | Spec-author review: does EBNF §8 generate-step allow `=` (transfer) or only `:=` (statement)? Likely fixture rewrite |
+| `state-definition/pass.test` | β | `state s1 { }` inside `proc` rejected as "expected action statement" | Spec-author review: `state_definition` is a `module_item` per §5; fixture nests it inside `proc` which may be illegal. Likely fixture rewrite |
+
+**Recommended next**: a single follow-up track (`nsl-frontend-impl`) implements `IncDecExpr` / `IncDecStmt` parsing from `++`/`--`; closes 3 of the 5 fixtures (`expr-incdec`, `atomic-incdec`, `action-for`). The remaining 2 (`action-generate`, `state-definition`) need an `nsl-spec-author` pass to determine whether they're parser bugs or fixture bugs.
+
+**M2 Phase 3+4 status**: parser surface is functionally complete. The `nslc -emit=ast` driver works end-to-end. 156/156 unit tests pass. 187/192 lit fixtures pass. The remaining 5 are documented Group β gaps.
+
+### Original Phase 3+4 outstanding findings (historical record — already largely resolved)
+
+After Tracks A-F landed, lit reported 168/192 (87.5%). The 24 fixtures failing at that point were grouped α/β/γ/δ: The 24 remaining lit failures surfaced **real bugs and spec/design coupling work** rather than mechanical drift. Cataloged here for follow-up tracks; **none block the M2 acceptance gate** in spirit (parser surface is complete, well-formed inputs all produce correct AST). Anchored to specific findings:
 
 **Group α — Track C input bugs (12 fixtures, fixture-side regen)**:
 - `expr-{literal-decimal,identifier,system-var,unary,binary,conditional,concat,repeat,sign-extend,zero-extend,slice,field-access,struct-cast,call,incdec}/pass.test` — `gen_grammar_fixtures.py` emits illegal NSL `wire q = expr;` form (only `reg` accepts `=` initializer per `lang.ebnf §6` line 211). Fix: regenerate with transfer form (`wire q; q = expr;`).
