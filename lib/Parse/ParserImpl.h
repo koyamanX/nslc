@@ -12,12 +12,19 @@
 // `nsl/Parse/Parser.h`. Adding methods here is a private refactor,
 // not a public API change.
 //
-// Recovery (US3, Phase 5) is NOT implemented here yet. The current
-// shape uses single-error bail: when a syntax check fails, the
-// `parseFoo()` function emits a diagnostic via `diag()` and returns
-// `nullptr` / a default-constructed value. The caller propagates.
-// Phase 5 will add `RecoveryGuard` + `skipUntil()` primitives without
-// changing the surface of this class.
+// Recovery (US3, Phase 5) is implemented via the
+// `RecoveryGuard` / `TokenSet` / `skipUntil()` primitives in
+// `lib/Parse/Recovery.{h,cpp}`. Each `parseFoo()` site declares a
+// `static constexpr TokenSet` listing the tokens at which to resume
+// on syntax error and wraps its body with a `RecoveryGuard` that
+// pushes the set onto `recovery_stack_`. On error, the rule emits a
+// diagnostic, calls `skipUntil(currentRecoverySet())` to park the
+// lexer at a recovery token, then returns nullptr; the caller's
+// item-list loop sees nullptr but, since the lexer is parked at a
+// token that belongs to ITS recovery set or an outer one, the loop
+// can either consume the local separator (`;`) and continue, or
+// break at `}` / EOF. The outer `parseCompilationUnit` loop returns
+// the partial AST on EOF unwind.
 //
 // Token buffer model: we delegate to `Lexer::peek(n)` / `Lexer::next()`
 // directly. The lexer maintains its own peek-cache deque per
@@ -38,6 +45,8 @@
 #include "nsl/Lex/Token.h"
 
 #include "llvm/ADT/StringRef.h"
+
+#include "Recovery.h"
 
 #include <memory>
 #include <string>
@@ -115,6 +124,39 @@ public:
   // ----- Engine accessor -----
 
   DiagnosticEngine &diag() noexcept { return diag_; }
+
+  // ----- Recovery-stack management (Phase 5 / US3) -----
+  //
+  // Each active `RecoveryGuard` pushes one entry. `currentRecoverySet()`
+  // returns the merged union of every entry on the stack — that's the
+  // "active set" passed to `skipUntil()` on error. Per
+  // parser-recovery.contract.md "Recovery model": when an inner rule
+  // hits a token in an OUTER guard's set, the inner skipUntil() yields
+  // (peek() == that token), the inner rule unwinds, the caller's loop
+  // checks the parked token, and resumption proceeds at the outer
+  // rule's iteration boundary.
+
+  /// Used by `RecoveryGuard` only (RAII push).
+  void pushRecoverySet(TokenSet s) { recovery_stack_.push_back(s); }
+
+  /// Used by `RecoveryGuard` only (RAII pop).
+  void popRecoverySet() noexcept {
+    if (!recovery_stack_.empty()) {
+      recovery_stack_.pop_back();
+    }
+  }
+
+  /// Merged union of every guard currently on the stack. Returned by
+  /// value (the bitset is small — `(tk_count + 63) / 64` 64-bit words,
+  /// i.e., a few cache lines). Determinism: traversal order is the
+  /// vector's index order, no hash-map iteration.
+  [[nodiscard]] TokenSet currentRecoverySet() const noexcept {
+    TokenSet merged;
+    for (const TokenSet &s : recovery_stack_) {
+      merged |= s;
+    }
+    return merged;
+  }
 
   // ----- N14: line_marker consumption -----
   //
@@ -226,6 +268,10 @@ public:
 private:
   Lexer &lex_;
   DiagnosticEngine &diag_;
+  /// Recovery stack — each `RecoveryGuard` pushes one entry. Vector
+  /// (not `std::stack`) so `currentRecoverySet()` can iterate in
+  /// deterministic index order to compute the merged union.
+  std::vector<TokenSet> recovery_stack_;
 };
 
 } // namespace nsl::parse

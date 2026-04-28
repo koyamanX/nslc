@@ -15,6 +15,7 @@
 //          handled via parseScopedName)
 
 #include "ParserImpl.h"
+#include "Recovery.h"
 
 #include "nsl/AST/DeclareBlock.h"
 #include "nsl/AST/Expr.h"
@@ -181,6 +182,11 @@ std::unique_ptr<ast::Decl> Parser::parseDeclareBlock() {
   if (!expect(TokenKind::tk_lbrace, "'{' to begin declare block")) {
     return nullptr;
   }
+  // Phase 5 recovery: per parser-recovery.contract.md, declare-item
+  // resync points are `{Semi, RBrace}`. The guard merges with the
+  // outer (top-level) set so an inner Pratt-position failure can
+  // unwind clear of the declare block on a missing `}`.
+  RecoveryGuard guard(*this, recovery_sets::kDeclareItem);
   std::vector<std::unique_ptr<ast::Decl>> headerParams;
   std::vector<std::unique_ptr<ast::Decl>> ports;
   while (!check(TokenKind::tk_rbrace) && !check(TokenKind::tk_eof)) {
@@ -189,11 +195,37 @@ std::unique_ptr<ast::Decl> Parser::parseDeclareBlock() {
       break;
     }
     if (!parseDeclareItem(headerParams, ports)) {
-      return nullptr;
+      // The item-parser raised a diagnostic. Park at the next
+      // declare-item resync point (`;`, `}`, OR an outer set token
+      // like a top-level `module`/`struct`). Multi-error per FR-021.
+      skipUntil(*this, currentRecoverySet());
+      if (check(TokenKind::tk_eof)) {
+        break;
+      }
+      // If we landed on a token from an outer set (e.g., a top-level
+      // `module` keyword), bail out of THIS block so the caller's
+      // recovery can dispatch to it. Heuristic: any token that is a
+      // declare-item resync candidate (`;`, `}`) is local; anything
+      // else came from an outer guard.
+      if (!recovery_sets::kDeclareItem.contains(peekKind())) {
+        // Outer-set token: leave the declare block; treat as if `}`
+        // was implicitly seen so we can synthesize a partial AST.
+        break;
+      }
+      // Local resync — eat a stray `;` and continue. A `}` is left
+      // in place for the loop's exit condition.
+      if (check(TokenKind::tk_semicolon)) {
+        consume();
+      }
     }
   }
   Token rbr;
   if (!expect(TokenKind::tk_rbrace, "'}' to close declare block", &rbr)) {
+    // Per parser-recovery.contract.md "Recovery does NOT produce
+    // synthetic AST nodes for the malformed construct." A
+    // declare-block missing its `}` is malformed at the top level;
+    // bail and let parseCompilationUnit's recovery preserve
+    // well-formed siblings.
     return nullptr;
   }
   // The data-model treats declare-block port vector as
@@ -377,6 +409,13 @@ std::unique_ptr<ast::Decl> Parser::parseModuleBlock() {
   if (!expect(TokenKind::tk_lbrace, "'{' to begin module body")) {
     return nullptr;
   }
+  // Phase 5 recovery: per parser-recovery.contract.md, module-item
+  // resync points are `{Semi, RBrace, func, function, proc, state,
+  // wire, reg, mem, integer, variable, proc_name, state_name,
+  // first_state, func_self}`. Merging with the outer top-level set
+  // means a missing `}` will let the lexer escape to the next top-
+  // level keyword cleanly.
+  RecoveryGuard guard(*this, recovery_sets::kModuleItem);
   std::vector<std::unique_ptr<ast::Decl>> internals;
   std::vector<std::unique_ptr<ast::Stmt>> actions;
   std::vector<std::unique_ptr<ast::Decl>> funcs;
@@ -387,11 +426,33 @@ std::unique_ptr<ast::Decl> Parser::parseModuleBlock() {
       break;
     }
     if (!parseModuleItem(internals, actions, funcs, procs)) {
-      return nullptr;
+      // The item-parser raised a diagnostic. Skip forward to the
+      // next module-item resync point (`;`, `}`, an item-start
+      // keyword, or an outer-set token). FR-021 multi-error.
+      skipUntil(*this, currentRecoverySet());
+      if (check(TokenKind::tk_eof)) {
+        break;
+      }
+      // If we landed on a token outside the module-item set (e.g.,
+      // a top-level `module`/`struct`), bail out of this body so
+      // parseCompilationUnit's recovery can re-dispatch.
+      if (!recovery_sets::kModuleItem.contains(peekKind())) {
+        break;
+      }
+      // Local resync — eat a stray `;` and continue. A `}` is left
+      // in place for the loop's exit condition; an item-start
+      // keyword (`func`, `reg`, etc.) is left in place to be the
+      // dispatch token of the next iteration.
+      if (check(TokenKind::tk_semicolon)) {
+        consume();
+      }
     }
   }
   Token rbr;
   if (!expect(TokenKind::tk_rbrace, "'}' to close module", &rbr)) {
+    // Same rationale as parseDeclareBlock: a malformed module that
+    // never reaches its `}` is dropped from the AST; well-formed
+    // top-level siblings survive via parseCompilationUnit's loop.
     return nullptr;
   }
   return std::make_unique<ast::ModuleBlock>(
