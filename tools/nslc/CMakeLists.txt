@@ -15,6 +15,16 @@ add_executable(nslc main.cpp)
 # generated header).
 target_link_libraries(nslc PRIVATE nsl-driver)
 
+# Per-Sn constraint TUs in lib/Sema/Constraints/ self-register at
+# static-init time via NSL_REGISTER_CONSTRAINT. The TUs aren't
+# referenced by symbol from anywhere — the only thing pulling them
+# in is the static initializer side-effect — so without
+# `--whole-archive` the static linker silently drops every Sn TU
+# when libnsl-sema.a is consumed, and `Sema::runConstraintPasses`
+# fans out over an empty registry. Wrap libnsl-sema specifically.
+target_link_options(nslc PRIVATE
+  "LINKER:--whole-archive,$<TARGET_FILE:nsl-sema>,--no-whole-archive")
+
 set_target_properties(nslc PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
   CXX_EXTENSIONS OFF)
