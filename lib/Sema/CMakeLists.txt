@@ -20,6 +20,35 @@ add_nsl_library(nsl-sema
   TypeSystem.cpp
   ResolutionPass.cpp
   ConstraintCheckRegistry.cpp
+  Constraints/S01_NoDoubleUnderscore.cpp
+  Constraints/S02_WireNoInit.cpp
+  Constraints/S03_AssignmentLHSKind.cpp
+  Constraints/S04_FuncDummyArgDirs.cpp
+  Constraints/S05_ReturnTerminalDir.cpp
+  Constraints/S06_ProcArgRegOnly.cpp
+  Constraints/S07_SeqInsideFuncProc.cpp
+  Constraints/S08_LoopInsideSeq.cpp
+  Constraints/S09_ForVarReg.cpp
+  Constraints/S10_GenerateVarInteger.cpp
+  Constraints/S11_StateNameProcScoped.cpp
+  Constraints/S12_PartialLHSVariableOnly.cpp
+  Constraints/S13_AltAnyClassification.cpp
+  Constraints/S14_ConditionalElseRequired.cpp
+  Constraints/S15_SliceIndicesConst.cpp
+  Constraints/S16_ParamHDLOnly.cpp
+  Constraints/S17_SystemTaskSimulationOnly.cpp
+  Constraints/S18_StructMSBFirstPacking.cpp
+  Constraints/S19_OneClockPerGoto.cpp
+  Constraints/S20_InterfaceModifierClkRst.cpp
+  Constraints/S21_ProcMethodsFinishInvoke.cpp
+  Constraints/S22_ReturnWidthMatch.cpp
+  Constraints/S23_RegOmittedWidth1Bit.cpp
+  Constraints/S24_MemPartialInitZero.cpp
+  Constraints/S25_GotoTwoKinds.cpp
+  Constraints/S26_FuncFunctionWarn.cpp
+  Constraints/S27_ControlTerminalAs1Bit.cpp
+  Constraints/S28_FirstStatePositioning.cpp
+  Constraints/S29_InitBlockPlacement.cpp
   HEADERS
     ${CMAKE_SOURCE_DIR}/include/nsl/Sema/Sema.h
     ${CMAKE_SOURCE_DIR}/include/nsl/Sema/SymbolTable.h

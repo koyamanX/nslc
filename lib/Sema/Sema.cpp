@@ -81,13 +81,44 @@ SemaResult Sema::run(ast::CompilationUnit &unit) {
 
 ClassifierKind
 Sema::classifyIdentifierExpr(const ast::IdentifierExpr &expr) const {
-  // Phase 2 stub — Phase 4's `S27_ControlTerminalAs1Bit.cpp`
-  // (T070) replaces this body with the actual classifier (look up
-  // `expr.name()` in the symbol table; if the resolved kind is
-  // `FuncIn`/`FuncOut`/`FuncSelf`/`Proc`, return
-  // `ControlTerminalTap`). At Phase 2 we return `Value` so callers
-  // compile and link cleanly.
-  (void)expr;
+  // Phase 4b T070 implementation. Resolve `expr.name()` via the
+  // resolution map (set by the Phase 3 ResolutionPass) and return
+  // `ControlTerminalTap` when the resolved Symbol's kind is one of
+  // FuncIn / FuncOut / FuncSelf / Proc; otherwise `Value`.
+  const ResolutionMap *map = currentResolutionMap();
+  if (map != nullptr) {
+    auto it = map->exprToSymbol.find(&expr);
+    if (it != map->exprToSymbol.end() && it->second != nullptr) {
+      const Symbol *sym = it->second;
+      switch (sym->kind()) {
+      case SymbolKind::SK_FuncIn:
+      case SymbolKind::SK_FuncOut:
+      case SymbolKind::SK_FuncSelf:
+      case SymbolKind::SK_Proc:
+        return ClassifierKind::ControlTerminalTap;
+      default:
+        return ClassifierKind::Value;
+      }
+    }
+  }
+  // Fallback: probe the symbol table directly. Useful for tests that
+  // construct an ad-hoc IdentifierExpr without running ResolutionPass.
+  if (symbols_) {
+    if (!expr.name().parts.empty()) {
+      Symbol *sym = symbols_->lookup(expr.name().parts.front());
+      if (sym != nullptr) {
+        switch (sym->kind()) {
+        case SymbolKind::SK_FuncIn:
+        case SymbolKind::SK_FuncOut:
+        case SymbolKind::SK_FuncSelf:
+        case SymbolKind::SK_Proc:
+          return ClassifierKind::ControlTerminalTap;
+        default:
+          return ClassifierKind::Value;
+        }
+      }
+    }
+  }
   return ClassifierKind::Value;
 }
 

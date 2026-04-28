@@ -559,6 +559,19 @@ std::unique_ptr<ast::Decl> Parser::parseInternalDecl() {
         return nullptr;
       }
     }
+    // S2 (lang.ebnf:832): `wire` may NOT have an initializer. The
+    // parser cooperates with M3 Sema by accepting the `= <expr>`
+    // shape, discarding it (the M2-frozen WireDecl AST has no init
+    // slot), and emitting the frozen S2 diagnostic at the parser
+    // site. The AST stays clean; the diagnostic survives.
+    if (check(TokenKind::tk_assign)) {
+      Token assign_tok = consume();
+      auto init_expr = parseExpr();
+      (void)init_expr;
+      diag().report(Severity::Error, assign_tok.range().begin(),
+                    "'wire' may not have an initializer; use 'reg' "
+                    "instead (S2)");
+    }
     // Discard any further comma-separated declarators at M2 — the
     // first one wins (a known parser-shape simplification per
     // SeqBlock-internal tradeoffs).
@@ -577,6 +590,14 @@ std::unique_ptr<ast::Decl> Parser::parseInternalDecl() {
         if (!expect(TokenKind::tk_rbracket, "']' after wire width")) {
           return nullptr;
         }
+      }
+      if (check(TokenKind::tk_assign)) {
+        Token assign_tok = consume();
+        auto init_expr = parseExpr();
+        (void)init_expr;
+        diag().report(Severity::Error, assign_tok.range().begin(),
+                      "'wire' may not have an initializer; use 'reg' "
+                      "instead (S2)");
       }
     }
     Token semi;
@@ -1175,8 +1196,15 @@ std::unique_ptr<ast::Decl> Parser::parseFuncDefn() {
     kw = consume();
   } else if (check(TokenKind::tk_function)) {
     // FR-016 / S26: `function` is an alias for `func` at parser level.
-    // The Sema-time canonicalization warning is M3's.
+    // Emit the locked S26 warning at the parser site (M3 Sema doesn't
+    // see which keyword was used because FuncDefn doesn't carry the
+    // bit). FixIt rewrites `function` -> `func`.
     kw = consume();
+    auto b = diag().report(
+        Severity::Warning, kw.range().begin(),
+        "'function' is accepted as a synonym for 'func' but is not "
+        "the canonical form (S26)");
+    b.addFixIt(kw.range(), "func");
   } else {
     errorAtPeek("expected 'func' or 'function'");
     return nullptr;

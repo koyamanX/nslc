@@ -73,11 +73,16 @@ void registerConstraint(unsigned sn,
 void runAllConstraints(const ConstraintContext &ctx);
 
 /// Self-registration helper. Each S<NN>_*.cpp writes:
-///   namespace { struct S<NN>Visitor : ConstraintVisitor { ... }; }
+///   namespace nsl::sema { namespace {
+///     class S<NN>Visitor : public ConstraintVisitor { ... };
+///   }} // namespaces
 ///   NSL_REGISTER_CONSTRAINT(<NN>, S<NN>Visitor)
-/// at file scope. The macro expands to a static initializer that
-/// constructs a single instance and inserts it into the registry.
+/// at file scope (OUTSIDE the namespaces). The macro re-opens
+/// `namespace nsl::sema { namespace { ... } }` so the registrar's
+/// `make_unique<VisitorClass>()` resolves the unqualified visitor
+/// name in the same anonymous namespace where it was declared.
 #define NSL_REGISTER_CONSTRAINT(SN, VisitorClass)                              \
+  namespace nsl::sema {                                                        \
   namespace {                                                                  \
   struct VisitorClass##Registrar {                                             \
     VisitorClass##Registrar() {                                                \
@@ -86,7 +91,8 @@ void runAllConstraints(const ConstraintContext &ctx);
     }                                                                          \
   };                                                                           \
   static VisitorClass##Registrar g_##VisitorClass##_registrar;                 \
-  } // namespace
+  } /* anonymous */                                                            \
+  } /* namespace nsl::sema */
 
 } // namespace nsl::sema
 

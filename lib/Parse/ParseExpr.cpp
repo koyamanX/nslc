@@ -398,14 +398,29 @@ std::unique_ptr<ast::Expr> Parser::parseNudExpr() {
     if (!thenE) {
       return nullptr;
     }
-    if (!expect(TokenKind::tk_else_, "'else' after if-then expression")) {
-      return nullptr;
+    // S14 (lang.ebnf:874): conditional expression requires `else`.
+    // The parser cooperates with M3 Sema by accepting the missing-
+    // else shape (constructing a ConditionalExpr with null elseE)
+    // and emitting the frozen S14 diagnostic at the parser site.
+    // The Sema-side S14 walker double-checks for any case the
+    // parser shouldn't have produced.
+    std::unique_ptr<ast::Expr> elseE;
+    if (check(TokenKind::tk_else_)) {
+      consume();
+      elseE = parseExprAtPrecedence(static_cast<int>(PrecLevel::LogicalOr));
+      if (!elseE) {
+        return nullptr;
+      }
+    } else {
+      auto b = diag().report(
+          Severity::Error, if_tok.range().begin(),
+          "conditional expression requires an 'else' branch (S14)");
+      // FixIt: insert ` else ` immediately after the then-expr.
+      SourceRange ins(thenE->loc().end(), thenE->loc().end());
+      b.addFixIt(ins, " else ");
     }
-    auto elseE = parseExprAtPrecedence(static_cast<int>(PrecLevel::LogicalOr));
-    if (!elseE) {
-      return nullptr;
-    }
-    SourceLocation end_loc = elseE->loc().end();
+    SourceLocation end_loc =
+        elseE ? elseE->loc().end() : thenE->loc().end();
     return std::make_unique<ast::ConditionalExpr>(
         rangeFromTo(if_tok.range().begin(), end_loc), std::move(cond),
         std::move(thenE), std::move(elseE));
