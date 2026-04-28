@@ -65,6 +65,32 @@ bool Parser::consumeIdentifierLike(ast::Identifier &out_name,
   return false;
 }
 
+bool Parser::expectIdentifierAllowLabel(llvm::StringRef what, Token *out) {
+  TokenKind k = peekKind();
+  if (k == TokenKind::tk_identifier) {
+    Token t = consume();
+    if (out != nullptr) {
+      *out = t;
+    }
+    return true;
+  }
+  if (k == TokenKind::tk_label) {
+    Token t = consume();
+    // FR-027 locked-text warning per N10. Treat `label` as an
+    // identifier and continue; the parse is non-blocking.
+    warning(t.range().begin(),
+            "'label' is reserved; using as identifier (parser-note N10)");
+    if (out != nullptr) {
+      *out = t;
+    }
+    return true;
+  }
+  std::string msg = "expected ";
+  msg += what.str();
+  errorAtPeek(std::move(msg));
+  return false;
+}
+
 ast::ScopedName Parser::parseScopedName(SourceRange &out_range) {
   ast::ScopedName name;
   ast::Identifier first;
@@ -78,23 +104,32 @@ ast::ScopedName Parser::parseScopedName(SourceRange &out_range) {
   SourceLocation begin = first_range.begin();
   SourceLocation end = first_range.end();
   while (check(TokenKind::tk_dot)) {
-    // Look ahead: only consume the dot if followed by an identifier
-    // and NOT a method-arg open `(`. (Pure dotted identifier path.)
+    // Look ahead: only consume the dot if followed by an identifier-
+    // like token. Per N6 (`docs/spec/nsl_lang.ebnf:1051-1059`),
+    // proc-instance method access reserves `invoke` and `finish` as
+    // method names — accept them on the RHS of `.` so
+    // `inst.invoke()` / `inst.finish()` parse as a `ControlCallStmt`
+    // with `target=inst.invoke` / `target=inst.finish`. The spelling
+    // of the keyword token IS the method name (Sema-side S21
+    // validates the proc-instance kind separately).
     Token next = peekAhead(1);
-    if (next.kind() != TokenKind::tk_identifier &&
-        next.kind() != TokenKind::tk_label) {
+    TokenKind nk = next.kind();
+    bool accept = (nk == TokenKind::tk_identifier ||
+                   nk == TokenKind::tk_label ||
+                   nk == TokenKind::tk_invoke ||
+                   nk == TokenKind::tk_finish);
+    if (!accept) {
       break;
     }
     consume(); // consume `.`
-    ast::Identifier part;
-    SourceRange part_range;
-    if (!consumeIdentifierLike(part, part_range)) {
-      errorAtPeek("expected identifier after '.'");
-      out_range = rangeFromTo(begin, end);
-      return name;
+    Token part_tok = consume();
+    if (part_tok.kind() == TokenKind::tk_label) {
+      // N10 warn-and-accept; mirrors `consumeIdentifierLike`.
+      warning(part_tok.range().begin(),
+              "'label' is reserved; using as identifier (parser-note N10)");
     }
-    name.parts.push_back(part);
-    end = part_range.end();
+    name.parts.push_back(part_tok.spelling());
+    end = part_tok.range().end();
   }
   out_range = rangeFromTo(begin, end);
   return name;

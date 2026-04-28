@@ -483,7 +483,8 @@ std::unique_ptr<ast::Decl> Parser::parseInternalDecl() {
   if (k == TokenKind::tk_wire) {
     Token kw = consume();
     Token name_tok;
-    if (!expect(TokenKind::tk_identifier, "wire name", &name_tok)) {
+    // N10: accept `label` as a user identifier with a warning (FR-017).
+    if (!expectIdentifierAllowLabel("wire name", &name_tok)) {
       return nullptr;
     }
     std::unique_ptr<ast::Expr> width;
@@ -503,7 +504,7 @@ std::unique_ptr<ast::Decl> Parser::parseInternalDecl() {
     while (check(TokenKind::tk_comma)) {
       consume();
       Token nxt;
-      if (!expect(TokenKind::tk_identifier, "wire name after ','", &nxt)) {
+      if (!expectIdentifierAllowLabel("wire name after ','", &nxt)) {
         return nullptr;
       }
       if (check(TokenKind::tk_lbracket)) {
