@@ -171,13 +171,21 @@ std::unique_ptr<ast::Expr> Parser::parseNudExpr() {
     return lit;
   }
 
-  // Identifier-like leaves (with possible scoped form `a.b.c`)
+  // Identifier-like leaves. We deliberately consume ONLY ONE
+  // identifier here (not a scoped `a.b.c`) so the Pratt loop can
+  // route `.` through `parsePostfix` and build `FieldAccessExpr`
+  // per N3 (lang.ebnf:1027). The ScopedName form is reserved for
+  // declaration-position uses (e.g., N7's `func ic.ready`) and for
+  // statement-position control-call detection in
+  // `parseLValueLedStatement`.
   if (k == TokenKind::tk_identifier || k == TokenKind::tk_label) {
+    ast::Identifier name_part;
     SourceRange whole;
-    ast::ScopedName name = parseScopedName(whole);
-    if (name.parts.empty()) {
+    if (!consumeIdentifierLike(name_part, whole)) {
       return nullptr;
     }
+    ast::ScopedName name;
+    name.parts.push_back(name_part);
     return std::make_unique<ast::IdentifierExpr>(whole, std::move(name));
   }
 

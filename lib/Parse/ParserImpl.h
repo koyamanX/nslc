@@ -155,6 +155,13 @@ public:
   /// decides whether mismatch is fatal).
   bool consumeIdentifierLike(ast::Identifier &out_name, SourceRange &out_range);
 
+  /// Identifier-position consumer that ALSO accepts `tk_label` per N10
+  /// (with the locked warning text emitted). On mismatch, emits a
+  /// parser-error with `expected <what>` and returns false. Used at
+  /// every site where a user identifier is required and N10's
+  /// "warn-and-accept" semantics apply (FR-017).
+  bool expectIdentifierAllowLabel(llvm::StringRef what, Token *out);
+
   // ----- The five per-grammar entry points (defined per file) -----
 
   std::unique_ptr<ast::CompilationUnit> parseCompilationUnit();
