@@ -76,14 +76,14 @@ CompilationUnit <hello.nsl:1:1-4:1>
       init:  LiteralExpr <hello.nsl:2:14-2:15> 0 : BitVector(8) <<< inferred to match LHS width
     FuncDefn <hello.nsl:3:3-3:30> clk
       body: TransferStmt <hello.nsl:3:13-3:28>
-        lhs: IdentifierExpr <hello.nsl:3:13-3:14> q : BitVector(8) → decl@hello.nsl:2:7  <<< Q2 decl-loc suffix
+        lhs: IdentifierExpr <hello.nsl:3:13-3:14> q : BitVector(8) -> decl@hello.nsl:2:7  <<< Q2 decl-loc suffix
         op:  ":="
         rhs: BinaryExpr <hello.nsl:3:18-3:25> + : BitVector(8)
-          IdentifierExpr <hello.nsl:3:18-3:19> q : BitVector(8) → decl@hello.nsl:2:7
+          IdentifierExpr <hello.nsl:3:18-3:19> q : BitVector(8) -> decl@hello.nsl:2:7
           LiteralExpr <hello.nsl:3:22-3:23> 1 : BitVector(8)
 ```
 
-The `: <Type>` and `→ decl@<file>:<line>:<col>` suffixes are the
+The `: <Type>` and `-> decl@<file>:<line>:<col>` suffixes are the
 Q2 Option A enrichments per `contracts/emit-ast-format.contract.md`.
 A pre-Sema invocation (hypothetical future `--no-sema`) would emit
 the M2 format (no suffixes).

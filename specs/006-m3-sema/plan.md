@@ -61,7 +61,7 @@ parens):
   `parse()` for every `-emit=*` from `-emit=ast` forward (per
   FR-019). On Sema failure the driver exits non-zero and emits no
   later-stage output. The `-emit=ast` printer is taught to detect
-  post-Sema input and emit the additive `: <type>` and `→ decl@<file>:<line>:<col>`
+  post-Sema input and emit the additive `: <type>` and `-> decl@<file>:<line>:<col>`
   suffixes per Clarifications Q2 → Option A (FR-020). The M2
   parser-only `-emit=ast` golden corpus is re-cut in this same
   patch (Principle VII).
@@ -142,7 +142,7 @@ size.
 **Constraints**: **Byte-stable post-Sema AST output** (FR-029,
 Principle V) — two `nslc -emit=ast` invocations on the same input
 + flag list MUST produce byte-identical stdout, including the new
-`: <type>` and `→ decl@…` enrichments (Q2 Option A). **Symbol
+`: <type>` and `-> decl@…` enrichments (Q2 Option A). **Symbol
 identity not pointer-leaked** (FR-031) — cross-references serialize
 via the target's `declLoc.start` byte offset or a zero-based
 monotonic symbol-table index. **Deterministic collection iteration**

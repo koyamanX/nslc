@@ -291,10 +291,10 @@ node has resolution information:
    - `Bit` for the singleton `BitType`
    - `BitVector(N)` for `BitVectorType{N}`
    - `Struct(<name>)` for `StructType`
-   - `Memory(<depth> × <element>)` for `MemoryType`
+   - `Memory(<depth> x <element>)` for `MemoryType` (ASCII `x`, not Unicode `×` — codified in `emit-ast-format.contract.md` Invariant 7)
    - `Unresolved` when the resolution pass tagged the subtree
 
-2. **Decl-loc suffix on every name-ref**: ` → decl@<file>:<line>:<col>`
+2. **Decl-loc suffix on every name-ref**: ` -> decl@<file>:<line>:<col>`
    after the type suffix. The `<file>:<line>:<col>` is the resolved
    `Symbol*::declLoc.start` rendered through the same `SourceRange`
    formatter as the per-line range.
@@ -302,7 +302,7 @@ node has resolution information:
 Example post-Sema line:
 
 ```
-IdentifierExpr <foo.nsl:12:7-12:9> w : BitVector(8) → decl@foo.nsl:5:5
+IdentifierExpr <foo.nsl:12:7-12:9> w : BitVector(8) -> decl@foo.nsl:5:5
 ```
 
 The pre-Sema printer (no resolution data) omits both suffixes —
@@ -313,8 +313,9 @@ checking `Expr::inferredType() != nullptr`.
 enrichments preserve diff-readability of the existing M2 fixtures
 under `test/parse/grammar/` (re-cut in this same patch but with
 visually-obvious deltas), and the per-line shape stays parseable
-by the same regex that parses M2 lines (the `: <Type>` and `→ decl@…`
-suffixes are tail-anchored).
+by the same regex that parses M2 lines (the `: <Type>` and `-> decl@…`
+suffixes are tail-anchored; ASCII separators per
+`emit-ast-format.contract.md` Invariant 7).
 
 **Alternatives considered**:
 

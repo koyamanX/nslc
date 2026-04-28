@@ -43,7 +43,7 @@ maximum debuggability ("a contributor sees resolution data via
 | `Bit` | `Expr::inferredType() == TypeSystem::bit()` |
 | `BitVector(<N>)` | `Expr::inferredType()` is a `BitVectorType` of width `<N>` |
 | `Struct(<name>)` | `Expr::inferredType()` is a `StructType` named `<name>` |
-| `Memory(<depth> × <element>)` | `Expr::inferredType()` is a `MemoryType` of given depth and element rendering recursively |
+| `Memory(<depth> x <element>)` | `Expr::inferredType()` is a `MemoryType` of given depth and element rendering recursively (ASCII `x`, not Unicode `×`, for regex-parsability and locale-independence — see Invariant 7) |
 | `Unresolved` | `Expr::inferredType() == TypeSystem::unresolved()` (the no-cascade marker per FR-017) |
 
 **Rationale**: Research §7. The suffix is tail-anchored so
@@ -54,15 +54,16 @@ fixture-readability and regex-parsability of M2 lines is preserved.
   `test/sema/emit-ast-resolved/` corpus assert the format
   byte-exactly.
 - A regex guard in `test_unit/printer_format_test/` asserts
-  `^\S+ <[^>]+> .* : (Bit|BitVector\(\d+\)|Struct\(\S+\)|Memory\(\d+ × .+\)|Unresolved)`
+  `^\S+ <[^>]+> .* : (Bit|BitVector\(\d+\)|Struct\(\S+\)|Memory\(\d+ x .+\)|Unresolved)`
   on every `Expr` line.
 
 ## Invariant 3 — Additive decl-loc suffix on every name-ref
 
 **Statement**: After M3, every `IdentifierExpr` /
 `FieldAccessExpr` (head identifier) / `ScopedName` (head identifier)
-node line in the `-emit=ast` output gains a ` → decl@<file>:<line>:<col>`
-suffix after the type suffix from Invariant 2. The
+node line in the `-emit=ast` output gains a ` -> decl@<file>:<line>:<col>`
+suffix after the type suffix from Invariant 2 (ASCII `->`, not
+Unicode `→`, for regex-parsability — see Invariant 7). The
 `<file>:<line>:<col>` is the resolved `Symbol*::declLoc.start`
 rendered through the same `SourceRange` formatter as the per-line
 range.
@@ -85,7 +86,7 @@ dump click straight to the declaration site.
 nodes have `inferredType() == nullptr` (i.e., M2-style parser-only
 output, or a hypothetical future `--no-sema` debug flag), the
 printer emits the M2 format unchanged — no `:` suffix, no
-`→ decl@…` suffix.
+`-> decl@…` suffix.
 
 **Rationale**: FR-022 wraps both modes in one printer entry point
 so future flags (Sema-failure-with-partial-AST, debug `--no-sema`,
@@ -130,3 +131,34 @@ A drifted golden is a drifted contract; both must move together.
   updated?"
 - CI's diff against the goldens fails if format changed without
   golden re-cut.
+
+## Invariant 7 — ASCII-only printer separators
+
+**Statement**: The post-Sema enrichments use ASCII separators only:
+the type-element separator in `Memory(<depth> x <element>)` is the
+ASCII letter `x` (U+0078), and the decl-loc separator is the ASCII
+sequence `->` (U+002D U+003E). Unicode `×` (U+00D7) and `→` (U+2192)
+are forbidden in printer output.
+
+**Rationale**: (a) Regex-parsability — downstream tooling (the LSP
+semantic-tokens hover, future JSON-AST emit at T-track, custom
+analysis scripts) parses the printer output with `^.* : <Type>(.*)$`
+and `\-> decl@<loc>$` patterns; ASCII keeps the regexes simple and
+locale-independent. (b) Encoding-stability — Unicode characters
+risk locale-dependent rendering on terminals, and BOM-handling
+complications in golden-diff machinery. (c) Consistency with the
+existing M2 printer which is ASCII-only by convention. The contract
+chose Unicode at original drafting; the implementation at commit
+`420a593` used ASCII; this contract is amended to codify what
+shipped, per Invariant 6's "format-bump documented in same patch"
+rule applied retroactively to the just-landed Phase 3 PR.
+
+**Enforcement**:
+- Goldens under `test/sema/emit-ast-resolved/` and re-cut
+  `test/parse/grammar/**/*.ast` use ASCII separators byte-exactly.
+- A regex guard `EXPECT_FALSE(std::regex_search(output, "[×→]"))`
+  in `test_unit/printer_format_test/` (or similar) catches any
+  future drift to Unicode.
+- The standard Determinism gate (Invariant 5) catches inadvertent
+  encoding shifts because the byte-diff fails on any Unicode
+  character introduction.

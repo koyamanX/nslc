@@ -319,7 +319,7 @@ via one of two stable keys:
 
 - For a target with a `SourceRange`: `<file>:<line>:<col>` of
   `target.start` (per the post-Sema `-emit=ast` printer's
-  `→ decl@<file>:<line>:<col>` suffix, research §7).
+  `-> decl@<file>:<line>:<col>` suffix per `emit-ast-format.contract.md` Invariant 3 + 7, research §7).
 - For a target without a `SourceRange` (e.g., the singleton
   `bitSingleton_` / `unresolvedSingleton_` whose `declLoc` is
   empty): a stable canonical identifier (`"<bit>"` /

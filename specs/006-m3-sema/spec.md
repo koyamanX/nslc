@@ -645,7 +645,7 @@ populated and the per-`Sn` checks being independent.
   inline on each relevant node. Each printer line carries the
   node kind, the `SourceRange`, the kind-specific fields from
   M2, AND (post-Sema) the inferred-type value (e.g.,
-  `IdentifierExpr w : BitVector(8) → decl@F:L:C`) on every name-ref
+  `IdentifierExpr w : BitVector(8) -> decl@F:L:C`) on every name-ref
   and `Expr` node. The M2 parser-only `-emit=ast` golden is
   re-cut in the M3 patch as part of the deliverable; per Principle
   VII (spec/design coupling), the parser-fixture goldens under
@@ -845,7 +845,7 @@ populated and the per-`Sn` checks being independent.
   *format* of the `-emit=ast` text dump bumps additively at M3
   per Clarifications session 2026-04-28 Q2 → Option A: each
   `Expr` line gains a post-`SourceRange` `: <type>` suffix and
-  each name-ref gains a `→ decl@<file>:<line>:<col>` suffix. The
+  each name-ref gains a `-> decl@<file>:<line>:<col>` suffix. The
   M2 parser-fixture goldens under `test/parse/grammar/` are
   re-cut in the M3 patch (per Principle VII spec/design
   coupling).
