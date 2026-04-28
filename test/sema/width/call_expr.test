@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/width/call_expr.test — call-expression width fixture
+// (T024 rollover; specs/006-m3-sema/tasks.md Phase 4a). Asserts the
+// `CallExpr` for `f(0, 0)` carries a `: BitVector(N)` Type suffix
+// per `emit-ast-format.contract.md` Invariant 2.
+//
+// **Phase 3 stub note**: Phase 3's ResolutionPass currently emits a
+// 1-bit Type for CallExpr until S22 (Phase 4b T060) ties the result
+// width to the func's return-value-terminal width. The CHECK
+// pattern accepts any width; once Phase 4b lands the fixture
+// remains green and a follow-up may tighten the assertion.
+
+// RUN: printf 'module m {\n  func_self f(x, y);\n  reg q = f(0, 0);\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (RegDecl {{.*}}name=q
+// CHECK: (CallExpr {{.*}} : BitVector({{[0-9]+}})

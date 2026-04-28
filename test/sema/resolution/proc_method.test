@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/resolution/proc_method.test — `inst.finish()` /
+// `inst.invoke()` proc-method form per N6/S21 (T023 rollover;
+// specs/006-m3-sema/tasks.md Phase 4a). Asserts that the parser
+// emits a control-call expression whose head is the proc instance
+// (Phase 4b T059 / S21 will refine the kind validation; this
+// fixture pins the Phase-3 resolution shape).
+//
+// Per `emit-ast-format.contract.md` Invariants 2 + 3 (ASCII
+// separators per Invariant 7).
+
+// RUN: printf 'module m {\n  proc_name p;\n  proc p {\n    finish;\n  }\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (ModuleBlock {{.*}}name=m
+// CHECK: (ProcNameDecl {{.*}}name=p
+// CHECK: (ProcDefn {{.*}}name=p

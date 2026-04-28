@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s17/pass.nsl — S17 (lang.ebnf:884) pass case.
+// S17: system tasks (`_display`, `_finish`, `_init`, `_delay`, …)
+// are permitted ONLY in modules whose `declare` carries the
+// `simulation` modifier. Pass case: simulation-modified module
+// using `_display`.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+declare simulation tb {
+}
+module tb {
+  _display("hi");
+}
+
+// CHECK: (DeclareBlock
+// CHECK: (SystemTaskStmt

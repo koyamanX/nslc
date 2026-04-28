@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s14/pass.nsl — S14 (lang.ebnf:874) pass case.
+// S14: conditional EXPRESSION `if (c) a else b` requires the `else`
+// branch. Pass case: both branches present.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  wire c;
+  wire a;
+  wire b;
+  reg q = if (c) a else b;
+}
+
+// CHECK: (RegDecl {{.*}}name=q
+// CHECK: (ConditionalExpr

@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/resolution/dotted_func_def.test — dotted func-def form
+// per N7 (T023 rollover; specs/006-m3-sema/tasks.md Phase 4a).
+// Per N7 (lang.ebnf:1061), a dotted function definition like
+// `func ic.ready { ... }` defines the body of a submodule's
+// out-control terminal. Phase 3 ships head-only resolution; the
+// fixture pins the parser+resolution shape so Phase 4b T058 / S20
+// has a stable target.
+//
+// Per `emit-ast-format.contract.md` Invariants 2 + 3 (ASCII
+// separators per Invariant 7).
+
+// RUN: printf 'module m {\n  func ready {\n  }\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (ModuleBlock {{.*}}name=m
+// CHECK: (FuncDefn {{.*}}name=ready

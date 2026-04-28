@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s29/fail.nsl — S29 (lang.ebnf:1001) fail case.
+// S29: `_init` may appear only at the top level of a `simulation`-
+// modified module. A non-simulation module containing `_init`
+// violates S29.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   '_init' block is permitted only at module top level inside a 'simulation'-modified module (S29)
+//
+// **Phase 4a TDD red state**: no S29 checker exists; FAILS until
+// Phase 4b T064.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  _init { }
+}
+
+// CHECK: error: '_init' block is permitted only at module top level inside a 'simulation'-modified module (S29)

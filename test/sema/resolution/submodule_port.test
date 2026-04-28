@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/resolution/submodule_port.test — `SUB.port` scoped-name
+// fixture (T023 rollover; specs/006-m3-sema/tasks.md Phase 4a).
+// Asserts that the head of a multi-part `<inst>.<port>` reference
+// resolves to the submodule instance at minimum (Phase 3's ships
+// head-only resolution; full multi-part walk lands at Phase 4b T058
+// / S20 — at that time the `: BitVector(N)` Type suffix on the
+// FieldAccessExpr will become precise).
+//
+// Per `emit-ast-format.contract.md` Invariants 2 + 3 (ASCII
+// separators per Invariant 7).
+
+// RUN: printf 'module m {\n  cpu_t inst;\n  reg q = inst.port;\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (ModuleBlock {{.*}}name=m
+// CHECK: (StructInstanceDecl {{.*}}name=inst
+// CHECK: (FieldAccessExpr

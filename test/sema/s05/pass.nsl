@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s05/pass.nsl — S5 (lang.ebnf:843) pass case.
+// S5: return-value terminal of `func_in` must be `output` or `inout`
+// (the func returns via output); of `func_out` must be `input` or
+// `inout`. The pass case exercises both with correct direction.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+declare d {
+  input a;
+  output b;
+  func_in start() : b;
+  func_out done() : a;
+}
+
+// CHECK: (DeclareBlock {{.*}}name=d

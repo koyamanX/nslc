@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s07/fail_seq.nsl — S7 (lang.ebnf:850) fail variant.
+// A `seq { }` block at module scope (outside a func/proc body)
+// violates S7.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   'seq' block may appear only inside a function or procedure body (S7)
+//
+// FixItHint per `diagnostic-string.contract.md` table (T040,
+// when removable): replaceRange = SeqBlock::seqKwAndBracesRange,
+// replacement = `<stripped contents>`.
+//
+// **Phase 4a TDD red state**: no S7 checker exists; FAILS until
+// Phase 4b T048.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  seq { }
+}
+
+// CHECK: error: 'seq' block may appear only inside a function or procedure body (S7)
+// CHECK: fix-it:

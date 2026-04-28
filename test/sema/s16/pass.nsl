@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s16/pass.nsl — S16 (lang.ebnf:880) pass case.
+// S16: `param_int` / `param_str` are meaningful only for HDL
+// submodules (Verilog/VHDL/SystemC). Pass case: param_int at top
+// level — well-formed parser-wise; Sema's check passes only when
+// the param is associated with an HDL submodule. Phase 4b T056
+// will refine.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+param_int N = 8;
+
+// CHECK: (TopLevelParamInt {{.*}}name=N

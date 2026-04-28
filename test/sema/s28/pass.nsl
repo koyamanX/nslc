@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s28/pass.nsl — S28 (lang.ebnf:986) pass case.
+// S28: `first_state <n>;` must reference a state_name in the
+// enclosing proc's state_name list, appear after that list, and
+// occur at most once per proc. Pass case: well-formed first_state
+// reference.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  proc_name p;
+  proc p {
+    state_name s1, s2;
+    first_state s1;
+    state s1 { }
+    state s2 { }
+  }
+}
+
+// CHECK: (FirstStateDecl {{.*}}target=s1

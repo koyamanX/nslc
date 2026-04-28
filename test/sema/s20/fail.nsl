@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s20/fail.nsl — S20 (lang.ebnf:896) fail case.
+// S20: an `interface`-modified declare block missing explicit clock
+// and reset names violates the rule.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   'interface' modifier requires explicit clock and reset signal names (S20)
+//
+// **Phase 4a TDD red state**: no S20 checker exists; FAILS until
+// Phase 4b T058.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+declare interface iface {
+  input data;
+}
+
+// CHECK: error: 'interface' modifier requires explicit clock and reset signal names (S20)

@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s02/fail.nsl — S2 (lang.ebnf:832) fail case.
+// S2: `wire` may not have an initializer; only `reg` and struct-
+// instance-reg may carry `= init`.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   'wire' may not have an initializer; use 'reg' instead (S2)
+//
+// **Phase 4a TDD red state**: no S2 checker exists; this fixture
+// FAILS until Phase 4b T043 lands.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  wire bad = 0;
+}
+
+// CHECK: error: 'wire' may not have an initializer; use 'reg' instead (S2)

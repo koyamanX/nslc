@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s28/fail_duplicate.nsl — S28 (lang.ebnf:986) fail
+// variant. `first_state` may appear at most once per proc; the
+// second declaration violates S28.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   'first_state' may appear at most once per 'proc' (S28)
+//
+// **Phase 4a TDD red state**: no S28 checker exists; FAILS until
+// Phase 4b T063.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  proc_name p;
+  proc p {
+    state_name s1, s2;
+    first_state s1;
+    first_state s2;
+    state s1 { }
+    state s2 { }
+  }
+}
+
+// CHECK: error: 'first_state' may appear at most once per 'proc' (S28)

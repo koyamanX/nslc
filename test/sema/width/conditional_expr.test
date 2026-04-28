@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/width/conditional_expr.test — conditional-expression
+// width fixture (T024 rollover; specs/006-m3-sema/tasks.md Phase
+// 4a). Per S14 + N1, `if (c) a else b` is the expression form;
+// width is the LUB of the two branches. Asserts the
+// `ConditionalExpr` carries a `: BitVector(N)` Type suffix per
+// `emit-ast-format.contract.md` Invariant 2.
+
+// RUN: printf 'module m {\n  wire c;\n  wire a;\n  wire b;\n  reg q = if (c) a else b;\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (RegDecl {{.*}}name=q
+// CHECK: (ConditionalExpr {{.*}} : BitVector({{[0-9]+}})

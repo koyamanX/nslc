@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s20/pass.nsl — S20 (lang.ebnf:896) pass case.
+// S20: `interface`-modified declare blocks specify explicit clock
+// + reset signal names. Pass case: interface modifier with
+// explicit `clock=` and `reset=` names.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+declare interface(clock=clk, reset=rst) iface {
+  input clk;
+  input rst;
+  input data;
+}
+
+// CHECK: (DeclareBlock {{.*}}name=iface

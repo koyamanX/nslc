@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/width/struct_cast_expr.test — struct-cast expression
+// width fixture (T024 rollover; specs/006-m3-sema/tasks.md Phase 4a).
+// Asserts the `StructCastExpr` for `(T)(x).m` carries a Type suffix
+// per `emit-ast-format.contract.md` Invariant 2 — the result type
+// is the struct field's type after the cast.
+
+// RUN: printf 'module m {\n  wire x;\n  reg q = (T)(x).m;\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (RegDecl {{.*}}name=q
+// CHECK: (StructCastExpr

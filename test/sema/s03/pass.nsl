@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s03/pass.nsl — S3 (lang.ebnf:835) pass case.
+// S3: `=` targets wire/output/inout/variable/integer; `:=` targets
+// reg (or reg struct-instance). Pass case exercises both correct
+// directions.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  wire w;
+  reg r;
+  func clk {
+    w = 0;
+    r := 0;
+  }
+}
+
+// CHECK: (ModuleBlock {{.*}}name=m_pass
+// CHECK: (TransferStmt

@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s03/fail_eq_on_reg.nsl — S3 (lang.ebnf:835) fail variant.
+// `=` LHS resolved to a `reg` is forbidden — must use `:=`.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   '=' targets a wire, output, inout, variable, or integer; use ':=' for reg (S3)
+//
+// FixItHint per `diagnostic-string.contract.md` "Fix-it hint shapes"
+// table (T040): replaceRange = TransferStmt::eqOpRange,
+// replacement = `:=`.
+//
+// **Phase 4a TDD red state**: no S3 checker exists; FAILS until
+// Phase 4b T044.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  reg r;
+  func clk {
+    r = 0;
+  }
+}
+
+// CHECK: error: '=' targets a wire, output, inout, variable, or integer; use ':=' for reg (S3)
+// CHECK: fix-it:{{.*}}:=

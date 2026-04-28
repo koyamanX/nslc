@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s15/fail.nsl — S15 (lang.ebnf:877) fail case.
+// S15: bit-slice indices must be compile-time constants; a `reg`
+// reference here is runtime-variable.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   bit-slice index must be a compile-time constant (S15)
+//
+// **Phase 4a TDD red state**: no S15 checker exists; FAILS until
+// Phase 4b T055.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  wire a[8];
+  reg idx[3];
+  reg q = a[idx:0];
+}
+
+// CHECK: error: bit-slice index must be a compile-time constant (S15)

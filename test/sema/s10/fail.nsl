@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s10/fail.nsl — S10 (lang.ebnf:860) fail case.
+// S10: `generate` loop variable must be an `integer`; a `reg` here
+// violates S10.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   'generate' loop variable must be an 'integer' identifier (S10)
+//
+// **Phase 4a TDD red state**: no S10 checker exists; FAILS until
+// Phase 4b T051.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  reg i;
+  generate (i = 0; i < 1; i = i + 1) { }
+}
+
+// CHECK: error: 'generate' loop variable must be an 'integer' identifier (S10)

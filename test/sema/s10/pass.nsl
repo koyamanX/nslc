@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s10/pass.nsl — S10 (lang.ebnf:860) pass case.
+// S10: `generate` loop variable must be an `integer`.
+// Pass case: generate variable is an integer.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  integer i;
+  generate (i = 0; i < 1; i = i + 1) { }
+}
+
+// CHECK: (GenerateBlock

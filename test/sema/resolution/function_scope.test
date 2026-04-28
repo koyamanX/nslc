@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/resolution/function_scope.test — function-body scope
+// fixture (T023 rollover; specs/006-m3-sema/tasks.md Phase 4a).
+// Asserts that names declared at module scope resolve correctly
+// from references inside a `func` body.
+//
+// Per `emit-ast-format.contract.md` Invariants 2 + 3 (ASCII
+// separators per Invariant 7).
+
+// RUN: printf 'module m {\n  reg q;\n  func ready {\n    q := 0;\n  }\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (FuncDefn {{.*}}name=ready
+// CHECK: (TransferStmt
+// CHECK: (IdentifierExpr {{.*}} : BitVector({{[0-9]+}}) {{.*}}-> decl@{{[^:]+}}:2

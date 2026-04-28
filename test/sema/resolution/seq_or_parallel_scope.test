@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/resolution/seq_or_parallel_scope.test — SeqOrParallel
+// scope fixture (T023 rollover; specs/006-m3-sema/tasks.md Phase 4a).
+// Asserts that `seq { … }` blocks open a scope (per data-model §2.1,
+// `ScopeKind::SeqOrParallel`) and that names declared in the
+// enclosing proc resolve correctly from inside the seq block.
+//
+// Per `emit-ast-format.contract.md` Invariants 2 + 3 (ASCII
+// separators per Invariant 7).
+
+// RUN: printf 'module m {\n  reg q;\n  proc_name p;\n  proc p {\n    seq {\n      q := 0;\n    }\n  }\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (ProcDefn {{.*}}name=p
+// CHECK: (SeqBlock
+// CHECK: (TransferStmt
+// CHECK: (IdentifierExpr {{.*}} : BitVector({{[0-9]+}}) {{.*}}-> decl@{{[^:]+}}:2

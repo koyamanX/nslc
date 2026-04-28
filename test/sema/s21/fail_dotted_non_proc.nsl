@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s21/fail_dotted_non_proc.nsl — S21 (lang.ebnf:900)
+// fail variant. The dotted form `<inst>.finish()` requires
+// `<inst>` to resolve to a `proc_name` declaration; a non-proc
+// instance violates S21.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   dotted form '<inst>.finish()' / '<inst>.invoke()' requires '<inst>' to resolve to a 'proc_name' declaration (S21)
+//
+// **Phase 4a TDD red state**: no S21 checker exists; FAILS until
+// Phase 4b T059.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  cpu_t inst;
+  func ready {
+    inst.finish();
+  }
+}
+
+// CHECK: error: dotted form '<inst>.finish()' / '<inst>.invoke()' requires '<inst>' to resolve to a 'proc_name' declaration (S21)

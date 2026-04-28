@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s26/pass.nsl — S26 (lang.ebnf:959) pass case.
+// S26: `func` is the canonical form; `function` is accepted but
+// warned. Pass case: canonical `func` keyword — no warning.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  func ready { }
+}
+
+// CHECK: (FuncDefn {{.*}}name=ready

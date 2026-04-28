@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s01/fail.nsl — S1 (lang.ebnf:830) fail case.
+// S1: identifiers may not contain `__`. The reg `bad__name` violates
+// this rule.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   identifier may not contain '__' (S1)
+//
+// Per Constitution Principle VIII (TDD `Sn`/`Nn`/`Pn` clause): the
+// CHECK directive cites the literal frozen message text including
+// the `(S1)` suffix.
+//
+// **Phase 4a TDD red state**: against the unchanged tree at
+// commit 2a11042, no S1 checker exists; the diagnostic is not
+// emitted; this fixture FAILS the CHECK. Phase 4b T042 turns it
+// green.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  reg bad__name;
+}
+
+// CHECK: error: identifier may not contain '__' (S1)

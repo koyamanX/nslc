@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s29/pass.nsl — S29 (lang.ebnf:1001) pass case.
+// S29: `_init { … }` block is permitted only at the top level of a
+// module whose declare carries the `simulation` modifier. Pass
+// case: simulation-modified module containing _init.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+declare simulation tb {
+}
+module tb {
+  _init {
+    _delay(1);
+  }
+}
+
+// CHECK: (DeclareBlock
+// CHECK: (InitBlockStmt

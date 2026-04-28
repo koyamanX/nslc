@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s11/fail.nsl — S11 (lang.ebnf:863) fail case.
+// S11: state_name is scoped to its enclosing proc; referencing it
+// from outside (here from a sibling func body) violates S11.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   'state_name' is scoped to its enclosing 'proc' and is not visible here (S11)
+//
+// **Phase 4a TDD red state**: no S11 checker exists; FAILS until
+// Phase 4b T052.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  reg q;
+  proc_name p;
+  proc p {
+    state_name inner_s1;
+    state inner_s1 { }
+  }
+  func ready {
+    q := inner_s1;
+  }
+}
+
+// CHECK: error: 'state_name' is scoped to its enclosing 'proc' and is not visible here (S11)
