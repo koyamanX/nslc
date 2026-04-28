@@ -27,7 +27,18 @@
 // it exits with the M1 driver's "unknown emit stage" path (exit 2),
 // so the FileCheck pipeline observes a mismatch and the test fails.
 
-// RUN: printf 'module m {\n  generate (i = 0; i < 1; i++) { }\n}\n' > %t.nsl
+// Spec note: `generate_step` (`lang.ebnf §8` lines 468–470) admits two
+// forms — `increment_decrement` (`i++` / `++i` / `i--` / `--i`) and
+// `identifier "=" constant_expression`. The M2 AST stores `step_` as a
+// `unique_ptr<Expr>` (`include/nsl/AST/StructuralGenerate.h:24`), so
+// only the second form maps cleanly without an AST schema change.
+// We use `i = i + 1`; `i + 1` is a valid `constant_expression` once
+// generate-time `i` is bound (S10 — generate's loop var is `integer`,
+// resolved at the M5 expand-pass). The `i++` form is grammar-legal but
+// requires a Stmt-shaped step slot (parallels `for_block`'s step which
+// stores an `IncDecStmt`); deferred to a later milestone.
+
+// RUN: printf 'module m {\n  generate (i = 0; i < 1; i = i + 1) { }\n}\n' > %t.nsl
 // RUN: %nslc -emit=ast %t.nsl | FileCheck %s
 
 // CHECK: (ModuleBlock
