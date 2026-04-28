@@ -232,7 +232,9 @@ ctest --test-dir build               # gtest unit tests + lit integration tests
 
 Expected:
 
-- 29 × 2 = 58 per-`Sn` lit fixtures pass.
+- 58 baseline per-`Sn` lit fixtures (29 pass + 29 fail) plus
+  ~14 multi-variant `fail_<variant>.nsl` per the diagnostic-string
+  contract — total ~72 lit fixtures pass.
 - ~6 multi-error recovery fixtures pass.
 - ~10 per-scope resolution fixtures pass (`test/sema/resolution/`).
 - ~12 per-`Expr`-form width fixtures pass (`test/sema/width/`).

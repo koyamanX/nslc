@@ -531,6 +531,16 @@ populated and the per-`Sn` checks being independent.
   pairs per FR-013 (resolved in Clarifications session 2026-04-28
   Q1 → Option B), not paired pass + diagnostic-string pairs.*
 
+  *Some `Sn` rows produce multiple frozen diagnostic-message
+  variants — e.g., `S3` has 2 (`=` on reg vs `:=` on wire), `S4`
+  has 3 (one per func kind), `S5` has 2, `S7` has 3 (`seq` /
+  `while` / `for`), `S8` has 2, `S21` has 2 (bare vs dotted), `S22`
+  has 3 (outside-func vs width-mismatch vs bare-with-terminal),
+  `S25` has 2 (label vs state-name), `S28` has 2 — for a total of
+  32 frozen messages covering the 23 error/warning rows. See
+  [`contracts/diagnostic-string.contract.md`](./contracts/diagnostic-string.contract.md)
+  for the full freeze surface.*
+
 - **FR-011**: For every `Sn` whose severity is Error or Warning, the
   emitted diagnostic message text MUST cite the spec marker
   (e.g., `(S2)`) so a future reader can `grep` from the diagnostic
@@ -759,12 +769,19 @@ populated and the per-`Sn` checks being independent.
 
 ### Measurable Outcomes
 
-- **SC-001**: For every `NN ∈ {01..29}`, both `test/sema/s<NN>/
-  pass.nsl` and `test/sema/s<NN>/fail.nsl` exist, are authored
-  before their implementation per Principle VIII TDD, pass on a
-  green CI run, AND the fail fixture asserts the literal
-  diagnostic-message text. 0 of the 29 are unenforced;
-  100% diagnostic-string coverage.
+- **SC-001**: For every `NN ∈ {01..29}`, **at minimum** a
+  `test/sema/s<NN>/pass.nsl` and a `test/sema/s<NN>/fail.nsl` exist
+  (some `Sn` carry multi-variant `fail_<variant>.nsl` per
+  [`contracts/diagnostic-string.contract.md`](./contracts/diagnostic-string.contract.md);
+  baseline 58 fixtures + ~14 multi-variant ≈ 72 lit fixtures total),
+  are authored before their implementation per Principle VIII TDD,
+  pass on a green CI run, AND every fail fixture for the 23
+  error/warning `Sn` asserts the literal diagnostic-message text;
+  every fail fixture for the 6 constructive `Sn` (`S13`/`S18`/
+  `S19`/`S23`/`S24`/`S27`) asserts the flipped-introspection-
+  expected-value per Q1 Option B (`test_unit/constructive_sn_test/`)
+  and Constitution Principle VIII's constructive carve-out (v1.6.0).
+  0 of the 29 are unenforced; 100% test-pair coverage.
 - **SC-002**: A diagnostic emitted by Sema matches the regex
   `^[^:]+:\d+:\d+: (error|warning|note): .+\(S\d+\)\.?$`
   (the message MUST cite `(SNN)` per FR-011), with the suffix
