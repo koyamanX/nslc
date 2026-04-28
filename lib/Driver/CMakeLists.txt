@@ -11,9 +11,11 @@
 add_nsl_library(nsl-driver
   EmitTokens.cpp
   EmitAST.cpp
+  Sema.cpp
   HEADERS
     ${CMAKE_SOURCE_DIR}/include/nsl/Driver/EmitTokens.h
     ${CMAKE_SOURCE_DIR}/include/nsl/Driver/EmitAST.h
+    ${CMAKE_SOURCE_DIR}/include/nsl/Driver/Sema.h
   DEPENDS
     nsl-basic
     nsl-preprocess

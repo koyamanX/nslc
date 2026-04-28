@@ -26,9 +26,11 @@
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Basic/SourceManager.h"
+#include "nsl/Driver/Sema.h"
 #include "nsl/Lex/Lexer.h"
 #include "nsl/Parse/Parser.h"
 #include "nsl/Preprocess/Preprocessor.h"
+#include "nsl/Sema/Sema.h"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/ErrorOr.h"
@@ -163,6 +165,18 @@ int emitAST(llvm::StringRef input_path, const EmitTokensOptions &opts,
   // and the diagnostic is already in the engine.
   auto cu = parse::parseCompilationUnit(lexer, diag);
 
+  // M3 Phase 2 (T017, FR-019): run Sema after parse and before AST
+  // printing so the post-Sema printer (Phase 3 T031–T033) can emit
+  // the resolved-type / decl-loc enrichments. On Sema failure, exit
+  // non-zero with no AST output on stdout (parallel to the
+  // parse-failure path below). At Phase 2 the `runSema` body is a
+  // no-op stub — `result.hasErrors` is false on every well-parsed
+  // input — so this call is observable but inert.
+  sema::SemaResult sema_result;
+  if (cu) {
+    sema_result = driver::runSema(*cu, diag);
+  }
+
   // Buffer the AST text BEFORE checking for errors — we want to
   // generate the bytes in a deterministic memory order, then either
   // commit (on no-errors) or discard (on error). The buffering
@@ -174,7 +188,7 @@ int emitAST(llvm::StringRef input_path, const EmitTokensOptions &opts,
     rs.flush();
   }
 
-  if (diag.hasError() || !cu) {
+  if (diag.hasError() || !cu || sema_result.hasErrors) {
     diag.renderAll(err, opts.diagnostic_json ? DiagnosticEngine::Format::JSON
                                              : DiagnosticEngine::Format::Text);
     return 1;

@@ -46,7 +46,22 @@ foreach(suite
     # gtest smoke fixture for `nsl::parse::parseCompilationUnit`.
     # Authored RED before `lib/Parse/` is populated; the binary
     # FAILS TO LINK until Track D lands the `nsl-parse` library.
-    parse_test)
+    parse_test
+    # M3 Phase 2 (006-m3-sema, T015) — gtest suites covering the
+    # `nsl-sema` scaffolding. `symbol_table_test` exercises
+    # `enterScope`/`leaveScope`/`declare`/`lookup` per data-model §2;
+    # `type_system_test` exercises interning per Invariant 5 of
+    # `sema-api.contract.md`; `sema_lifecycle_test` exercises
+    # `Sema::run()` ownership transfer per Invariant 6. The
+    # `resolution_pass_test` and `constructive_sn_test` suite names
+    # are reserved for Phase 3 (US1) and Phase 4 (US2) respectively;
+    # the `EXISTS` guard below skips them at configure time until
+    # those phases land per-suite `CMakeLists.txt` files.
+    symbol_table_test
+    type_system_test
+    sema_lifecycle_test
+    resolution_pass_test
+    constructive_sn_test)
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${suite}/CMakeLists.txt")
     add_subdirectory(${suite})
   endif()
