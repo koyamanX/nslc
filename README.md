@@ -82,7 +82,7 @@ II) — no duplicated lexer/parser/sema.
 
 | # | Deliverable | Test gate | Depends on |
 |---|---|---|---|
-| **T1** | TextMate grammar (`syntaxes/nsl.tmLanguage.json`) + `language-configuration.json`; GitHub `linguist` PR for `.nsl` recognition. Covers all reserved keywords from `docs/spec/nsl_lang.ebnf §15`. | TextMate scope tests on a fixture file matching every keyword, number form, and string literal; GitHub-linguist syntax-snapshot. | None — runs parallel from project start |
+| **T1** | TextMate grammar (`syntaxes/nsl.tmLanguage.json`) + `language-configuration.json`. Covers all reserved keywords from `docs/spec/nsl_lang.ebnf §15`. (Filing a `github-linguist/linguist` PR for `.nsl` recognition was previously part of T1; **deferred** — see note below.) | TextMate scope tests on a fixture file matching every keyword, number form, and string literal. | None — runs parallel from project start |
 | **T2** | `nsl-fmt` v0: indent, brace style, operator spacing, NSL-specific rules (`nsl_tooling_design.md §5.3`). CLI + `--check` mode. | Round-trip test (format → format = noop); golden-output tests per NSL formatter rule. | M3 (Sema) |
 | **T3** | `nsl-lsp` skeleton: `initialize`, `textDocument/didOpen`, `didChange`, `publishDiagnostics`, `foldingRange`. | LSP integration test: open a file with a Sema error, observe diagnostic; edit, observe re-diagnose. | M3 |
 | **T4** | LSP feature batch (low-difficulty per `nsl_tooling_design.md §3.2`): `hover`, `definition`, `documentSymbol`, `semanticTokens`, `signatureHelp`. | One LSP-protocol test per method against a fixture document. | T3 |
@@ -93,12 +93,24 @@ II) — no duplicated lexer/parser/sema.
 | **T9** | LSP feature batch (medium-difficulty): `completion`, `references`, `rename`, `codeAction`. Code-actions seed the fix-it database from `T6/T7` rule suggestions. | Per-method LSP test; rename across multi-file fixture; code-action applied → re-diagnose returns no error. | T4, T6 |
 | **T10** | LSP power features: `inlayHint` (bit widths next to anonymous expressions), `prepareCallHierarchy`. | Inlay-hint correctness on width-inferring fixtures; call-hierarchy across `proc` invocations. | T4 |
 | **T11** | Editor integrations: Neovim (`nvim-lspconfig`), Emacs (`lsp-mode` / `eglot`), Sublime (`LSP-nsl`), Sublime Syntax export. Per editor matrix in `nsl_tooling_design.md §4.4`. | Smoke install + open-a-file test per editor in CI (where feasible). | T3, T8 |
-| **T12** | CI plumbing for tooling: `nsl-lint` GitHub Action; `nsl-fmt --check` pre-commit hook recipe; release pipeline for VS Code Marketplace. | Action passes on a fixture repo; pre-commit hook rejects unformatted commit. | T2, T6 |
+| **T12** | CI plumbing for tooling: `nsl-lint` GitHub Action; `nsl-fmt --check` pre-commit hook recipe. (A VS Code Marketplace release pipeline was previously part of T12; **deferred** — see note below.) | Action passes on a fixture repo; pre-commit hook rejects unformatted commit. | T2, T6 |
 
 > **Future tooling rules** (`S006`–`S010` AST-only rules; additional
 > hardware rules) are not assigned a milestone here — they land
 > incrementally inside the T6/T7 framework as needed. Adding a rule is
 > not a milestone; it is a routine PR.
+
+> **Deferred — external-party PRs paused.** The original T1 plan
+> included filing a PR against
+> [`github-linguist/linguist`](https://github.com/github-linguist/linguist)
+> for `.nsl` recognition; the original T12 plan included publishing
+> to the VS Code Marketplace. Both involve filing changes against
+> other parties' repos / publishing accounts and are paused for the
+> project's current phase. Everything that ships *in-tree* —
+> TextMate grammar, `language-configuration.json`, `nsl-lint`
+> GitHub Action workflow, pre-commit hook recipe — is unaffected;
+> only the cross-org publication step is removed. May revisit when
+> the M-track ships its first audited-corpus regression at M7.
 
 The inverse roll-up tables — *which milestone delivers NSL feature X /
 `Sn` / `Nn` / `Pn`?* and *which milestone delivers LSP method / lint
