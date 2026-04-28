@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/recovery/two-module-item-errors.test — M2 Phase 5 / US3
+// (T050 of `specs/005-m2-parser/tasks.md`).
+//
+// **Specification anchors**:
+//   - spec.md FR-021 — recovery MUST cover every `parseFoo()` site
+//     at every level (single-error bail not acceptable; partial
+//     recovery e.g., top-level only, ALSO not acceptable).
+//   - parser-recovery.contract.md §"Multi-error fixture corpus
+//     minimum" item 2: "one `module { … }` whose body contains two
+//     independent syntax errors in separate `module_item`s … both
+//     diagnostics emitted in source order; `module_item`s
+//     between/after the errors still appear in the `ModuleBlock`
+//     AST node."
+//   - /speckit-clarify Q1 (2026-04-27): full multi-error recovery at
+//     every grammar level. This fixture is the load-bearing test
+//     that recovery extends INSIDE a `module_item`-list, not just at
+//     the top level.
+//
+// This fixture exercises `parseModuleItem()`'s recovery scope:
+// per the contract's recovery-set table, that scope's set is
+// `{Semi, RBrace, func, function, proc, state, wire, reg, mem,
+//  integer, variable, proc_name, state_name, first_state,
+//  func_self}`. After the first malformed `reg` raises (missing
+// identifier), recovery MUST resume at the next `module_item` start
+// keyword (`func` here) and parse the SECOND malformed item, raising
+// its own diagnostic.
+//
+// Per `nslc-emit-ast.contract.md` step 5 — error fired → NO AST on
+// stdout. Asserts: (a) two error lines on stderr in source order,
+// (b) exit 1.
+//
+// **FR-029 / Principle VIII RED state evidence**: against parent
+// commit `39cc618`, `parseModuleItem()` returns `nullptr`/false on
+// the first error and `parseModuleBlock()` propagates — only ONE
+// diagnostic emits. The second `ERR-DAG` below FAILS to match.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s --check-prefix=ERR
+
+module foo {
+    // First module_item: malformed `reg` declaration — keyword
+    // appears with no identifier following.
+    reg
+    // Recovery resumes at the next module_item start keyword:
+    // `func`. The function-definition shape is also malformed:
+    // missing parameter parens / body braces.
+    func g
+}
+
+// Per the contract, both diagnostics are canonical M1 form. ERR-DAG
+// because the second raise site's exact column depends on Track L's
+// implementation choice (whether it pins on `func` itself, on the
+// missing `(`, etc.). What's load-bearing is BOTH diagnostics emit.
+
+// ERR-DAG: error: expected
+// ERR-DAG: error: expected
