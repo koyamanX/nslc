@@ -73,7 +73,7 @@ The full T-track table is in `README.md` §Roadmap. Inverse roll-ups (LSP method
    - TextMate (T1): `editors/textmate/syntaxes/nsl.tmLanguage.json` + `language-configuration.json`
    - Tree-sitter (T8): `editors/tree-sitter/grammar.js` + `queries/highlights.scm`
    - **Keyword list MUST match `docs/spec/nsl_lang.ebnf` §15** (lines **783–824**) — drift is a Principle VII violation
-   - GitHub `linguist` PR is part of T1
+   - GitHub `linguist` PR — **deferred** (see `README.md` §Tooling-track note); ship the in-tree artifacts only
 
 8. **Roll-up update (Principle VII).** When you add a new LSP method, lint rule, formatter capability, highlighter scope, or editor target, update the relevant sub-table in `CLAUDE.md` (root) §2 in the same PR.
 

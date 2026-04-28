@@ -568,7 +568,7 @@ And the accompanying `queries/highlights.scm` — highlights — Path to a highl
 | Sublime Text 4 | ✅ native `.sublime-syntax` export | 🟡 needs LSP + `LSP-nsl` package | ✅ |
 | Neovim | ✅ `runtime/syntax/nsl.vim` | ✅ native tree-sitter | ✅ `nvim-lspconfig` |
 | Emacs | ✅ `nsl-mode.el` | ✅ via `tree-sitter.el` | ✅ `lsp-mode` / `eglot` |
-| GitHub | ✅ `linguist` PR | ❌ | ❌ |
+| GitHub | 🟡 `linguist` PR (deferred — see `README.md` §Tooling-track note) | ❌ | ❌ |
 | JetBrains | 🟡 custom language plugin | ❌ | ✅ via LSP plugin |
 
 Priority: ship TextMate first (one JSON file), then tree-sitter (one JS grammar + queries), LSP continuously.

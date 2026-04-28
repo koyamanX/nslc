@@ -134,7 +134,7 @@ editor integration), this section tells you when it lands.
 
 | Capability | Milestone |
 |---|---|
-| TextMate grammar + scope set per `§4.1`; `language-configuration.json`; GitHub-linguist PR | T1 |
+| TextMate grammar + scope set per `§4.1`; `language-configuration.json` | T1 |
 | Tree-sitter grammar + highlight queries; VS Code WASM consumer | T8 |
 | Sublime Syntax export | T11 |
 
