@@ -94,7 +94,7 @@ public:
   // Per-kind visit counter, indexed by `NodeKind`. Sized exactly to
   // the enumerator count — when Track A grows `NodeKind.def`, the
   // table grows automatically because the X-macro counts the entries.
-  std::size_t visitCount[static_cast<std::size_t>(NodeKind::Count)] = {};
+  std::size_t visitCount[static_cast<std::size_t>(NodeKind::NK_count)] = {};
 
   // X-macro expansion: one `visit(<Kind>&)` override per
   // `NSL_NODE_KIND(EnumName, BaseClass)` entry. The override body
@@ -103,8 +103,8 @@ public:
   // the corresponding `ASTVisitor` pure-virtual gains a matching
   // override here — preserving exhaustiveness as the AST grows.
 #define NSL_NODE_KIND(Name, Base)                                              \
-  void visit(::nsl::ast::Name &) override {                                    \
-    ++visitCount[static_cast<std::size_t>(NodeKind::Name)];                    \
+  void visit(const ::nsl::ast::Name &) override {                              \
+    ++visitCount[static_cast<std::size_t>(NodeKind::NK_##Name)];               \
   }
 #include "nsl/AST/NodeKind.def"
 #undef NSL_NODE_KIND
@@ -121,7 +121,7 @@ public:
 TEST(VisitorExhaustivenessTest, CompleteOverrideSetLinks) {
   TestVisitor v;
   // Initial state: no kinds visited yet.
-  for (std::size_t i = 0; i < static_cast<std::size_t>(NodeKind::Count);
+  for (std::size_t i = 0; i < static_cast<std::size_t>(NodeKind::NK_count);
        ++i) {
     EXPECT_EQ(v.visitCount[i], 0U)
         << "kind index " << i << " unexpectedly visited at init";

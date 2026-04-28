@@ -42,16 +42,20 @@
 //         (the items vector is mutated post-construction; the parser
 //         appends in declaration order per FR-006).
 //       * `ModuleBlock(SourceRange, Identifier name)` + per-kind
-//         child-vector mutators (`addInternal(unique_ptr<...>)`).
+//         all-args ctors taking children-as-vector (Track A
+//         shipped immutable, no `addItem`/`addInternal` mutators).
 //       * `RegDecl(SourceRange, Identifier name,
 //                  unique_ptr<Expr> width, unique_ptr<Expr> init)`.
-//       * `LiteralExpr(SourceRange, LiteralKind, uint64_t value)`
-//         — `LiteralKind::Decimal` per the contract example.
-//   - The exact mutator names (`addItem`, `addInternal`) are the
-//     least-surprise signatures matching data-model §1.2/§1.4
-//     vector fields. If Track A authored different names, the merge
-//     reconciles by adjusting these calls — a documented integration
-//     concern, NOT a test bug.
+//       * `LiteralExpr(SourceRange, Lit kind, Identifier spelling,
+//                      uint16_t flags = 0)` — `Lit::Decimal` per the
+//                      contract example. (Track A renamed
+//                      `LiteralKind` → `Lit`; value is the verbatim
+//                      source text, not a parsed integer.)
+//   - The printer signature is the 3-arg form
+//     `print(const CompilationUnit&, const SourceManager&, raw_ostream&)`
+//     — Track A's research §5 / Printer.h rationale comment justifies
+//     the `SourceManager&` arg (needed to resolve SourceLocation →
+//     path:line:col for the printer's `loc=` field).
 
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/LiteralExpr.h"
@@ -60,6 +64,7 @@
 #include "nsl/AST/Printer.h"
 #include "nsl/AST/RegDecl.h"
 #include "nsl/Basic/SourceLocation.h"
+#include "nsl/Basic/SourceManager.h"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
@@ -70,65 +75,90 @@
 #include <memory>
 #include <regex>
 #include <string>
+#include <vector>
 
 using nsl::FileID;
 using nsl::SourceLocation;
+using nsl::SourceManager;
 using nsl::SourceRange;
 using nsl::ast::CompilationUnit;
+using nsl::ast::Decl;
 using nsl::ast::LiteralExpr;
 using nsl::ast::ModuleBlock;
 using nsl::ast::NodeKind;
 using nsl::ast::RegDecl;
+using nsl::ast::Stmt;
 
 namespace {
+
+// Construct a SourceManager pre-loaded with the synthetic buffer
+// the small fixture's SourceLocations refer to. The buffer text is
+// `module hello { reg q[8] = 0; }\n` (32 bytes), matching the
+// virtual offsets used in `buildSmallFixture()` below.
+SourceManager makeSmallFixtureSM() {
+  SourceManager sm;
+  std::string const text = "module hello { reg q[8] = 0; }\n";
+  std::vector<char> const bytes(text.begin(), text.end());
+  (void)sm.addBufferInMemory("hello.nsl", bytes);
+  return sm;
+}
 
 // Build a small inline `CompilationUnit` AST: one ModuleBlock
 // containing one RegDecl with two LiteralExpr children (width=8,
 // init=0). This matches the `nslc-emit-ast.contract.md` §Example
 // fixture verbatim, modulo the inline-construction variant.
-std::unique_ptr<CompilationUnit> buildSmallFixture() {
-  FileID const fid(1);
-
-  // Width literal: "8" at virtual offsets [9, 10).
-  SourceRange const widthRange(SourceLocation::make(fid, 9),
-                               SourceLocation::make(fid, 10));
+//
+// `fid` MUST be the FileID returned by `SourceManager::addBufferInMemory`
+// for the synthetic "hello.nsl" buffer above; the `SourceLocation`s
+// reference offsets within that buffer.
+std::unique_ptr<CompilationUnit> buildSmallFixture(FileID fid) {
+  // Width literal: "8" at virtual offsets [21, 22).
+  SourceRange const widthRange(SourceLocation::make(fid, 21),
+                               SourceLocation::make(fid, 22));
   auto width = std::make_unique<LiteralExpr>(
-      widthRange, LiteralExpr::LiteralKind::Decimal,
-      static_cast<uint64_t>(8));
+      widthRange, LiteralExpr::Lit::Decimal, llvm::StringRef("8"));
 
-  // Init literal: "0" at virtual offsets [14, 15).
-  SourceRange const initRange(SourceLocation::make(fid, 14),
-                              SourceLocation::make(fid, 15));
+  // Init literal: "0" at virtual offsets [26, 27).
+  SourceRange const initRange(SourceLocation::make(fid, 26),
+                              SourceLocation::make(fid, 27));
   auto init = std::make_unique<LiteralExpr>(
-      initRange, LiteralExpr::LiteralKind::Decimal,
-      static_cast<uint64_t>(0));
+      initRange, LiteralExpr::Lit::Decimal, llvm::StringRef("0"));
 
-  // RegDecl `q[8] = 0;` at virtual offsets [16, 28).
-  SourceRange const regRange(SourceLocation::make(fid, 16),
-                             SourceLocation::make(fid, 28));
+  // RegDecl `reg q[8] = 0;` at virtual offsets [15, 29).
+  SourceRange const regRange(SourceLocation::make(fid, 15),
+                             SourceLocation::make(fid, 29));
   auto reg = std::make_unique<RegDecl>(regRange, llvm::StringRef("q"),
                                        std::move(width), std::move(init));
 
-  // Module `module hello { ... }` at virtual offsets [0, 32).
+  // Module `module hello { ... }` at virtual offsets [0, 31).
   SourceRange const modRange(SourceLocation::make(fid, 0),
-                             SourceLocation::make(fid, 32));
-  auto mod = std::make_unique<ModuleBlock>(modRange, llvm::StringRef("hello"));
-  mod->addInternal(std::move(reg));
+                             SourceLocation::make(fid, 31));
+  std::vector<std::unique_ptr<Decl>> internals;
+  internals.push_back(std::move(reg));
+  auto mod = std::make_unique<ModuleBlock>(
+      modRange, llvm::StringRef("hello"), std::move(internals),
+      std::vector<std::unique_ptr<Stmt>>{},
+      std::vector<std::unique_ptr<Decl>>{},
+      std::vector<std::unique_ptr<Decl>>{});
 
-  // CompilationUnit spans the whole file.
+  // CompilationUnit spans the whole file (one item: the module).
   SourceRange const cuRange(SourceLocation::make(fid, 0),
-                            SourceLocation::make(fid, 32));
-  auto cu = std::make_unique<CompilationUnit>(cuRange);
-  cu->addItem(std::move(mod));
-  return cu;
+                            SourceLocation::make(fid, 31));
+  std::vector<std::unique_ptr<Decl>> items;
+  items.push_back(std::move(mod));
+  return std::make_unique<CompilationUnit>(cuRange, std::move(items));
 }
 
 // Helper: render a CompilationUnit to a `std::string` via the
-// public `print()` entry point.
-std::string renderToString(const CompilationUnit &cu) {
+// public `print()` entry point. The `SourceManager` resolves
+// `SourceLocation` to `path:line:col` for the printer's `loc=`
+// field (Track A's printer signature is the 3-arg form per
+// research §5 / `Printer.h` rationale comment).
+std::string renderToString(const CompilationUnit &cu,
+                           const SourceManager &sm) {
   std::string buf;
   llvm::raw_string_ostream os(buf);
-  nsl::ast::print(cu, os);
+  nsl::ast::print(cu, sm, os);
   os.flush();
   return buf;
 }
@@ -136,9 +166,10 @@ std::string renderToString(const CompilationUnit &cu) {
 // ---- Invariant 2 (Principle V / FR-030) ---------------------------------
 
 TEST(ASTPrinterDeterminism, ByteIdenticalAcrossInvocations) {
-  auto cu = buildSmallFixture();
-  std::string const out1 = renderToString(*cu);
-  std::string const out2 = renderToString(*cu);
+  SourceManager sm = makeSmallFixtureSM();
+  auto cu = buildSmallFixture(FileID(1));
+  std::string const out1 = renderToString(*cu, sm);
+  std::string const out2 = renderToString(*cu, sm);
   // The contract self-test snippet (`ast-stability.contract.md`
   // §"Self-test snippet") IS this assertion. A failure here is a
   // Principle V violation, not a flake — see contract §Forbidden
@@ -151,8 +182,9 @@ TEST(ASTPrinterDeterminism, ByteIdenticalAcrossInvocations) {
 // ---- Invariant 3 (FR-031) ------------------------------------------------
 
 TEST(ASTPrinterDeterminism, NoRawPointerHexInOutput) {
-  auto cu = buildSmallFixture();
-  std::string const out = renderToString(*cu);
+  SourceManager sm = makeSmallFixtureSM();
+  auto cu = buildSmallFixture(FileID(1));
+  std::string const out = renderToString(*cu, sm);
   // FR-031 verbatim: no `0x[0-9a-f]+` pattern. Hex addresses leak
   // ASLR / allocator randomization into the output and would break
   // Invariant 2 across runs. Cross-references between AST nodes
@@ -168,8 +200,9 @@ TEST(ASTPrinterDeterminism, NoRawPointerHexInOutput) {
 // ---- Invariant 6 (FR-022 stdout schema) ---------------------------------
 
 TEST(ASTPrinterDeterminism, NodeKindNamesMatchEnumerators) {
-  auto cu = buildSmallFixture();
-  std::string const out = renderToString(*cu);
+  SourceManager sm = makeSmallFixtureSM();
+  auto cu = buildSmallFixture(FileID(1));
+  std::string const out = renderToString(*cu, sm);
   // Per `nslc-emit-ast.contract.md` §"Stdout schema": each line
   // opens with `(<NodeKind>` where `<NodeKind>` is the enumerator
   // name without prefix. For the small fixture, the kinds present
@@ -195,8 +228,9 @@ TEST(ASTPrinterDeterminism, NodeKindNamesMatchEnumerators) {
 // ---- Invariant 8 (Source-range round-trip) ------------------------------
 
 TEST(ASTPrinterDeterminism, SourceRangeFieldRoundTrips) {
-  auto cu = buildSmallFixture();
-  std::string const out = renderToString(*cu);
+  SourceManager sm = makeSmallFixtureSM();
+  auto cu = buildSmallFixture(FileID(1));
+  std::string const out = renderToString(*cu, sm);
   // Per the contract `<source-range>` is
   // `<path>:<startLine>:<startCol>-<endLine>:<endCol>`
   // in 1-based virtual coordinates. We extract one such loc=
@@ -244,13 +278,16 @@ TEST(ASTPrinterDeterminism, EmptyCompilationUnitIsIdempotent) {
   // compilation unit (zero top-level items). The printer MUST
   // still produce deterministic output — `Invariant 2` does not
   // exempt empty inputs.
-  FileID const fid(1);
+  SourceManager sm;
+  std::vector<char> const empty(1, ' ');
+  FileID const fid = sm.addBufferInMemory("empty.nsl", empty);
   SourceRange const r(SourceLocation::make(fid, 0),
                       SourceLocation::make(fid, 0 + 1));
-  auto cu = std::make_unique<CompilationUnit>(r);
+  auto cu = std::make_unique<CompilationUnit>(
+      r, std::vector<std::unique_ptr<Decl>>{});
 
-  std::string const a = renderToString(*cu);
-  std::string const b = renderToString(*cu);
+  std::string const a = renderToString(*cu, sm);
+  std::string const b = renderToString(*cu, sm);
   EXPECT_EQ(a, b);
   EXPECT_NE(a.find("(CompilationUnit"), std::string::npos);
 }

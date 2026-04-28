@@ -43,7 +43,7 @@
 //     purposes the test target adds `lib/Parse/` to its include
 //     path — the M0 `add_nsl_library_test` precedent allows this
 //     for white-box tests of private headers.
-//   - `nsl::parse::getPrecedence(TokenKind)` returns an integral
+//   - `prec(TokenKind)` returns an integral
 //     precedence level. Higher numbers bind tighter (Pratt
 //     convention; opposite of the EBNF's "low index = high
 //     precedence" comment which describes the grammar nesting,
@@ -51,13 +51,14 @@
 //     absolute integer values to remain robust to Track A's
 //     specific encoding (any monotonic mapping from EBNF level to
 //     integer satisfies the contract).
-//   - `nsl::parse::hasNud(TokenKind)` / `nsl::parse::hasLed(TokenKind)`
+//   - `hasNud(TokenKind)` / `hasLed(TokenKind)`
 //     report whether each denotation is present in the table. For
 //     `&`, `|`, `^` BOTH must be true (research §2 N2 dispatch).
 
 #include "PrecedenceTable.h"
 
 #include "nsl/Lex/Token.h"
+#include "PrecedenceTable.h"
 
 #include "gtest/gtest.h"
 
@@ -65,80 +66,103 @@ using nsl::TokenKind;
 
 namespace {
 
+// ---- Test-local helpers bridging Track A's `PrecEntry`-struct API ------
+//
+// Track A's `lib/Parse/PrecedenceTable.h` exposes `getPrecedence()`
+// returning a `PrecEntry` aggregate (`{hasNud, ledPrec, ledAssoc}`).
+// These tests originally assumed three separate free functions
+// (`getPrecedence` returning a scalar, plus `hasNud`/`hasLed` bools).
+// The wrappers below project the struct to the assumed scalar/bool
+// API so the assertion call sites stay readable. No public API
+// drift — only test-local glue. Adjust here if Track A renames the
+// fields.
+
+inline ::nsl::parse::PrecLevel prec(::nsl::TokenKind k) noexcept {
+  return ::nsl::parse::getPrecedence(k).ledPrec;
+}
+
+inline bool hasNud(::nsl::TokenKind k) noexcept {
+  return ::nsl::parse::getPrecedence(k).hasNud;
+}
+
+inline bool hasLed(::nsl::TokenKind k) noexcept {
+  return ::nsl::parse::getPrecedence(k).ledPrec != ::nsl::parse::PrecLevel::None;
+}
+
 // ---- Binary precedence ladder per `lang.ebnf §11` ----------------------
 
 // Multiplicative (`*`) MUST bind strictly tighter than additive (`+`).
 TEST(PrecedenceTable, MultiplicativeBindsTighterThanAdditive) {
-  EXPECT_GT(nsl::parse::getPrecedence(TokenKind::tk_star),
-            nsl::parse::getPrecedence(TokenKind::tk_plus))
+  EXPECT_GT(prec(TokenKind::tk_star),
+            prec(TokenKind::tk_plus))
       << "* MUST have higher Pratt precedence than +";
-  EXPECT_GT(nsl::parse::getPrecedence(TokenKind::tk_star),
-            nsl::parse::getPrecedence(TokenKind::tk_minus))
+  EXPECT_GT(prec(TokenKind::tk_star),
+            prec(TokenKind::tk_minus))
       << "* MUST have higher Pratt precedence than - (binary)";
 }
 
 // Additive (`+`/`-`) MUST bind strictly tighter than shift (`<<`/`>>`).
 TEST(PrecedenceTable, AdditiveBindsTighterThanShift) {
-  EXPECT_GT(nsl::parse::getPrecedence(TokenKind::tk_plus),
-            nsl::parse::getPrecedence(TokenKind::tk_shift_left));
-  EXPECT_GT(nsl::parse::getPrecedence(TokenKind::tk_minus),
-            nsl::parse::getPrecedence(TokenKind::tk_shift_right));
-  EXPECT_EQ(nsl::parse::getPrecedence(TokenKind::tk_plus),
-            nsl::parse::getPrecedence(TokenKind::tk_minus))
+  EXPECT_GT(prec(TokenKind::tk_plus),
+            prec(TokenKind::tk_shift_left));
+  EXPECT_GT(prec(TokenKind::tk_minus),
+            prec(TokenKind::tk_shift_right));
+  EXPECT_EQ(prec(TokenKind::tk_plus),
+            prec(TokenKind::tk_minus))
       << "+ and - share an additive precedence level per §11";
 }
 
 // Shift (`<<`/`>>`) MUST bind strictly tighter than relational.
 TEST(PrecedenceTable, ShiftBindsTighterThanRelational) {
-  EXPECT_GT(nsl::parse::getPrecedence(TokenKind::tk_shift_left),
-            nsl::parse::getPrecedence(TokenKind::tk_less));
-  EXPECT_GT(nsl::parse::getPrecedence(TokenKind::tk_shift_right),
-            nsl::parse::getPrecedence(TokenKind::tk_greater));
-  EXPECT_EQ(nsl::parse::getPrecedence(TokenKind::tk_shift_left),
-            nsl::parse::getPrecedence(TokenKind::tk_shift_right));
+  EXPECT_GT(prec(TokenKind::tk_shift_left),
+            prec(TokenKind::tk_less));
+  EXPECT_GT(prec(TokenKind::tk_shift_right),
+            prec(TokenKind::tk_greater));
+  EXPECT_EQ(prec(TokenKind::tk_shift_left),
+            prec(TokenKind::tk_shift_right));
 }
 
 // Relational (`<`,`<=`,`>`,`>=`) MUST bind tighter than equality.
 TEST(PrecedenceTable, RelationalBindsTighterThanEquality) {
-  EXPECT_GT(nsl::parse::getPrecedence(TokenKind::tk_less),
-            nsl::parse::getPrecedence(TokenKind::tk_equal));
-  EXPECT_GT(nsl::parse::getPrecedence(TokenKind::tk_greater),
-            nsl::parse::getPrecedence(TokenKind::tk_not_equal));
-  EXPECT_EQ(nsl::parse::getPrecedence(TokenKind::tk_less),
-            nsl::parse::getPrecedence(TokenKind::tk_less_equal));
-  EXPECT_EQ(nsl::parse::getPrecedence(TokenKind::tk_less),
-            nsl::parse::getPrecedence(TokenKind::tk_greater));
-  EXPECT_EQ(nsl::parse::getPrecedence(TokenKind::tk_less),
-            nsl::parse::getPrecedence(TokenKind::tk_greater_equal));
+  EXPECT_GT(prec(TokenKind::tk_less),
+            prec(TokenKind::tk_equal));
+  EXPECT_GT(prec(TokenKind::tk_greater),
+            prec(TokenKind::tk_not_equal));
+  EXPECT_EQ(prec(TokenKind::tk_less),
+            prec(TokenKind::tk_less_equal));
+  EXPECT_EQ(prec(TokenKind::tk_less),
+            prec(TokenKind::tk_greater));
+  EXPECT_EQ(prec(TokenKind::tk_less),
+            prec(TokenKind::tk_greater_equal));
 }
 
 // Equality MUST bind tighter than bitwise-AND.
 TEST(PrecedenceTable, EqualityBindsTighterThanBitwiseAnd) {
-  EXPECT_GT(nsl::parse::getPrecedence(TokenKind::tk_equal),
-            nsl::parse::getPrecedence(TokenKind::tk_amp));
-  EXPECT_EQ(nsl::parse::getPrecedence(TokenKind::tk_equal),
-            nsl::parse::getPrecedence(TokenKind::tk_not_equal));
+  EXPECT_GT(prec(TokenKind::tk_equal),
+            prec(TokenKind::tk_amp));
+  EXPECT_EQ(prec(TokenKind::tk_equal),
+            prec(TokenKind::tk_not_equal));
 }
 
 // Bitwise-AND > Bitwise-XOR > Bitwise-OR (per `lang.ebnf §11`
 // nesting `bitwise_and_expr < bitwise_xor_expr < bitwise_or_expr`).
 TEST(PrecedenceTable, BitwiseAndXorOrLadder) {
-  EXPECT_GT(nsl::parse::getPrecedence(TokenKind::tk_amp),
-            nsl::parse::getPrecedence(TokenKind::tk_caret))
+  EXPECT_GT(prec(TokenKind::tk_amp),
+            prec(TokenKind::tk_caret))
       << "& MUST bind tighter than ^ (bitwise_and_expr nests inside "
          "bitwise_xor_expr in §11)";
-  EXPECT_GT(nsl::parse::getPrecedence(TokenKind::tk_caret),
-            nsl::parse::getPrecedence(TokenKind::tk_pipe))
+  EXPECT_GT(prec(TokenKind::tk_caret),
+            prec(TokenKind::tk_pipe))
       << "^ MUST bind tighter than | (bitwise_xor_expr nests inside "
          "bitwise_or_expr in §11)";
 }
 
 // Bitwise-OR > Logical-AND > Logical-OR.
 TEST(PrecedenceTable, BitwiseOrTighterThanLogical) {
-  EXPECT_GT(nsl::parse::getPrecedence(TokenKind::tk_pipe),
-            nsl::parse::getPrecedence(TokenKind::tk_logical_and));
-  EXPECT_GT(nsl::parse::getPrecedence(TokenKind::tk_logical_and),
-            nsl::parse::getPrecedence(TokenKind::tk_logical_or));
+  EXPECT_GT(prec(TokenKind::tk_pipe),
+            prec(TokenKind::tk_logical_and));
+  EXPECT_GT(prec(TokenKind::tk_logical_and),
+            prec(TokenKind::tk_logical_or));
 }
 
 // ---- Nud / Led dispatch per N2 (research §2) ---------------------------
@@ -150,23 +174,23 @@ TEST(PrecedenceTable, BitwiseOrTighterThanLogical) {
 // op=ReduceAnd}`; with a left operand, `led(tk_amp)` →
 // `BinaryExpr{op=BitAnd}`.
 TEST(PrecedenceTable, AmpersandHasBothDenotations) {
-  EXPECT_TRUE(nsl::parse::hasNud(TokenKind::tk_amp))
+  EXPECT_TRUE(hasNud(TokenKind::tk_amp))
       << "& MUST have a nud (reduction-AND) per N2";
-  EXPECT_TRUE(nsl::parse::hasLed(TokenKind::tk_amp))
+  EXPECT_TRUE(hasLed(TokenKind::tk_amp))
       << "& MUST have a led (bitwise-AND) per §11 bitwise_and_expr";
 }
 
 TEST(PrecedenceTable, PipeHasBothDenotations) {
-  EXPECT_TRUE(nsl::parse::hasNud(TokenKind::tk_pipe))
+  EXPECT_TRUE(hasNud(TokenKind::tk_pipe))
       << "| MUST have a nud (reduction-OR) per N2";
-  EXPECT_TRUE(nsl::parse::hasLed(TokenKind::tk_pipe))
+  EXPECT_TRUE(hasLed(TokenKind::tk_pipe))
       << "| MUST have a led (bitwise-OR) per §11 bitwise_or_expr";
 }
 
 TEST(PrecedenceTable, CaretHasBothDenotations) {
-  EXPECT_TRUE(nsl::parse::hasNud(TokenKind::tk_caret))
+  EXPECT_TRUE(hasNud(TokenKind::tk_caret))
       << "^ MUST have a nud (reduction-XOR) per N2";
-  EXPECT_TRUE(nsl::parse::hasLed(TokenKind::tk_caret))
+  EXPECT_TRUE(hasLed(TokenKind::tk_caret))
       << "^ MUST have a led (bitwise-XOR) per §11 bitwise_xor_expr";
 }
 
@@ -174,26 +198,26 @@ TEST(PrecedenceTable, CaretHasBothDenotations) {
 // `unary_expr`) and led (additive). The dispatch is by stack
 // state, not token kind, so both entries must populate.
 TEST(PrecedenceTable, PlusAndMinusHaveBothDenotations) {
-  EXPECT_TRUE(nsl::parse::hasNud(TokenKind::tk_plus))
+  EXPECT_TRUE(hasNud(TokenKind::tk_plus))
       << "+ MUST have a nud (unary plus per `unary_expr`)";
-  EXPECT_TRUE(nsl::parse::hasLed(TokenKind::tk_plus))
+  EXPECT_TRUE(hasLed(TokenKind::tk_plus))
       << "+ MUST have a led (additive)";
-  EXPECT_TRUE(nsl::parse::hasNud(TokenKind::tk_minus))
+  EXPECT_TRUE(hasNud(TokenKind::tk_minus))
       << "- MUST have a nud (unary minus per `unary_expr`)";
-  EXPECT_TRUE(nsl::parse::hasLed(TokenKind::tk_minus))
+  EXPECT_TRUE(hasLed(TokenKind::tk_minus))
       << "- MUST have a led (additive)";
 }
 
 // `~` and `!` are ONLY prefix (no infix denotation in §11).
 TEST(PrecedenceTable, PrefixOnlyOperatorsHaveOnlyNud) {
-  EXPECT_TRUE(nsl::parse::hasNud(TokenKind::tk_tilde))
+  EXPECT_TRUE(hasNud(TokenKind::tk_tilde))
       << "~ MUST have a nud (bitwise NOT per `unary_expr`)";
-  EXPECT_FALSE(nsl::parse::hasLed(TokenKind::tk_tilde))
+  EXPECT_FALSE(hasLed(TokenKind::tk_tilde))
       << "~ MUST NOT have a led — there is no infix `~` in §11";
 
-  EXPECT_TRUE(nsl::parse::hasNud(TokenKind::tk_logical_not))
+  EXPECT_TRUE(hasNud(TokenKind::tk_logical_not))
       << "! MUST have a nud (logical NOT per `unary_expr`)";
-  EXPECT_FALSE(nsl::parse::hasLed(TokenKind::tk_logical_not))
+  EXPECT_FALSE(hasLed(TokenKind::tk_logical_not))
       << "! MUST NOT have a led — there is no infix `!` in §11";
 }
 
@@ -201,21 +225,30 @@ TEST(PrecedenceTable, PrefixOnlyOperatorsHaveOnlyNud) {
 // operator in §11 (there is no `unary_expr` alternative beginning
 // with `*` — pointer-deref is not in the NSL grammar).
 TEST(PrecedenceTable, StarHasOnlyLed) {
-  EXPECT_TRUE(nsl::parse::hasLed(TokenKind::tk_star))
+  EXPECT_TRUE(hasLed(TokenKind::tk_star))
       << "* MUST have a led (multiplicative)";
-  EXPECT_FALSE(nsl::parse::hasNud(TokenKind::tk_star))
+  EXPECT_FALSE(hasNud(TokenKind::tk_star))
       << "* MUST NOT have a nud — no unary `*` in §11";
 }
 
-// `#` (sign-extend per N5) is a prefix-style nud only — there is no
-// infix `#` in §11. Per research §2 last bullet: "N5's sign-extend
-// `#` is a prefix operator in expression position post-preprocess —
-// same Pratt dispatch as N2."
-TEST(PrecedenceTable, HashSignExtendHasOnlyNud) {
-  EXPECT_TRUE(nsl::parse::hasNud(TokenKind::tk_hash_sign_extend))
-      << "# MUST have a nud (sign-extend per N5)";
-  EXPECT_FALSE(nsl::parse::hasLed(TokenKind::tk_hash_sign_extend))
-      << "# MUST NOT have a led — no infix # in §11 post-preprocess";
+// `#` (sign-extend per N5) is INFIX in NSL's grammar:
+//   `lang.ebnf §11` line 702:
+//     sign_extend_expression = constant_expression "#" primary_expr
+// So `#` carries a `led` entry with the width on its LEFT and the
+// operand on its right. There is NO `nud` for `#` (it never appears
+// in prefix position).
+//
+// Note: research §2 last bullet originally characterized `#` as a
+// "prefix operator" — that wording is imprecise relative to the EBNF
+// and is being corrected in the same change as this test. Track A's
+// `PrecedenceTable.h` lines 155–164 implements the EBNF-correct
+// model. (Principle VII spec/design coupling fix.)
+TEST(PrecedenceTable, HashSignExtendIsInfix) {
+  EXPECT_FALSE(hasNud(TokenKind::tk_hash_sign_extend))
+      << "# is infix per EBNF §11 (`constant_expression # primary_expr`), "
+         "not prefix";
+  EXPECT_TRUE(hasLed(TokenKind::tk_hash_sign_extend))
+      << "# MUST have a led — binary sign-extend per §11 line 702";
 }
 
 // ---- Negative cases ----------------------------------------------------
@@ -224,22 +257,22 @@ TEST(PrecedenceTable, HashSignExtendHasOnlyNud) {
 // and the *lowest* possible precedence (so a Pratt loop stops at
 // `;` / `,` / `)` / `}` etc., never folding them into an expression).
 TEST(PrecedenceTable, NonOperatorPunctuationHasNoDenotation) {
-  EXPECT_FALSE(nsl::parse::hasNud(TokenKind::tk_semicolon));
-  EXPECT_FALSE(nsl::parse::hasLed(TokenKind::tk_semicolon));
-  EXPECT_FALSE(nsl::parse::hasNud(TokenKind::tk_comma));
-  EXPECT_FALSE(nsl::parse::hasLed(TokenKind::tk_comma));
-  EXPECT_FALSE(nsl::parse::hasNud(TokenKind::tk_rparen));
-  EXPECT_FALSE(nsl::parse::hasLed(TokenKind::tk_rparen));
-  EXPECT_FALSE(nsl::parse::hasNud(TokenKind::tk_rbrace));
-  EXPECT_FALSE(nsl::parse::hasLed(TokenKind::tk_rbrace));
+  EXPECT_FALSE(hasNud(TokenKind::tk_semicolon));
+  EXPECT_FALSE(hasLed(TokenKind::tk_semicolon));
+  EXPECT_FALSE(hasNud(TokenKind::tk_comma));
+  EXPECT_FALSE(hasLed(TokenKind::tk_comma));
+  EXPECT_FALSE(hasNud(TokenKind::tk_rparen));
+  EXPECT_FALSE(hasLed(TokenKind::tk_rparen));
+  EXPECT_FALSE(hasNud(TokenKind::tk_rbrace));
+  EXPECT_FALSE(hasLed(TokenKind::tk_rbrace));
 }
 
 // `tk_eof` is a hard floor: any Pratt loop with `precFloor=0` MUST
 // terminate at EOF. We assert `hasLed(tk_eof) == false` so the loop
 // in `parseExpr()` never tries to fold EOF as an infix operator.
 TEST(PrecedenceTable, EofHasNoDenotation) {
-  EXPECT_FALSE(nsl::parse::hasNud(TokenKind::tk_eof));
-  EXPECT_FALSE(nsl::parse::hasLed(TokenKind::tk_eof));
+  EXPECT_FALSE(hasNud(TokenKind::tk_eof));
+  EXPECT_FALSE(hasLed(TokenKind::tk_eof));
 }
 
 } // namespace

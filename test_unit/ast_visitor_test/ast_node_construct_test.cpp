@@ -55,6 +55,11 @@ namespace {
 class TestNode final : public ASTNode {
 public:
   TestNode(NodeKind k, SourceRange r) : ASTNode(k, r) {}
+  // Track A's `ASTNode::accept()` is pure-virtual; a no-op override
+  // makes TestNode concrete. The tests below never invoke accept(),
+  // so the body is intentionally empty (TestNode is NOT a real
+  // node-kind; it borrows enumerator values for storage testing).
+  void accept(::nsl::ast::ASTVisitor &) const override {}
 };
 
 // FR-018 Invariant-1 corollary: a default-constructed `ASTNode`
@@ -82,7 +87,7 @@ TEST(ASTNodeConstructTest, ConstructibleWithSourceRange) {
 
   // The constructor pair `(NodeKind, SourceRange)` is the ONLY way to
   // produce an ASTNode (Invariant 1).
-  TestNode node(NodeKind::CompilationUnit, range);
+  TestNode node(NodeKind::NK_CompilationUnit, range);
 
   // The constructor MUST store the `SourceRange` faithfully — this
   // is the storage half of FR-018 ("every AST node carries a
@@ -97,14 +102,14 @@ TEST(ASTNodeConstructTest, KindAccessorReflectsConstructorArgument) {
   FileID const fid(1);
   SourceRange const range(SourceLocation::make(fid, 4),
                           SourceLocation::make(fid, 9));
-  TestNode node(NodeKind::ModuleBlock, range);
+  TestNode node(NodeKind::NK_ModuleBlock, range);
 
   // `kind()` is the accessor side of the `(NodeKind, SourceRange)`
   // constructor. Pinning this here ensures Invariant 6 (node-kind
   // name stability) has a corresponding *value* stability — the
   // enumerator a node was constructed with is the enumerator it
   // reports.
-  EXPECT_EQ(node.kind(), NodeKind::ModuleBlock);
+  EXPECT_EQ(node.kind(), NodeKind::NK_ModuleBlock);
 }
 
 TEST(ASTNodeConstructTest, DistinctKindsCarryDistinctRanges) {
@@ -113,8 +118,8 @@ TEST(ASTNodeConstructTest, DistinctKindsCarryDistinctRanges) {
                        SourceLocation::make(fid, 3));
   SourceRange const r2(SourceLocation::make(fid, 5),
                        SourceLocation::make(fid, 11));
-  TestNode a(NodeKind::RegDecl, r1);
-  TestNode b(NodeKind::LiteralExpr, r2);
+  TestNode a(NodeKind::NK_RegDecl, r1);
+  TestNode b(NodeKind::NK_LiteralExpr, r2);
 
   // Construction is independent: each node carries its OWN range.
   EXPECT_EQ(a.loc().begin().offset(), 0U);

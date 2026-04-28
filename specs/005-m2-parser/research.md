@@ -93,9 +93,14 @@ until it sees one whose precedence is below the floor.
   (reduction operator) and a `led` (left denotation = bitwise
   binary) entry, with the `nud` invoked when no left operand is
   on the stack.
-- **N5's sign-extend `#`** is a prefix operator in expression
-  position post-preprocess (the line-marker form is consumed by
-  M1) — same Pratt dispatch as N2.
+- **N5's sign-extend `#`** is an **infix** operator per
+  `lang.ebnf §11` line 702 (`sign_extend_expression =
+  constant_expression "#" primary_expr`). The width literal is the
+  LEFT operand; Pratt dispatches via `led` (left-denotation), at
+  Multiplicative precedence (Track A's `PrecedenceTable.h` lines
+  155–164). The line-marker form `#line` was consumed at the
+  M1/M2 seam and never reaches us; in the post-preprocess token
+  stream `#` is unambiguously the binary sign-extend operator.
 
 **Alternatives considered**:
 - *Pure recursive descent with one parse function per precedence
