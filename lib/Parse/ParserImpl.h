@@ -28,6 +28,10 @@
 #define NSL_LIB_PARSE_PARSERIMPL_H
 
 #include "nsl/AST/ASTNode.h"
+#include "nsl/AST/CompilationUnit.h"
+#include "nsl/AST/Decl.h"
+#include "nsl/AST/Expr.h"
+#include "nsl/AST/Stmt.h"
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Lex/Lexer.h"
@@ -194,6 +198,10 @@ public:
   std::unique_ptr<ast::Stmt> parseInitBlock();
   std::unique_ptr<ast::Stmt> parseDelayTask();
   std::unique_ptr<ast::Stmt> parseSystemTaskStatement();
+  /// Parse a statement whose first token is an identifier-led LHS
+  /// (a transfer, control-call per N6, or labeled statement per N10).
+  /// Forward-declared so parseActionStatement() can dispatch into it.
+  std::unique_ptr<ast::Stmt> parseLValueLedStatement();
   /// Parse the body of a parenthesized `argument_list`. Caller has
   /// already consumed the `(`. On success consumes the matching `)`
   /// and returns true.
