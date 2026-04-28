@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/emit-ast.test — byte-frozen format golden for
+// `nslc -emit=ast` (T020 of `specs/005-m2-parser/tasks.md`).
+//
+// **Contract anchors**:
+//   - `specs/005-m2-parser/contracts/nslc-emit-ast.contract.md`
+//     §"Stdout schema" (the per-line format) and §"Example" (the
+//     canonical input + expected output reproduced below verbatim).
+//   - FR-022 (text-only S-expression-style dump per
+//     `/speckit-clarify` Q2 → Option A).
+//   - FR-024 (driver wrapper inside `lib/Driver/EmitAST.cpp`,
+//     `tools/nslc/main.cpp` stays ≤ 60 lines).
+//   - FR-030, SC-003, SC-007 (byte-stable across runs).
+//
+// **Schema-stability scope**: the format is frozen byte-exactly **at
+// M2** by this fixture; M3/M5/M7 may re-cut the golden in the same
+// patch as a format-bumping change (see contract §"Stability"). Any
+// unintentional change to the printer text format fails this
+// fixture.
+//
+// Per Constitution Principle VIII (TDD; FR-029): this fixture lands
+// BEFORE the parser implementation + driver glue. Against the
+// unchanged tree at `7bc1aea`, all three RUN: lines fail:
+//   - POS path:    `nslc -emit=ast` exits 2 (unknown emit stage at M1)
+//                   → FileCheck pipeline errors (no AST stdout).
+//   - NEG-NOINPUT: same as M1's emit-tokens — already passes (driver
+//                   diagnoses missing operand at argv parse).
+//   - NEG-BADSTAGE: same — covered by M1's `-emit=blarg` path.
+//   - NEG-NOFILE:  M1 driver exits 3 with "could not open"; once
+//                   `-emit=ast` is wired, this still must hold for
+//                   `-emit=ast` because the file-open path is shared.
+// Until Track D lands the parser + EmitAST glue, the POS path fails
+// — that IS the failing-state evidence.
+//
+// ----- POSITIVE: the canonical contract example ------------------
+//
+// Input (per `nslc-emit-ast.contract.md` §Example):
+//   module hello {
+//     reg q[8] = 0;
+//   }
+//
+// Expected stdout (verbatim from the contract; the printer asserts
+// `<path>:<line>:<col>` resolution against the M1 SourceManager,
+// which maps the temp file's literal path here). The temp-file path
+// is created at run time so we use FileCheck regex placeholders for
+// the `<path>` portion of `loc=`. Line/column coordinates ARE pinned
+// — they are the schema invariant.
+//
+// RUN: printf 'module hello {\n  reg q[8] = 0;\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s --check-prefix=POS
+
+// POS:      (CompilationUnit  loc={{[^:]+}}:1:1-3:2
+// POS-NEXT:   (ModuleBlock  loc={{[^:]+}}:1:1-3:2  name=hello
+// POS-NEXT:     (RegDecl  loc={{[^:]+}}:2:3-2:16  name=q
+// POS-NEXT:       (LiteralExpr  loc={{[^:]+}}:2:9-2:10  kind=Decimal  value=8)
+// POS-NEXT:       (LiteralExpr  loc={{[^:]+}}:2:14-2:15  kind=Decimal  value=0))))
+
+// ----- NEGATIVE 1: no input file → exit 2 ------------------------
+//
+// Per the contract §"Exit codes" Code 2 (driver argument parsing
+// failure). M1's driver already exits 2 with "input file required";
+// adding `-emit=ast` does NOT change that path.
+//
+// RUN: not %nslc -emit=ast 2>&1 | FileCheck %s --check-prefix=NEG-NOINPUT
+
+// NEG-NOINPUT: input file required
+
+// ----- NEGATIVE 2: unknown -emit stage → exit 2 ------------------
+//
+// Per the contract §"Exit codes" Code 2. Pre-existing M1 behavior
+// for unknown stages; M2 adds `ast` to the known-stage set.
+//
+// RUN: not %nslc -emit=blarg %t.nsl 2>&1 | FileCheck %s --check-prefix=NEG-BADSTAGE
+
+// NEG-BADSTAGE: unknown emit stage
+
+// ----- NEGATIVE 3: file not found → exit 1 (per contract) --------
+//
+// The contract pins exit code 1 for any error-severity diagnostic
+// at a pipeline stage (preprocess, lex, parse). M1's driver exits 3
+// for "could not open" — M2's `-emit=ast` MUST translate the
+// SourceManager open-failure to the contract's exit-1 surface for
+// `-emit=ast` specifically (preserving exit 3 for `-emit=tokens`
+// is M1's settled behavior). The `not` makes lit pass when nslc
+// exits non-zero; we match the diagnostic text.
+//
+// RUN: not %nslc -emit=ast %t.nonexistent.nsl 2>&1 | FileCheck %s --check-prefix=NEG-NOFILE
+
+// NEG-NOFILE: could not open

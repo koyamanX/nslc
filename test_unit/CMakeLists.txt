@@ -41,7 +41,12 @@ foreach(suite
     # those files land thanks to the existence guard below.
     ast_visitor_test
     ast_printer_test
-    recovery_set_test)
+    recovery_set_test
+    # M2 Phase 3 / US1 (T021 of `specs/005-m2-parser/tasks.md`) —
+    # gtest smoke fixture for `nsl::parse::parseCompilationUnit`.
+    # Authored RED before `lib/Parse/` is populated; the binary
+    # FAILS TO LINK until Track D lands the `nsl-parse` library.
+    parse_test)
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${suite}/CMakeLists.txt")
     add_subdirectory(${suite})
   endif()
