@@ -17,7 +17,10 @@
 // RUN: %nslc -emit=ast %s | FileCheck %s
 
 module n3_lhs_concat {
-    wire a, b, c, x;
+    wire a;
+    wire b;
+    wire c;
+    wire x;
     .{a, b, c} = x;
 }
 

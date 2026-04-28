@@ -28,6 +28,8 @@
 #ifndef NSL_AST_PRINTER_H
 #define NSL_AST_PRINTER_H
 
+#include "nsl/Basic/SourceLocation.h"
+
 namespace llvm {
 class raw_ostream;
 } // namespace llvm
@@ -39,14 +41,42 @@ class SourceManager;
 namespace nsl::ast {
 
 class CompilationUnit;
+class Expr;
+
+/// Decl-loc lookup callback invoked by the post-Sema printer for
+/// every `IdentifierExpr` / `FieldAccessExpr` / `ScopedName` head.
+/// Returns the `SourceRange` of the resolved declaration (whose
+/// `start` the printer renders as `→ decl@<file>:<line>:<col>`),
+/// or an invalid range if the name is unresolved.
+///
+/// The callback type is opaque — `nsl-ast` does not depend on
+/// `nsl-sema`. Phase 3 wires the callback in `nsl::sema` to a
+/// thread-local resolution map; tooling layers (M3+ LSP) MAY wire
+/// their own callbacks for incremental introspection.
+using DeclLocLookupFn = SourceRange (*)(const Expr *);
 
 /// Walk `cu` in declaration order and write its text-only
 /// S-expression-style dump to `os`. Resolves every `SourceLocation`
 /// through `sm` to obtain the virtual (post-`#line`) `path:line:col`
 /// per `nslc-emit-ast.contract.md`. Output terminates in `\n` per
 /// the contract's "Trailing newline" rule.
+///
+/// Mode detection: when ANY `Expr` reached during the walk has
+/// `Expr::inferredType() != nullptr` (i.e., M3 Sema has run), the
+/// printer enters post-Sema mode and emits the additive ` : <Type>`
+/// type-suffix and the optional ` → decl@<file>:<line>:<col>`
+/// decl-loc-suffix per `emit-ast-format.contract.md` Invariants 2
+/// + 3. Otherwise it emits the M2 format unchanged (Invariant 4).
 void print(const CompilationUnit &cu, const SourceManager &sm,
            llvm::raw_ostream &os);
+
+/// Post-Sema variant accepting a decl-loc lookup callback per the
+/// `emit-ast-format.contract.md` Invariant 3 ` → decl@…` suffix.
+/// `decl_lookup` MAY be null — in that case the type suffix is
+/// emitted (when `inferredType() != nullptr`) but the decl-loc
+/// suffix is omitted.
+void print(const CompilationUnit &cu, const SourceManager &sm,
+           llvm::raw_ostream &os, DeclLocLookupFn decl_lookup);
 
 } // namespace nsl::ast
 

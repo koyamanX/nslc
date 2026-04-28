@@ -18,6 +18,7 @@ add_nsl_library(nsl-sema
   Sema.cpp
   SymbolTable.cpp
   TypeSystem.cpp
+  ResolutionPass.cpp
   HEADERS
     ${CMAKE_SOURCE_DIR}/include/nsl/Sema/Sema.h
     ${CMAKE_SOURCE_DIR}/include/nsl/Sema/SymbolTable.h

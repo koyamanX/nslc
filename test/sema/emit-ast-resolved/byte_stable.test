@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/emit-ast-resolved/byte_stable.test — `sema-stability.contract.md`
+// Invariant 1 (T036 of `specs/006-m3-sema/tasks.md`). Asserts that
+// `nslc -emit=ast` produces byte-identical stdout across two
+// invocations on the same input.
+//
+// Failure mode: any nondeterminism in the post-Sema printer (e.g.,
+// iterating a `DenseMap` directly without sorting) would make the
+// two runs diverge; `diff` then exits non-zero and the test fails.
+//
+// Failing-state evidence (FR-029): a hypothetical regression that
+// drops Principle V's deterministic-pipeline guarantee fails this
+// fixture as the first observable byte difference.
+//
+// RUN: printf 'module hello {\n  reg q[8] = 0;\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl > %t.run1.txt
+// RUN: %nslc -emit=ast %t.nsl > %t.run2.txt
+// RUN: diff %t.run1.txt %t.run2.txt

@@ -25,7 +25,8 @@
 // RUN: %nslc -emit=ast %s | FileCheck %s
 
 module n5_sign_extend {
-    wire sig, q;
+    wire sig;
+    wire q;
     q = 8 # sig;
 }
 

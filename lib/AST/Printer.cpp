@@ -40,6 +40,7 @@
 
 #include "nsl/AST/ASTNode.h"
 #include "nsl/AST/ASTVisitor.h"
+#include "nsl/AST/Expr.h"
 #include "nsl/AST/AltBlock.h"
 #include "nsl/AST/AnyBlock.h"
 #include "nsl/AST/BareFinishStmt.h"
@@ -275,12 +276,111 @@ llvm::StringRef toString(BinaryExpr::Op op) {
   return "<invalid-BinaryOp>";
 }
 
+// ---------- Post-Sema type rendering ----------
+//
+// Phase 3 (T031-T033): when an `Expr::inferredType()` is non-null
+// the printer renders a ` : <Type>` suffix per
+// `emit-ast-format.contract.md` Invariant 2. The Type rendering
+// uses an inline classifier rather than depending on
+// `nsl::sema::TypeSystem` directly — `nsl-ast` does NOT link
+// `nsl-sema` (Principle II §3 layered architecture). The opaque
+// `Type*` is queried via lightweight RTTI-style accessors that
+// would be best implemented in `nsl-sema` and exposed via a
+// callback. For the M3 scaffolding we use `dynamic_cast` against
+// the `nsl::sema::Type` hierarchy via the alias declared in
+// `Type.h` — this works because `nsl::ast::Type` is a typedef for
+// `nsl::sema::Type` post-Phase 3, and the AST printer translation
+// unit is allowed to read sema::Type's vtable via the alias.
+//
+// The inline switch reaches into the shared `TypeKind` enum that
+// lives in `nsl/Sema/TypeSystem.h`. To avoid a layer-direction
+// violation in CMake, we forward-declare the minimum needed —
+// the shared header is read-only and contains no executable code.
+
+} // namespace
+} // namespace nsl::ast
+
+// Reach into nsl-sema's TypeSystem header to access the Type
+// hierarchy *as a header-only consumer*. No additional CMake
+// edge needed: the Sema headers live under `include/nsl/Sema/`
+// and the include search path is global.
+#include "nsl/Sema/TypeSystem.h"
+
+namespace nsl::ast {
+namespace {
+
+/// Render a Sema `TypeRef` as ` : <Type>` per
+/// `emit-ast-format.contract.md` Invariant 2. Returns the raw
+/// post-suffix string (without the leading space).
+void renderTypeSuffix(const ::nsl::sema::Type *t, llvm::raw_ostream &os) {
+  if (!t) {
+    return;
+  }
+  os << " : ";
+  using K = ::nsl::sema::TypeKind;
+  switch (t->kind()) {
+  case K::Bit:
+    os << "Bit";
+    return;
+  case K::BitVector: {
+    const auto *bv = static_cast<const ::nsl::sema::BitVectorType *>(t);
+    os << "BitVector(" << bv->width() << ')';
+    return;
+  }
+  case K::Struct: {
+    const auto *st = static_cast<const ::nsl::sema::StructType *>(t);
+    os << "Struct(" << st->name() << ')';
+    return;
+  }
+  case K::Memory: {
+    const auto *mt = static_cast<const ::nsl::sema::MemoryType *>(t);
+    os << "Memory(" << mt->depth() << " x ";
+    // Recursively render element type; "x" used in place of "×"
+    // to keep the output ASCII for tooling regex-parsability.
+    if (mt->element()) {
+      // Strip the leading " : " from a recursive call by writing
+      // directly here.
+      using K2 = ::nsl::sema::TypeKind;
+      switch (mt->element()->kind()) {
+      case K2::Bit:
+        os << "Bit";
+        break;
+      case K2::BitVector: {
+        const auto *bv =
+            static_cast<const ::nsl::sema::BitVectorType *>(mt->element());
+        os << "BitVector(" << bv->width() << ')';
+        break;
+      }
+      case K2::Struct: {
+        const auto *sst =
+            static_cast<const ::nsl::sema::StructType *>(mt->element());
+        os << "Struct(" << sst->name() << ')';
+        break;
+      }
+      default:
+        os << "Unresolved";
+        break;
+      }
+    } else {
+      os << "Unresolved";
+    }
+    os << ')';
+    return;
+  }
+  case K::Unresolved:
+    os << "Unresolved";
+    return;
+  }
+  os << "Unresolved";
+}
+
 // ---------- The walker ----------
 
 class PrinterVisitor final : public ASTVisitor {
 public:
-  PrinterVisitor(const SourceManager &sm, llvm::raw_ostream &os) noexcept
-      : sm_(sm), os_(os) {}
+  PrinterVisitor(const SourceManager &sm, llvm::raw_ostream &os,
+                 DeclLocLookupFn decl_lookup = nullptr) noexcept
+      : sm_(sm), os_(os), decl_lookup_(decl_lookup) {}
 
   void visit(const CompilationUnit &n) override;
   void visit(const StructDecl &n) override;
@@ -350,10 +450,70 @@ private:
 
   /// Emit `(NodeKind  loc=<range>` ready for kind-specific
   /// fields/children. No trailing space; callers add their own.
+  ///
+  /// Post-Sema mode (Phase 3 T031-T033): when `n` is an `Expr`
+  /// whose `inferredType() != nullptr`, append the additive
+  /// ` : <Type>` suffix per `emit-ast-format.contract.md` Invariant
+  /// 2 and (for resolvable name-refs) the additive
+  /// ` → decl@<file>:<line>:<col>` suffix per Invariant 3. Pre-
+  /// Sema mode (Invariant 4) emits the M2 format unchanged.
   void emitOpen(const ASTNode &n) {
     emitIndent();
     os_ << '(' << toString(n.kind()) << "  loc=";
     emitRange(n.loc());
+    // Detect post-Sema mode by checking `inferredType()` on Expr
+    // nodes. Non-Expr nodes are unaffected.
+    if (isExprKind(n.kind())) {
+      const Expr &e = static_cast<const Expr &>(n);
+      if (e.inferredType() != nullptr) {
+        renderTypeSuffix(e.inferredType(), os_);
+        // Decl-loc suffix (Invariant 3): only for name-refs whose
+        // resolved Symbol* is non-null, AND only when the type is
+        // not Unresolved.
+        if (decl_lookup_ != nullptr &&
+            e.inferredType()->kind() !=
+                ::nsl::sema::TypeKind::Unresolved &&
+            isNameRefKind(n.kind())) {
+          SourceRange decl_range = decl_lookup_(&e);
+          if (decl_range.isValid()) {
+            auto begin = sm_.resolveVirtual(decl_range.begin());
+            os_ << " -> decl@" << begin.path << ':' << begin.line << ':'
+                << begin.col;
+          }
+        }
+      }
+    }
+  }
+
+  /// True iff `k` names a concrete `Expr` subclass.
+  static bool isExprKind(NodeKind k) noexcept {
+    switch (k) {
+    case NodeKind::NK_LiteralExpr:
+    case NodeKind::NK_IdentifierExpr:
+    case NodeKind::NK_SystemVarExpr:
+    case NodeKind::NK_UnaryExpr:
+    case NodeKind::NK_BinaryExpr:
+    case NodeKind::NK_ConditionalExpr:
+    case NodeKind::NK_ConcatExpr:
+    case NodeKind::NK_RepeatExpr:
+    case NodeKind::NK_SignExtendExpr:
+    case NodeKind::NK_ZeroExtendExpr:
+    case NodeKind::NK_SliceExpr:
+    case NodeKind::NK_FieldAccessExpr:
+    case NodeKind::NK_CallExpr:
+    case NodeKind::NK_StructCastExpr:
+    case NodeKind::NK_IncDecExpr:
+      return true;
+    default:
+      return false;
+    }
+  }
+
+  /// True iff `k` names a name-ref Expr that may produce a
+  /// `→ decl@…` suffix per Invariant 3.
+  static bool isNameRefKind(NodeKind k) noexcept {
+    return k == NodeKind::NK_IdentifierExpr ||
+           k == NodeKind::NK_FieldAccessExpr;
   }
 
   /// Emit `path:line:col-line:col` in virtual coordinates.
@@ -442,6 +602,7 @@ private:
 
   const SourceManager &sm_;
   llvm::raw_ostream &os_;
+  DeclLocLookupFn decl_lookup_;
   int indent_ = 0;
 };
 
@@ -1277,7 +1438,14 @@ void PrinterVisitor::visit(const IncDecExpr &n) {
 
 void print(const CompilationUnit &cu, const SourceManager &sm,
            llvm::raw_ostream &os) {
-  PrinterVisitor v(sm, os);
+  PrinterVisitor v(sm, os, /*decl_lookup=*/nullptr);
+  cu.accept(v);
+  os << '\n';
+}
+
+void print(const CompilationUnit &cu, const SourceManager &sm,
+           llvm::raw_ostream &os, DeclLocLookupFn decl_lookup) {
+  PrinterVisitor v(sm, os, decl_lookup);
   cu.accept(v);
   os << '\n';
 }

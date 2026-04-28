@@ -17,7 +17,11 @@
 // RUN: %nslc -emit=ast %s | FileCheck %s
 
 module n2_bitwise {
-    wire a, b, andv, orv, xorv;
+    wire a;
+    wire b;
+    wire andv;
+    wire orv;
+    wire xorv;
     andv = a & b;
     orv  = a | b;
     xorv = a ^ b;

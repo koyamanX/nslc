@@ -18,18 +18,28 @@
 #ifndef NSL_AST_TYPE_H
 #define NSL_AST_TYPE_H
 
+namespace nsl::sema {
+/// Forward declaration of the M3 Sema type hierarchy. Defined in
+/// `include/nsl/Sema/TypeSystem.h`.
+class Type;
+} // namespace nsl::sema
+
 namespace nsl::ast {
 
-/// Forward declaration. M3 (Sema) supplies the definition.
-class Type;
-
-/// Non-owning reference to an `ast::Type`. nullptr = unresolved.
+/// Type alias bridging `nsl::ast::Type` to the M3 `nsl::sema::Type`.
+/// At M2 this aliased nothing concrete (the M2 spec used `Type` only
+/// as a forward-declared placeholder); M3 wires the alias to the
+/// `nsl::sema::Type` hierarchy so `Expr::setInferredType()` can store
+/// a `sema::TypeRef` without a cast.
 ///
-/// Why a typedef rather than a wrapper class: keeping the slot a
-/// raw `const Type*` avoids forcing every per-node-kind header to
-/// include a heavier "TypeRef" class definition; M2 only stores
-/// nullptr, and M3 will revisit if a richer wrapper (e.g., qualified
-/// types) is needed.
+/// This is a forward-declaration alias — including this header still
+/// does NOT pull in the full `TypeSystem.h`. Concrete `Type`
+/// definitions live in `include/nsl/Sema/TypeSystem.h`.
+using Type = ::nsl::sema::Type;
+
+/// Non-owning reference to an `ast::Type` (a.k.a. `sema::Type`).
+/// nullptr = unresolved. Pointer equality implies type equality
+/// (per `sema-api.contract.md` Invariant 5).
 using TypeRef = const Type *;
 
 } // namespace nsl::ast

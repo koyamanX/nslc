@@ -15,6 +15,8 @@
 
 #include "nsl/Sema/Sema.h"
 
+#include "ResolutionPass.h"
+
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/IdentifierExpr.h"
 #include "nsl/Basic/Diagnostic.h"
@@ -24,6 +26,18 @@
 #include <utility>
 
 namespace nsl::sema {
+
+namespace {
+
+/// Storage for the most-recent run's `ResolutionMap`, kept alive
+/// for the duration of the post-Sema printer invocation. The
+/// Printer reads this via `currentResolutionMap()`. Single-threaded
+/// compiler so a thread-local is sufficient; LSP-tier callers MUST
+/// drive Sema and the printer on the same thread (per
+/// `sema-stability.contract.md` Invariant 8).
+thread_local std::unique_ptr<ResolutionMap> g_lastRunMap;
+
+} // namespace
 
 Sema::Sema(DiagnosticEngine &diag)
     : diag_(diag),
@@ -75,10 +89,17 @@ Sema::classifyIdentifierExpr(const ast::IdentifierExpr &expr) const {
 }
 
 void Sema::runResolutionPass(ast::CompilationUnit &unit) {
-  // Phase 2 stub — Phase 3 (T026–T030) replaces this with the
-  // top-down ASTVisitor walk that opens scopes, declares symbols,
-  // resolves names, and infers widths.
-  (void)unit;
+  // Phase 3 (T026-T030): invoke the top-down ASTVisitor walker
+  // that opens scopes, declares symbols, resolves names, and
+  // infers widths. The result map is stashed in the thread-local
+  // `g_lastRunMap` so the post-Sema `-emit=ast` printer can
+  // consume it via `currentResolutionMap()`.
+  assert(symbols_ && types_ &&
+         "runResolutionPass after ownership transfer");
+  auto map = std::make_unique<ResolutionMap>(
+      runResolutionPassImpl(unit, *symbols_, *types_, diag_));
+  g_lastRunMap = std::move(map);
+  setCurrentResolutionMap(g_lastRunMap.get());
 }
 
 void Sema::runConstraintPasses(ast::CompilationUnit &unit) {

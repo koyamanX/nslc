@@ -533,6 +533,23 @@ public:
 
 private:
   std::vector<std::unique_ptr<Scope>> scopes_;
+
+  /// Retired scopes — `leaveScope`'d but still alive so the
+  /// `Symbol`s they own outlive their declaring Scope. The
+  /// `ResolutionPass` (Phase 3 T028) records `Symbol*` cross-
+  /// references in a side `ResolutionMap` for the post-Sema printer
+  /// to consume; those pointers MUST remain valid for the lifetime
+  /// of the surrounding `SymbolTable` (per
+  /// `sema-stability.contract.md` Invariant 8). Retired scopes are
+  /// destroyed only when the `SymbolTable` itself is destroyed.
+  ///
+  /// Phase 2 originally implemented `leaveScope` as `pop_back()`,
+  /// which would destroy the Scope (and hence its owned Symbols)
+  /// the moment the resolution walk left the scope — making any
+  /// post-walk `Symbol*` query (e.g., from the printer) unsafe.
+  /// Phase 3 swaps to a "retire" semantic: leaveScope moves the
+  /// unique_ptr from `scopes_` into `retiredScopes_`.
+  std::vector<std::unique_ptr<Scope>> retiredScopes_;
 };
 
 } // namespace nsl::sema

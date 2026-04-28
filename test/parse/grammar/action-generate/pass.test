@@ -38,7 +38,7 @@
 // requires a Stmt-shaped step slot (parallels `for_block`'s step which
 // stores an `IncDecStmt`); deferred to a later milestone.
 
-// RUN: printf 'module m {\n  generate (i = 0; i < 1; i = i + 1) { }\n}\n' > %t.nsl
+// RUN: printf 'module m {\n  integer i;\n  generate (i = 0; i < 1; i = i + 1) { }\n}\n' > %t.nsl
 // RUN: %nslc -emit=ast %t.nsl | FileCheck %s
 
 // CHECK: (ModuleBlock

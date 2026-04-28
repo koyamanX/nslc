@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/width/integer_constants.test — FR-009 integer-literal
+// width inference fixture (T024 of `specs/006-m3-sema/tasks.md`).
+// Asserts that integer literals resolve to a concrete
+// `BitVector(N)` `TypeRef` at Sema time — NOT `Unresolved` and
+// NOT `Bit`.
+
+// RUN: printf 'module m {\n  reg q[8] = 0;\n  reg r[16] = 65535;\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (RegDecl {{.*}}name=q
+// CHECK: (LiteralExpr {{.*}} : BitVector({{[0-9]+}}) {{.*}}value=8)
+// CHECK: (LiteralExpr {{.*}} : BitVector({{[0-9]+}}) {{.*}}value=0)
+// CHECK: (RegDecl {{.*}}name=r
+// CHECK: (LiteralExpr {{.*}} : BitVector({{[0-9]+}}) {{.*}}value=16)
+// CHECK: (LiteralExpr {{.*}} : BitVector({{[0-9]+}}) {{.*}}value=65535)

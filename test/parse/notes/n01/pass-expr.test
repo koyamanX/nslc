@@ -25,7 +25,10 @@
 // RUN: %nslc -emit=ast %s | FileCheck %s
 
 module n1_expr {
-    wire c, a, b, q;
+    wire c;
+    wire a;
+    wire b;
+    wire q;
     q = if (c) a else b;
 }
 

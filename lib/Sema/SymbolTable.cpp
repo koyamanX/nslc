@@ -89,6 +89,13 @@ void SymbolTable::enterScope(ScopeKind kind, Symbol *owner) {
 
 void SymbolTable::leaveScope() {
   assert(!scopes_.empty() && "leaveScope on empty stack");
+  // Phase 3: retire the scope rather than destroy it. The Symbols
+  // declared in this scope must outlive the resolution walk so the
+  // post-Sema printer (and downstream Sn walkers / tooling) can
+  // consume `Symbol*` references stored in the `ResolutionMap`
+  // side-table. The retired scope is destroyed only when the
+  // SymbolTable itself is destroyed.
+  retiredScopes_.push_back(std::move(scopes_.back()));
   scopes_.pop_back();
 }
 

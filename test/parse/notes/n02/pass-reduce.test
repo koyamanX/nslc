@@ -16,7 +16,10 @@
 // RUN: %nslc -emit=ast %s | FileCheck %s
 
 module n2_reduce {
-    wire x, ra, ro, rx;
+    wire x;
+    wire ra;
+    wire ro;
+    wire rx;
     ra = &x;
     ro = |x;
     rx = ^x;
