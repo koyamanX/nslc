@@ -27,8 +27,8 @@
 // it exits with the M1 driver's "unknown emit stage" path (exit 2),
 // so the FileCheck pipeline observes a mismatch and the test fails.
 
-// RUN: printf 'module m {\n  wire sig;\n  wire q = 8'"'"'(sig);\n}\n' > %t.nsl
+// RUN: printf 'module m {\n  wire sig;\n  reg q = 8'"'"'(sig);\n}\n' > %t.nsl
 // RUN: %nslc -emit=ast %t.nsl | FileCheck %s
 
-// CHECK: (WireDecl
+// CHECK: (RegDecl
 // CHECK: (ZeroExtendExpr

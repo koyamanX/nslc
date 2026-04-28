@@ -363,110 +363,121 @@ PRODUCTIONS: list[tuple[str, str, str, str, list[str]]] = [
         ["(InitBlockStmt", "(DelayTaskStmt"],
     ),
     # ---- §11 expressions ----
+    #
+    # These fixtures use `reg q = <expr>;` (register_declarator,
+    # `lang.ebnf §6` line 219 — `[ "=" constant_expression ]`) rather
+    # than `wire q = <expr>;`, because `internal_terminal_declaration`
+    # (line 211) does NOT permit an initializer on `wire` — only `reg`
+    # does. The expression *value* being asserted is the same; the
+    # carrier declaration is what differs. See `internal-reg` above
+    # for the bare carrier form. The mass regen of the original
+    # (illegal) `wire q = <expr>;` form was the "M2 Group α"
+    # fixture-side fix flagged in `15b2bb7`'s findings note covering
+    # the 24 outstanding lit fixtures grouped α–δ.
     (
         "expr-literal-decimal",
         "11",
         "literal — decimal",
-        "module m {\n  wire q = 8;\n}\n",
-        ["(WireDecl", "(LiteralExpr", "kind=Decimal"],
+        "module m {\n  reg q = 8;\n}\n",
+        ["(RegDecl", "(LiteralExpr", "kind=Decimal"],
     ),
     (
         "expr-identifier",
         "11",
         "identifier expression",
-        "module m {\n  wire a;\n  wire b = a;\n}\n",
+        "module m {\n  wire a;\n  reg b = a;\n}\n",
         ["(ModuleBlock", "(IdentifierExpr"],
     ),
     (
         "expr-system-var",
         "11",
         "system_variable — `_random` (per N11(b))",
-        "module m {\n  wire q = _random;\n}\n",
-        ["(WireDecl", "(SystemVarExpr"],
+        "module m {\n  reg q = _random;\n}\n",
+        ["(RegDecl", "(SystemVarExpr"],
     ),
     (
         "expr-unary",
         "11",
         "unary_expr — bitwise NOT",
-        "module m {\n  wire a;\n  wire b = ~a;\n}\n",
-        ["(WireDecl", "(UnaryExpr"],
+        "module m {\n  wire a;\n  reg b = ~a;\n}\n",
+        ["(RegDecl", "(UnaryExpr"],
     ),
     (
         "expr-binary",
         "11",
         "binary_expr — additive",
-        "module m {\n  wire a, b;\n  wire c = a + b;\n}\n",
-        ["(WireDecl", "(BinaryExpr"],
+        "module m {\n  wire a, b;\n  reg c = a + b;\n}\n",
+        ["(RegDecl", "(BinaryExpr"],
     ),
     (
         "expr-conditional",
         "11",
         "conditional_expression — `if (c) a else b` (per N1 expr form)",
-        "module m {\n  wire c, a, b;\n  wire q = if (c) a else b;\n}\n",
-        ["(WireDecl", "(ConditionalExpr"],
+        "module m {\n  wire c, a, b;\n  reg q = if (c) a else b;\n}\n",
+        ["(RegDecl", "(ConditionalExpr"],
     ),
     (
         "expr-concat",
         "11",
         "concat_expression — `{a, b}`",
-        "module m {\n  wire a, b;\n  wire q = {a, b};\n}\n",
-        ["(WireDecl", "(ConcatExpr"],
+        "module m {\n  wire a, b;\n  reg q = {a, b};\n}\n",
+        ["(RegDecl", "(ConcatExpr"],
     ),
     (
         "expr-repeat",
         "11",
         "repeat_expression — `4{1'b0}` form",
-        "module m {\n  wire q = 4{0};\n}\n",
-        ["(WireDecl", "(RepeatExpr"],
+        "module m {\n  reg q = 4{0};\n}\n",
+        ["(RegDecl", "(RepeatExpr"],
     ),
     (
         "expr-sign-extend",
         "11",
         "sign_extend_expression — `8 # sig` (per N5)",
-        "module m {\n  wire sig;\n  wire q = 8 # sig;\n}\n",
-        ["(WireDecl", "(SignExtendExpr"],
+        "module m {\n  wire sig;\n  reg q = 8 # sig;\n}\n",
+        ["(RegDecl", "(SignExtendExpr"],
     ),
     (
         "expr-zero-extend",
         "11",
         "zero_extend_expression — `8'(sig)`",
-        "module m {\n  wire sig;\n  wire q = 8'(sig);\n}\n",
-        ["(WireDecl", "(ZeroExtendExpr"],
+        "module m {\n  wire sig;\n  reg q = 8'(sig);\n}\n",
+        ["(RegDecl", "(ZeroExtendExpr"],
     ),
     (
         "expr-slice",
         "11",
         "bit_select_or_slice — `a[3:0]`",
-        "module m {\n  wire a;\n  wire q = a[3:0];\n}\n",
-        ["(WireDecl", "(SliceExpr"],
+        "module m {\n  wire a;\n  reg q = a[3:0];\n}\n",
+        ["(RegDecl", "(SliceExpr"],
     ),
     (
         "expr-field-access",
         "11",
         "postfix_tail field access — `inst.port`",
-        "module m {\n  cpu_t inst;\n  wire q = inst.port;\n}\n",
-        ["(WireDecl", "(FieldAccessExpr"],
+        "module m {\n  cpu_t inst;\n  reg q = inst.port;\n}\n",
+        ["(RegDecl", "(FieldAccessExpr"],
     ),
     (
         "expr-call",
         "11",
         "postfix_tail call — `f(a, b)`",
-        "module m {\n  func_self f(x, y);\n  wire q = f(0, 0);\n}\n",
-        ["(WireDecl", "(CallExpr"],
+        "module m {\n  func_self f(x, y);\n  reg q = f(0, 0);\n}\n",
+        ["(RegDecl", "(CallExpr"],
     ),
     (
         "expr-struct-cast",
         "11",
         "struct_cast_expr — `(T)(x).m`",
-        "module m {\n  wire x;\n  wire q = (T)(x).m;\n}\n",
-        ["(WireDecl", "(StructCastExpr"],
+        "module m {\n  wire x;\n  reg q = (T)(x).m;\n}\n",
+        ["(RegDecl", "(StructCastExpr"],
     ),
     (
         "expr-incdec",
         "11",
         "increment_decrement in expression position — `i++`",
-        "module m {\n  reg i;\n  wire q = i++;\n}\n",
-        ["(WireDecl", "(IncDecExpr"],
+        "module m {\n  reg i;\n  reg q = i++;\n}\n",
+        ["(RegDecl", "(IncDecExpr"],
     ),
 ]
 
@@ -485,8 +496,8 @@ FIXTURE_TEMPLATE = """\
 //
 // The input is written to a temp file via lit's `%t` substitution
 // rather than embedded in this `.test`; otherwise the SPDX header
-// and `// CHECK:` lines would enter the parsed buffer and confuse
-// the AST-snapshot. A temp file gives a stable path the parser
+// and FileCheck directive lines would enter the parsed buffer and
+// confuse the AST-snapshot. A temp file gives a stable path the parser
 // reports cleanly via the post-`#line` virtual coordinates per
 // Principle IV / FR-018.
 //
