@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/recovery/expected-expr-after-binop.test — M2 Phase 5 /
+// US3 (T052 companion of `specs/005-m2-parser/tasks.md`).
+//
+// **Specification anchors**:
+//   - spec.md FR-027: locked-text diagnostic assertions on fail-case
+//     fixtures.
+//   - parser-recovery.contract.md §"Diagnostic output during
+//     recovery" example 3: locked-text
+//       expected expression after binary operator
+//
+// Single-error fixture: a binary operator (`+`) at the right edge of
+// an expression with no following operand. The parser's Pratt loop
+// MUST detect that `parseNudExpr()` cannot start a new primary at
+// the post-`+` position and raise the contract's locked diagnostic.
+//
+// Recovery: per the contract, `parseExpr()` inherits the enclosing
+// statement / decl's recovery set. In this fixture the enclosing
+// scope is `parseSeqItem()` whose set is
+// `{Semi, RBrace, if, for, while, goto, return}`. After raising,
+// the parser skips to the seq-block's `}` and unwinds cleanly.
+//
+// **Locked-text drift caveat**: the exact wording Track L produces
+// may differ. Flag any drift in the agent's final report.
+//
+// **FR-029 / Principle VIII RED state evidence**: against parent
+// commit `39cc618`, `parseExpr()` returns nullptr on the missing
+// operand; the diagnostic text the Phase-3+4 surface emits may not
+// match the contract's golden form. CHECK likely fails at parent.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s --check-prefix=ERR
+
+module foo {
+    proc p {
+        seq {
+            x := y +
+        }
+    }
+}
+
+// FR-027 locked-string assertion (contract's golden form).
+// ERR: error: expected expression after binary operator

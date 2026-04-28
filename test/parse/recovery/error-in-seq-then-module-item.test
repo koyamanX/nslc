@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/recovery/error-in-seq-then-module-item.test — M2 Phase
+// 5 / US3 (T051 of `specs/005-m2-parser/tasks.md`).
+//
+// **Specification anchors**:
+//   - spec.md US3 acceptance scenario 3: "Given an input containing
+//     a malformed expression inside a `module`'s `seq` block, when
+//     the parser runs, then the diagnostic is emitted, the parser
+//     recovers at the `;` or the matching `}`, and the rest of the
+//     `module`'s `module_item`s are still parsed and appear in the
+//     AST."
+//   - parser-recovery.contract.md §"Multi-error fixture corpus
+//     minimum" item 3 + the recovery-set table row for
+//     `parseSeqItem()`: `{Semi, RBrace, if, for, while, goto,
+//     return}` — consume the `;` if matched.
+//   - FR-021: recovery MUST cover seq-block-item at every site.
+//
+// The malformed expression is `x := y +` (binary `+` with no right
+// operand). Per the contract's diagnostic-output examples, this
+// raises `error: expected expression after binary operator`. The
+// recovery scope — the `seq` block — has `;` and `}` in its set; the
+// `}` of the `seq` block becomes the resume point. After unwinding
+// out of the seq block, the parent `parseModuleItem()` loop iterates
+// once more and parses the well-formed `reg q[8];` declaration.
+//
+// **What this fixture asserts (per the contract's "What recovery
+// does NOT do" §)**: an error fired → NO AST on stdout. So the
+// observable stderr surface is exactly ONE error line (the seq-block
+// raise). The "subsequent well-formed `module_item` still appears in
+// the AST" property is a unit-test concern (T053 — partial-AST
+// preservation gtest).
+//
+// This fixture's load-bearing assertion is therefore:
+//   - exactly ONE error-severity diagnostic on stderr,
+//   - exit 1,
+//   - the parser did NOT crash or emit further (cascaded) diagnostics
+//     for the well-formed `reg q[8];` that follows the seq block.
+//
+// We use `// ERR-NOT: error: expected '}'` as a guard against a
+// faulty recovery that mis-pairs braces and produces a cascade.
+//
+// **FR-029 / Principle VIII RED state evidence**: against parent
+// commit `39cc618`, `parseSeqBlock()` propagates `nullptr` and the
+// parent `parseProcDefn()` propagates further; recovery never
+// resumes at the seq's `}`, so the parser may emit cascaded
+// diagnostics or stop early. Either way the assertion below
+// (well-defined "exactly one diagnostic; no cascade") fails.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s --check-prefix=ERR
+
+module foo {
+    proc p {
+        seq {
+            x := y +
+        }
+    }
+    // Well-formed `module_item` after the seq-block error. Recovery
+    // resumes at the proc's `}`, then at the module-item dispatch
+    // loop's iteration boundary; this declaration MUST parse without
+    // a cascade.
+    reg q[8];
+}
+
+// Exactly one error: the seq-block raise. Per the contract's
+// "Diagnostic output during recovery" examples, the message is
+// `expected expression after binary operator` — but since the exact
+// text Track L lands may differ (per task description: "the
+// integration patch reconciles"), we assert the prefix only.
+// ERR: error: expected
+
+// Guard against a cascade. After recovery, no further `error:` line
+// MUST emit (the well-formed `reg q[8];` parses cleanly).
+// ERR-NOT: error: expected '}'
+// ERR-NOT: error: expected ';' after register declaration

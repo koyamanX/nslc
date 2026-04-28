@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/recovery/expected-semicolon.test — M2 Phase 5 / US3
+// (T052 of `specs/005-m2-parser/tasks.md`).
+//
+// **Specification anchors**:
+//   - spec.md US3 acceptance scenario 1: "Given an input missing a
+//     `;` at the end of a `register_declaration`, when the parser
+//     runs, then the diagnostic cites the byte offset of the next
+//     token's start (where the parser expected `;`) and contains a
+//     non-empty message naming the missing token (e.g., 'expected
+//     `;`')."
+//   - parser-recovery.contract.md §"Diagnostic output during
+//     recovery" example 1: locked-text
+//       expected ';' after register declaration
+//   - spec.md FR-027: every diagnostic-bearing fail-case fixture
+//     MUST assert the EXACT diagnostic string (Principle VIII rule
+//     that diagnostic-bearing rules test the diagnostic text).
+//
+// This is a single-error fixture: one missing `;` at the end of a
+// `register_declaration`, asserting the contract's golden-frozen
+// diagnostic string. No multi-error recovery is required — but the
+// emit site is the recovery site (`parseInternalDecl()` /
+// `parseModuleItem()` raise → `skipUntil({Semi, RBrace, …})`), so
+// this fixture co-tests:
+//   (a) the locked diagnostic string is reachable,
+//   (b) recovery from a single error still terminates cleanly with
+//       no cascade.
+//
+// **Locked-text drift caveat (per task description)**: the exact
+// wording Track L produces may differ from the contract's
+// `expected ';' after register declaration`. If so, the integration
+// patch reconciles. Flag any drift in the agent's final report.
+//
+// **FR-029 / Principle VIII RED state evidence**: against parent
+// commit `39cc618`, `parseInternalDecl()` raises *some* diagnostic
+// on the missing `;`, but the exact text the Phase-3+4 surface emits
+// is not necessarily the contract's locked form. The CHECK below
+// pins the contract's wording — at parent it likely fails to match
+// (drift → integration reconciliation). The acceptable RED state
+// for this fixture is "the contract's exact text does not match the
+// implementation's text yet."
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s --check-prefix=ERR
+
+module foo {
+    reg q[8]
+}
+
+// FR-027 locked-string assertion (contract's golden form).
+// ERR: error: expected ';' after register declaration
