@@ -15,11 +15,14 @@
 
 #include "nsl/Sema/Sema.h"
 
+#include "ConstraintCheckRegistry.h"
 #include "ResolutionPass.h"
 
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/IdentifierExpr.h"
 #include "nsl/Basic/Diagnostic.h"
+#include "nsl/Sema/SymbolTable.h"
+#include "nsl/Sema/TypeSystem.h"
 
 #include <cassert>
 #include <memory>
@@ -103,10 +106,18 @@ void Sema::runResolutionPass(ast::CompilationUnit &unit) {
 }
 
 void Sema::runConstraintPasses(ast::CompilationUnit &unit) {
-  // Phase 2 stub — Phase 4 (T042–T070) replaces this with a
-  // fan-out over every per-`Sn` walker registered at static-init
-  // time via `NSL_REGISTER_CONSTRAINT`.
-  (void)unit;
+  // Fan out over every per-`Sn` walker registered at static-init
+  // time via `NSL_REGISTER_CONSTRAINT`. The registry iterates in
+  // Sn-numeric order (deterministic per Principle V); each walker
+  // reads `ctx` (immutable post-resolution view) and emits any
+  // S<NN> diagnostics into `ctx.diag`.
+  ConstraintContext ctx;
+  ctx.unit        = &unit;
+  ctx.symbols     = symbols_.get();
+  ctx.types       = types_.get();
+  ctx.resolutions = g_lastRunMap.get();
+  ctx.diag        = &diag_;
+  runAllConstraints(ctx);
 }
 
 } // namespace nsl::sema

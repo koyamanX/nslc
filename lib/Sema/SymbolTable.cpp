@@ -114,6 +114,22 @@ Symbol *SymbolTable::lookup(ast::Identifier name) const {
       return sym;
     }
   }
+  // Post-Sema introspection path: when the active stack is empty
+  // (Sema::run finished and every scope was retired into
+  // `retiredScopes_`), fall back to the retired list in reverse
+  // retirement order — most-recently-retired first approximates
+  // innermost-first. This makes `r.symbols->lookup("foo")` work
+  // after `Sema::run()` returns, satisfying the constructive-`Sn`
+  // introspection unit tests under
+  // `test_unit/constructive_sn_test/`.
+  if (scopes_.empty()) {
+    for (auto it = retiredScopes_.rbegin(); it != retiredScopes_.rend();
+         ++it) {
+      if (Symbol *sym = (*it)->lookupLocal(name)) {
+        return sym;
+      }
+    }
+  }
   return nullptr;
 }
 
