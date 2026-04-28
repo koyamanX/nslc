@@ -34,6 +34,7 @@
 // recorded in the integration concerns of the track-D handoff.
 
 #include "ParserImpl.h"
+#include "Recovery.h"
 
 #include "nsl/AST/AltBlock.h"
 #include "nsl/AST/AnyBlock.h"
@@ -339,6 +340,10 @@ std::unique_ptr<ast::Stmt> Parser::parseParallelBlock() {
   if (!expect(TokenKind::tk_lbrace, "'{' to begin parallel block", &lbr)) {
     return nullptr;
   }
+  // Per parser-recovery.contract.md the parallel-block has no
+  // explicit set: it inherits the enclosing item-list's set. We do
+  // NOT push a new guard here; we simply do the recovery dance on
+  // sub-rule failure using `currentRecoverySet()`.
   std::vector<std::unique_ptr<ast::Stmt>> items;
   for (;;) {
     consumeLineMarkers();
@@ -350,13 +355,32 @@ std::unique_ptr<ast::Stmt> Parser::parseParallelBlock() {
       // Drop the produced *Decl on the floor at M2 (see file header).
       auto d = parseInternalDecl();
       if (!d) {
-        return nullptr;
+        skipUntil(*this, currentRecoverySet());
+        if (check(TokenKind::tk_eof)) {
+          break;
+        }
+        if (check(TokenKind::tk_rbrace)) {
+          break;
+        }
+        if (check(TokenKind::tk_semicolon)) {
+          consume();
+        }
       }
       continue;
     }
     auto s = parseActionStatement();
     if (!s) {
-      return nullptr;
+      skipUntil(*this, currentRecoverySet());
+      if (check(TokenKind::tk_eof)) {
+        break;
+      }
+      if (check(TokenKind::tk_rbrace)) {
+        break;
+      }
+      if (check(TokenKind::tk_semicolon)) {
+        consume();
+      }
+      continue;
     }
     items.push_back(std::move(s));
   }
@@ -376,6 +400,8 @@ std::unique_ptr<ast::Stmt> Parser::parseAltBlock() {
   if (!expect(TokenKind::tk_lbrace, "'{' after 'alt'")) {
     return nullptr;
   }
+  // Per parser-recovery.contract.md alt-block inherits the enclosing
+  // item-list's recovery set (no dedicated alt-case set).
   std::vector<ast::CondCase> cases;
   std::unique_ptr<ast::Stmt> elseCase;
   for (;;) {
@@ -386,24 +412,58 @@ std::unique_ptr<ast::Stmt> Parser::parseAltBlock() {
     if (check(TokenKind::tk_else_)) {
       consume();
       if (!expect(TokenKind::tk_colon, "':' after 'else'")) {
-        return nullptr;
+        skipUntil(*this, currentRecoverySet());
+        if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
+          break;
+        }
+        if (check(TokenKind::tk_semicolon)) {
+          consume();
+        }
+        continue;
       }
       elseCase = parseActionStatement();
       if (!elseCase) {
-        return nullptr;
+        skipUntil(*this, currentRecoverySet());
+        if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
+          break;
+        }
+        if (check(TokenKind::tk_semicolon)) {
+          consume();
+        }
       }
       continue;
     }
     auto cond = parseExpr();
     if (!cond) {
-      return nullptr;
+      skipUntil(*this, currentRecoverySet());
+      if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
+        break;
+      }
+      if (check(TokenKind::tk_semicolon)) {
+        consume();
+      }
+      continue;
     }
     if (!expect(TokenKind::tk_colon, "':' after alt-case condition")) {
-      return nullptr;
+      skipUntil(*this, currentRecoverySet());
+      if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
+        break;
+      }
+      if (check(TokenKind::tk_semicolon)) {
+        consume();
+      }
+      continue;
     }
     auto body = parseActionStatement();
     if (!body) {
-      return nullptr;
+      skipUntil(*this, currentRecoverySet());
+      if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
+        break;
+      }
+      if (check(TokenKind::tk_semicolon)) {
+        consume();
+      }
+      continue;
     }
     cases.push_back({std::move(cond), std::move(body)});
   }
@@ -424,6 +484,8 @@ std::unique_ptr<ast::Stmt> Parser::parseAnyBlock() {
   if (!expect(TokenKind::tk_lbrace, "'{' after 'any'")) {
     return nullptr;
   }
+  // Per parser-recovery.contract.md any-block inherits the enclosing
+  // item-list's recovery set (no dedicated any-case set).
   std::vector<ast::CondCase> cases;
   std::unique_ptr<ast::Stmt> elseCase;
   for (;;) {
@@ -434,24 +496,58 @@ std::unique_ptr<ast::Stmt> Parser::parseAnyBlock() {
     if (check(TokenKind::tk_else_)) {
       consume();
       if (!expect(TokenKind::tk_colon, "':' after 'else'")) {
-        return nullptr;
+        skipUntil(*this, currentRecoverySet());
+        if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
+          break;
+        }
+        if (check(TokenKind::tk_semicolon)) {
+          consume();
+        }
+        continue;
       }
       elseCase = parseActionStatement();
       if (!elseCase) {
-        return nullptr;
+        skipUntil(*this, currentRecoverySet());
+        if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
+          break;
+        }
+        if (check(TokenKind::tk_semicolon)) {
+          consume();
+        }
       }
       continue;
     }
     auto cond = parseExpr();
     if (!cond) {
-      return nullptr;
+      skipUntil(*this, currentRecoverySet());
+      if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
+        break;
+      }
+      if (check(TokenKind::tk_semicolon)) {
+        consume();
+      }
+      continue;
     }
     if (!expect(TokenKind::tk_colon, "':' after any-case condition")) {
-      return nullptr;
+      skipUntil(*this, currentRecoverySet());
+      if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
+        break;
+      }
+      if (check(TokenKind::tk_semicolon)) {
+        consume();
+      }
+      continue;
     }
     auto body = parseActionStatement();
     if (!body) {
-      return nullptr;
+      skipUntil(*this, currentRecoverySet());
+      if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
+        break;
+      }
+      if (check(TokenKind::tk_semicolon)) {
+        consume();
+      }
+      continue;
     }
     cases.push_back({std::move(cond), std::move(body)});
   }
@@ -472,6 +568,9 @@ std::unique_ptr<ast::Stmt> Parser::parseSeqBlock() {
   if (!expect(TokenKind::tk_lbrace, "'{' after 'seq'")) {
     return nullptr;
   }
+  // Phase 5 recovery: per parser-recovery.contract.md, seq-item
+  // resync points are `{Semi, RBrace, if, for, while, goto, return}`.
+  RecoveryGuard guard(*this, recovery_sets::kSeqItem);
   std::vector<std::unique_ptr<ast::Stmt>> items;
   for (;;) {
     consumeLineMarkers();
@@ -480,20 +579,52 @@ std::unique_ptr<ast::Stmt> Parser::parseSeqBlock() {
     }
     if (isLabelNameDecl(peekKind())) {
       if (!skipLabelNameDecl(*this)) {
-        return nullptr;
+        skipUntil(*this, currentRecoverySet());
+        if (check(TokenKind::tk_eof)) {
+          break;
+        }
+        if (!recovery_sets::kSeqItem.contains(peekKind())) {
+          break;
+        }
+        if (check(TokenKind::tk_semicolon)) {
+          consume();
+        }
       }
       continue;
     }
     if (isInternalDeclStart(peekKind())) {
       auto d = parseInternalDecl();
       if (!d) {
-        return nullptr;
+        skipUntil(*this, currentRecoverySet());
+        if (check(TokenKind::tk_eof)) {
+          break;
+        }
+        if (!recovery_sets::kSeqItem.contains(peekKind())) {
+          break;
+        }
+        if (check(TokenKind::tk_semicolon)) {
+          consume();
+        }
       }
       continue;
     }
     auto s = parseActionStatement();
     if (!s) {
-      return nullptr;
+      // Item-parse failed; the diagnostic is already in the engine.
+      // Skip to the next seq-item resync point (`;` / `}` / a
+      // statement-start keyword like `if` / `for` / `while` / `goto` /
+      // `return`). Multi-error per FR-021.
+      skipUntil(*this, currentRecoverySet());
+      if (check(TokenKind::tk_eof)) {
+        break;
+      }
+      if (!recovery_sets::kSeqItem.contains(peekKind())) {
+        break; // Unwind to outer guard's resync point.
+      }
+      if (check(TokenKind::tk_semicolon)) {
+        consume();
+      }
+      continue;
     }
     items.push_back(std::move(s));
   }
@@ -523,6 +654,8 @@ std::unique_ptr<ast::Stmt> Parser::parseWhileBlock() {
   if (!expect(TokenKind::tk_lbrace, "'{' to begin 'while' body")) {
     return nullptr;
   }
+  // Per parser-recovery.contract.md while-body inherits the
+  // enclosing item-list's recovery set.
   std::vector<std::unique_ptr<ast::Stmt>> items;
   for (;;) {
     consumeLineMarkers();
@@ -531,20 +664,39 @@ std::unique_ptr<ast::Stmt> Parser::parseWhileBlock() {
     }
     if (isLabelNameDecl(peekKind())) {
       if (!skipLabelNameDecl(*this)) {
-        return nullptr;
+        skipUntil(*this, currentRecoverySet());
+        if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
+          break;
+        }
+        if (check(TokenKind::tk_semicolon)) {
+          consume();
+        }
       }
       continue;
     }
     if (isInternalDeclStart(peekKind())) {
       auto d = parseInternalDecl();
       if (!d) {
-        return nullptr;
+        skipUntil(*this, currentRecoverySet());
+        if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
+          break;
+        }
+        if (check(TokenKind::tk_semicolon)) {
+          consume();
+        }
       }
       continue;
     }
     auto s = parseActionStatement();
     if (!s) {
-      return nullptr;
+      skipUntil(*this, currentRecoverySet());
+      if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
+        break;
+      }
+      if (check(TokenKind::tk_semicolon)) {
+        consume();
+      }
+      continue;
     }
     items.push_back(std::move(s));
   }
@@ -692,6 +844,8 @@ std::unique_ptr<ast::Stmt> Parser::parseForBlock() {
   if (!expect(TokenKind::tk_lbrace, "'{' to begin 'for' body")) {
     return nullptr;
   }
+  // Per parser-recovery.contract.md for-body inherits the enclosing
+  // item-list's recovery set.
   std::vector<std::unique_ptr<ast::Stmt>> items;
   for (;;) {
     consumeLineMarkers();
@@ -700,20 +854,39 @@ std::unique_ptr<ast::Stmt> Parser::parseForBlock() {
     }
     if (isLabelNameDecl(peekKind())) {
       if (!skipLabelNameDecl(*this)) {
-        return nullptr;
+        skipUntil(*this, currentRecoverySet());
+        if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
+          break;
+        }
+        if (check(TokenKind::tk_semicolon)) {
+          consume();
+        }
       }
       continue;
     }
     if (isInternalDeclStart(peekKind())) {
       auto d = parseInternalDecl();
       if (!d) {
-        return nullptr;
+        skipUntil(*this, currentRecoverySet());
+        if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
+          break;
+        }
+        if (check(TokenKind::tk_semicolon)) {
+          consume();
+        }
       }
       continue;
     }
     auto s = parseActionStatement();
     if (!s) {
-      return nullptr;
+      skipUntil(*this, currentRecoverySet());
+      if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
+        break;
+      }
+      if (check(TokenKind::tk_semicolon)) {
+        consume();
+      }
+      continue;
     }
     items.push_back(std::move(s));
   }
@@ -870,6 +1043,8 @@ std::unique_ptr<ast::Stmt> Parser::parseInitBlock() {
   if (!expect(TokenKind::tk_lbrace, "'{' after '_init'")) {
     return nullptr;
   }
+  // Per parser-recovery.contract.md _init-block inherits the
+  // enclosing item-list's recovery set.
   std::vector<std::unique_ptr<ast::Stmt>> items;
   for (;;) {
     consumeLineMarkers();
@@ -878,7 +1053,14 @@ std::unique_ptr<ast::Stmt> Parser::parseInitBlock() {
     }
     auto s = parseActionStatement();
     if (!s) {
-      return nullptr;
+      skipUntil(*this, currentRecoverySet());
+      if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
+        break;
+      }
+      if (check(TokenKind::tk_semicolon)) {
+        consume();
+      }
+      continue;
     }
     items.push_back(std::move(s));
   }

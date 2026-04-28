@@ -12,6 +12,7 @@
 // nodes (FR-015 / N14).
 
 #include "ParserImpl.h"
+#include "Recovery.h"
 
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/Decl.h"
@@ -144,6 +145,13 @@ std::unique_ptr<ast::CompilationUnit> Parser::parseCompilationUnit() {
   // range begins at offset 0 of the input FileID.
   SourceLocation begin = peek().range().begin();
 
+  // Phase 5 recovery — push the top-level recovery set so any inner
+  // failure that bubbles up will park the lexer at the next item-
+  // start keyword (or EOF). Per parser-recovery.contract.md, this
+  // is the OUTERMOST guard; nested guards (`parseDeclareBlock` etc.)
+  // merge in via `currentRecoverySet()`.
+  RecoveryGuard guard(*this, recovery_sets::kTopLevel);
+
   std::vector<std::unique_ptr<ast::Decl>> items;
   for (;;) {
     consumeLineMarkers();
@@ -167,17 +175,38 @@ std::unique_ptr<ast::CompilationUnit> Parser::parseCompilationUnit() {
       item = parseModuleBlock();
       break;
     default:
-      // Unexpected top-level token. Emit and bail (no Phase-5
-      // recovery yet).
+      // Unexpected top-level token. Emit and skip forward to the next
+      // item-start keyword (the recovery set). The loop continues —
+      // multi-error reporting per /speckit-clarify Q1 + FR-021.
       errorAtPeek(
           "expected top-level item (struct, declare, module, or parameter)");
-      return nullptr;
+      skipUntil(*this, currentRecoverySet());
+      // If skipUntil parked us at EOF, the loop's next iteration's
+      // `tk_eof` check exits naturally. Otherwise we resume at the
+      // next item-start keyword on the next iteration.
+      continue;
     }
-    if (!item) {
-      // The per-rule parser already raised a diagnostic. Bail.
-      return nullptr;
+    if (item) {
+      items.push_back(std::move(item));
+      continue;
     }
-    items.push_back(std::move(item));
+    // The per-rule parser raised a diagnostic and returned nullptr.
+    // Park the lexer at the next top-level recovery token so the
+    // next iteration can resume cleanly. Per
+    // parser-recovery.contract.md "Recovery model" we DO NOT bail —
+    // we continue the loop so well-formed siblings AFTER the error
+    // still appear in `items` (FR-021 multi-error reporting).
+    skipUntil(*this, currentRecoverySet());
+    if (peekKind() == TokenKind::tk_eof) {
+      break;
+    }
+    // Stray `;` or `}` that bubbled up from an inner rule's recovery
+    // set: eat it so the next iteration sees the following item.
+    // Top-level keywords are left in place — they're the dispatch tokens
+    // the next iteration is about to peek.
+    if (check(TokenKind::tk_semicolon) || check(TokenKind::tk_rbrace)) {
+      consume();
+    }
   }
   // CompilationUnit's range spans from the first byte of input to the
   // begin() of `tk_eof` (which is the EOF cursor — for an empty file

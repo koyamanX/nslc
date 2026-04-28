@@ -15,6 +15,7 @@ add_nsl_library(nsl-parse
   ParseDecl.cpp
   ParseStmt.cpp
   ParseExpr.cpp
+  Recovery.cpp
   HEADERS
     ${CMAKE_SOURCE_DIR}/include/nsl/Parse/Parser.h
   DEPENDS
