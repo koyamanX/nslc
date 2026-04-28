@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/notes/n02/pass-bitwise.test — N2 (lang.ebnf:1023) bitwise
+// branch.
+//
+// Per spec.md US2 acceptance scenario 3 (second clause): `a & b`
+// MUST parse as `BinaryExpr{op=BitAnd}`, NOT as a sequence of
+// reductions. Same for `a | b` (BitOr) and `a ^ b` (BitXor). The
+// grammar's binary forms `bitwise_and_expr` / `bitwise_or_expr` /
+// `bitwise_xor_expr` at `lang.ebnf §11` lines 610-614 are the
+// productions; Track A's `BinaryExpr::Op` enum names match
+// (`include/nsl/AST/BinaryExpr.h`).
+//
+// FR-029 RED state: at 7bc1aea, no `-emit=ast` flag exists; RUN
+// exits 2; CHECK fails. Principle VIII.
+
+// RUN: %nslc -emit=ast %s | FileCheck %s
+
+module n2_bitwise {
+    wire a, b, andv, orv, xorv;
+    andv = a & b;
+    orv  = a | b;
+    xorv = a ^ b;
+}
+
+// CHECK: (CompilationUnit
+// CHECK:   (ModuleBlock {{.*}}name=n2_bitwise
+//
+// andv = a & b  → BinaryExpr BitAnd
+// CHECK:     (TransferStmt {{.*}}op=WireEq
+// CHECK:       (IdentifierExpr  {{.*}}name=andv)
+// CHECK:       (BinaryExpr  {{.*}}op=BitAnd
+// CHECK-NOT: op=ReduceAnd
+// CHECK:         (IdentifierExpr  {{.*}}name=a)
+// CHECK:         (IdentifierExpr  {{.*}}name=b)
+//
+// orv  = a | b  → BinaryExpr BitOr
+// CHECK:     (TransferStmt {{.*}}op=WireEq
+// CHECK:       (IdentifierExpr  {{.*}}name=orv)
+// CHECK:       (BinaryExpr  {{.*}}op=BitOr
+// CHECK:         (IdentifierExpr  {{.*}}name=a)
+// CHECK:         (IdentifierExpr  {{.*}}name=b)
+//
+// xorv = a ^ b  → BinaryExpr BitXor
+// CHECK:     (TransferStmt {{.*}}op=WireEq
+// CHECK:       (IdentifierExpr  {{.*}}name=xorv)
+// CHECK:       (BinaryExpr  {{.*}}op=BitXor
+// CHECK:         (IdentifierExpr  {{.*}}name=a)
+// CHECK:         (IdentifierExpr  {{.*}}name=b)

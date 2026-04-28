@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/notes/n03/pass-lhs-concat.test — N3 (lang.ebnf:1027)
+// `.{`-prefix concat-LHS branch.
+//
+// Per spec.md US2 acceptance scenario 4: `.{a, b, c} = x;` MUST
+// produce a `TransferStmt` whose `lhs` is a `ConcatExpr` over
+// `IdentifierExpr` parts — NOT a `FieldAccessExpr` chain. The
+// `concat_lvalue` form at `lang.ebnf §9` line 500 documents this
+// LHS-only shape. N3 (lang.ebnf 1027-1030) tells the lexer to
+// recognize `.{` as a two-character lookahead so the parser sees
+// one distinguishing token here, not the member-access `.`.
+//
+// FR-029 RED state: at 7bc1aea, no `-emit=ast` flag; RUN exits 2;
+// CHECK fails. Principle VIII.
+
+// RUN: %nslc -emit=ast %s | FileCheck %s
+
+module n3_lhs_concat {
+    wire a, b, c, x;
+    .{a, b, c} = x;
+}
+
+// CHECK: (CompilationUnit
+// CHECK:   (ModuleBlock {{.*}}name=n3_lhs_concat
+// CHECK:     (TransferStmt {{.*}}op=WireEq
+// CHECK:       (ConcatExpr {{.*}}
+// CHECK-NOT: (FieldAccessExpr
+// CHECK:         (IdentifierExpr  {{.*}}name=a)
+// CHECK:         (IdentifierExpr  {{.*}}name=b)
+// CHECK:         (IdentifierExpr  {{.*}}name=c)
+// CHECK:       (IdentifierExpr  {{.*}}name=x)

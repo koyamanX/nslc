@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/notes/n02/pass-reduce.test — N2 (lang.ebnf:1023) reduction
+// branch.
+//
+// Per spec.md US2 acceptance scenario 3: `&x` (no left operand)
+// MUST parse as `UnaryExpr{op=ReduceAnd}`, NOT as `BinaryExpr`.
+// Same for `|x` (ReduceOr) and `^x` (ReduceXor). The grammar's
+// `reduction_unary` rule at `lang.ebnf §11` line 634 is what makes
+// these legal in unary position; Track A's `UnaryExpr::Op` enum
+// names match (`include/nsl/AST/UnaryExpr.h`).
+//
+// FR-029 RED state: at parent commit 7bc1aea, no `nslc -emit=ast`
+// flag exists; RUN exits 2; CHECK fails. Principle VIII evidence.
+
+// RUN: %nslc -emit=ast %s | FileCheck %s
+
+module n2_reduce {
+    wire x, ra, ro, rx;
+    ra = &x;
+    ro = |x;
+    rx = ^x;
+}
+
+// CHECK: (CompilationUnit
+// CHECK:   (ModuleBlock {{.*}}name=n2_reduce
+//
+// First transfer: ra = &x  → UnaryExpr ReduceAnd
+// CHECK:     (TransferStmt {{.*}}op=WireEq
+// CHECK:       (IdentifierExpr  {{.*}}name=ra)
+// CHECK:       (UnaryExpr  {{.*}}op=ReduceAnd
+// CHECK-NOT: op=BitAnd
+// CHECK:         (IdentifierExpr  {{.*}}name=x)
+//
+// Second transfer: ro = |x  → UnaryExpr ReduceOr
+// CHECK:     (TransferStmt {{.*}}op=WireEq
+// CHECK:       (IdentifierExpr  {{.*}}name=ro)
+// CHECK:       (UnaryExpr  {{.*}}op=ReduceOr
+// CHECK:         (IdentifierExpr  {{.*}}name=x)
+//
+// Third transfer: rx = ^x  → UnaryExpr ReduceXor
+// CHECK:     (TransferStmt {{.*}}op=WireEq
+// CHECK:       (IdentifierExpr  {{.*}}name=rx)
+// CHECK:       (UnaryExpr  {{.*}}op=ReduceXor
+// CHECK:         (IdentifierExpr  {{.*}}name=x)
