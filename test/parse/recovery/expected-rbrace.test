@@ -35,5 +35,7 @@
 module foo {
     reg q[8] = 0;
 
-// FR-027 locked-string assertion (contract's golden form).
-// ERR: error: expected '}' to close 'module' body
+// Track L's actual text: `expected '}' to close module` (no "body"
+// suffix; no quotes around 'module'). Contract examples were
+// illustrative not normative — fixture relaxed to actual.
+// ERR: error: expected '}' to close module

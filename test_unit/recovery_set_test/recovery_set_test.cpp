@@ -106,7 +106,7 @@ TEST(RecoverySet, EmptySetContainsNothing) {
 // (2) `TokenSet` constructed from a brace-enclosed list contains
 // exactly the listed kinds, nothing else.
 TEST(RecoverySet, ConstructedFromListContainsExactlyThose) {
-  constexpr TokenSet semi_or_rbrace = TokenSet::of(
+  constexpr TokenSet semi_or_rbrace = TokenSet(
       {TokenKind::tk_semicolon, TokenKind::tk_rbrace});
   EXPECT_TRUE(semi_or_rbrace.contains(TokenKind::tk_semicolon));
   EXPECT_TRUE(semi_or_rbrace.contains(TokenKind::tk_rbrace));
@@ -118,8 +118,8 @@ TEST(RecoverySet, ConstructedFromListContainsExactlyThose) {
 // (3) Union (`|`) of two sets contains every member of either side.
 // Used by `RecoveryGuard` to compose nested-scope inherited sets.
 TEST(RecoverySet, UnionContainsBothOperands) {
-  constexpr TokenSet a = TokenSet::of({TokenKind::tk_semicolon});
-  constexpr TokenSet b = TokenSet::of({TokenKind::tk_rbrace});
+  constexpr TokenSet a = TokenSet({TokenKind::tk_semicolon});
+  constexpr TokenSet b = TokenSet({TokenKind::tk_rbrace});
   constexpr TokenSet ab = a | b;
   EXPECT_TRUE(ab.contains(TokenKind::tk_semicolon));
   EXPECT_TRUE(ab.contains(TokenKind::tk_rbrace));
@@ -132,7 +132,7 @@ TEST(RecoverySet, UnionContainsBothOperands) {
 // `constexpr` literal (research §3 — "constexpr bitset" requirement
 // is load-bearing for Principle V determinism).
 TEST(RecoverySet, TopLevelRecoverySetContainsContractTokens) {
-  constexpr TokenSet top_level = TokenSet::of(
+  constexpr TokenSet top_level = TokenSet(
       {TokenKind::tk_struct_, TokenKind::tk_declare,
        TokenKind::tk_module, TokenKind::tk_param_int,
        TokenKind::tk_param_str, TokenKind::tk_eof});
@@ -174,8 +174,8 @@ TEST(RecoverySet, SkipUntilStopsAtFirstMatchingToken) {
   ASSERT_EQ(p.peekKind(), TokenKind::tk_semicolon)
       << "Pre-skip: cursor must be at `;` (the first token).";
 
-  TokenKind stopped = p.skipUntil(
-      TokenSet::of({TokenKind::tk_semicolon}));
+  TokenKind stopped = ::nsl::parse::skipUntil(p,
+      TokenSet({TokenKind::tk_semicolon}));
 
   EXPECT_EQ(stopped, TokenKind::tk_semicolon);
   EXPECT_EQ(p.peekKind(), TokenKind::tk_semicolon)
@@ -200,8 +200,8 @@ TEST(RecoverySet, SkipUntilAdvancesToFirstMatch) {
 
   ASSERT_EQ(p.peekKind(), TokenKind::tk_wire);
 
-  TokenKind stopped = p.skipUntil(
-      TokenSet::of({TokenKind::tk_semicolon}));
+  TokenKind stopped = ::nsl::parse::skipUntil(p,
+      TokenSet({TokenKind::tk_semicolon}));
 
   EXPECT_EQ(stopped, TokenKind::tk_semicolon);
   EXPECT_EQ(p.peekKind(), TokenKind::tk_semicolon)
@@ -225,8 +225,8 @@ TEST(RecoverySet, SkipUntilStopsAtEofWhenNoMatch) {
   nsl::Lexer lex(sm, fid, diag);
   Parser p(lex, diag);
 
-  TokenKind stopped = p.skipUntil(
-      TokenSet::of({TokenKind::tk_semicolon}));
+  TokenKind stopped = ::nsl::parse::skipUntil(p,
+      TokenSet({TokenKind::tk_semicolon}));
 
   EXPECT_EQ(stopped, TokenKind::tk_eof);
   EXPECT_EQ(p.peekKind(), TokenKind::tk_eof)
@@ -248,8 +248,8 @@ TEST(RecoverySet, SkipUntilIsDeterministicAcrossRuns) {
     nsl::DiagnosticEngine diag(sm);
     nsl::Lexer lex(sm, fid, diag);
     Parser p(lex, diag);
-    return p.skipUntil(
-        TokenSet::of({TokenKind::tk_semicolon}));
+    return ::nsl::parse::skipUntil(p,
+        TokenSet({TokenKind::tk_semicolon}));
   };
 
   TokenKind first = run();
@@ -279,15 +279,15 @@ TEST(RecoverySet, OuterGuardSetsActiveRecovery) {
   // Pre-guard: the active set is empty (a top-level skipUntil with
   // no guard would skip to EOF unconditionally — the no-op safe
   // floor per the contract's "case 2 unwind").
-  EXPECT_FALSE(p.activeRecoverySet().contains(TokenKind::tk_module));
+  EXPECT_FALSE(p.currentRecoverySet().contains(TokenKind::tk_module));
 
   {
-    RecoveryGuard outer(p, TokenSet::of({TokenKind::tk_module}));
-    EXPECT_TRUE(p.activeRecoverySet().contains(TokenKind::tk_module));
+    RecoveryGuard outer(p, TokenSet({TokenKind::tk_module}));
+    EXPECT_TRUE(p.currentRecoverySet().contains(TokenKind::tk_module));
   }
 
   // Pop on guard destruction: the module token is gone again.
-  EXPECT_FALSE(p.activeRecoverySet().contains(TokenKind::tk_module));
+  EXPECT_FALSE(p.currentRecoverySet().contains(TokenKind::tk_module));
 }
 
 // (10) Nested guards UNION their sets — the contract's "inherited
@@ -302,23 +302,23 @@ TEST(RecoverySet, NestedGuardsUnionSets) {
   nsl::Lexer lex(sm, fid, diag);
   Parser p(lex, diag);
 
-  RecoveryGuard outer(p, TokenSet::of({TokenKind::tk_module}));
-  EXPECT_TRUE(p.activeRecoverySet().contains(TokenKind::tk_module));
-  EXPECT_FALSE(p.activeRecoverySet().contains(TokenKind::tk_semicolon));
+  RecoveryGuard outer(p, TokenSet({TokenKind::tk_module}));
+  EXPECT_TRUE(p.currentRecoverySet().contains(TokenKind::tk_module));
+  EXPECT_FALSE(p.currentRecoverySet().contains(TokenKind::tk_semicolon));
 
   {
-    RecoveryGuard inner(p, TokenSet::of({TokenKind::tk_semicolon}));
+    RecoveryGuard inner(p, TokenSet({TokenKind::tk_semicolon}));
     // Both tokens active inside the inner scope.
-    EXPECT_TRUE(p.activeRecoverySet().contains(TokenKind::tk_module))
+    EXPECT_TRUE(p.currentRecoverySet().contains(TokenKind::tk_module))
         << "Outer guard's tokens MUST remain active inside an inner "
            "guard (research §3: inherited recovery sets).";
-    EXPECT_TRUE(p.activeRecoverySet().contains(TokenKind::tk_semicolon));
+    EXPECT_TRUE(p.currentRecoverySet().contains(TokenKind::tk_semicolon));
   }
 
   // After inner pop: outer's `{Module}` survives; inner's `{Semi}`
   // is gone.
-  EXPECT_TRUE(p.activeRecoverySet().contains(TokenKind::tk_module));
-  EXPECT_FALSE(p.activeRecoverySet().contains(TokenKind::tk_semicolon))
+  EXPECT_TRUE(p.currentRecoverySet().contains(TokenKind::tk_module));
+  EXPECT_FALSE(p.currentRecoverySet().contains(TokenKind::tk_semicolon))
       << "Inner guard's tokens MUST NOT leak past its scope "
          "(stack-discipline; FR-021 deterministic recovery).";
 }
@@ -338,8 +338,8 @@ TEST(RecoverySet, SkipUntilActiveRecoveryUsesGuardSet) {
   nsl::Lexer lex(sm, fid, diag);
   Parser p(lex, diag);
 
-  RecoveryGuard guard(p, TokenSet::of({TokenKind::tk_semicolon}));
-  TokenKind stopped = p.skipUntilActiveRecovery();
+  RecoveryGuard guard(p, TokenSet({TokenKind::tk_semicolon}));
+  TokenKind stopped = ::nsl::parse::skipUntil(p, p.currentRecoverySet());
   EXPECT_EQ(stopped, TokenKind::tk_semicolon);
   EXPECT_EQ(p.peekKind(), TokenKind::tk_semicolon);
 }

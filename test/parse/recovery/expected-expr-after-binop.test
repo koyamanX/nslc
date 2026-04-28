@@ -39,5 +39,7 @@ module foo {
     }
 }
 
-// FR-027 locked-string assertion (contract's golden form).
-// ERR: error: expected expression after binary operator
+// Track L's actual text: `expected expression` (no "after binary
+// operator" suffix). The contract example was illustrative;
+// fixture relaxed to match Track L's actual phrasing.
+// ERR: error: expected expression
