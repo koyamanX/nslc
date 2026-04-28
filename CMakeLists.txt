@@ -37,18 +37,20 @@ endif()
 option(NSL_BUILD_TESTS  "Build the nslc test suites (lit + GoogleTest)" ON)
 
 # AddressSanitizer + LeakSanitizer (LSan rides along with ASan on
-# Linux x86_64 by default — no separate flag needed; runtime is
-# enabled via ASAN_OPTIONS=detect_leaks=1). Enable per-build via
-# `-DNSL_ENABLE_ASAN=ON`. UBSan is intentionally NOT bundled here:
+# Linux x86_64 by default; runtime is enabled via
+# ASAN_OPTIONS=detect_leaks=1). UBSan is intentionally NOT bundled:
 # the vendored LLVM/MLIR/CIRCT static libs at /opt/llvm + /opt/circt
 # are built with `-fno-rtti` (LLVM default), and UBSan's `vptr`
 # check needs typeinfo, so a combined `-fsanitize=address,undefined`
 # build hits "undefined reference to typeinfo for llvm::raw_ostream"
-# at link time. ASan-only is the supported configuration.
+# at link time.
 #
-# Used in CI to catch leaks in Sema (and across the whole pipeline)
-# before they show up as OOM-kills under repeated test runs.
-option(NSL_ENABLE_ASAN  "Build with AddressSanitizer + LeakSanitizer" OFF)
+# **Default ON** — every build (Debug, Release, dev container,
+# CI, agent runs) ships with ASan unless explicitly disabled via
+# `-DNSL_ENABLE_ASAN=OFF`. M9 release builds opt out; everything
+# upstream stays leak-checked. Catches leaks before they manifest
+# as OOM kills under repeated test runs.
+option(NSL_ENABLE_ASAN  "Build with AddressSanitizer + LeakSanitizer" ON)
 
 if(NSL_ENABLE_ASAN)
   message(STATUS "NSL_ENABLE_ASAN=ON: building with -fsanitize=address (LSan via ASAN_OPTIONS)")
