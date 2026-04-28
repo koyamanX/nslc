@@ -22,16 +22,16 @@
 // Per Constitution Principle VIII (TDD; FR-029): this fixture lands
 // BEFORE the parser implementation + driver glue. Against the
 // unchanged tree at `7bc1aea`, all three commands fail:
-//   - POS path:    `nslc -emit=ast` exits 2 (unknown emit stage at M1)
-//                   → FileCheck pipeline errors (no AST stdout).
-//   - NEG-NOINPUT: same as M1's emit-tokens — already passes (driver
-//                   diagnoses missing operand at argv parse).
-//   - NEG-BADSTAGE: same — covered by M1's `-emit=blarg` path.
-//   - NEG-NOFILE:  M1 driver exits 3 with "could not open"; once
-//                   `-emit=ast` is wired, this still must hold for
-//                   `-emit=ast` because the file-open path is shared.
-// Until Track D lands the parser + EmitAST glue, the POS path fails
-// — that IS the failing-state evidence.
+//   - positive run     `nslc -emit=ast` exits 2 (unknown emit stage at M1)
+//                      and the FileCheck pipeline errors (no AST stdout).
+//   - no-input run     same as M1's emit-tokens (driver
+//                      diagnoses missing operand at argv parse).
+//   - bad-stage run    covered by M1's `-emit=blarg` path.
+//   - no-file run      M1 driver exits 3 with "could not open"; once
+//                      `-emit=ast` is wired, this still must hold for
+//                      `-emit=ast` because the file-open path is shared.
+// Until Track D lands the parser + EmitAST glue, the positive run
+// fails — that IS the failing-state evidence.
 //
 // ----- POSITIVE: the canonical contract example ------------------
 //

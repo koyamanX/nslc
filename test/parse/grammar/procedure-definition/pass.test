@@ -11,8 +11,8 @@
 //
 // The input is written to a temp file via lit's `%t` substitution
 // rather than embedded in this `.test`; otherwise the SPDX header
-// and `// CHECK:` lines would enter the parsed buffer and confuse
-// the AST-snapshot. A temp file gives a stable path the parser
+// and FileCheck directive lines would enter the parsed buffer and
+// confuse the AST-snapshot. A temp file gives a stable path the parser
 // reports cleanly via the post-`#line` virtual coordinates per
 // Principle IV / FR-018.
 //

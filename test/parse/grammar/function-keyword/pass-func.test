@@ -7,7 +7,7 @@
 // exercises the `function` spelling on otherwise-identical input;
 // the two AST snapshots MUST share the same `NodeKind` names and
 // the same nesting shape (`SourceRange` offsets differ by the
-// keyword-length delta, which we do NOT pin in `// CHECK:` here).
+// keyword-length delta, which the directives below do NOT pin).
 //
 // Per `lang.ebnf §7`:
 //   function_definition = ( "func" | "function" ) scoped_identifier
