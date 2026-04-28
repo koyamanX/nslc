@@ -226,20 +226,27 @@ description: "Tasks for M2 — Parser + AST (with `-emit=ast`)"
 
 **Checkpoint**: M2 ready for PR. All 9 SCs measurable as met; all 9 Constitution Principles green. Per /speckit-clarify Q2, JSON-mode AST output is explicitly NOT in M2 scope (T-track will revisit when the LSP consumer is concrete).
 
-### Phase 3+4 integration final state — 190/192 lit (98.96%) + 156/156 ctest (100%)
+### Phase 3+4 final state — 192/192 lit (100%) + 156/156 ctest (100%) ✅
 
-After Tracks A–I landed (initial integration + α/γ/δ/β-partial), lit pass rate climbs from 168/192 → **190/192 (98.96%)** with ctest still **156/156 (100%)**. Track I closed 3 of the 5 Group β fixtures by adding `++`/`--` support across the lex + parse layers (a Principle VII coupling fix — M1's lexer didn't ship the punctuators despite `lang.ebnf §11:654-657` listing them).
+After Tracks A–J landed, M2 Phase 3+4 is **fully green**:
 
-**Two fixtures remain failing — both need `nsl-spec-author` judgment, not implementation work**:
+- **ctest**: 156 / 156 PASS (100%)
+- **lit**: 192 / 192 PASS (100%)
+- Build green inside `ghcr.io/koyamanx/nsl-nslc:dev` (Release × clang)
 
-| Fixture | Cause | Disposition |
-|---|---|---|
-| `action-generate/pass.test` | Parser requires `:=` in generate-step; fixture uses `i = 0` | **Spec-author**: does `lang.ebnf §8` generate-step allow `=` (transfer) or only `:=` (statement)? If parser is right, fixture rewrites to `i := 0`. If spec is ambiguous, clarify §8 first. |
-| `state-definition/pass.test` | `state s1 { }` inside `proc` rejected | **Spec-author**: `state_definition` is a `module_item` per §5; the fixture nests it inside `proc` which may be illegal NSL. If parser is right, fixture rewrites to top-level `state` defn. |
+The progression: 168/192 (87.5%, after Tracks A–F initial integration) → 173/192 (Track H γ+δ) → 187/192 (Track G α regen) → 190/192 (Track I `++`/`--` support) → **192/192** (Track J spec-author resolution of the last two).
 
-Neither blocks M2's acceptance gate — they reveal genuine spec ambiguity that needs explicit resolution. A small `nsl-spec-author` pass produces either fixture rewrites (no parser changes) or a `lang.ebnf` clarification + parser update.
+**Track J's two resolutions** (both option (a) — fixture rewrite, no parser or spec changes):
 
-**M2 Phase 3+4 status**: parser surface is functionally complete. `nslc -emit=ast` works end-to-end on every well-formed input. 156/156 unit tests pass. 190/192 lit fixtures pass. The remaining 2 are documented Group β spec-clarification items.
+- `action-generate`: step rewritten from `i++` to `i = i + 1`. Cited `lang.ebnf §8` lines 468–470 (`generate_step` accepts both `increment_decrement` OR `identifier '=' constant_expr`); the `=` form maps directly to the M2 AST.
+- `state-definition`: input rewritten from proc-nested NS17 form to module-level `module m { state s1 {} }`. Cited `lang.ebnf §5` line 188 (`module_item` includes `state_definition`); the proc-nested form, while grammar-legal in spirit per the §6:254–262 tutorial example, is not listed in `action_statement` and is deliberately deferred to M3.
+
+**Future review items** (not blocking M2; flagged for M3 or follow-up coupling):
+
+- Lift `state_definition` into `action_statement` (or a dedicated `proc_body_item` superproduction) at M3 alongside a Sema constraint near `S11`/`S25`/`S28`. Audited NSL projects use the proc-nested form (`examples/13_fsm.nsl`, `examples/18_proc_methods.nsl`); the spec should formally bless it.
+- Widen `StructuralGenerate::step_` from `Expr` to `Stmt` so `i++` parses directly (mirrors `for_block`'s already-Stmt-shaped step). Not urgent — spec already permits both forms equivalently.
+
+**M2 Phase 3+4 status**: ✅ functionally complete. The `nslc -emit=ast` driver works end-to-end on all well-formed inputs. Phase 5 (US3 — multi-error recovery, T049–T059) and Phase 6 (Polish, T060–T071) remain as separate downstream work.
 
 ### Original Phase 3+4 outstanding findings (historical record — already largely resolved)
 
