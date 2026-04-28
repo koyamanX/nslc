@@ -47,6 +47,8 @@
 #include "nsl/AST/GotoStmt.h"
 #include "nsl/AST/IdentifierExpr.h"
 #include "nsl/AST/IfStmt.h"
+#include "nsl/AST/IncDecExpr.h"
+#include "nsl/AST/IncDecStmt.h"
 #include "nsl/AST/InitBlockStmt.h"
 #include "nsl/AST/LabeledStmt.h"
 #include "nsl/AST/ParallelBlock.h"
@@ -105,9 +107,20 @@ bool skipLabelNameDecl(Parser &p) {
 }
 
 bool isLValueStart(TokenKind k) {
-  // identifier-like or `.{` (concat-LHS) or system-function expr
+  // identifier-like, `.{` (concat-LHS), or prefix inc/dec (`++x;`/`--x;`).
+  // Prefix forms are handled directly by `parseLValueLedStatement` so
+  // the parser builds an `IncDecStmt` without going through the
+  // expression-position `IncDecExpr` — keeping the AST node kinds
+  // (data-model §1.5 vs §1.6) cleanly partitioned by parser position.
   return k == TokenKind::tk_identifier || k == TokenKind::tk_label ||
-         k == TokenKind::tk_dot_lbrace;
+         k == TokenKind::tk_dot_lbrace || k == TokenKind::tk_plus_plus ||
+         k == TokenKind::tk_minus_minus;
+}
+
+/// Map an inc/dec punctuator token kind to the AST `IncDecStmt::Op`.
+ast::IncDecStmt::Op incDecOpForStmt(TokenKind k) {
+  return (k == TokenKind::tk_plus_plus) ? ast::IncDecStmt::Op::Inc
+                                        : ast::IncDecStmt::Op::Dec;
 }
 
 } // namespace
@@ -165,6 +178,33 @@ std::unique_ptr<ast::Stmt> Parser::parseActionStatement() {
 // ---------- LValue-led: transfer / control-call / inc-dec / labeled ----------
 
 std::unique_ptr<ast::Stmt> Parser::parseLValueLedStatement() {
+  // Prefix inc/dec at statement position (`lang.ebnf §11` lines
+  // 654–655 lifted to §9 atomic-action position): `++x;` / `--x;`.
+  // Build `IncDecStmt` directly so the AST node-kind cleanly matches
+  // statement position (data-model §1.5 vs §1.6).
+  if (check(TokenKind::tk_plus_plus) || check(TokenKind::tk_minus_minus)) {
+    const Token op_tok = consume();
+    const auto op = incDecOpForStmt(op_tok.kind());
+    // Per spec the operand is `identifier`; we accept any nud-led
+    // expression and rely on Sema (M3) to reject non-l-value targets.
+    auto target = parseNudExpr();
+    if (!target) {
+      return nullptr;
+    }
+    target = parsePostfix(std::move(target));
+    if (!target) {
+      return nullptr;
+    }
+    Token semi;
+    if (!expect(TokenKind::tk_semicolon,
+                "';' after prefix increment/decrement", &semi)) {
+      return nullptr;
+    }
+    return std::make_unique<ast::IncDecStmt>(
+        rangeFromTo(op_tok.range().begin(), semi.range().end()),
+        std::move(target), op, /*prefix=*/true);
+  }
+
   // Special-case: a bare `identifier ":"` is a labeled statement
   // (per `lang.ebnf §8` line 415: `labeled_statement = identifier ":" ;`).
   if ((peekKind() == TokenKind::tk_identifier ||
@@ -226,6 +266,22 @@ std::unique_ptr<ast::Stmt> Parser::parseLValueLedStatement() {
       return nullptr;
     }
     TokenKind nxt = peekKind();
+    // Postfix inc/dec at statement position (`i++;` / `i--;`). The
+    // expression-position Pratt-led for `++`/`--` is bypassed here:
+    // we want a statement-kind `IncDecStmt`, not a transfer with an
+    // `IncDecExpr` RHS.
+    if (nxt == TokenKind::tk_plus_plus || nxt == TokenKind::tk_minus_minus) {
+      const Token op_tok = consume();
+      const auto op = incDecOpForStmt(op_tok.kind());
+      Token semi;
+      if (!expect(TokenKind::tk_semicolon,
+                  "';' after postfix increment/decrement", &semi)) {
+        return nullptr;
+      }
+      return std::make_unique<ast::IncDecStmt>(
+          rangeFromTo(begin, semi.range().end()), std::move(lhs), op,
+          /*prefix=*/false);
+    }
     if (nxt == TokenKind::tk_assign || nxt == TokenKind::tk_assign_seq) {
       ast::TransferStmt::Op op = (nxt == TokenKind::tk_assign_seq)
                                       ? ast::TransferStmt::Op::RegColonEq
@@ -570,36 +626,60 @@ std::unique_ptr<ast::Stmt> Parser::parseForBlock() {
       }
       form.step = std::move(blk);
     } else {
-      // single_for_step: increment_decrement OR `id := expr`
-      // Increment_decrement at expression position has multiple forms
-      // (++id, --id, id++, id--). For M2 we capture all as
-      // IncDecStmt — but the for-step storage is `unique_ptr<Stmt>`.
-      // Simplest: parse an expression (Pratt handles ++id at nud),
-      // then if followed by `++`/`--` it's a postfix; else the LHS
-      // is the head and we look for `:=` for the assignment shape.
-      Token name_tok;
-      if (!expect(TokenKind::tk_identifier, "for-step identifier", &name_tok)) {
-        return nullptr;
+      // single_for_step: increment_decrement OR `id := expr`.
+      // Per `lang.ebnf §11` lines 654–657, increment_decrement has
+      // four lexical forms (`++id`, `--id`, `id++`, `id--`). The
+      // M1 lexer emits `tk_plus_plus` / `tk_minus_minus` punctuators;
+      // the for-step builds an `IncDecStmt` (data-model §1.5).
+      if (check(TokenKind::tk_plus_plus) ||
+          check(TokenKind::tk_minus_minus)) {
+        // Prefix form `++id` / `--id`.
+        const Token op_tok = consume();
+        const auto op = incDecOpForStmt(op_tok.kind());
+        Token name_tok;
+        if (!expect(TokenKind::tk_identifier,
+                    "identifier after prefix increment/decrement",
+                    &name_tok)) {
+          return nullptr;
+        }
+        auto target = std::make_unique<ast::IdentifierExpr>(
+            name_tok.range(), ast::ScopedName{{name_tok.spelling()}});
+        form.step = std::make_unique<ast::IncDecStmt>(
+            rangeFromTo(op_tok.range().begin(), name_tok.range().end()),
+            std::move(target), op, /*prefix=*/true);
+      } else {
+        Token name_tok;
+        if (!expect(TokenKind::tk_identifier, "for-step identifier",
+                    &name_tok)) {
+          return nullptr;
+        }
+        if (check(TokenKind::tk_plus_plus) ||
+            check(TokenKind::tk_minus_minus)) {
+          // Postfix form `id++` / `id--`.
+          const Token op_tok = consume();
+          const auto op = incDecOpForStmt(op_tok.kind());
+          auto target = std::make_unique<ast::IdentifierExpr>(
+              name_tok.range(), ast::ScopedName{{name_tok.spelling()}});
+          form.step = std::make_unique<ast::IncDecStmt>(
+              rangeFromTo(name_tok.range().begin(), op_tok.range().end()),
+              std::move(target), op, /*prefix=*/false);
+        } else {
+          if (!expect(TokenKind::tk_assign_seq, "':=' in for-step")) {
+            return nullptr;
+          }
+          auto step_expr = parseExpr();
+          if (!step_expr) {
+            return nullptr;
+          }
+          auto target = std::make_unique<ast::IdentifierExpr>(
+              name_tok.range(), ast::ScopedName{{name_tok.spelling()}});
+          SourceLocation begin = name_tok.range().begin();
+          SourceLocation end = step_expr->loc().end();
+          form.step = std::make_unique<ast::TransferStmt>(
+              rangeFromTo(begin, end), ast::TransferStmt::Op::RegColonEq,
+              std::move(target), std::move(step_expr));
+        }
       }
-      // After the identifier, we have either `++` / `--` or `:=`.
-      // The lexer DOES NOT have `tk_increment` / `tk_decrement` —
-      // there is no "++" punctuator in Token.h's enum. So inc/dec
-      // is not supported in M2's for-step (a known parser-shape gap;
-      // see file header). Require `:=`.
-      if (!expect(TokenKind::tk_assign_seq, "':=' in for-step")) {
-        return nullptr;
-      }
-      auto step_expr = parseExpr();
-      if (!step_expr) {
-        return nullptr;
-      }
-      auto target = std::make_unique<ast::IdentifierExpr>(
-          name_tok.range(), ast::ScopedName{{name_tok.spelling()}});
-      SourceLocation begin = name_tok.range().begin();
-      SourceLocation end = step_expr->loc().end();
-      form.step = std::make_unique<ast::TransferStmt>(
-          rangeFromTo(begin, end), ast::TransferStmt::Op::RegColonEq,
-          std::move(target), std::move(step_expr));
     }
   } else {
     errorAtPeek("expected ',' (enum-form for) or ';' (C-form for)");

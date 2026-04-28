@@ -39,6 +39,7 @@
 #include "nsl/AST/Expr.h"
 #include "nsl/AST/FieldAccessExpr.h"
 #include "nsl/AST/IdentifierExpr.h"
+#include "nsl/AST/IncDecExpr.h"
 #include "nsl/AST/LiteralExpr.h"
 #include "nsl/AST/RepeatExpr.h"
 #include "nsl/AST/SignExtendExpr.h"
@@ -361,6 +362,25 @@ std::unique_ptr<ast::Expr> Parser::parseNudExpr() {
         rangeFromTo(op_tok.range().begin(), end_loc), uop, std::move(sub));
   }
 
+  // Prefix inc/dec (`lang.ebnf §11` lines 654–655: `"++" identifier`,
+  // `"--" identifier`). The grammar restricts the operand to an
+  // identifier, but we accept any nud-led expression here and let
+  // Sema (M3) flag a non-l-value target.
+  if (k == TokenKind::tk_plus_plus || k == TokenKind::tk_minus_minus) {
+    const Token op_tok = consume();
+    const auto op = (op_tok.kind() == TokenKind::tk_plus_plus)
+                        ? ast::IncDecExpr::Op::Inc
+                        : ast::IncDecExpr::Op::Dec;
+    auto sub = parseExprAtPrecedence(static_cast<int>(PrecLevel::Multiplicative));
+    if (!sub) {
+      return nullptr;
+    }
+    const SourceLocation end_loc = sub->loc().end();
+    return std::make_unique<ast::IncDecExpr>(
+        rangeFromTo(op_tok.range().begin(), end_loc), std::move(sub), op,
+        /*prefix=*/true);
+  }
+
   // N1 expression form: `if (cond) thenE else elseE`
   if (k == TokenKind::tk_if_) {
     Token if_tok = consume();
@@ -575,6 +595,22 @@ std::unique_ptr<ast::Expr> Parser::parseExprAtPrecedence(int floor) {
       lhs = std::make_unique<ast::ZeroExtendExpr>(rangeFromTo(begin, end),
                                                    std::move(lhs),
                                                    std::move(sub));
+      continue;
+    }
+
+    // Postfix inc/dec (`lang.ebnf §11` lines 656–657: `identifier "++"`,
+    // `identifier "--"`). Spec restricts the LHS to an identifier;
+    // the parser accepts any expression and lets Sema (M3) flag a
+    // non-l-value target. Postfix has no RHS — just wrap the lhs.
+    if (k == TokenKind::tk_plus_plus || k == TokenKind::tk_minus_minus) {
+      const auto op = (k == TokenKind::tk_plus_plus)
+                          ? ast::IncDecExpr::Op::Inc
+                          : ast::IncDecExpr::Op::Dec;
+      const SourceLocation begin = lhs->loc().begin();
+      const SourceLocation end = op_tok.range().end();
+      lhs = std::make_unique<ast::IncDecExpr>(rangeFromTo(begin, end),
+                                               std::move(lhs), op,
+                                               /*prefix=*/false);
       continue;
     }
 

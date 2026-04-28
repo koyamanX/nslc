@@ -330,8 +330,18 @@ public:
     case '~':
       return emit1(TokenKind::tk_tilde);
     case '+':
+      // Longest-match: `++` is the inc operator per `lang.ebnf §11`
+      // line 654; bare `+` remains the additive / unary-plus form.
+      if (n == '+') {
+        return emit2(TokenKind::tk_plus_plus);
+      }
       return emit1(TokenKind::tk_plus);
     case '-':
+      // Longest-match: `--` is the dec operator per `lang.ebnf §11`
+      // line 657; bare `-` remains the subtractive / unary-minus form.
+      if (n == '-') {
+        return emit2(TokenKind::tk_minus_minus);
+      }
       return emit1(TokenKind::tk_minus);
     case '*':
       return emit1(TokenKind::tk_star);
