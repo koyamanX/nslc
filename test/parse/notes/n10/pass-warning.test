@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/notes/n10/pass-warning.test — N10 (lang.ebnf:1075)
+// `label` reserved-but-warned identifier.
+//
+// Per spec.md US2 acceptance scenario 8 + FR-017 + FR-027: when the
+// reserved keyword `label` appears as a user identifier (e.g., a
+// `wire` name), the parser MUST:
+//   (a) emit a WARNING diagnostic (NOT an error) whose text is the
+//       locked string from the brief and FR-027:
+//
+//         'label' is reserved; using as identifier (parser-note N10)
+//
+//   (b) STILL accept the identifier — the AST contains an
+//       `IdentifierExpr` (or a `*Decl` carrying `name=label`) for
+//       the offending position; `nslc -emit=ast` exits 0 with the
+//       AST printed on stdout and the warning on stderr (per the
+//       contract, exit code 0 = "successful preprocess + lex + parse
+//       with no error-severity diagnostics").
+//
+// The diagnostic-format is `<path>:<line>:<col>: warning: <message>`
+// per FR-019 and the M1 `diagnostic-output.contract.md` schema.
+//
+// FR-029 RED state: at parent commit 7bc1aea, no `nsl-parse`
+// library exists; the driver returns exit 2 on `-emit=ast`. Both
+// RUN lines below exit non-zero with the warning never raised, so
+// the FileCheck patterns fail — failing-state evidence per
+// Principle VIII.
+
+// Capture stdout (AST) and stderr (warning) into the same FileCheck
+// buffer so both can be asserted on. We use two RUN lines so the
+// AST CHECK and the WARN CHECK can be expressed independently.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+// The locked-text warning MUST appear; assertion is on the literal
+// string per FR-027.
+// CHECK: warning: 'label' is reserved; using as identifier (parser-note N10)
+
+// AND the AST MUST be emitted (the warning is non-blocking).
+// `label` here is a wire name; the printed AST records it as
+// `name=label` on the WireDecl.
+// CHECK: (CompilationUnit
+// CHECK:   (ModuleBlock {{.*}}name=n10_label_id
+// CHECK:     (WireDecl {{.*}}name=label
+
+module n10_label_id {
+    wire label;
+}

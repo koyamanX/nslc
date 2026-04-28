@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/notes/n11/pass-task.test — N11 (lang.ebnf:1083) (a)
+// branch: system TASK at statement position.
+//
+// Per spec.md US2 acceptance scenario 9 (first half): `_display(arg)`
+// at statement position MUST parse as a `SystemTaskStmt`. The
+// grammar (`lang.ebnf §10` lines 533-593) lists `_display`,
+// `_finish`, `_init`, `_delay`, `_monitor`, `_write`, `_stop`,
+// `_readmemh`, `_readmemb` as the closed set. N11(a) at
+// `lang.ebnf:1087-1092` documents the parenthesized statement-form.
+//
+// Track A's `SystemTaskStmt` (`include/nsl/AST/SystemTaskStmt.h`)
+// stores the literal source-level name including the leading
+// underscore (e.g. `_display`); the printer emits
+// `name=_display` (Printer.cpp:815) — note this is the source
+// spelling, NOT a `kind=Display` enum. (The brief mentioned
+// `name=Display`; we use the actual Phase 2 API surface here:
+// `Identifier name_` in SystemTaskStmt is the verbatim spelling.)
+//
+// FR-029 RED state: at 7bc1aea, no `-emit=ast` flag; RUN exits 2;
+// CHECK fails. Principle VIII.
+
+// RUN: %nslc -emit=ast %s | FileCheck %s
+
+module n11_task {
+    wire arg;
+    proc_name p;
+    proc p {
+        _display(arg);
+    }
+}
+
+// CHECK: (CompilationUnit
+// CHECK:   (ModuleBlock {{.*}}name=n11_task
+// CHECK:     (ProcDefn  {{.*}}name=p
+// CHECK:       (ParallelBlock
+// SystemTaskStmt with source-level name `_display` (leading underscore preserved)
+// and one IdentifierExpr argument.
+// CHECK:         (SystemTaskStmt  {{.*}}name=_display
+// CHECK-NOT: (SystemVarExpr
+// CHECK:           (IdentifierExpr  {{.*}}name=arg)

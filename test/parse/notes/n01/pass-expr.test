@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/notes/n01/pass-expr.test — N1 (lang.ebnf:1014) parser-note
+// disambiguation, expression-position branch.
+//
+// Per spec.md US2 acceptance scenario 2: at the RHS of a transfer
+// (expression position), `if (c) a else b` MUST parse as a
+// `ConditionalExpr` per the `conditional_expression` production at
+// `lang.ebnf §11` lines 601-604, NOT as an `IfStmt`.
+//
+// NSL's expression-`if` form is `if (c) a else b` (no semicolons,
+// no braces) per `lang.ebnf §11`. The brief's example
+// `wire q = if (c) a else b;` was rewritten because `internal_terminal_declaration`
+// at `lang.ebnf §6` line 211 does NOT permit a `=` initializer on
+// `wire` — only `reg` has that form (line 219). The semantically
+// equivalent shape is to declare `wire q` and transfer to it via a
+// `wire_or_variable_transfer` (lang.ebnf §9 line 494) action
+// statement, where the RHS is the `conditional_expression` we are
+// asserting on.
+//
+// FR-029 RED state: at parent commit 7bc1aea, no `nsl-parse` library
+// exists yet, so `nslc -emit=ast` exits 2. RUN exits non-zero;
+// CHECK matches fail. Failing-state per Principle VIII.
+
+// RUN: %nslc -emit=ast %s | FileCheck %s
+
+module n1_expr {
+    wire c, a, b, q;
+    q = if (c) a else b;
+}
+
+// CHECK: (CompilationUnit
+// CHECK:   (ModuleBlock {{.*}}name=n1_expr
+// CHECK:     (TransferStmt {{.*}}op=WireEq
+// CHECK-NOT: (IfStmt
+// CHECK:       (IdentifierExpr  {{.*}}name=q)
+// CHECK:       (ConditionalExpr {{.*}}
+// CHECK:         (IdentifierExpr  {{.*}}name=c)
+// CHECK:         (IdentifierExpr  {{.*}}name=a)
+// CHECK:         (IdentifierExpr  {{.*}}name=b)

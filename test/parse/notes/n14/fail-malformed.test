@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/notes/n14/fail-malformed.test — N14 (lang.ebnf:1113)
+// malformed `#line` directive locked-text diagnostic.
+//
+// Per spec.md FR-027 + tasks.md T041: a `#line` directive whose
+// argument is NOT a positive integer (e.g., `#line abc`) MUST emit
+// the LOCKED diagnostic text:
+//
+//   '#line' directive must be followed by a positive integer (parser-note N14)
+//
+// The grammar (`lang.ebnf §2` line 107):
+//
+//   line_marker = "#line" decimal_integer [ string_literal ] ;
+//
+// requires a `decimal_integer` between `#line` and the optional
+// string. A non-integer there is a syntax error; M1 may emit the
+// directive verbatim through the seam (variant 3 textual form), in
+// which case the parser sees the malformed shape and is responsible
+// for the diagnostic — that's the assertion below.
+//
+// Per the contract (`nslc-emit-ast.contract.md` §"Behavior"), an
+// error-severity diagnostic at parse time means exit 1 and NO AST
+// on stdout. We use `not %nslc` to assert non-zero exit and a
+// `--check-prefix=FAIL` to namespace the assertion against any
+// stderr noise from M1 layers.
+//
+// FR-029 RED state: at 7bc1aea, no `-emit=ast` flag; the driver
+// returns exit 2 (argument error), not exit 1 (parse error), AND
+// the locked-text diagnostic is never emitted because there is no
+// `nsl-parse` library to emit it. Principle VIII evidence.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s --check-prefix=FAIL
+
+#line abc
+module n14_fail {
+    wire q;
+}
+
+// FR-027 locked-string assertion. The text MUST appear EXACTLY as
+// written; any drift is a constitutional finding (Principle VIII
+// "diagnostic-bearing rules test the diagnostic text") and a Track
+// D coordination event.
+// FAIL: error: '#line' directive must be followed by a positive integer (parser-note N14)

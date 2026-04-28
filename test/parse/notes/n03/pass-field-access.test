@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/notes/n03/pass-field-access.test — N3 (lang.ebnf:1027)
+// member-access `.` companion case (counterpart to pass-lhs-concat).
+//
+// Per spec.md US2 acceptance scenario 4 paired form: a single `.`
+// followed by an identifier (not `{`) MUST parse as a
+// `FieldAccessExpr`, NOT a `ConcatExpr` — the lexer's two-char
+// lookahead from N3 (lang.ebnf 1027-1030) is what disambiguates;
+// the parser sees a member-access dot vs. the `.{` concat-LHS
+// token.
+//
+// We use `inst.field` on the RHS of a wire transfer. The
+// production is `postfix_tail = "." identifier` at `lang.ebnf §11`
+// line 641; Track A's `FieldAccessExpr` AST node carries the
+// dotted access (`include/nsl/AST/FieldAccessExpr.h`).
+//
+// FR-029 RED state: at 7bc1aea, no `-emit=ast` flag; RUN exits 2;
+// CHECK fails. Principle VIII.
+
+// RUN: %nslc -emit=ast %s | FileCheck %s
+
+module n3_field_access {
+    sub inst;
+    wire q;
+    q = inst.field;
+}
+
+// CHECK: (CompilationUnit
+// CHECK:   (ModuleBlock {{.*}}name=n3_field_access
+// CHECK:     (TransferStmt {{.*}}op=WireEq
+// CHECK:       (IdentifierExpr  {{.*}}name=q)
+// CHECK:       (FieldAccessExpr  {{.*}}field=field
+// CHECK-NOT: (ConcatExpr
+// CHECK:         (IdentifierExpr  {{.*}}name=inst)

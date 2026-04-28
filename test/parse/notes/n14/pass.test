@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/notes/n14/pass.test — N14 (lang.ebnf:1113) `#line`
+// directive consumed, no AST node, virtual coordinates updated.
+//
+// Per spec.md US2 acceptance scenario 10 + FR-015: a `#line N "F"`
+// directive surviving M1's preprocessor seam MUST be consumed by
+// the parser at every item-list position; NO AST node corresponds
+// to the directive (the `line_marker` is layout, not syntax — N14
+// at lang.ebnf:1113-1148 lays this out); subsequent AST nodes'
+// `loc=` MUST report `F:<N+offset>:…`.
+//
+// We use a directive `#line 100 "alias.nsl"` between two top-level
+// items. The first `module` carries physical-file coordinates; the
+// second carries `alias.nsl:100:…` and onward. Both modules MUST
+// appear under `CompilationUnit::items`; no AST node corresponds
+// to the directive itself (Invariant 6's "no LineMarker NodeKind").
+//
+// We use FileCheck regex placeholders for the line/col coordinates
+// to keep the fixture robust against the exact source byte
+// offsets — the load-bearing assertions are:
+//   (a) NO `(LineMarker` or `(LineDirective` node appears, and
+//   (b) the second module's loc-path reads `alias.nsl`, NOT this
+//       file's path.
+//
+// FR-029 RED state: at 7bc1aea, no `-emit=ast` flag; RUN exits 2;
+// CHECK fails. Principle VIII.
+
+// RUN: %nslc -emit=ast %s | FileCheck %s
+
+module before_line {
+    wire q;
+}
+#line 100 "alias.nsl"
+module after_line {
+    wire r;
+}
+
+// No AST node MUST be emitted for the `#line` directive itself.
+// CHECK-NOT: (LineMarker
+// CHECK-NOT: (LineDirective
+// CHECK-NOT: (LineMarkerStmt
+
+// CHECK: (CompilationUnit
+// First module: physical-file coordinates (anything that is NOT
+// `alias.nsl`).
+// CHECK:   (ModuleBlock  loc={{[^ )]+}}:{{[0-9]+}}:1-{{[0-9]+}}:{{[0-9]+}}  name=before_line
+// CHECK:     (WireDecl
+//
+// Second module: virtual coordinates — path MUST be `alias.nsl`,
+// the START line MUST be in the 100s (the directive sets the next
+// line to 100; the module starts on that line). End-line/col are
+// permissive — what matters is the path swap and that the start
+// line is virtual-1xx.
+// CHECK:   (ModuleBlock  loc=alias.nsl:1{{[0-9][0-9]}}:1-{{[0-9]+}}:{{[0-9]+}}  name=after_line
+// CHECK:     (WireDecl  loc=alias.nsl:

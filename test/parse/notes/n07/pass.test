@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/notes/n07/pass.test — N7 (lang.ebnf:1061) dotted-`func`
+// definition for submodule out-handler.
+//
+// Per spec.md US2 acceptance scenario 7: `func ic.ready { … }` at
+// module-item position MUST parse as a `FuncDefn` whose `name`
+// is the dotted scoped name `ic.ready`. The grammar:
+//
+//   function_definition = ( "func" | "function" ) scoped_identifier
+//                         action_statement ;
+//
+// at `lang.ebnf §7` line 329 admits a `scoped_identifier` for the
+// func name (one or more dot-separated parts). Track A's
+// `FuncDefn` (`include/nsl/AST/FuncDefn.h`) stores the name as a
+// `ScopedName`; the printer emits `name=ic.ready` via
+// `emitScopedName` (Printer.cpp:735).
+//
+// FR-029 RED state: at 7bc1aea, no `-emit=ast` flag; RUN exits 2;
+// CHECK fails. Principle VIII.
+
+// RUN: %nslc -emit=ast %s | FileCheck %s
+
+module n7_dotted_func {
+    sub ic;
+    func ic.ready { ic.something = 0; }
+}
+
+// CHECK: (CompilationUnit
+// CHECK:   (ModuleBlock {{.*}}name=n7_dotted_func
+// The FuncDefn's name field MUST be `ic.ready` (dotted).
+// CHECK:     (FuncDefn  {{.*}}name=ic.ready
+// The body is an action_statement — here a parallel-block
+// containing one transfer.
+// CHECK:       (ParallelBlock
