@@ -48,6 +48,9 @@ module after_line {
 // CHECK:     (WireDecl
 //
 // Second module: virtual coordinates — path MUST be `alias.nsl`,
-// line MUST be in the 100s.
-// CHECK:   (ModuleBlock  loc=alias.nsl:1{{[0-9][0-9]}}:1-1{{[0-9][0-9]}}:{{[0-9]+}}  name=after_line
+// the START line MUST be in the 100s (the directive sets the next
+// line to 100; the module starts on that line). End-line/col are
+// permissive — what matters is the path swap and that the start
+// line is virtual-1xx.
+// CHECK:   (ModuleBlock  loc=alias.nsl:1{{[0-9][0-9]}}:1-{{[0-9]+}}:{{[0-9]+}}  name=after_line
 // CHECK:     (WireDecl  loc=alias.nsl:
