@@ -33,7 +33,20 @@ foreach(suite
     diagnostic_engine_test
     macro_table_test
     helper_evaluator_test
-    macro_expander_test)
+    macro_expander_test
+    # M2 Phase 2 (005-m2-parser) — gtest suites for the AST and the
+    # parser's recovery-set bookkeeping. The per-suite `CMakeLists.txt`
+    # + `.cpp` fixtures are authored by the parallel test-author
+    # (Track B); registering the suite names here is harmless until
+    # those files land thanks to the existence guard below.
+    ast_visitor_test
+    ast_printer_test
+    recovery_set_test
+    # M2 Phase 3 / US1 (T021 of `specs/005-m2-parser/tasks.md`) —
+    # gtest smoke fixture for `nsl::parse::parseCompilationUnit`.
+    # Authored RED before `lib/Parse/` is populated; the binary
+    # FAILS TO LINK until Track D lands the `nsl-parse` library.
+    parse_test)
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${suite}/CMakeLists.txt")
     add_subdirectory(${suite})
   endif()

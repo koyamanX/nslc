@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/notes/n01/pass-stmt.test — N1 (lang.ebnf:1014) parser-note
+// disambiguation, statement-position branch.
+//
+// Per spec.md US2 acceptance scenario 1: at statement position
+// `if (c) a = b; else a = 0;` MUST parse as an `IfStmt`, NOT as a
+// `ConditionalExpr` wrapped in a `TransferStmt`. Mirrors the
+// `conditional_if_statement` production at `lang.ebnf §8` line 392.
+//
+// The fixture wraps the if/else inside a `module` body so the
+// statement appears in `module_item` position, which is where N1's
+// "statement-position" rule applies.
+//
+// FR-029 RED state: at parent commit 7bc1aea (Phase 2), the
+// `nslc -emit=ast` flag does not exist (no `nsl-parse` library; the
+// driver returns exit 2 on unknown `-emit=`). This RUN line
+// therefore exits non-zero and the FileCheck pattern below fails to
+// match — failing-state evidence per Principle VIII.
+
+// RUN: %nslc -emit=ast %s | FileCheck %s
+
+module n1_stmt {
+    wire c, a, b;
+    if (c) a = b; else a = 0;
+}
+
+// CHECK: (CompilationUnit
+// CHECK:   (ModuleBlock {{.*}}name=n1_stmt
+// CHECK:     (IfStmt {{.*}}
+// CHECK-NOT: (ConditionalExpr
+// CHECK:       (IdentifierExpr  {{.*}}name=c)
+// CHECK:       (TransferStmt {{.*}}op=WireEq
+// CHECK:         (IdentifierExpr  {{.*}}name=a)
+// CHECK:         (IdentifierExpr  {{.*}}name=b))
+// CHECK:       (TransferStmt {{.*}}op=WireEq
+// CHECK:         (IdentifierExpr  {{.*}}name=a)
+// CHECK:         (LiteralExpr  {{.*}}kind=Decimal  value=0)

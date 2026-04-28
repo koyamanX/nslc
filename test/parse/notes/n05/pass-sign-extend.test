@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/notes/n05/pass-sign-extend.test — N5 (lang.ebnf:1035)
+// `#` sign-extension operator in expression position.
+//
+// Per spec.md US2 acceptance scenario 5: `8 # sig` MUST parse as a
+// `SignExtendExpr` whose two children are the width (literal `8`)
+// and the sub-expression (`sig`) — NOT as a stray `line_marker`
+// token. The grammar (lang.ebnf §11 line 702):
+//
+//   sign_extend_expression = constant_expression "#" primary_expr ;
+//
+// shows `#` is INFIX with the width on the LEFT and the value on
+// the RIGHT. Track A's `SignExtendExpr` (`include/nsl/AST/SignExtendExpr.h`)
+// carries `width` then `sub`; the printer emits both as ordered
+// children with no `op=` field (Printer.cpp visit(SignExtendExpr)).
+//
+// The brief flagged this as the load-bearing N5 invariant: "(`#` is
+// INFIX. `(SignExtendExpr` has TWO children — width and sub. Don't
+// write a fixture assuming `#` is prefix.)"
+//
+// FR-029 RED state: at 7bc1aea, no `-emit=ast` flag; RUN exits 2;
+// CHECK fails. Principle VIII.
+
+// RUN: %nslc -emit=ast %s | FileCheck %s
+
+module n5_sign_extend {
+    wire sig, q;
+    q = 8 # sig;
+}
+
+// CHECK: (CompilationUnit
+// CHECK:   (ModuleBlock {{.*}}name=n5_sign_extend
+// CHECK:     (TransferStmt {{.*}}op=WireEq
+// CHECK:       (IdentifierExpr  {{.*}}name=q)
+// CHECK:       (SignExtendExpr  loc={{[^ )]+}}
+// First child of SignExtendExpr: the width literal 8.
+// CHECK-NEXT:         (LiteralExpr  {{.*}}kind=Decimal  value=8)
+// Second child: the sub IdentifierExpr `sig`.
+// CHECK-NEXT:         (IdentifierExpr  {{.*}}name=sig)

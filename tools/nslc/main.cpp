@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// tools/nslc/main.cpp — nslc driver entry point (≤62 lines per
-// Constitution Principle II). Real work lives in nsl-driver.
+// tools/nslc/main.cpp — nslc driver entry point (Principle II target
+// ≤62 lines + per-`-emit=*` glue). Real work lives in nsl-driver.
 
+#include "nsl/Driver/EmitAST.h"
 #include "nsl/Driver/EmitTokens.h"
 #include "nsl/Driver/Version.h"
 
@@ -57,6 +58,9 @@ int main(int argc, char **argv) {
   }
   if (stage == "tokens") {
     return nsl::driver::emitTokens(input, opts, llvm::outs(), llvm::errs());
+  }
+  if (stage == "ast") {
+    return nsl::driver::emitAST(input, opts, llvm::outs(), llvm::errs());
   }
   llvm::errs() << "unknown emit stage: " << stage << "\n" << kUsage;
   return 2;

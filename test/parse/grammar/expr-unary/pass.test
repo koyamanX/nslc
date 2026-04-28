@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Generated from `lang.ebnf` §§1–11 — DO NOT EDIT.
+// Regenerate with: python3 scripts/gen_grammar_fixtures.py
+//
+// Per-production AST-snapshot fixture for `expr-unary` (`lang.ebnf
+// §11`) per Constitution Principle VIII (TDD; FR-029) and
+// `specs/005-m2-parser/research.md` §9 (test corpus organization).
+//
+// Subject: unary_expr — bitwise NOT
+//
+// The input is written to a temp file via lit's `%t` substitution
+// rather than embedded in this `.test`; otherwise the SPDX header
+// and FileCheck directive lines would enter the parsed buffer and
+// confuse the AST-snapshot. A temp file gives a stable path the parser
+// reports cleanly via the post-`#line` virtual coordinates per
+// Principle IV / FR-018.
+//
+// Source-range coordinates in the printer's `loc=` field are NOT
+// pinned to byte-exact values here — fixtures assert structural
+// presence per `specs/005-m2-parser/research.md` §9. The byte-frozen
+// format golden is `test/Driver/emit-ast.test`; if format drift
+// occurs there, this fixture is unaffected.
+//
+// **Failing-state evidence (FR-029)**: against the unchanged tree at
+// `7bc1aea`, the M1 driver does not implement `-emit=ast` — invoking
+// it exits with the M1 driver's "unknown emit stage" path (exit 2),
+// so the FileCheck pipeline observes a mismatch and the test fails.
+
+// RUN: printf 'module m {\n  wire a;\n  reg b = ~a;\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (RegDecl
+// CHECK: (UnaryExpr

@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/notes/n10/fail.test — N10 (lang.ebnf:1075) locked-text
+// assertion for the `label`-as-identifier warning.
+//
+// CAVEAT — naming.  N10 produces a WARNING, not an error: the
+// identifier is still accepted (FR-017) and the parser exits
+// successfully. The conventional `fail.test` filename is therefore
+// misleading here; we keep it to satisfy tasks.md T039's
+// `{pass-warning.test, fail.test}` enumeration and to give FR-027's
+// "failing-shape" diagnostic-text assertion a stable home.
+//
+// This fixture's sole job is to pin the diagnostic STRING per
+// FR-027 — it deliberately overlaps with `pass-warning.test`'s
+// CHECK on the warning text, but is structured to give a clean
+// failure if Track D's diagnostic constant ever drifts (a CodeRabbit
+// reviewer can grep `'label' is reserved; using as identifier` and
+// see the lock).
+//
+// Why this is not a hard error: per `lang.ebnf §15` line 783-824,
+// `label` is reserved but unused in real code; the spec's note (N10
+// at lang.ebnf:1075-1081) explicitly chooses the warn-and-accept
+// semantics for forward compatibility. Promoting to an error
+// would require a spec amendment per Principle VII.
+//
+// FR-029 RED state: at 7bc1aea, no `-emit=ast` flag; RUN exits 2;
+// CHECK fails. Principle VIII.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module n10_label_fail {
+    wire label;
+}
+
+// FR-027 locked-string assertion.
+// CHECK: warning: 'label' is reserved; using as identifier (parser-note N10)

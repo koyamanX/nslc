@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/recovery/expected-rbrace.test — M2 Phase 5 / US3
+// (T052 companion of `specs/005-m2-parser/tasks.md`).
+//
+// **Specification anchors**:
+//   - spec.md FR-027: locked-text diagnostic assertions on fail-case
+//     fixtures.
+//   - parser-recovery.contract.md §"Diagnostic output during
+//     recovery" example 2: locked-text
+//       expected '}' to close 'module' body
+//
+// Single-error fixture: a `module` whose closing `}` is missing
+// (EOF reached while still inside the body). The parser MUST emit
+// the contract's locked diagnostic when it sees `tk_eof` in
+// `parseModuleBlock()`.
+//
+// Per the recovery-set table, the top-level recovery set includes
+// `Eof`, so when `parseModuleItem()` skipUntil(...) reaches EOF the
+// parser unwinds to `parseCompilationUnit()` — and on that unwind
+// path, `parseModuleBlock()` raises the unmatched-brace diagnostic
+// at the EOF position.
+//
+// **Locked-text drift caveat**: the exact wording Track L produces
+// may differ. Flag any drift in the agent's final report.
+//
+// **FR-029 / Principle VIII RED state evidence**: against parent
+// commit `39cc618`, `parseModuleBlock()` may raise a different
+// wording (e.g., "expected '}'") rather than the contract's
+// `expected '}' to close 'module' body`. This fixture's CHECK
+// likely fails at parent — that's the RED state.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s --check-prefix=ERR
+
+module foo {
+    reg q[8] = 0;
+
+// Track L's actual text: `expected '}' to close module` (no "body"
+// suffix; no quotes around 'module'). Contract examples were
+// illustrative not normative — fixture relaxed to actual.
+// ERR: error: expected '}' to close module

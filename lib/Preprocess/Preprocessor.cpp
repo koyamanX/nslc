@@ -434,8 +434,12 @@ public:
       ++i;
     }
     if (i == num_begin) {
+      // FR-027 locked diagnostic per parser-note N14
+      // (`docs/spec/nsl_lang.ebnf:1113`). Text MUST match exactly —
+      // any drift fails `test/parse/notes/n14/fail-malformed.test`.
       diag.report(Severity::Error, locFor(f, d.line_begin_offset),
-                  "'#line' directive: missing decimal line number");
+                  "'#line' directive must be followed by a positive integer "
+                  "(parser-note N14)");
       return;
     }
     long long line_no = 0;

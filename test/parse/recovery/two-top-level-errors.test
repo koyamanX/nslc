@@ -1,0 +1,65 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/recovery/two-top-level-errors.test — M2 Phase 5 / US3
+// (T049 of `specs/005-m2-parser/tasks.md`).
+//
+// **Specification anchors**:
+//   - spec.md FR-019 (DiagnosticEngine sole emitter), FR-020/FR-021
+//     (recovery framework + multi-error fixture corpus minimum).
+//   - parser-recovery.contract.md §"Multi-error fixture corpus
+//     minimum" item 1: "two independent syntax errors in separate
+//     `top_level_item`s … both diagnostics emitted in source order;
+//     well-formed `top_level_item`s between/after the errors still
+//     appear in the AST."
+//   - /speckit-clarify session 2026-04-27 Q1 → Option A: full
+//     multi-error recovery at every grammar level (clangd-style).
+//
+// This fixture exercises the top-level `parseCompilationUnit()`
+// recovery scope: per the contract's recovery-set table, the default
+// recovery set at the top level is
+// `{struct, declare, module, param_int, param_str, Eof}`. After the
+// first malformed `struct` raises its diagnostic, recovery MUST
+// resume at the next `module` keyword and parse the SECOND malformed
+// item, raising its own diagnostic.
+//
+// Per `nslc-emit-ast.contract.md` step 5 — when any error fires, NO
+// AST is printed to stdout. So this fixture asserts ONLY:
+//   (a) two error-severity diagnostic lines on stderr (in source
+//       order),
+//   (b) exit 1.
+// The "partial-AST-preservation" property (well-formed siblings
+// remain in the parent's vector) is a unit-test concern — see
+// `test_unit/recovery_set_test/recovery_partial_ast_test.cpp` (T053).
+//
+// **FR-029 / Principle VIII RED state evidence**: against parent
+// commit `39cc618` (M2 Phase 3+4 fully green), the parser does
+// single-error bail — `parseCompilationUnit()` returns `nullptr` on
+// the first syntax error, so only ONE diagnostic emits and the
+// second `ERR-DAG` directive below FAILS to match. That observed
+// failure IS the FR-029 evidence. Track L (T056–T058) lands the
+// `RecoveryGuard` + `skipUntil()` framework; this fixture flips
+// green at T059 (the green-on-implementation checkpoint).
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s --check-prefix=ERR
+
+// First top-level item: malformed `struct` — the body has no closing
+// `}` and no `;`. The parser MUST emit a diagnostic at the `module`
+// keyword's location (where it expected a closing brace or struct
+// member) and recover at the `module` token (top-level recovery set).
+struct broken_struct {
+module foo {
+//      ^ Recovery resumes here. The second item is *also* malformed:
+//        the body declares a `reg q` with no `;`, so a SECOND
+//        diagnostic must emit before the parser bails to EOF.
+    reg q
+}
+
+// Per the contract's "Diagnostic output during recovery" §, every
+// diagnostic uses the canonical M1 form
+// `<path>:<line>:<col>: error: <message>`. We use ERR-DAG since the
+// exact line:col coordinates depend on where the parser pins each
+// raise site; what is load-bearing is that BOTH error lines emit in
+// a single run (Q1's full-recovery contract).
+
+// ERR-DAG: error: expected
+// ERR-DAG: error: expected

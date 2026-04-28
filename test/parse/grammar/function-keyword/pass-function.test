@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/grammar/function-keyword/pass-function.test
+//
+// US1 / FR-016 / `S26` parser-equivalence fixture pair (T032a) — the
+// `function` spelling. The companion `pass-func.test` fixture
+// exercises the `func` spelling on otherwise-identical input; the
+// two AST snapshots MUST share the same `NodeKind` names and the
+// same nesting shape. The byte-offsets in the printer's `loc=`
+// field differ between the two fixtures by exactly the
+// `len("function") - len("func") = 4` keyword-length delta — we do
+// NOT pin offsets here so this difference is invisible to FileCheck.
+//
+// Per `lang.ebnf §7`:
+//   function_definition = ( "func" | "function" ) scoped_identifier
+//                         action_statement ;
+//
+// and `S26`:
+//   "func" ≡ "function". The Sema-time canonicalization warning
+//   ("prefer `func`") is M3's responsibility — at M2 the parser
+//   accepts either spelling and produces the same AST node kind
+//   (`FuncDefn`).
+//
+// **Failing-state evidence (FR-029)**: same as `pass-func.test` —
+// the M1 driver lacks `-emit=ast`, so the FileCheck pipeline fails
+// against the unchanged tree at `7bc1aea`. Once Track D (parser
+// implementation) lands, BOTH this fixture and `pass-func.test`
+// turn green together — that is the FR-016 / S26 parser-equivalence
+// observation.
+
+// RUN: printf 'module m {\n  function ready { }\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// Same node-kind sequence as the companion `pass-func.test`:
+// `CompilationUnit` → `ModuleBlock` (named `m`) → `FuncDefn` (named
+// `ready`) → an empty `ParallelBlock` body. Identical structurally;
+// only the source offsets differ.
+
+// CHECK:      (CompilationUnit
+// CHECK:        (ModuleBlock
+// CHECK-SAME:   name=m
+// CHECK:          (FuncDefn
+// CHECK:            (ParallelBlock

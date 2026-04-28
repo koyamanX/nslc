@@ -5,15 +5,15 @@
 # only against nsl-driver and inherits everything transitively
 # (Principle II).
 #
-# At M1 (Phase 3, US1) nsl-driver gains the `-emit=tokens` code path
-# in `EmitTokens.cpp`; the preprocessor link sits in DEPENDS even
-# though Phase 3 doesn't exercise it, because Phase 4 (T061) extends
-# `EmitTokens.cpp` with the preprocess pre-pass.
+# At M2 (Phase 3) nsl-driver gains the `-emit=ast` code path in
+# `EmitAST.cpp` alongside M1's `EmitTokens.cpp`.
 
 add_nsl_library(nsl-driver
   EmitTokens.cpp
+  EmitAST.cpp
   HEADERS
     ${CMAKE_SOURCE_DIR}/include/nsl/Driver/EmitTokens.h
+    ${CMAKE_SOURCE_DIR}/include/nsl/Driver/EmitAST.h
   DEPENDS
     nsl-basic
     nsl-preprocess

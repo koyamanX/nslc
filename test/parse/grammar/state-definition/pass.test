@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Generated from `lang.ebnf` §§1–11 — DO NOT EDIT.
+// Regenerate with: python3 scripts/gen_grammar_fixtures.py
+//
+// Per-production AST-snapshot fixture for `state-definition` (`lang.ebnf
+// §7`) per Constitution Principle VIII (TDD; FR-029) and
+// `specs/005-m2-parser/research.md` §9 (test corpus organization).
+//
+// Subject: state_definition — empty body
+//
+// The input is written to a temp file via lit's `%t` substitution
+// rather than embedded in this `.test`; otherwise the SPDX header
+// and FileCheck directive lines would enter the parsed buffer and
+// confuse the AST-snapshot. A temp file gives a stable path the parser
+// reports cleanly via the post-`#line` virtual coordinates per
+// Principle IV / FR-018.
+//
+// Source-range coordinates in the printer's `loc=` field are NOT
+// pinned to byte-exact values here — fixtures assert structural
+// presence per `specs/005-m2-parser/research.md` §9. The byte-frozen
+// format golden is `test/Driver/emit-ast.test`; if format drift
+// occurs there, this fixture is unaffected.
+//
+// **Failing-state evidence (FR-029)**: against the unchanged tree at
+// `7bc1aea`, the M1 driver does not implement `-emit=ast` — invoking
+// it exits with the M1 driver's "unknown emit stage" path (exit 2),
+// so the FileCheck pipeline observes a mismatch and the test fails.
+
+// Spec note: `state_definition` (`lang.ebnf §7` line 334) appears in the
+// grammar both as a `module_item` (`§5` line 188) and — per the 2016
+// tutorial NS17 example reproduced in `§6` lines 254–262 — as an item
+// of a `proc` body. M2 captures the module-level form into
+// `ModuleBlock::procs_` (where the printer emits `(StateDefn …)`). The
+// proc-body-nested form requires a parallel-block item slot that admits
+// Decls; per the M2 simplification recorded in `lib/Parse/ParseStmt.cpp`
+// header lines 24–34, internal/decl items inside parallel blocks are
+// dropped on the floor at this milestone. Promotion of the proc-nested
+// form into the printable AST is therefore deferred to a later
+// milestone alongside the same `seq`-block-internal-decl widening.
+//
+// This fixture exercises the module-level form, which the spec
+// authoritatively permits.
+
+// RUN: printf 'module m {\n  state s1 { }\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (ModuleBlock
+// CHECK: (StateDefn
+// CHECK: name=s1

@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// NodeKind.def — single source of truth for the closed set of
+// concrete AST node kinds in `nsl-ast`. Mirrors the AST hierarchy
+// catalog in `docs/design/nsl_compiler_design.md` §5 lines 622–639
+// (per `specs/005-m2-parser/data-model.md` §§1.1–1.6).
+//
+// Format:
+//   NSL_NODE_KIND(EnumName, BaseClass)
+// where:
+//   - `EnumName` is the C++ class name and the enumerator suffix in
+//     the `NodeKind` enum (the enumerator itself is `NK_<EnumName>`).
+//   - `BaseClass` ∈ { ASTNode, Decl, Stmt, Expr } — names the mid-
+//     level abstract base class the concrete node inherits from. Per
+//     `data-model.md` §1.1 only `CompilationUnit` derives directly
+//     from `ASTNode`; every other concrete node lands under `Decl`,
+//     `Stmt`, or `Expr`.
+//
+// Adding a node kind: insert one `NSL_NODE_KIND(...)` line in the
+// matching base-class group below. The X-macro pattern propagates
+// the change to (a) the `NodeKind` enum body in `NodeKind.h`, (b) the
+// enum-to-string table in `lib/AST/NodeKindNames.cpp`, (c) the
+// pure-virtual `visit(T&)` declarations in `ASTVisitor.h`, and (d)
+// future code-generated visitors that include this file. No other
+// edits needed (research §6 single-source).
+//
+// Determinism: the source order of these entries is the print order
+// of the enum-to-string table. Two builds produce identical artifacts
+// iff this file is unchanged byte-for-byte (Principle V; FR-030).
+
+// ---- Compilation-unit root (data-model §1.2; ASTNode-direct) ----
+NSL_NODE_KIND(CompilationUnit,    ASTNode)
+
+// ---- Decl family (data-model §§1.2–1.4) ----
+NSL_NODE_KIND(StructDecl,         Decl)
+NSL_NODE_KIND(TopLevelParamDecl,  Decl)
+NSL_NODE_KIND(DeclareBlock,       Decl)
+NSL_NODE_KIND(PortDecl,           Decl)
+NSL_NODE_KIND(ModuleBlock,        Decl)
+NSL_NODE_KIND(RegDecl,            Decl)
+NSL_NODE_KIND(WireDecl,           Decl)
+NSL_NODE_KIND(VariableDecl,       Decl)
+NSL_NODE_KIND(IntegerDecl,        Decl)
+NSL_NODE_KIND(MemDecl,            Decl)
+NSL_NODE_KIND(FuncSelfDecl,       Decl)
+NSL_NODE_KIND(ProcNameDecl,       Decl)
+NSL_NODE_KIND(StateNameDecl,      Decl)
+NSL_NODE_KIND(FirstStateDecl,     Decl)
+NSL_NODE_KIND(SubmoduleDecl,      Decl)
+NSL_NODE_KIND(StructInstDecl,     Decl)
+NSL_NODE_KIND(FuncDefn,           Decl)
+NSL_NODE_KIND(ProcDefn,           Decl)
+NSL_NODE_KIND(StateDefn,          Decl)
+
+// ---- Stmt family (data-model §1.5) ----
+NSL_NODE_KIND(TransferStmt,       Stmt)
+NSL_NODE_KIND(IncDecStmt,         Stmt)
+NSL_NODE_KIND(ControlCallStmt,    Stmt)
+NSL_NODE_KIND(BareFinishStmt,     Stmt)
+NSL_NODE_KIND(SystemTaskStmt,     Stmt)
+NSL_NODE_KIND(ReturnStmt,         Stmt)
+NSL_NODE_KIND(EmptyStmt,          Stmt)
+NSL_NODE_KIND(LabeledStmt,        Stmt)
+NSL_NODE_KIND(GotoStmt,           Stmt)
+NSL_NODE_KIND(InitBlockStmt,      Stmt)
+NSL_NODE_KIND(DelayTaskStmt,      Stmt)
+NSL_NODE_KIND(ParallelBlock,      Stmt)
+NSL_NODE_KIND(AltBlock,           Stmt)
+NSL_NODE_KIND(AnyBlock,           Stmt)
+NSL_NODE_KIND(SeqBlock,           Stmt)
+NSL_NODE_KIND(WhileBlock,         Stmt)
+NSL_NODE_KIND(ForBlock,           Stmt)
+NSL_NODE_KIND(IfStmt,             Stmt)
+NSL_NODE_KIND(StructuralGenerate, Stmt)
+
+// ---- Expr family (data-model §1.6) ----
+NSL_NODE_KIND(LiteralExpr,        Expr)
+NSL_NODE_KIND(IdentifierExpr,     Expr)
+NSL_NODE_KIND(SystemVarExpr,      Expr)
+NSL_NODE_KIND(UnaryExpr,          Expr)
+NSL_NODE_KIND(BinaryExpr,         Expr)
+NSL_NODE_KIND(ConditionalExpr,    Expr)
+NSL_NODE_KIND(ConcatExpr,         Expr)
+NSL_NODE_KIND(RepeatExpr,         Expr)
+NSL_NODE_KIND(SignExtendExpr,     Expr)
+NSL_NODE_KIND(ZeroExtendExpr,     Expr)
+NSL_NODE_KIND(SliceExpr,          Expr)
+NSL_NODE_KIND(FieldAccessExpr,    Expr)
+NSL_NODE_KIND(CallExpr,           Expr)
+NSL_NODE_KIND(StructCastExpr,     Expr)
+NSL_NODE_KIND(IncDecExpr,         Expr)

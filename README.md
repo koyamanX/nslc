@@ -122,17 +122,34 @@ nslc input.nsl -emit=verilog        # equivalent to default
 
 Useful flags: `-I <dir>` for `#include` quote-form search paths; `-D NAME=value` for preprocessor defines; the `NSL_INCLUDE` environment variable for angle-form `#include` paths.
 
-> **Status by milestone.** As of **M1**, only `-emit=tokens` is
-> implemented end-to-end (lex + preprocess pipeline; full
-> `pp.ebnf` directive set + 22-helper compile-time evaluator).
-> `-emit=ast` lands at **M2**, `-emit=mlir` at **M5**, `-emit=hw`
-> at **M6**, and the default `-emit=verilog` at **M7**.
+> **Status by milestone.** As of **M2**, `-emit=tokens` and
+> `-emit=ast` are both implemented end-to-end. `-emit=mlir` lands
+> at **M5**, `-emit=hw` at **M6**, and the default `-emit=verilog`
+> at **M7**. The full `pp.ebnf` directive set + 22-helper
+> compile-time evaluator (M1) and the recursive-descent parser
+> with full multi-error recovery + parser-note disambiguation
+> (M2) are operational.
+
+```bash
+# M2 quick check: see the parsed AST for a small input. Run inside
+# the dev container; output is S-expression-style with one node per
+# line per specs/005-m2-parser/contracts/nslc-emit-ast.contract.md.
+echo 'module hello {
+  reg q[8] = 0;
+}' > /tmp/hello.nsl
+docker run --rm -v "$PWD:/work" -v "/tmp:/tmp" -w /work \
+  ghcr.io/koyamanx/nsl-nslc:dev \
+  ./build-Release-gcc/bin/nslc -emit=ast /tmp/hello.nsl
+# -> (CompilationUnit ... (ModuleBlock ... name=hello (RegDecl ...
+#    name=q (LiteralExpr ... kind=Decimal value=8)
+#    (LiteralExpr ... kind=Decimal value=0))))
+```
 
 ```bash
 # M1 quick check: see the post-preprocess token stream for a small
-# input. Run inside the dev container; output is tab-separated
-# `<kind>\t<spelling>\t<phys-loc>\t<virt-loc>\t<flags>` per
-# specs/002-m1-lex-preprocess/contracts/nslc-emit-tokens.contract.md.
+# input. Output is tab-separated `<kind>\t<spelling>\t<phys-loc>\t
+# <virt-loc>\t<flags>` per specs/002-m1-lex-preprocess/contracts/
+# nslc-emit-tokens.contract.md.
 echo '#define WIDTH 8
 module hello { reg q[%WIDTH%]; }' > /tmp/hello.nsl
 docker run --rm -v "$PWD:/work" -v "/tmp:/tmp" -w /work \

@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/notes/n11/pass-var.test — N11 (lang.ebnf:1083) (b)
+// branch: system VARIABLE at expression position (no parens).
+//
+// Per spec.md US2 acceptance scenario 9 (second half): `_random`
+// and `_time` at expression position with NO parentheses MUST
+// parse as `SystemVarExpr`. The grammar
+// (`lang.ebnf §11` line 677):
+//
+//   system_variable = "_random" | "_time" ;
+//
+// is the closed set. Track A's `SystemVarExpr`
+// (`include/nsl/AST/SystemVarExpr.h`) has `enum Var { Random, Time }`;
+// the printer emits `var=Random` / `var=Time` (Printer.cpp:1093 —
+// note the field is `var=`, NOT `kind=` as the brief mentioned).
+//
+// We exercise both `_random` and `_time` in two transfers so a
+// reviewer reading a regression sees both branches at once. The
+// parenthesized `_time()` form is intentionally NOT exercised here
+// — that goes through the SystemTaskStmt path per N11 back-compat
+// and is covered in `pass-task.test`'s sibling fixtures.
+//
+// FR-029 RED state: at 7bc1aea, no `-emit=ast` flag; RUN exits 2;
+// CHECK fails. Principle VIII.
+
+// RUN: %nslc -emit=ast %s | FileCheck %s
+
+module n11_var {
+    wire qr, qt;
+    qr = _random;
+    qt = _time;
+}
+
+// CHECK: (CompilationUnit
+// CHECK:   (ModuleBlock {{.*}}name=n11_var
+// First transfer: qr = _random
+// CHECK:     (TransferStmt {{.*}}op=WireEq
+// CHECK:       (IdentifierExpr  {{.*}}name=qr)
+// CHECK:       (SystemVarExpr  {{.*}}var=Random)
+// CHECK-NOT: (SystemTaskStmt
+// Second transfer: qt = _time
+// CHECK:     (TransferStmt {{.*}}op=WireEq
+// CHECK:       (IdentifierExpr  {{.*}}name=qt)
+// CHECK:       (SystemVarExpr  {{.*}}var=Time)

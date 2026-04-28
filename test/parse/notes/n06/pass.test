@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/notes/n06/pass.test — N6 (lang.ebnf:1051) proc-instance
+// method access.
+//
+// Per spec.md US2 acceptance scenario 6: `inst.finish();` and
+// `inst.invoke();` at statement position MUST parse as
+// `ControlCallStmt` whose `target` is the scoped identifier
+// `inst.finish` / `inst.invoke`. The grammar:
+//
+//   control_terminal_call = scoped_identifier "(" [ argument_list ] ")" ;
+//
+// at `lang.ebnf §9` line 529 admits the dotted form. Track A's
+// `ControlCallStmt` (`include/nsl/AST/ControlCallStmt.h`) holds the
+// `target` as a `ScopedName`; the printer emits
+// `target=inst.finish` via `emitScopedName` (Printer.cpp:795).
+//
+// We exercise both reserved method names (`finish`, `invoke`)
+// inside a `proc` body so the call lives in `parallel_block_item`
+// position — which is where statement-level dispatch applies.
+//
+// FR-029 RED state: at 7bc1aea, no `-emit=ast` flag; RUN exits 2;
+// CHECK fails. Principle VIII.
+
+// RUN: %nslc -emit=ast %s | FileCheck %s
+
+module n6_proc_method {
+    proc_name p;
+    proc p {
+        inst.invoke();
+        inst.finish();
+    }
+}
+
+// CHECK: (CompilationUnit
+// CHECK:   (ModuleBlock {{.*}}name=n6_proc_method
+// CHECK:     (ProcDefn  {{.*}}name=p
+// CHECK:       (ParallelBlock {{.*}}
+// First call: inst.invoke()
+// CHECK:         (ControlCallStmt  {{.*}}target=inst.invoke)
+// Second call: inst.finish()
+// CHECK:         (ControlCallStmt  {{.*}}target=inst.finish)
