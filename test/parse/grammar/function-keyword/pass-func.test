@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/parse/grammar/function-keyword/pass-func.test
+//
+// US1 / FR-016 / `S26` parser-equivalence fixture pair (T032a) — the
+// `func` spelling. The companion `pass-function.test` fixture
+// exercises the `function` spelling on otherwise-identical input;
+// the two AST snapshots MUST share the same `NodeKind` names and
+// the same nesting shape (`SourceRange` offsets differ by the
+// keyword-length delta, which we do NOT pin in `// CHECK:` here).
+//
+// Per `lang.ebnf §7`:
+//   function_definition = ( "func" | "function" ) scoped_identifier
+//                         action_statement ;
+//
+// and parser-note `S26`:
+//   "func" ≡ "function". The Sema-time canonicalization warning
+//   ("prefer `func`") is M3's responsibility — at M2 the parser
+//   accepts either spelling and produces the same AST node kind
+//   (`FuncDefn`).
+//
+// **Failing-state evidence (FR-029)**: against the unchanged tree at
+// `7bc1aea`, the M1 driver does not implement `-emit=ast`. Invoking
+// it exits with the "unknown emit stage" path (exit 2) and the
+// FileCheck pipeline observes a mismatch. The test fails before
+// the parser implementation lands.
+
+// RUN: printf 'module m {\n  func ready { }\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// Same node-kind sequence as the companion `pass-function.test`:
+// `CompilationUnit` → `ModuleBlock` (named `m`) → `FuncDefn` (named
+// `ready`) → an empty `ParallelBlock` body.
+
+// CHECK:      (CompilationUnit
+// CHECK:        (ModuleBlock
+// CHECK-SAME:   name=m
+// CHECK:          (FuncDefn
+// CHECK:            (ParallelBlock
