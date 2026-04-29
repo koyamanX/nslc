@@ -199,20 +199,20 @@ description: "Tasks for M3 — Sema (`nsl-sema`: SymbolTable + TypeSystem + S1�
 
 > Write these tests FIRST. They MUST be observed FAILING against the unchanged tree before any implementation task begins. (Note: Phase 4's per-`Sn` checkers must be in place; this phase exercises their *interaction*, not new behaviors.)
 
-- [ ] T072 [P] [US3] Author `test/sema/recovery/multi_K2.nsl` — two independent `Sn` violations in separate top-level modules (e.g., `S2` in module `A` + `S7` in module `B`); FileCheck asserts exactly two `// expected-error:` directives in source order. Run; expect PASS once Phase 4 is in (verifies hybrid pass independence).
-- [ ] T073 [P] [US3] Author `test/sema/recovery/multi_K3.nsl` — three independent `Sn` violations in separate modules (e.g., `S2`, `S7`, `S14`); FileCheck asserts exactly three `// expected-error:` directives.
-- [ ] T074 [P] [US3] Author `test/sema/recovery/multi_K5.nsl` — five independent `Sn` violations spanning multiple modules and constraint families; asserts exactly five.
-- [ ] T075 [P] [US3] Author `test/sema/recovery/unresolved_cascade.nsl` per `sema-stability.contract.md` Invariant 6 / FR-017 / SC-005: one typo (`fooo` instead of declared `foo`) referenced at 5+ use sites; asserts exactly **one** `// expected-error: unresolved name 'fooo'` directive, NOT five+ cascading width-mismatch errors.
-- [ ] T076 [P] [US3] Author `test/sema/recovery/sibling_unaffected.nsl` — one `Sn` violation in one `module_item` with a *correct* sibling `module_item` after it; asserts the violation diagnostic AND that the sibling's resolution + width inference are unaffected (the sibling's `inferredType()` populates correctly per FR-026).
-- [ ] T077 [P] [US3] Author `test/sema/recovery/cross_module_independence.nsl` — `Sn` violation in module `A` does not suppress per-`Sn` checks in module `B`; both diagnostics emit.
+- [X] T072 [P] [US3] Author `test/sema/recovery/multi_K2.nsl` — two independent `Sn` violations in separate top-level modules (e.g., `S2` in module `A` + `S7` in module `B`); FileCheck asserts exactly two `// expected-error:` directives in source order. Run; expect PASS once Phase 4 is in (verifies hybrid pass independence).
+- [X] T073 [P] [US3] Author `test/sema/recovery/multi_K3.nsl` — three independent `Sn` violations in separate modules (e.g., `S2`, `S7`, `S14`); FileCheck asserts exactly three `// expected-error:` directives.
+- [X] T074 [P] [US3] Author `test/sema/recovery/multi_K5.nsl` — five independent `Sn` violations spanning multiple modules and constraint families; asserts exactly five.
+- [X] T075 [P] [US3] Author `test/sema/recovery/unresolved_cascade.nsl` per `sema-stability.contract.md` Invariant 6 / FR-017 / SC-005: one typo (`fooo` instead of declared `foo`) referenced at 5+ use sites; asserts exactly **one** `// expected-error: unresolved name 'fooo'` directive, NOT five+ cascading width-mismatch errors.
+- [X] T076 [P] [US3] Author `test/sema/recovery/sibling_unaffected.nsl` — one `Sn` violation in one `module_item` with a *correct* sibling `module_item` after it; asserts the violation diagnostic AND that the sibling's resolution + width inference are unaffected (the sibling's `inferredType()` populates correctly per FR-026).
+- [X] T077 [P] [US3] Author `test/sema/recovery/cross_module_independence.nsl` — `Sn` violation in module `A` does not suppress per-`Sn` checks in module `B`; both diagnostics emit.
 
 ### Implementation for User Story 3
 
 The hybrid pass strategy (Q3 Option C) is *already* implemented as part of Phase 2 (T013 Sema.cpp orchestration: `runResolutionPass` then `runConstraintPasses`) and Phase 3 (T030 no-cascade in `ResolutionPass`). No new core implementation is needed — Phase 5 verifies that the structural design produces the expected end-to-end behavior.
 
-- [ ] T078 [US3] Run the recovery fixture corpus: `./build/bin/llvm-lit -v test/sema/recovery/`. Expect 100% pass per SC-004 (`K ∈ {2, 3, 5}`-violations → exactly `K` diagnostics) and SC-005 (`M`-use-site typo → exactly one diagnostic).
-- [ ] T079 [US3] Run the resolution-pass no-cascade unit test: `ctest -R no_cascade_test`. Expect green per FR-017.
-- [ ] T080 [US3] Add a determinism gate for the recovery corpus per SC-007: each recovery fixture's diagnostic stream MUST be byte-identical across two runs and across (build × compiler) combinations. CI extension only (no new fixture).
+- [X] T078 [US3] Run the recovery fixture corpus: `./build/bin/llvm-lit -v test/sema/recovery/`. Expect 100% pass per SC-004 (`K ∈ {2, 3, 5}`-violations → exactly `K` diagnostics) and SC-005 (`M`-use-site typo → exactly one diagnostic).
+- [X] T079 [US3] Run the resolution-pass no-cascade unit test: `ctest -R no_cascade_test`. Expect green per FR-017.
+- [X] T080 [US3] Add a determinism gate for the recovery corpus per SC-007: each recovery fixture's diagnostic stream MUST be byte-identical across two runs and across (build × compiler) combinations. CI extension only (no new fixture).
 
 **Checkpoint**: User Story 3 is fully verified. Multi-error fixtures pass; no-cascade guarantee holds end-to-end; per-`Sn` independence is structurally enforced by the hybrid strategy. M3 acceptance gates SC-004 + SC-005 met.
 
@@ -224,13 +224,13 @@ The hybrid pass strategy (Q3 Option C) is *already* implemented as part of Phase
 
 ### SPDX + layering hygiene
 
-- [ ] T081 [P] Run M0's `scripts/check_spdx.py` against `git ls-files`; verify 100% of new files under `lib/Sema/`, `include/nsl/Sema/`, `lib/Driver/Sema.cpp`, `test/sema/`, `test_unit/{symbol_table,type_system,resolution_pass,constructive_sn,sema_lifecycle}_test/` carry the `Apache-2.0 WITH LLVM-exception` header per SC-008.
-- [ ] T082 [P] Verify `nsl-sema` link-target dependency graph via M0's `add_nsl_library` macro: `ldd build/lib/Sema/libnsl-sema.a` (or equivalent) shows only `libnsl-basic.a` and `libnsl-ast.a` (transitively). No edge to `libnsl-parse.a` or any later layer. Per SC-009 / FR-002 / FR-003.
+- [X] T081 [P] Run M0's `scripts/check_spdx.py` against `git ls-files`; verify 100% of new files under `lib/Sema/`, `include/nsl/Sema/`, `lib/Driver/Sema.cpp`, `test/sema/`, `test_unit/{symbol_table,type_system,resolution_pass,constructive_sn,sema_lifecycle}_test/` carry the `Apache-2.0 WITH LLVM-exception` header per SC-008.
+- [X] T082 [P] Verify `nsl-sema` link-target dependency graph via M0's `add_nsl_library` macro: `ldd build/lib/Sema/libnsl-sema.a` (or equivalent) shows only `libnsl-basic.a` and `libnsl-ast.a` (transitively). No edge to `libnsl-parse.a` or any later layer. Per SC-009 / FR-002 / FR-003.
 
 ### Determinism gate (Principle V; FR-029 / SC-003 / SC-007)
 
 - [ ] T083 Run the two-build determinism gate from M0: `./scripts/ci.sh determinism`. Verify post-Sema `-emit=ast` output is byte-identical across (Debug × Release) × (gcc × clang) on a representative fixture per SC-007.
-- [ ] T084 Verify the post-Sema printer's no-pointer-leak invariant per `sema-stability.contract.md` Invariant 5: `nslc -emit=ast test/sema/emit-ast-resolved/<fixture>.nsl | grep -E '0x[0-9a-f]+'` returns no matches.
+- [X] T084 Verify the post-Sema printer's no-pointer-leak invariant per `sema-stability.contract.md` Invariant 5: `nslc -emit=ast test/sema/emit-ast-resolved/<fixture>.nsl | grep -E '0x[0-9a-f]+'` returns no matches.
 
 ### Documentation + spec/design coupling (Principle VII)
 
