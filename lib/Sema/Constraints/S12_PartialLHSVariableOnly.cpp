@@ -60,7 +60,17 @@ public:
             return;
           }
           Symbol *sym = ctx.symbols->lookup(head);
-          if (sym != nullptr && sym->kind() != SymbolKind::SK_Variable) {
+          if (sym == nullptr) {
+            return;
+          }
+          // Memory cell indexing (`mem[i] := val`) is NOT a partial
+          // assignment — it's a whole-cell write to the addressed
+          // element. The S12 partial-assign-restricted-to-variable
+          // rule applies only to bit-slice-on-non-mem LHS.
+          if (sym->kind() == SymbolKind::SK_Mem) {
+            return;
+          }
+          if (sym->kind() != SymbolKind::SK_Variable) {
             ctx.diag->report(
                 Severity::Error, t.loc().begin(),
                 "partial assignment is permitted only on 'variable' "

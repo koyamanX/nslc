@@ -71,6 +71,12 @@ public:
           // `=` (WireEq) targets wire/output/inout/variable/integer.
           // `:=` (RegColonEq) targets reg (or struct-instance which
           // is modeled as a RegSymbol per ResolutionPass).
+          // Memory cells use clocked-write semantics: `mem[idx] := val`
+          // is the canonical mem write; `mem[idx]` on RHS is a
+          // combinational read. Skip S3 when the LHS root is a Mem.
+          if (k == SymbolKind::SK_Mem) {
+            return;
+          }
           if (t.op() == ast::TransferStmt::Op::WireEq) {
             if (k == SymbolKind::SK_Reg) {
               auto b = ctx.diag->report(
