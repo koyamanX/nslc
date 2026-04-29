@@ -106,6 +106,21 @@ bool SymbolTable::declare(std::unique_ptr<Symbol> sym) {
   return scopes_.back()->insert(std::move(sym));
 }
 
+bool SymbolTable::declareInScope(ScopeKind kind,
+                                 std::unique_ptr<Symbol> sym) {
+  for (auto it = scopes_.rbegin(); it != scopes_.rend(); ++it) {
+    if ((*it)->kind() == kind) {
+      return (*it)->insert(std::move(sym));
+    }
+  }
+  // No enclosing scope of the requested kind on the active stack;
+  // fall back to the innermost scope so the symbol survives. The
+  // caller treats the false return as "duplicate" but here it just
+  // means "wrong scope shape"; consumers should not rely on this
+  // path being silent.
+  return scopes_.back()->insert(std::move(sym));
+}
+
 Symbol *SymbolTable::lookup(ast::Identifier name) const {
   // Walk innermost-first; the first match wins per the lexical-
   // scope semantics in design §6 lines 786–793.

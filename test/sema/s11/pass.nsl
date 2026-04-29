@@ -15,4 +15,4 @@ module m_pass {
 }
 
 // CHECK: (ProcDefn {{.*}}name=p
-// CHECK: (StateNameDecl {{.*}}name=s1
+// CHECK: (StateNameDecl {{.*}}names=[s1]

@@ -524,6 +524,18 @@ public:
   /// may use it for incremental introspection.
   [[nodiscard]] const Scope *currentScope() const noexcept;
 
+  /// Declare `sym` into the nearest enclosing scope of the given
+  /// `kind` walking outward from the current scope, instead of
+  /// the innermost scope (which is what `declare` targets).
+  /// Returns false on duplicate-name in the targeted scope.
+  ///
+  /// Used by ResolutionPass to lift proc-internal `state_name`
+  /// declarations into the surrounding `Module` scope so they
+  /// resolve from sibling `func`/`proc`/module-action positions;
+  /// the per-`Sn` checker S11 then enforces that uses occur only
+  /// inside the declaring proc body.
+  bool declareInScope(ScopeKind kind, std::unique_ptr<Symbol> sym);
+
   /// Number of scopes currently on the stack. 0 before the first
   /// `enterScope`; matches AST nesting depth during `ResolutionPass`
   /// per the test contract in `test_unit/symbol_table_test/`.

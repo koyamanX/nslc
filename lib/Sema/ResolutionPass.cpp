@@ -955,7 +955,13 @@ void Walker::declStateName(const ast::StateNameDecl &n) {
   for (auto name : n.names()) {
     auto sym = std::make_unique<StateSymbol>(name, n.loc());
     StateSymbol *raw = sym.get();
-    if (!table_.declare(std::move(sym))) {
+    // Lift the state_name into the nearest enclosing Module scope
+    // (rather than the proc's local scope) so references from
+    // sibling func/proc/module-action bodies resolve. The S11
+    // checker then enforces that the use site's enclosing proc is
+    // the declaring proc — references from elsewhere fire S11
+    // instead of cascading into "unresolved name" diagnostics.
+    if (!table_.declareInScope(ScopeKind::Module, std::move(sym))) {
       std::string msg = "duplicate declaration of '";
       msg += name.str();
       msg += "'";
