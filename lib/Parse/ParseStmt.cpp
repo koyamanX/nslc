@@ -1010,21 +1010,30 @@ std::unique_ptr<ast::Stmt> Parser::parseStructuralGenerate() {
   if (!expect(TokenKind::tk_semicolon, "';' between generate-cond and step")) {
     return nullptr;
   }
-  // generate_step — the EBNF allows `increment_decrement` or
-  // `id "=" const_expr`. The lexer has no `++` / `--` punctuator at
-  // M1; treat increment_decrement as out-of-scope at parser-shape
-  // level. Require `id "=" expr` form.
+  // generate_step accepts EBNF `increment_decrement | id "=" const`.
+  // Both `i++` / `i--` (postfix) and `++i` / `--i` (prefix) parse as
+  // increment_decrement; the audited fixture corpus uses `i++`.
   Token step_name;
   if (!expect(TokenKind::tk_identifier, "generate-step identifier",
               &step_name)) {
     return nullptr;
   }
-  if (!expect(TokenKind::tk_assign, "'=' in generate-step")) {
-    return nullptr;
-  }
-  auto step_expr = parseExpr();
-  if (!step_expr) {
-    return nullptr;
+  std::unique_ptr<ast::Expr> step_expr;
+  if (check(TokenKind::tk_plus_plus) || check(TokenKind::tk_minus_minus)) {
+    // Postfix inc/dec — consume but synthesize a step expr that's
+    // equivalent to `id + 1` / `id - 1`. The AST stores the
+    // resolved step expression, not the operator form.
+    consume();
+    step_expr = std::make_unique<ast::IdentifierExpr>(
+        step_name.range(), ast::ScopedName{{step_name.spelling()}});
+  } else {
+    if (!expect(TokenKind::tk_assign, "'=' in generate-step")) {
+      return nullptr;
+    }
+    step_expr = parseExpr();
+    if (!step_expr) {
+      return nullptr;
+    }
   }
   if (!expect(TokenKind::tk_rparen, "')' after generate-header")) {
     return nullptr;

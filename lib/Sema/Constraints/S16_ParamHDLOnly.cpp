@@ -5,14 +5,24 @@
 // only for Verilog/VHDL/SystemC submodules; pure-NSL modules use
 // `#define`.
 //
-// At M3 the AST does not carry an HDL-flavor flag on submodules, so
-// this checker fires whenever a `param_int` / `param_str` declaration
-// appears at compilation-unit top level outside of a submodule
-// import context. The fixture s16/fail.nsl exercises this case.
+// Per audited NSL practice (examples/19_param.nsl) and the spec
+// note in `lang.ebnf §3.1`, top-level `param_int` / `param_str`
+// IS the canonical pure-NSL compile-time-constant form — it does
+// NOT violate S16. The S16 rule applies to `param_int` /
+// `param_str` declared INSIDE a `declare` block (header_param
+// position): those are connection-time parameters for the
+// imported Verilog/VHDL/SystemC submodule the declare describes.
+// In a pure-NSL declare (no HDL submodule attached) the
+// header_param has no binding target.
+//
+// Phase 4b ships a permissive shape: S16 fires on every
+// declare-block param. Once submodule-import metadata tracks the
+// HDL flavor, refine to skip when the declare has an
+// HDL-submodule attachment.
 
 #include "../ConstraintCheckRegistry.h"
 #include "nsl/AST/CompilationUnit.h"
-#include "nsl/AST/ModuleBlock.h"
+#include "nsl/AST/DeclareBlock.h"
 #include "nsl/AST/TopLevelParamDecl.h"
 #include "nsl/Basic/Diagnostic.h"
 
@@ -25,28 +35,19 @@ public:
     if (ctx.unit == nullptr || ctx.diag == nullptr) {
       return;
     }
-    // Heuristic: the unit contains BOTH a top-level param_int/param_str
-    // AND a pure-NSL ModuleBlock. If so, the param has no HDL submodule
-    // to attach to → fire S16.
-    bool has_top_param = false;
-    SourceLocation param_loc;
-    bool has_pure_module = false;
     for (const auto &item : ctx.unit->items()) {
-      if (!item) {
+      if (!item || item->kind() != ast::NodeKind::NK_DeclareBlock) {
         continue;
       }
-      if (item->kind() == ast::NodeKind::NK_TopLevelParamDecl) {
-        has_top_param = true;
-        param_loc = item->loc().begin();
-      } else if (item->kind() == ast::NodeKind::NK_ModuleBlock) {
-        has_pure_module = true;
+      const auto &db = static_cast<const ast::DeclareBlock &>(*item);
+      for (const auto &p : db.headerParams()) {
+        if (p && p->kind() == ast::NodeKind::NK_TopLevelParamDecl) {
+          ctx.diag->report(Severity::Error, p->loc().begin(),
+                           "'param_int' / 'param_str' is meaningful only "
+                           "for Verilog/VHDL/SystemC submodules; pure-NSL "
+                           "modules use '#define' (S16)");
+        }
       }
-    }
-    if (has_top_param && has_pure_module) {
-      ctx.diag->report(
-          Severity::Error, param_loc,
-          "'param_int' / 'param_str' is meaningful only for Verilog/"
-          "VHDL/SystemC submodules; pure-NSL modules use '#define' (S16)");
     }
   }
 };

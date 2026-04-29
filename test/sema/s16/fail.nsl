@@ -1,22 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // test/sema/s16/fail.nsl — S16 (lang.ebnf:880) fail case.
-// S16: `param_int` / `param_str` are meaningful only for HDL
-// submodules. A pure-NSL module containing a top-level
-// param-int (without an HDL-flagged module declaration) violates
-// S16.
+// S16: `param_int` / `param_str` declared INSIDE a declare-block
+// header (the connection-time form) is meaningful only for
+// Verilog/VHDL/SystemC submodule imports. In pure-NSL modules
+// the canonical compile-time-constant forms are top-level
+// `param_int` (per Ref §3.1) or `#define`.
 //
 // Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
 //   'param_int' / 'param_str' is meaningful only for Verilog/VHDL/SystemC submodules; pure-NSL modules use '#define' (S16)
-//
-// **Phase 4a TDD red state**: no S16 checker exists; FAILS until
-// Phase 4b T056.
 
 // RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
 
-param_int N = 8;
-module m_fail {
-  reg q[N];
+declare m_fail {
+  param_int N;
 }
 
 // CHECK: error: 'param_int' / 'param_str' is meaningful only for Verilog/VHDL/SystemC submodules; pure-NSL modules use '#define' (S16)
