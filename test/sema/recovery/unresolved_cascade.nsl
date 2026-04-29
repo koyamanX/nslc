@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/recovery/unresolved_cascade.nsl — one typo at five
+// different use sites. Per FR-017 + SC-005 + sema-stability
+// Invariant 6, the resolver MUST emit exactly ONE
+// "unresolved name 'fooo'" diagnostic, NOT five (or more if you
+// also count cascading width-mismatch errors driven by the
+// Unresolved type of `fooo`).
+//
+// This is the no-cascade contract verified end-to-end.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m {
+  reg foo[8] = 0;
+  reg q[8] = 0;
+  func clk {
+    q := fooo + 1;
+    q := fooo - 1;
+    q := fooo & 0xff;
+    q := fooo | 0x00;
+    q := fooo ^ 0x55;
+  }
+}
+
+// CHECK: error: unresolved name 'fooo'
+// CHECK-NOT: error: unresolved name 'fooo'
+// CHECK-NOT: error: width mismatch

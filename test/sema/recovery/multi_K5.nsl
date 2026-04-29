@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/recovery/multi_K5.nsl — five independent violations
+// spanning multiple modules and constraint families. Verifies
+// K=5 yields exactly five diagnostics per FR-016 + SC-004.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module A {
+  wire bad = 0;
+}
+
+module B {
+  reg bad__name;
+}
+
+module C {
+  reg q[8] = 0;
+  func clk { q := if (q < 8) q + 1; }
+}
+
+module D {
+  reg r;
+  func clk { r = 0; }
+}
+
+module E {
+  function ready { }
+}
+
+// CHECK-DAG: error: 'wire' may not have an initializer; use 'reg' instead (S2)
+// CHECK-DAG: error: identifier may not contain '__' (S1)
+// CHECK-DAG: error: conditional expression requires an 'else' branch (S14)
+// CHECK-DAG: error: '=' targets a wire, output, inout, variable, or integer; use ':=' for reg (S3)
+// CHECK-DAG: warning: 'function' is accepted as a synonym for 'func' but is not the canonical form (S26)

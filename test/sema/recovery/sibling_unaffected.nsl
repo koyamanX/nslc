@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/recovery/sibling_unaffected.nsl — one Sn violation in
+// one module_item with a *correct* sibling module_item after it.
+// Asserts the violation diagnostic AND that the sibling's
+// resolution + width inference are unaffected (FR-026 +
+// per-module independence).
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module Bad {
+  wire bad = 0;
+}
+
+module Good {
+  reg q[8] = 0;
+  func clk { q := q + 1; }
+}
+
+// The violation in module Bad fires exactly once:
+// CHECK: error: 'wire' may not have an initializer; use 'reg' instead (S2)
+
+// The sibling module Good is processed independently — no extra
+// diagnostics fire on its well-formed q reg + clk func, even
+// though `q := q + 1` exercises the post-resolution width-
+// inference path and could surface spurious cascading errors if
+// per-module independence were broken.
+// CHECK-NOT: error
+// CHECK-NOT: warning: 'function'

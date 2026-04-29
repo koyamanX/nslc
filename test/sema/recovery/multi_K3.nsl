@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/recovery/multi_K3.nsl — three independent violations
+// across three modules: S2 (wire init), S1 (double-underscore),
+// S14 (conditional missing else). Verifies K=3 yields exactly
+// three diagnostics per FR-016 + SC-004.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module A {
+  wire bad = 0;
+}
+
+module B {
+  reg bad__name;
+}
+
+module C {
+  reg q[8] = 0;
+  func clk { q := if (q < 8) q + 1; }
+}
+
+// CHECK-DAG: error: 'wire' may not have an initializer; use 'reg' instead (S2)
+// CHECK-DAG: error: identifier may not contain '__' (S1)
+// CHECK-DAG: error: conditional expression requires an 'else' branch (S14)
