@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s02/pass.nsl — S2 (lang.ebnf:832) pass case.
+// S2: `wire` may not have an initializer. Pass case: a wire without
+// an initializer.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  wire q[8];
+}
+
+// CHECK: (WireDecl {{.*}}name=q

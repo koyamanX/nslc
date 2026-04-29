@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s18/pass.nsl — S18 (lang.ebnf:889) pass case.
+// S18 is **constructive** (Severity = Layout): in a struct,
+// earlier-declared members occupy more-significant bit positions of
+// the packed layout (MSB-first). Sema emits NO diagnostic — the
+// introspection observable is `StructTypeSymbol::fields()` per
+// `sema-api.contract.md` Invariant 4.
+//
+// Pass case: a 3-field struct so Phase 4b T066 can populate the
+// MSB-first ordered fields with correct offsets. The introspection
+// assertion lives in `test_unit/constructive_sn_test/s18_test.cc`.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+struct hdr_t {
+  msb_field[4];
+  mid_field[2];
+  lsb_field[2];
+};
+
+// CHECK: (StructDecl {{.*}}name=hdr_t

@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s27/pass.nsl — S27 (lang.ebnf:965) pass case.
+// S27 is **constructive** (Severity = Classification): a func_in /
+// func_out / func_self / proc_name identifier in expression
+// position evaluates to a 1-bit tap. Sema emits NO diagnostic —
+// the introspection observable is
+// `Sema::classifyIdentifierExpr() == ControlTerminalTap` per
+// `sema-api.contract.md` Invariant 4.
+//
+// Pass case: a proc_name identifier on the RHS of an assignment
+// (the canonical S27 shape — `debug_s = start;`). The
+// introspection assertion lives in
+// `test_unit/constructive_sn_test/s27_test.cc`.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  reg debug_s;
+  proc_name start;
+  func tap {
+    debug_s := start;
+  }
+}
+
+// CHECK: (FuncDefn {{.*}}name=tap
+// CHECK: (TransferStmt

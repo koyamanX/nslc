@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/emit-ast-resolved/hello.test — post-Sema `-emit=ast`
+// golden corpus (T025 of `specs/006-m3-sema/tasks.md`). Asserts:
+//
+//   - `emit-ast-format.contract.md` Invariant 2: every `Expr` line
+//     gains a ` : <Type>` suffix between `loc=` and the kind-
+//     specific fields.
+//   - `emit-ast-format.contract.md` Invariant 3: every name-ref
+//     whose resolved Symbol* is non-null gains a ` -> decl@<file>:<line>:<col>`
+//     suffix after the type suffix.
+//   - `sema-stability.contract.md` Invariant 1: the printer's
+//     output is byte-stable across two runs (per `byte_stable.test`).
+//
+// **Failing-state evidence (FR-029)**: against the unchanged tree
+// at the Phase 2 commit, the post-Sema enrichments are absent
+// — the `: <Type>` suffix and `-> decl@…` suffix do not appear in
+// the printer output. Phase 3's ResolutionPass + printer extension
+// makes them appear; this fixture freezes the format.
+//
+// RUN: printf 'module hello {\n  reg q[8] = 0;\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (CompilationUnit
+// CHECK:   (ModuleBlock {{.*}}name=hello
+// CHECK:     (RegDecl {{.*}}name=q
+// CHECK:       (LiteralExpr {{.*}} : BitVector({{[0-9]+}}) kind=Decimal value=8)
+// CHECK:       (LiteralExpr {{.*}} : BitVector({{[0-9]+}}) kind=Decimal value=0)

@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s11/pass.nsl — S11 (lang.ebnf:863) pass case.
+// S11: a `state_name` declared inside a `proc` is scoped to that
+// proc only. Pass case: state_name used inside its own proc.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  proc_name p;
+  proc p {
+    state_name s1;
+    state s1 { }
+  }
+}
+
+// CHECK: (ProcDefn {{.*}}name=p
+// CHECK: (StateNameDecl {{.*}}names=[s1]

@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/width/zero_extend_expr.test — zero-extend-expression
+// width fixture (T024 rollover; specs/006-m3-sema/tasks.md Phase 4a).
+// The zero-extend operator `8 ' sig` (zero-extending `sig` to width
+// 8) produces an expression with explicit width 8. Asserts the
+// `ZeroExtendExpr` carries a `: BitVector(N)` Type suffix per
+// `emit-ast-format.contract.md` Invariant 2.
+
+// RUN: printf 'module m {\n  wire sig;\n  reg q = 8'"'"'(sig);\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (RegDecl {{.*}}name=q
+// CHECK: (ZeroExtendExpr {{.*}} : BitVector({{[0-9]+}})

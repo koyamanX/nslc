@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s09/pass.nsl — S9 (lang.ebnf:857) pass case.
+// S9: the for-loop variable must be a `reg` identifier.
+// Pass case: for-loop variable is a reg.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  reg i[8];
+  proc_name p;
+  proc p {
+    seq {
+      for (i := 0; i < 8; i++) { }
+    }
+  }
+}
+
+// CHECK: (ForBlock

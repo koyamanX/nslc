@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s22/pass.nsl — S22 (lang.ebnf:931) pass case.
+// S22: `return` appears inside a func body only; expression width
+// must match the return-value terminal's width; bare `return;` is
+// valid only when the func has no return terminal. Pass case: bare
+// return in a func with no return terminal.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  func ready {
+    return;
+  }
+}
+
+// CHECK: (FuncDefn {{.*}}name=ready
+// CHECK: (ReturnStmt

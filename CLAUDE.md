@@ -53,7 +53,9 @@ References to `lang.ebnf §X` are sections in
 | System tasks: `_display`, `_finish`, `_init`, `_delay`, … | lang.ebnf §10; S17, S29 | M2; M3 | M4 (sim-only) | M6 (sim-only emit) |
 | Expressions (sign-extend `#`, zero-extend `'`, slice, concat, conditional) | lang.ebnf §11; S14, S15 | M2 (incl. N5 `#` line-marker disambiguation); M3 | M5 | M6 (`comb::*`, `hwarith::*`) |
 | Width / constant expressions | lang.ebnf §12 | M2; M3 | M5 | — |
-| Semantic constraints `S1`–`S29` | lang.ebnf S1–S29 area | **M3 — one pass-case + one fail-case test each per Principle VI** | — | — |
+| Semantic constraints `S1`–`S29` | lang.ebnf S1–S29 area | **M3 — one pass-case + one fail-case test each per Principle VI**[^constructive] | — | — |
+
+[^constructive]: 23 of the 29 `Sn` are error/warning constraints checked via the standard pass+fail lit fixture pair under `test/sema/s<NN>/`. The remaining 6 — `S13`, `S18`, `S19`, `S23`, `S24`, `S27` — are **constructive** (per Clarifications session 2026-04-28 Q1 → Option B; constitution v1.6.0 Principle VIII carve-out): they emit no diagnostic and instead populate an introspection observable on the symbol/type system. Their fail-case shape is a paired GoogleTest assertion under `test_unit/constructive_sn_test/s<NN>_test.cc` that asserts the *opposite* observable via `EXPECT_NONFATAL_FAILURE`. See `specs/006-m3-sema/contracts/sema-api.contract.md` Invariant 4 for the full introspection-API table.
 | Parser notes `N1`–`N14` | lang.ebnf N1–N14 area | M2 (most); M3 (S/N interactions) | — | — |
 | Preprocessor notes `P1`–`P13` | pp.ebnf P1–P13 area | M1 (one test each per Principle VI) | — | — |
 
@@ -152,17 +154,20 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `005-m2-parser` — land the `nsl-ast` (4) and
-`nsl-parse` (5) static libraries plus the `nslc -emit=ast` driver
-flag, completing the M-track parser milestone. Full multi-error
-recovery (clangd-style, per /speckit-clarify Q1) and text-only
-S-expression-style AST dump (per /speckit-clarify Q2). For
-technologies, project structure, AST entity catalog, and
-quickstart, read the current plan:
-[`specs/005-m2-parser/plan.md`](./specs/005-m2-parser/plan.md).
-Companion artifacts: [`spec.md`](./specs/005-m2-parser/spec.md),
-[`research.md`](./specs/005-m2-parser/research.md),
-[`data-model.md`](./specs/005-m2-parser/data-model.md),
-[`contracts/`](./specs/005-m2-parser/contracts/),
-[`quickstart.md`](./specs/005-m2-parser/quickstart.md).
+**Active feature**: `006-m3-sema` — land the `nsl-sema` (6) static
+library (SymbolTable + TypeSystem + per-`Sn` constraint checking
+`S1`–`S29`), threading it into the driver between parse and any
+`-emit=*` from `-emit=ast` forward. Hybrid recovery: one top-down
+resolution pass + per-`Sn` independent walkers (per /speckit-
+clarify Q3 Option C); paired pass+introspection for the 6
+constructive `Sn` `S13`/`S18`/`S19`/`S23`/`S24`/`S27` (Q1 Option B);
+`-emit=ast` re-cut in place to print resolved types and decl-loc
+inline (Q2 Option A). For technologies, project structure, Symbol
++ Type entity catalog, contracts, and quickstart, read the current
+plan: [`specs/006-m3-sema/plan.md`](./specs/006-m3-sema/plan.md).
+Companion artifacts: [`spec.md`](./specs/006-m3-sema/spec.md),
+[`research.md`](./specs/006-m3-sema/research.md),
+[`data-model.md`](./specs/006-m3-sema/data-model.md),
+[`contracts/`](./specs/006-m3-sema/contracts/),
+[`quickstart.md`](./specs/006-m3-sema/quickstart.md).
 <!-- SPECKIT END -->

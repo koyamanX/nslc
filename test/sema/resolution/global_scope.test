@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/resolution/global_scope.test — global-scope resolution
+// fixture (T023 rollover; specs/006-m3-sema/tasks.md Phase 4a).
+// Asserts that struct-type declarations and top-level params declared
+// at the global scope are resolvable from references inside a
+// `module` block.
+//
+// Per `emit-ast-format.contract.md` Invariants 2 + 3: every name-ref
+// gains a `: <Type>` suffix and (when resolved) a
+// ` -> decl@<file>:<line>:<col>` suffix pointing at the declaration
+// site (ASCII separators per Invariant 7).
+//
+// Phase 4a status: this fixture exercises Phase 3's ResolutionPass on
+// the global-scope path (struct-type declared then referenced by
+// struct-instance-reg `s_t reg slot;`). The Phase 3 implementation
+// already opens a Global scope in `runResolutionPass`; this fixture
+// is the corpus rollover from that representative coverage.
+
+// RUN: printf 'struct s_t { v[8]; };\nmodule m {\n  s_t reg slot;\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (StructDecl {{.*}}name=s_t
+// CHECK: (ModuleBlock {{.*}}name=m
+// CHECK: (StructInstDecl

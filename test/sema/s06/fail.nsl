@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s06/fail.nsl — S6 (lang.ebnf:848) fail case.
+// S6: `proc_name` args must be `reg` identifiers; a `wire` here
+// violates S6.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   'proc_name' arguments must be 'reg' identifiers (S6)
+//
+// **Phase 4a TDD red state**: no S6 checker exists; FAILS until
+// Phase 4b T047.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  wire w;
+  proc_name p(w);
+}
+
+// CHECK: error: 'proc_name' arguments must be 'reg' identifiers (S6)

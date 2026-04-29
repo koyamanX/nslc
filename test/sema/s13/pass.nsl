@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s13/pass.nsl — S13 (lang.ebnf:871) pass case.
+// S13 is **constructive** (Severity = Classification): in `alt`
+// blocks only the first matching case fires (priority); in `any`
+// blocks all matching cases fire (parallel). Sema emits NO
+// diagnostic — the introspection observable is the parser-emitted
+// node kind (`AltBlock` vs `AnyBlock`), surfaced via
+// `AltBlock::cases()` / `AnyBlock::cases()` per
+// `sema-api.contract.md` Invariant 4.
+//
+// Pass case: a module containing one `alt` and one `any` so Phase
+// 4b T065 can populate both classifiers. The introspection
+// assertion lives in `test_unit/constructive_sn_test/s13_test.cc`.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  wire c;
+  wire q;
+  alt { c: q = 0; }
+  any { c: q = 0; }
+}
+
+// CHECK: (AltBlock
+// CHECK: (AnyBlock

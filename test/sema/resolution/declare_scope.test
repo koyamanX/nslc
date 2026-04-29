@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/resolution/declare_scope.test — declare-block scope
+// fixture (T023 rollover; specs/006-m3-sema/tasks.md Phase 4a).
+// Asserts that header ports + control terminals declared at declare
+// scope are resolvable from references in the parallel scope
+// (module body).
+//
+// Per `emit-ast-format.contract.md` Invariants 2 + 3 (ASCII
+// separators per Invariant 7).
+
+// RUN: printf 'declare d {\n  input clk;\n  output q[8];\n  inout io;\n  func_in start();\n  func_out done;\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (DeclareBlock {{.*}}name=d
+// CHECK: (PortDecl {{.*}}name=clk
+// CHECK: (PortDecl {{.*}}name=q
+// CHECK: (PortDecl {{.*}}name=io
+// CHECK: (PortDecl {{.*}}direction=FuncIn{{.*}}name=start
+// CHECK: (PortDecl {{.*}}direction=FuncOut{{.*}}name=done

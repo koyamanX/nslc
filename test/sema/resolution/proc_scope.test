@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/resolution/proc_scope.test — proc-body scope fixture
+// (T023 rollover; specs/006-m3-sema/tasks.md Phase 4a). Asserts that
+// state_name declarations inside a `proc` body are scoped to that
+// proc and resolvable in subsequent transfers within the proc.
+//
+// Per `emit-ast-format.contract.md` Invariants 2 + 3 (ASCII
+// separators per Invariant 7).
+
+// RUN: printf 'module m {\n  reg q;\n  proc_name p;\n  proc p {\n    q := 0;\n  }\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (ModuleBlock {{.*}}name=m
+// CHECK: (RegDecl {{.*}}name=q
+// CHECK: (ProcDefn {{.*}}name=p
+// CHECK: (IdentifierExpr {{.*}} : BitVector({{[0-9]+}}) {{.*}}-> decl@{{[^:]+}}:2

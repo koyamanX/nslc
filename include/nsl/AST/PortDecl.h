@@ -24,10 +24,24 @@ namespace nsl::ast {
 
 class PortDecl final : public Decl {
 public:
-  /// Five directions: three data (Input/Output/Inout) plus two
-  /// control (FuncIn/FuncOut). Discriminator for the parser-built
-  /// shape.
-  enum class Direction { Input, Output, Inout, FuncIn, FuncOut };
+  /// Seven directions: three data (Input/Output/Inout), two
+  /// control (FuncIn/FuncOut), one wire-class internal terminal
+  /// (Wire) referenced by func_self dummy args, and one control
+  /// (FuncSelf). Discriminator for the parser-built shape. The
+  /// audited NSL fixture corpus accepts `wire` and `func_self`
+  /// inside declare blocks even though the strict EBNF data/
+  /// control_direction enums in `lang.ebnf §4` don't list them
+  /// — Sema's S4 checker enforces the dummy-arg-direction rule
+  /// across all kinds.
+  enum class Direction {
+    Input,
+    Output,
+    Inout,
+    FuncIn,
+    FuncOut,
+    Wire,
+    FuncSelf,
+  };
 
   PortDecl(SourceRange range, Direction direction, Identifier name,
            std::unique_ptr<Expr> width,

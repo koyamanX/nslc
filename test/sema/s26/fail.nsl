@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s26/fail.nsl — S26 (lang.ebnf:959) WARNING case (S26
+// is the only warning-class Sn).
+// S26: `function` is accepted as a synonym for `func` but a Sema
+// warning recommends the canonical form.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   'function' is accepted as a synonym for 'func' but is not the canonical form (S26)
+//
+// FixItHint per `diagnostic-string.contract.md` table (T040):
+// replaceRange = function-keyword range, replacement = `func`.
+//
+// Note: this is a WARNING, so the parser/Sema still accepts the
+// input; nslc exits 0 and the AST is emitted on stdout (we do NOT
+// use `not %nslc` here).
+//
+// **Phase 4a TDD red state**: no S26 checker exists; the warning
+// is not emitted; this fixture FAILS the CHECK. Phase 4b T062
+// turns it green.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_warn {
+  function ready { }
+}
+
+// CHECK: warning: 'function' is accepted as a synonym for 'func' but is not the canonical form (S26)
+// CHECK: fix-it:{{.*}}func

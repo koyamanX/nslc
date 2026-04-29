@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s21/fail_bare_outside_proc.nsl — S21 (lang.ebnf:900)
+// fail variant. A bare `finish` in a func body (outside any proc)
+// violates S21.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   'finish' / 'invoke' is a built-in proc method; bare form is permitted only inside a 'proc' body (S21)
+//
+// **Phase 4a TDD red state**: no S21 checker exists; FAILS until
+// Phase 4b T059.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  func ready {
+    finish;
+  }
+}
+
+// CHECK: error: 'finish' / 'invoke' is a built-in proc method; bare form is permitted only inside a 'proc' body (S21)

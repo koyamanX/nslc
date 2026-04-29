@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/recovery/multi_K2.nsl — two independent Sn violations
+// in separate modules. Verifies the hybrid pass strategy produces
+// exactly K diagnostics for K independent violations (FR-016 +
+// SC-004).
+//
+// Module A has S2 (wire with initializer); module B has S1
+// (double-underscore in identifier). Both must fire — neither
+// suppresses the other.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module A {
+  wire bad = 0;
+}
+
+module B {
+  reg bad__name;
+}
+
+// CHECK-DAG: error: 'wire' may not have an initializer; use 'reg' instead (S2)
+// CHECK-DAG: error: identifier may not contain '__' (S1)

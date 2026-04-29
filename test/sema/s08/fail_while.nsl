@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s08/fail_while.nsl — S8 (lang.ebnf:854) fail variant.
+// A `while` directly inside a proc body but NOT inside a `seq`
+// block violates S8.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   'while' block may appear only inside a 'seq' block (S8)
+//
+// **Phase 4a TDD red state**: no S8 checker exists; FAILS until
+// Phase 4b T049.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  wire c;
+  proc_name p;
+  proc p {
+    while (c) { }
+  }
+}
+
+// CHECK: error: 'while' block may appear only inside a 'seq' block (S8)

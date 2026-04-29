@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s05/fail_funcin.nsl — S5 (lang.ebnf:843) fail variant.
+// `func_in` return-value terminal must be `output` or `inout`; an
+// `input` here violates S5.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   return-value terminal of 'func_in' must be declared 'output' or 'inout' (S5)
+//
+// **Phase 4a TDD red state**: no S5 checker exists; FAILS until
+// Phase 4b T046.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+declare d {
+  input a;
+  func_in start() : a;
+}
+
+// CHECK: error: return-value terminal of 'func_in' must be declared 'output' or 'inout' (S5)

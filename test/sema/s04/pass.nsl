@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s04/pass.nsl — S4 (lang.ebnf:838) pass case.
+// S4: dummy args of `func_in` must be `input`; of `func_out` must be
+// `output`; of `func_self` must be `wire`. The pass case exercises
+// all three with the correct direction.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+declare d {
+  input a;
+  output b;
+  wire c;
+  func_in start(a);
+  func_out done(b);
+  func_self ready(c);
+}
+
+// CHECK: (DeclareBlock {{.*}}name=d

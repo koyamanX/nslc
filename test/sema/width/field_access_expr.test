@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/width/field_access_expr.test — field-access expression
+// width fixture (T024 rollover; specs/006-m3-sema/tasks.md Phase 4a).
+// Asserts the `FieldAccessExpr` for `inst.port` carries some
+// `: BitVector(N)` Type suffix per `emit-ast-format.contract.md`
+// Invariant 2.
+//
+// **Phase 3 stub note**: Phase 3's ResolutionPass currently emits a
+// 1-bit Type for FieldAccessExpr because struct-instance template
+// information isn't yet wired (Phase 4b T058 / S18 refines this).
+// The CHECK pattern uses `BitVector({{[0-9]+}})` which accepts any
+// width; once Phase 4b lands, the fixture remains green and a
+// follow-up may tighten the width assertion to the exact struct-
+// field width.
+
+// RUN: printf 'module m {\n  cpu_t inst;\n  reg q = inst.port;\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (RegDecl {{.*}}name=q
+// CHECK: (FieldAccessExpr {{.*}} : BitVector({{[0-9]+}})

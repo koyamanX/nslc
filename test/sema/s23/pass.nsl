@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s23/pass.nsl — S23 (lang.ebnf:936) pass case.
+// S23 is **constructive** (Severity = Layout): a `reg` declared
+// with an init but no explicit width is 1-bit wide with the given
+// init value. Sema emits NO diagnostic — the introspection
+// observable is `RegSymbol::type() == TypeSystem::bitVector(1)`
+// per `sema-api.contract.md` Invariant 4.
+//
+// Pass case: `reg flushing = 0;` is the canonical S23 shape; Phase
+// 4b T068 sets the type to BitVectorType{1}. The introspection
+// assertion lives in `test_unit/constructive_sn_test/s23_test.cc`.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  reg flushing = 0;
+}
+
+// CHECK: (RegDecl {{.*}}name=flushing

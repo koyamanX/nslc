@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/recovery/cross_module_independence.nsl — Sn violation
+// in module A does not suppress per-Sn checks in module B. Both
+// diagnostics emit per FR-016 + FR-026.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module A {
+  reg bad__name;
+}
+
+module B {
+  wire bad = 0;
+}
+
+// CHECK-DAG: error: identifier may not contain '__' (S1)
+// CHECK-DAG: error: 'wire' may not have an initializer; use 'reg' instead (S2)

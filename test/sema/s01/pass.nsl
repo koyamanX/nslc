@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s01/pass.nsl — S1 (lang.ebnf:830) pass case.
+// S1 forbids identifiers containing the substring `__`. This pass
+// case uses single-underscore identifiers which are permitted.
+//
+// Per Constitution Principle VIII: pass.nsl asserts Sema runs clean
+// (no S1 diagnostic emitted).
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  reg single_underscore;
+}
+
+// CHECK: (ModuleBlock {{.*}}name=m_pass
+// CHECK: (RegDecl {{.*}}name=single_underscore

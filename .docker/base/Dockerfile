@@ -11,7 +11,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 # layered on top.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential \
-      clang lld \
+      clang lld libclang-rt-18-dev \
       cmake ninja-build ccache \
       git curl ca-certificates \
       python3 python3-pip python3-venv \

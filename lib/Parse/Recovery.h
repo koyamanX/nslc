@@ -45,7 +45,8 @@ class Parser;
 /// determinism: byte-identical artifacts).
 class TokenSet {
 public:
-  static constexpr std::size_t kBits = static_cast<std::size_t>(TokenKind::tk_count);
+  static constexpr std::size_t kBits =
+      static_cast<std::size_t>(TokenKind::tk_count);
   static constexpr std::size_t kWords = (kBits + 63U) / 64U;
 
   constexpr TokenSet() noexcept : words_{} {}
@@ -150,9 +151,8 @@ namespace recovery_sets {
 /// keyword. Per the contract: `{struct, declare, module, param_int,
 /// param_str, Eof}`.
 inline constexpr TokenSet kTopLevel{
-    TokenKind::tk_struct_,   TokenKind::tk_declare,
-    TokenKind::tk_module,    TokenKind::tk_param_int,
-    TokenKind::tk_param_str, TokenKind::tk_eof,
+    TokenKind::tk_struct_,   TokenKind::tk_declare,   TokenKind::tk_module,
+    TokenKind::tk_param_int, TokenKind::tk_param_str, TokenKind::tk_eof,
 };
 
 /// `parseDeclareItem()` (inside `declare { … }`): per contract
@@ -181,9 +181,8 @@ inline constexpr TokenSet kModuleItem{
 /// `parseSeqBlock()` body (inside `seq { … }`): per contract
 /// `{Semi, RBrace, if, for, while, goto, return}`.
 inline constexpr TokenSet kSeqItem{
-    TokenKind::tk_semicolon, TokenKind::tk_rbrace,
-    TokenKind::tk_if_,       TokenKind::tk_for_,
-    TokenKind::tk_while_,    TokenKind::tk_goto_,
+    TokenKind::tk_semicolon, TokenKind::tk_rbrace, TokenKind::tk_if_,
+    TokenKind::tk_for_,      TokenKind::tk_while_, TokenKind::tk_goto_,
     TokenKind::tk_return_,
 };
 

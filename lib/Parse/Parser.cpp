@@ -11,12 +11,12 @@
 // order. `line_marker` tokens are consumed without producing AST
 // nodes (FR-015 / N14).
 
+#include "nsl/Parse/Parser.h"
+
 #include "ParserImpl.h"
 #include "Recovery.h"
-
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/Decl.h"
-#include "nsl/Parse/Parser.h"
 
 #include "llvm/ADT/StringRef.h"
 
@@ -115,10 +115,9 @@ ast::ScopedName Parser::parseScopedName(SourceRange &out_range) {
     // validates the proc-instance kind separately).
     Token next = peekAhead(1);
     TokenKind nk = next.kind();
-    bool accept = (nk == TokenKind::tk_identifier ||
-                   nk == TokenKind::tk_label ||
-                   nk == TokenKind::tk_invoke ||
-                   nk == TokenKind::tk_finish);
+    bool accept =
+        (nk == TokenKind::tk_identifier || nk == TokenKind::tk_label ||
+         nk == TokenKind::tk_invoke || nk == TokenKind::tk_finish);
     if (!accept) {
       break;
     }

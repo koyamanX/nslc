@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s06/pass.nsl — S6 (lang.ebnf:848) pass case.
+// S6: `proc_name` arguments must be `reg` identifiers. The pass
+// case declares a proc_name with reg args.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  reg r;
+  proc_name p(r);
+}
+
+// CHECK: (ProcNameDecl {{.*}}name=p

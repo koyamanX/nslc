@@ -26,9 +26,12 @@
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Basic/SourceManager.h"
+#include "nsl/Driver/Sema.h"
 #include "nsl/Lex/Lexer.h"
 #include "nsl/Parse/Parser.h"
 #include "nsl/Preprocess/Preprocessor.h"
+#include "nsl/Sema/Sema.h"
+#include "nsl/Sema/SymbolTable.h"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/ErrorOr.h"
@@ -40,6 +43,27 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+// Phase 3 (T035, FR-019): forward-declare `nsl::sema::lookupDeclLoc`
+// — a free function defined in `lib/Sema/ResolutionPass.cpp` that
+// queries the current `ResolutionMap` (TLS-stored by `Sema::run`)
+// and returns the resolved declaration's `SourceRange`. Returning
+// an invalid `SourceRange` means "unresolved" — the printer skips
+// the `→ decl@…` suffix in that case.
+//
+// We forward-declare here (rather than including a private
+// `lib/Sema/ResolutionPass.h`) because the driver layer is not on
+// the lib/Sema/ include path. The linker resolves the symbol via
+// `nsl-sema`'s exported translation units.
+namespace nsl::sema {
+class Symbol;
+} // namespace nsl::sema
+namespace nsl::ast {
+class Expr;
+} // namespace nsl::ast
+namespace nsl::sema {
+::nsl::SourceRange lookupDeclLoc(const ::nsl::ast::Expr *e) noexcept;
+} // namespace nsl::sema
 
 namespace nsl::driver {
 
@@ -163,18 +187,37 @@ int emitAST(llvm::StringRef input_path, const EmitTokensOptions &opts,
   // and the diagnostic is already in the engine.
   auto cu = parse::parseCompilationUnit(lexer, diag);
 
+  // M3 Phase 2 (T017, FR-019): run Sema after parse and before AST
+  // printing so the post-Sema printer (Phase 3 T031–T033) can emit
+  // the resolved-type / decl-loc enrichments. On Sema failure, exit
+  // non-zero with no AST output on stdout (parallel to the
+  // parse-failure path below). At Phase 2 the `runSema` body is a
+  // no-op stub — `result.hasErrors` is false on every well-parsed
+  // input — so this call is observable but inert.
+  sema::SemaResult sema_result;
+  if (cu) {
+    sema_result = driver::runSema(*cu, diag);
+  }
+
   // Buffer the AST text BEFORE checking for errors — we want to
   // generate the bytes in a deterministic memory order, then either
   // commit (on no-errors) or discard (on error). The buffering
   // implements FR-022's "no partial output on error".
+  //
+  // Phase 3 (T035, FR-020): when Sema produces post-Sema enrichments
+  // on the AST (every `Expr::inferredType()` non-null), the printer
+  // detects post-Sema mode automatically. The decl-loc lookup
+  // callback is supplied so `→ decl@<file>:<line>:<col>` decoration
+  // can be rendered for resolved name-refs (per
+  // `emit-ast-format.contract.md` Invariants 2 + 3).
   std::string buf;
   if (cu) {
     llvm::raw_string_ostream rs(buf);
-    ast::print(*cu, sm, rs);
+    ast::print(*cu, sm, rs, &::nsl::sema::lookupDeclLoc);
     rs.flush();
   }
 
-  if (diag.hasError() || !cu) {
+  if (diag.hasError() || !cu || sema_result.hasErrors) {
     diag.renderAll(err, opts.diagnostic_json ? DiagnosticEngine::Format::JSON
                                              : DiagnosticEngine::Format::Text);
     return 1;

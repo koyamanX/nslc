@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s21/pass.nsl — S21 (lang.ebnf:900) pass case.
+// S21: built-in proc methods `finish()` / `invoke()` — bare form
+// permitted only inside a proc body; dotted form `<inst>.finish()`
+// requires `<inst>` to be a proc_name. Pass case: bare `finish`
+// inside the proc body.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  proc_name p;
+  proc p {
+    finish;
+  }
+}
+
+// CHECK: (ProcDefn {{.*}}name=p

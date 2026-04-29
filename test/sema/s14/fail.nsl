@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s14/fail.nsl — S14 (lang.ebnf:874) fail case.
+// S14: conditional expression requires an `else`. The construct
+// below has only the `then` branch.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   conditional expression requires an 'else' branch (S14)
+//
+// FixItHint per `diagnostic-string.contract.md` table (T040):
+// insertRange = ConditionalExpr::endRange (zero-width insert),
+// replacement = ` else ` template (user fills the expression).
+//
+// **Phase 4a TDD red state**: no S14 checker exists; FAILS until
+// Phase 4b T054. Note that the M2 parser's N1 disambiguation may
+// already partially handle this; M3 Sema is the authoritative
+// enforcement site.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  wire c;
+  wire a;
+  reg q = if (c) a;
+}
+
+// CHECK: error: conditional expression requires an 'else' branch (S14)
+// CHECK: fix-it:{{.*}}else

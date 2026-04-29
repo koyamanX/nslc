@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s19/pass.nsl — S19 (lang.ebnf:892) pass case.
+// S19 is **constructive** (Severity = Lowering at M5/M6; M3 ships
+// an introspection stub): a single `goto` transition consumes one
+// clock; while/for adds one more per condition check + loop-back.
+// Sema emits NO diagnostic — the introspection observable is
+// `SeqBlock::clockBudget()` per `sema-api.contract.md` Invariant 4.
+//
+// Pass case: a seq block with one labeled goto so Phase 4b T067 can
+// populate clockBudget() with the correct count. Full timing-
+// semantic enforcement is M5/M6.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  proc_name p;
+  proc p {
+    seq {
+      lab: goto lab;
+    }
+  }
+}
+
+// CHECK: (SeqBlock
+// CHECK: (GotoStmt

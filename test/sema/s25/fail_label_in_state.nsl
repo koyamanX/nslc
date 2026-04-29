@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s25/fail_label_in_state.nsl — S25 (lang.ebnf:944) fail
+// variant. Inside a state body, `goto` must target a state_name —
+// targeting a label_name (which is a seq-block-local construct)
+// is the cross-kind violation.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   'goto' inside a 'state' body must target a 'state_name' declared in scope (S25)
+//
+// **Phase 4a TDD red state**: no S25 checker exists; FAILS until
+// Phase 4b T061.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  proc_name p;
+  proc p {
+    state_name s1;
+    state s1 {
+      goto lab;
+    }
+  }
+}
+
+// CHECK: error: 'goto' inside a 'state' body must target a 'state_name' declared in scope (S25)

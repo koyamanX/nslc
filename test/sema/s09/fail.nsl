@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s09/fail.nsl — S9 (lang.ebnf:857) fail case.
+// S9: for-loop variable must be a `reg` identifier; an `integer`
+// here violates S9.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   for-loop variable must be a 'reg' identifier (S9)
+//
+// **Phase 4a TDD red state**: no S9 checker exists; FAILS until
+// Phase 4b T050.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  integer i;
+  proc_name p;
+  proc p {
+    seq {
+      for (i := 0; i < 8; i++) { }
+    }
+  }
+}
+
+// CHECK: error: for-loop variable must be a 'reg' identifier (S9)

@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s07/fail_for.nsl — S7 (lang.ebnf:850) fail variant.
+// `for` block at module scope (outside func/proc body) violates
+// S7.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   'for' block may appear only inside a function or procedure body (S7)
+//
+// **Phase 4a TDD red state**: no S7 checker exists; FAILS until
+// Phase 4b T048.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  reg i[8];
+  for (i := 0; i < 8; i++) { }
+}
+
+// CHECK: error: 'for' block may appear only inside a function or procedure body (S7)

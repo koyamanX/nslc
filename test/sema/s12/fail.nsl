@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s12/fail.nsl — S12 (lang.ebnf:866) fail case.
+// S12: partial assignment is permitted only for `variable`; here
+// the LHS is a `reg` slice, which violates S12.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   partial assignment is permitted only on 'variable' identifiers (S12)
+//
+// **Phase 4a TDD red state**: no S12 checker exists; FAILS until
+// Phase 4b T053.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  reg r[16];
+  func ready {
+    r[3:0] := 0;
+  }
+}
+
+// CHECK: error: partial assignment is permitted only on 'variable' identifiers (S12)

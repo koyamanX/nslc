@@ -1,7 +1,22 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.4.0 → 1.5.0
+Version change: 1.5.0 → 1.6.0
+Bump rationale: MINOR — coordinated bundle of two header/test-shape
+amendments surfaced by /speckit-analyze on feature 006-m3-sema:
+(a) Principle II §3 single-public-header exception extended to
+name `nsl-sema` alongside `nsl-ast`, reflecting M3's three-axis
+decomposition (Sema engine + symbol table + type system) for
+consumer-compile-cost reasons; (b) Principle VIII `Sn`/`Nn`/`Pn`
+clause gains a "constructive carve-out" for constraints that
+produce no diagnostic — paired pass + introspection assertion is
+codified as the equivalent test shape (so Q1 Option B from
+Clarifications session 2026-04-28 is honored under the literal
+constitution). No principles removed; both edits are rule
+*narrowings* (or codifications of existing intent), so MINOR
+applies per the v1.4.0 versioning policy.
+
+Previous version change: 1.4.0 → 1.5.0
 Bump rationale: MINOR — Principle IX transitional clause retired.
 After feature 004-clang-tidy-cleanup drove the static-checks gate
 from 927 warnings-as-errors to 0, `./scripts/ci.sh all` exits 0 on
@@ -42,8 +57,34 @@ Prior history:
     items (bug reports moved to GitHub Issues canonical); P-LIN
     team-prefix placeholder resolved; documentation/process audit
     fixes bundled.
+  - 1.5.0 (2026-04-28): Principle IX transitional clause retired;
+    steady-state CI green merge gate governs all PRs.
 
-Modified principles:
+Modified principles (1.5.0 → 1.6.0):
+  - II. Layered Library Architecture — single-public-header
+    exception clause extended: now names BOTH `nsl-ast` (per-node-
+    kind headers, established at 1.4.0) AND `nsl-sema` (three
+    umbrella headers — `Sema.h` / `SymbolTable.h` / `TypeSystem.h`
+    — for the engine + symbol-table + type-system three-axis
+    decomposition, reducing consumer compile cost and matching
+    clang's `Sema/` directory pattern). Both rationales are
+    documented inline in the bullet.
+  - VIII. Test-First Development — `Sn`/`Nn`/`Pn` clause gains a
+    "constructive carve-out": when a constraint produces no
+    diagnostic (it describes Sema's resolution behavior — layout,
+    classification, or constructive population — rather than a
+    shape Sema rejects), the fail-case test asserts a typed
+    introspection observable on a Sema-public API with the
+    expected-value flipped. The introspection observable's
+    signature is frozen by the fail-case test, parallel to how the
+    diagnostic message string is frozen for the typical case. This
+    codifies Q1 Option B from feature 006-m3-sema's Clarifications
+    session 2026-04-28.
+
+Modified principles (prior 1.4.0 → 1.5.0):
+  Principle IX transitional clause retired (see 1.5.0 SIR above).
+
+Modified principles (prior 1.3.0 → 1.4.0):
   - II. Layered Library Architecture — `nsl-opt` reclassified as a
     developer/test tool (not a user-facing tooling-binary
     deliverable); `nsl-ast`'s "per-node-kind headers under one
@@ -163,10 +204,19 @@ strictly downward per the layer table in
   for the `nsl` dialect) — are NOT user-facing deliverables and are NOT
   part of the T-track. They MUST still reuse `libNSLFrontend.a` where
   they consume its primitives.
-- **`nsl-ast` header layout exception.** Each library exposes a single
-  public header except `nsl-ast`, which exposes per-node-kind headers
-  under one `include/nsl/AST/` directory. Private headers stay in `lib/`
-  for every library.
+- **`nsl-ast` and `nsl-sema` header layout exceptions.** Each library
+  exposes a single public header except (a) `nsl-ast`, which exposes
+  per-node-kind headers under one `include/nsl/AST/` directory, and
+  (b) `nsl-sema`, which exposes three umbrella headers under
+  `include/nsl/Sema/` — `Sema.h` (engine + `SemaResult`),
+  `SymbolTable.h` (Symbol hierarchy + scope stack), and `TypeSystem.h`
+  (Type hierarchy + interner). The two exceptions reflect different
+  rationales: `nsl-ast`'s per-node-kind separation supports a class
+  hierarchy that benefits from per-kind headers; `nsl-sema`'s
+  three-axis decomposition reduces consumer compile cost (a tooling
+  library — `nsl-fmt` / `nsl-lsp` / `nsl-lint` — that needs only the
+  symbol/type sub-surface does not pull in the engine's resolution-pass
+  visitors). Private headers stay in `lib/` for every library.
 
 **Rationale.** "One front-end, several frontdoors" guarantees zero semantic
 drift between the compiler and developer tools, makes incremental reparse in
@@ -326,7 +376,20 @@ against an unchanged tree are rejected as vacuous.
 - **New `Sn` / `Nn` / `Pn` constraint.** Both pass-case and fail-case Sema
   tests MUST exist. The fail-case test MUST cite the specific diagnostic
   message string that the constraint produces, so renaming or weakening
-  the diagnostic later is caught automatically.
+  the diagnostic later is caught automatically. **Constructive carve-out**:
+  if the constraint produces no diagnostic — i.e., it describes Sema's
+  resolution behavior (layout, classification, or constructive
+  population) rather than a shape Sema rejects — the fail-case test
+  MUST instead assert against a typed introspection observable on a
+  Sema-public API, structured as the same input as the pass-case with
+  the expected-introspection-value flipped (so the test fails iff Sema
+  diverges from the spec's constructive rule). The introspection
+  observable's signature is frozen by the fail-case test, parallel to
+  the way the diagnostic message string is frozen for the typical case.
+  Spec/design docs (Sn rows in `docs/spec/nsl_lang.ebnf`,
+  `docs/design/nsl_compiler_design.md`, and the project-root
+  `CLAUDE.md` §1 roll-up) MUST identify which `Sn` ship under the
+  carve-out so the test-shape contract is mechanically auditable.
 - **Refactor.** A behavior-preserving change is exempt from the
   new-test requirement only if (a) the existing test suite is fully green
   before and after, (b) no new diagnostics are produced, (c) no new IR

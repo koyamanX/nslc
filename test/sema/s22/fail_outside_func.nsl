@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s22/fail_outside_func.nsl — S22 (lang.ebnf:931) fail
+// variant. A `return` inside a proc body (not a func) violates
+// S22.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   'return' may appear only inside a 'func' body (S22)
+//
+// **Phase 4a TDD red state**: no S22 checker exists; FAILS until
+// Phase 4b T060.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  proc_name p;
+  proc p {
+    return;
+  }
+}
+
+// CHECK: error: 'return' may appear only inside a 'func' body (S22)

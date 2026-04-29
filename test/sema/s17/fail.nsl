@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s17/fail.nsl — S17 (lang.ebnf:884) fail case.
+// S17: a system task in a non-`simulation` module violates the
+// rule. Without a `simulation`-modified declare block, `_display`
+// must NOT appear.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   system task '<name>' is permitted only in modules whose 'declare' carries the 'simulation' modifier (S17)
+//
+// **Phase 4a TDD red state**: no S17 checker exists; FAILS until
+// Phase 4b T057.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_fail {
+  _display("oops");
+}
+
+// CHECK: error: system task '{{.*}}' is permitted only in modules whose 'declare' carries the 'simulation' modifier (S17)

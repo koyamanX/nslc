@@ -27,7 +27,8 @@
 // RUN: %nslc -emit=ast %s | FileCheck %s
 
 module n11_var {
-    wire qr, qt;
+    wire qr;
+    wire qt;
     qr = _random;
     qt = _time;
 }

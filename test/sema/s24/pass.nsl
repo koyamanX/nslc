@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s24/pass.nsl — S24 (lang.ebnf:940) pass case.
+// S24 is **constructive** (Severity = Layout): a `mem` initializer
+// may supply fewer values than the depth; the missing addresses
+// are zero-filled. Sema emits NO diagnostic — the introspection
+// observable is `MemSymbol::initValues()` zero-padded to `depth()`
+// per `sema-api.contract.md` Invariant 4.
+//
+// Pass case: a small mem with no init list (or partial); Phase 4b
+// T069 zero-fills `initValues` of size `depth`. The introspection
+// assertion lives in `test_unit/constructive_sn_test/s24_test.cc`.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  mem cache[8][20];
+}
+
+// CHECK: (MemDecl {{.*}}name=cache

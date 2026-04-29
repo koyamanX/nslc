@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s12/pass.nsl — S12 (lang.ebnf:866) pass case.
+// S12: partial assignment on the LHS (e.g., `v[3:0] = ...`) is
+// permitted ONLY for `variable` identifiers. Pass case: variable
+// LHS with partial-slice assignment.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  variable v[16];
+  func ready {
+    v[3:0] = 0;
+  }
+}
+
+// CHECK: (VariableDecl {{.*}}name=v
+// CHECK: (TransferStmt

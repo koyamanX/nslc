@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s15/pass.nsl — S15 (lang.ebnf:877) pass case.
+// S15: bit-slice indices `[hi:lo]` must be compile-time constants.
+// Pass case: integer-literal slice indices.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  wire a[8];
+  reg q = a[3:0];
+}
+
+// CHECK: (RegDecl {{.*}}name=q
+// CHECK: (SliceExpr

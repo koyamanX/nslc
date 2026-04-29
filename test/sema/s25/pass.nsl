@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s25/pass.nsl — S25 (lang.ebnf:944) pass case.
+// S25: `goto` has TWO target kinds — inside a `seq` block, the
+// target is a label; inside a `state` body, it's a state_name.
+// Cross-kind references are forbidden. Pass case: a label-form
+// goto inside seq.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  proc_name p;
+  proc p {
+    seq {
+      lab: goto lab;
+    }
+  }
+}
+
+// CHECK: (SeqBlock
+// CHECK: (GotoStmt

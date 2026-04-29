@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/resolution/module_scope.test — module-scope resolution
+// fixture (T023 of `specs/006-m3-sema/tasks.md`). Asserts that a
+// reg declared at module scope resolves to a Symbol* of kind
+// `Reg` in subsequent transfer statements.
+//
+// Per `emit-ast-format.contract.md` Invariant 3: every name-ref
+// gains a `-> decl@<file>:<line>:<col>` suffix pointing at the
+// declaration site.
+
+// RUN: printf 'module m {\n  reg q[8];\n  func clk { q := q; }\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (RegDecl {{.*}}name=q
+// CHECK: (IdentifierExpr {{.*}} : BitVector(8) {{.*}}-> decl@{{[^:]+}}:2
+// CHECK: (IdentifierExpr {{.*}} : BitVector(8) {{.*}}-> decl@{{[^:]+}}:2

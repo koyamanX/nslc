@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s22/fail_bare_with_terminal.nsl — S22 (lang.ebnf:931)
+// fail variant. A bare `return;` in a func that DOES have a
+// return-value terminal violates S22 (the bare form is reserved
+// for void-returning funcs).
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   bare 'return;' is valid only when the func has no return-value terminal (S22)
+//
+// **Phase 4a TDD red state**: no S22 checker exists; FAILS until
+// Phase 4b T060.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+declare d {
+  output ret_terminal[8];
+  func_in compute() : ret_terminal;
+}
+module m_fail {
+  func compute {
+    return;
+  }
+}
+
+// CHECK: error: bare 'return;' is valid only when the func has no return-value terminal (S22)

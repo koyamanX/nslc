@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s07/pass.nsl — S7 (lang.ebnf:850) pass case.
+// S7: `seq`/`while`/`for` blocks may appear ONLY inside a function
+// or procedure body. Pass case: a `seq { }` inside a `proc` body.
+
+// RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+module m_pass {
+  proc_name p;
+  proc p {
+    seq { }
+  }
+}
+
+// CHECK: (ProcDefn {{.*}}name=p
+// CHECK: (SeqBlock

@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/width/repeat_expr.test — repeat-expression width fixture
+// (T024 rollover; specs/006-m3-sema/tasks.md Phase 4a). Asserts the
+// `RepeatExpr` for `4{0}` carries a `: BitVector(N)` Type suffix per
+// `emit-ast-format.contract.md` Invariant 2 — the result width is
+// `operand_width * repeat_count`.
+
+// RUN: printf 'module m {\n  reg q = 4{0};\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+
+// CHECK: (RegDecl {{.*}}name=q
+// CHECK: (RepeatExpr {{.*}} : BitVector({{[0-9]+}})

@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/sema/s04/fail_funcout.nsl — S4 (lang.ebnf:838) fail variant.
+// `func_out` dummy args must be `output` terminals; an `input` here
+// violates S4.
+//
+// Frozen diagnostic per `contracts/diagnostic-string.contract.md`:
+//   dummy argument of 'func_out' must be declared 'output' (S4)
+//
+// **Phase 4a TDD red state**: no S4 checker exists; FAILS until
+// Phase 4b T045.
+
+// RUN: not %nslc -emit=ast %s 2>&1 | FileCheck %s
+
+declare d {
+  input a;
+  func_out done(a);
+}
+
+// CHECK: error: dummy argument of 'func_out' must be declared 'output' (S4)

@@ -189,6 +189,22 @@ void DiagnosticEngine::renderAll(llvm::raw_ostream &os, Format fmt) const {
     switch (fmt) {
     case Format::Text: {
       writeTextHeaderLine(os, impl_->sm, d);
+      // Emit any attached fix-it hints, one per line, immediately
+      // after the header. Format: `fix-it:<path>:<line>:<col>:<replacement>`
+      // — the line is plain text consumed by tests via FileCheck
+      // patterns like `// CHECK: fix-it:{{.*}}:=`. The shape is
+      // intentionally compact (single-line) so a regression on the
+      // text shape is grep-discoverable.
+      for (const auto &fx : d.fixits) {
+        SourceLocation const loc = fx.range.begin();
+        if (loc.isValid()) {
+          auto v = impl_->sm.resolveVirtual(loc);
+          os << "fix-it:" << v.path << ':' << v.line << ':' << v.col << ':'
+             << fx.replacement << '\n';
+        } else {
+          os << "fix-it:" << fx.replacement << '\n';
+        }
+      }
       // Emit each attached note in trailing order. Notes are NOT
       // sorted independently — they're keyed to their parent.
       for (const auto &n : d.notes) {

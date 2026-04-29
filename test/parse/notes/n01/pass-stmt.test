@@ -21,7 +21,9 @@
 // RUN: %nslc -emit=ast %s | FileCheck %s
 
 module n1_stmt {
-    wire c, a, b;
+    wire c;
+    wire a;
+    wire b;
     if (c) a = b; else a = 0;
 }
 
