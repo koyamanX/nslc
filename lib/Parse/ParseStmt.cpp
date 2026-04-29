@@ -350,6 +350,12 @@ std::unique_ptr<ast::Stmt> Parser::parseParallelBlock() {
     if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
       break;
     }
+    // Progress invariant: each iteration MUST consume at least one
+    // token. Without this, when parseAction/parseInternalDecl fails
+    // and skipUntil parks on the same token (because it's in the
+    // outer recovery set, e.g. `tk_state` inside a proc body when
+    // `kModuleItem` is the inherited set), the loop spins forever.
+    SourceLocation const iter_start = peek().range().begin();
     if (isInternalDeclStart(peekKind())) {
       // Per the EBNF parallel_block_item allows internal_declaration.
       // Drop the produced *Decl on the floor at M2 (see file header).
@@ -366,23 +372,32 @@ std::unique_ptr<ast::Stmt> Parser::parseParallelBlock() {
           consume();
         }
       }
-      continue;
+    } else {
+      auto s = parseActionStatement();
+      if (!s) {
+        skipUntil(*this, currentRecoverySet());
+        if (check(TokenKind::tk_eof)) {
+          break;
+        }
+        if (check(TokenKind::tk_rbrace)) {
+          break;
+        }
+        if (check(TokenKind::tk_semicolon)) {
+          consume();
+        }
+      } else {
+        items.push_back(std::move(s));
+      }
     }
-    auto s = parseActionStatement();
-    if (!s) {
-      skipUntil(*this, currentRecoverySet());
-      if (check(TokenKind::tk_eof)) {
-        break;
-      }
-      if (check(TokenKind::tk_rbrace)) {
-        break;
-      }
-      if (check(TokenKind::tk_semicolon)) {
-        consume();
-      }
-      continue;
+    // If neither path consumed any token, force-consume to break
+    // the spin. This is the fallback for: skipUntil parked on a
+    // recovery-set token that ALSO matched the failing rule's
+    // start-set, so neither the parse nor the post-skip checks
+    // advance the cursor.
+    if (peek().range().begin() == iter_start && !check(TokenKind::tk_eof) &&
+        !check(TokenKind::tk_rbrace)) {
+      consume();
     }
-    items.push_back(std::move(s));
   }
   Token rbr;
   if (!expect(TokenKind::tk_rbrace, "'}' to close parallel block", &rbr)) {
