@@ -53,7 +53,9 @@ References to `lang.ebnf §X` are sections in
 | System tasks: `_display`, `_finish`, `_init`, `_delay`, … | lang.ebnf §10; S17, S29 | M2; M3 | M4 (sim-only) | M6 (sim-only emit) |
 | Expressions (sign-extend `#`, zero-extend `'`, slice, concat, conditional) | lang.ebnf §11; S14, S15 | M2 (incl. N5 `#` line-marker disambiguation); M3 | M5 | M6 (`comb::*`, `hwarith::*`) |
 | Width / constant expressions | lang.ebnf §12 | M2; M3 | M5 | — |
-| Semantic constraints `S1`–`S29` | lang.ebnf S1–S29 area | **M3 — one pass-case + one fail-case test each per Principle VI** | — | — |
+| Semantic constraints `S1`–`S29` | lang.ebnf S1–S29 area | **M3 — one pass-case + one fail-case test each per Principle VI**[^constructive] | — | — |
+
+[^constructive]: 23 of the 29 `Sn` are error/warning constraints checked via the standard pass+fail lit fixture pair under `test/sema/s<NN>/`. The remaining 6 — `S13`, `S18`, `S19`, `S23`, `S24`, `S27` — are **constructive** (per Clarifications session 2026-04-28 Q1 → Option B; constitution v1.6.0 Principle VIII carve-out): they emit no diagnostic and instead populate an introspection observable on the symbol/type system. Their fail-case shape is a paired GoogleTest assertion under `test_unit/constructive_sn_test/s<NN>_test.cc` that asserts the *opposite* observable via `EXPECT_NONFATAL_FAILURE`. See `specs/006-m3-sema/contracts/sema-api.contract.md` Invariant 4 for the full introspection-API table.
 | Parser notes `N1`–`N14` | lang.ebnf N1–N14 area | M2 (most); M3 (S/N interactions) | — | — |
 | Preprocessor notes `P1`–`P13` | pp.ebnf P1–P13 area | M1 (one test each per Principle VI) | — | — |
 
