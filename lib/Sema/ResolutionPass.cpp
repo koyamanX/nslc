@@ -107,6 +107,7 @@
 #include "nsl/Sema/TypeSystem.h"
 
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 
 #include <cstdint>
@@ -354,6 +355,16 @@ private:
   /// `sema-stability.contract.md` Invariant 6.
   llvm::DenseSet<llvm::StringRef> reportedUnresolved_;
 
+  /// Pre-pass index of `declare <name> { ... }` blocks at compilation-
+  /// unit scope, keyed by `<name>`. Lets the corresponding
+  /// `module <name> { ... }` body re-import the declare's ports +
+  /// header-params into its Module scope so references in the
+  /// module body resolve cleanly. Per the design doctrine
+  /// "Ref §1 — declare/module pairing": the declare names the
+  /// external interface, the module supplies the body; the names
+  /// declared in the declare are visible in the module body.
+  llvm::StringMap<const ast::DeclareBlock *> declareByName_;
+
   /// Top-down width-inference context. Outermost `TransferStmt::lhs`
   /// width sits at the bottom; the topmost element is consulted by
   /// inherent-width-less Expr forms.
@@ -448,6 +459,21 @@ private:
 // ---------- Walker::runUnit + dispatch ----------
 
 void Walker::runUnit(const ast::CompilationUnit &cu) {
+  // Pre-pass: index every top-level `declare <name>` block by name
+  // so the matching `module <name>` body (parsed before OR after the
+  // declare in source order — both are valid per the EBNF) can
+  // re-import the declare's ports and header-params into its Module
+  // scope. Without this pre-pass, references like `y = a & b;` in
+  // a module body whose ports are declared in a sibling declare
+  // block surface as "unresolved name" diagnostics.
+  for (const auto &item : cu.items()) {
+    if (item && item->kind() == ast::NodeKind::NK_DeclareBlock) {
+      const auto &db = static_cast<const ast::DeclareBlock &>(*item);
+      if (!db.name().empty()) {
+        declareByName_[db.name()] = &db;
+      }
+    }
+  }
   table_.enterScope(ScopeKind::Global);
   for (const auto &item : cu.items()) {
     if (item) {
@@ -709,6 +735,29 @@ void Walker::declDeclareBlock(const ast::DeclareBlock &n) {
 
 void Walker::declModuleBlock(const ast::ModuleBlock &n) {
   table_.enterScope(ScopeKind::Module);
+  // Re-declare the matching `declare <name>` block's ports and
+  // header-params into this Module scope so module-body references
+  // resolve. The declare itself was already walked at top-level
+  // (its own Declare scope owns the canonical Symbol*); here we
+  // synthesize a parallel set of Symbols in the Module scope for
+  // resolution purposes. The two sets co-exist; downstream Sn
+  // walkers consult whichever is in scope at the use site.
+  if (!n.name().empty()) {
+    auto it = declareByName_.find(n.name());
+    if (it != declareByName_.end() && it->second != nullptr) {
+      const ast::DeclareBlock &db = *it->second;
+      for (const auto &param : db.headerParams()) {
+        if (param) {
+          visitDecl(*param);
+        }
+      }
+      for (const auto &port : db.ports()) {
+        if (port) {
+          visitDecl(*port);
+        }
+      }
+    }
+  }
   for (const auto &i : n.internals()) {
     if (i) {
       visitDecl(*i);
