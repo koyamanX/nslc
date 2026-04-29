@@ -11,4 +11,4 @@
 
 param_int N = 8;
 
-// CHECK: (TopLevelParamInt {{.*}}name=N
+// CHECK: (TopLevelParamDecl {{.*}}kind=Int{{.*}}name=N

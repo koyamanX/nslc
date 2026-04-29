@@ -8,7 +8,7 @@
 
 // RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
 
-declare simulation tb {
+declare tb simulation {
 }
 module tb {
   _display("hi");

@@ -16,5 +16,5 @@
 // CHECK: (PortDecl {{.*}}name=clk
 // CHECK: (PortDecl {{.*}}name=q
 // CHECK: (PortDecl {{.*}}name=io
-// CHECK: (FuncInDecl {{.*}}name=start
-// CHECK: (FuncOutDecl {{.*}}name=done
+// CHECK: (PortDecl {{.*}}direction=FuncIn{{.*}}name=start
+// CHECK: (PortDecl {{.*}}direction=FuncOut{{.*}}name=done

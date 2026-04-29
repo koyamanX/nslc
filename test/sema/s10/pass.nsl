@@ -11,4 +11,4 @@ module m_pass {
   generate (i = 0; i < 1; i = i + 1) { }
 }
 
-// CHECK: (GenerateBlock
+// CHECK: (StructuralGenerate

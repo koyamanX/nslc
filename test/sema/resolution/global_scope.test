@@ -22,4 +22,4 @@
 
 // CHECK: (StructDecl {{.*}}name=s_t
 // CHECK: (ModuleBlock {{.*}}name=m
-// CHECK: (StructInstanceRegDecl
+// CHECK: (StructInstDecl

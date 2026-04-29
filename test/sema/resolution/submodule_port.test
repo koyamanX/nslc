@@ -15,5 +15,5 @@
 // RUN: %nslc -emit=ast %t.nsl | FileCheck %s
 
 // CHECK: (ModuleBlock {{.*}}name=m
-// CHECK: (StructInstanceDecl {{.*}}name=inst
+// CHECK: (SubmoduleDecl {{.*}}templateName=cpu_t
 // CHECK: (FieldAccessExpr
