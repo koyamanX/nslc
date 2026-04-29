@@ -53,7 +53,7 @@ class Expr;
 /// `nsl-sema`. Phase 3 wires the callback in `nsl::sema` to a
 /// thread-local resolution map; tooling layers (M3+ LSP) MAY wire
 /// their own callbacks for incremental introspection.
-using DeclLocLookupFn = SourceRange (*)(const Expr *);
+using DeclLocLookupFn = SourceRange (*)(const Expr *) noexcept;
 
 /// Walk `cu` in declaration order and write its text-only
 /// S-expression-style dump to `os`. Resolves every `SourceLocation`

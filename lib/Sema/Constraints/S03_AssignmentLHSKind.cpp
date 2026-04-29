@@ -77,13 +77,28 @@ public:
           if (k == SymbolKind::SK_Mem) {
             return;
           }
+          // The fix-it range targets the op token only (the gap
+          // between lhs and rhs in source). M2's TransferStmt
+          // doesn't store the op token's SourceRange separately, so
+          // we approximate it via [lhs.end, rhs.begin). Without this
+          // narrowing, applying the fix-it would replace the whole
+          // statement (loc covers `lhs op rhs;`) with just the
+          // operator — that's the bug Copilot flagged at
+          // PR#8 review (lines 87 + 96).
+          auto opRange = [&]() noexcept -> SourceRange {
+            if (t.lhs() != nullptr && t.rhs() != nullptr) {
+              return SourceRange{t.lhs()->loc().end(),
+                                 t.rhs()->loc().begin()};
+            }
+            return t.loc();
+          };
           if (t.op() == ast::TransferStmt::Op::WireEq) {
             if (k == SymbolKind::SK_Reg) {
               auto b = ctx.diag->report(
                   Severity::Error, t.loc().begin(),
                   "'=' targets a wire, output, inout, variable, or "
                   "integer; use ':=' for reg (S3)");
-              b.addFixIt(t.loc(), ":=");
+              b.addFixIt(opRange(), " := ");
             }
           } else if (t.op() == ast::TransferStmt::Op::RegColonEq) {
             bool reg_target = (k == SymbolKind::SK_Reg);
@@ -92,7 +107,7 @@ public:
                   Severity::Error, t.loc().begin(),
                   "':=' targets a reg or struct-instance-reg; use "
                   "'=' for wire/output/inout/variable/integer (S3)");
-              b.addFixIt(t.loc(), "=");
+              b.addFixIt(opRange(), " = ");
             }
           }
         });

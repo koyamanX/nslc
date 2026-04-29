@@ -25,11 +25,17 @@ public:
             return;
           }
           if (s.kind() == ast::NodeKind::NK_SeqBlock) {
-            auto b = ctx.diag->report(
-                Severity::Error, s.loc().begin(),
-                "'seq' block may appear only inside a function or "
-                "procedure body (S7)");
-            b.addFixIt(s.loc(), "");
+            // No fix-it: the previous attempt attached an empty
+            // replacement to the entire `seq { ... }` range, which
+            // would delete the block AND its contents on auto-apply
+            // (Copilot review PR#8 line 33). The "right" fix-it
+            // would remove only the `seq` keyword + braces while
+            // preserving the body, but M2's SeqBlock AST doesn't
+            // carry separate keyword + brace SourceRanges. The
+            // diagnostic is strictly informational here.
+            ctx.diag->report(Severity::Error, s.loc().begin(),
+                             "'seq' block may appear only inside a function or "
+                             "procedure body (S7)");
           } else if (s.kind() == ast::NodeKind::NK_WhileBlock) {
             ctx.diag->report(
                 Severity::Error, s.loc().begin(),

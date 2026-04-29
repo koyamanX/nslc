@@ -21,4 +21,8 @@ module m_fail {
 }
 
 // CHECK: error: 'seq' block may appear only inside a function or procedure body (S7)
-// CHECK: fix-it:
+// (No fix-it asserted: the locked S7 message is informational.
+// A precise fix-it would need to preserve the `seq` block's body
+// while stripping the keyword + braces, but M2's SeqBlock AST
+// doesn't carry separate ranges for those tokens. See Copilot
+// review PR#8 line 33 for the rationale.)
