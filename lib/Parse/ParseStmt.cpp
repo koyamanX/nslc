@@ -346,6 +346,7 @@ std::unique_ptr<ast::Stmt> Parser::parseParallelBlock() {
   // NOT push a new guard here; we simply do the recovery dance on
   // sub-rule failure using `currentRecoverySet()`.
   std::vector<std::unique_ptr<ast::Stmt>> items;
+  std::vector<std::unique_ptr<ast::Decl>> decls;
   for (;;) {
     consumeLineMarkers();
     if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
@@ -359,7 +360,8 @@ std::unique_ptr<ast::Stmt> Parser::parseParallelBlock() {
     SourceLocation const iter_start = peek().range().begin();
     if (isInternalDeclStart(peekKind())) {
       // Per the EBNF parallel_block_item allows internal_declaration.
-      // Drop the produced *Decl on the floor at M2 (see file header).
+      // Retain the produced *Decl in `decls_` so Sema-side checkers
+      // (S11, S25, S28, etc.) and downstream tooling can observe it.
       auto d = parseInternalDecl();
       if (!d) {
         skipUntil(*this, currentRecoverySet());
@@ -372,6 +374,28 @@ std::unique_ptr<ast::Stmt> Parser::parseParallelBlock() {
         if (check(TokenKind::tk_semicolon)) {
           consume();
         }
+      } else {
+        decls.push_back(std::move(d));
+      }
+    } else if (check(TokenKind::tk_state)) {
+      // `state <name> <action>` is a state_definition. The EBNF
+      // tutorial Ch. 14 NS17 example puts them inside the proc
+      // body's parallel block. Retain the produced StateDefn in
+      // `decls_` so Sn checkers and the printer can see it.
+      auto d = parseStateDefn();
+      if (!d) {
+        skipUntil(*this, currentRecoverySet());
+        if (check(TokenKind::tk_eof)) {
+          break;
+        }
+        if (check(TokenKind::tk_rbrace)) {
+          break;
+        }
+        if (check(TokenKind::tk_semicolon)) {
+          consume();
+        }
+      } else {
+        decls.push_back(std::move(d));
       }
     } else {
       auto s = parseActionStatement();
@@ -405,7 +429,8 @@ std::unique_ptr<ast::Stmt> Parser::parseParallelBlock() {
     return nullptr;
   }
   return std::make_unique<ast::ParallelBlock>(
-      rangeFromTo(lbr.range().begin(), rbr.range().end()), std::move(items));
+      rangeFromTo(lbr.range().begin(), rbr.range().end()), std::move(items),
+      std::move(decls));
 }
 
 std::unique_ptr<ast::Stmt> Parser::parseAltBlock() {

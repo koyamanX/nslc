@@ -1041,12 +1041,15 @@ void PrinterVisitor::visit(const DelayTaskStmt &n) {
 
 void PrinterVisitor::visit(const ParallelBlock &n) {
   emitOpen(n);
-  if (n.items().empty()) {
+  if (n.items().empty() && n.decls().empty()) {
     closeNoChildren();
     return;
   }
   std::vector<const ASTNode *> kids;
-  kids.reserve(n.items().size());
+  kids.reserve(n.items().size() + n.decls().size());
+  for (const auto &p : n.decls()) {
+    kids.push_back(p.get());
+  }
   for (const auto &p : n.items()) {
     kids.push_back(p.get());
   }
