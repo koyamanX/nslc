@@ -69,16 +69,21 @@ public:
                     "'output' (S4)");
               }
             }
+          } else if (pd.direction() == ast::PortDecl::Direction::FuncSelf) {
+            for (auto arg : pd.dummyArgs()) {
+              auto it = portDirs.find(arg);
+              if (it == portDirs.end()) {
+                continue;
+              }
+              if (it->second != ast::PortDecl::Direction::Wire) {
+                ctx.diag->report(
+                    Severity::Error, pd.loc().begin(),
+                    "dummy argument of 'func_self' must be declared "
+                    "'wire' (S4)");
+              }
+            }
           }
         }
-        // S4 func_self variant: DeclareBlock::ports() only yields
-        // PortDecls — FuncSelfDecls live elsewhere in the AST (or
-        // are represented as a non-port form). Until the AST shape
-        // is reconciled, the func_self variant of S4 is deferred;
-        // the func_in / func_out variants above are wired and
-        // turn the s04/fail_funcin.nsl + s04/fail_funcout.nsl
-        // fixtures green. The s04/fail_funcself.nsl fixture stays
-        // red as a known TODO.
       }
     }
   }

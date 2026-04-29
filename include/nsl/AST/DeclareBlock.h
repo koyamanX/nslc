@@ -31,10 +31,23 @@ public:
         modifier_(modifier), headerParams_(std::move(headerParams)),
         ports_(std::move(ports)) {}
 
+  DeclareBlock(SourceRange range, Identifier name, Modifier modifier,
+               Identifier clockName, Identifier resetName,
+               std::vector<std::unique_ptr<Decl>> headerParams,
+               std::vector<std::unique_ptr<PortDecl>> ports)
+      : Decl(NodeKind::NK_DeclareBlock, range), name_(name),
+        modifier_(modifier), clockName_(clockName), resetName_(resetName),
+        headerParams_(std::move(headerParams)), ports_(std::move(ports)) {}
+
   /// Empty `Identifier` (a default-constructed `StringRef`) means
   /// the `declare` block was anonymous.
   [[nodiscard]] Identifier name() const noexcept { return name_; }
   [[nodiscard]] Modifier modifier() const noexcept { return modifier_; }
+  /// `interface(clock=<name>, reset=<name>)` modifier args; empty
+  /// `Identifier` if absent. Used by S20 to verify both names are
+  /// present whenever the modifier is `Interface`.
+  [[nodiscard]] Identifier clockName() const noexcept { return clockName_; }
+  [[nodiscard]] Identifier resetName() const noexcept { return resetName_; }
   [[nodiscard]] const std::vector<std::unique_ptr<Decl>> &
   headerParams() const noexcept {
     return headerParams_;
@@ -49,6 +62,8 @@ public:
 private:
   Identifier name_;
   Modifier modifier_;
+  Identifier clockName_;
+  Identifier resetName_;
   std::vector<std::unique_ptr<Decl>> headerParams_;
   std::vector<std::unique_ptr<PortDecl>> ports_;
 };

@@ -166,18 +166,70 @@ std::unique_ptr<ast::Decl> Parser::parseDeclareBlock() {
   if (!expect(TokenKind::tk_declare, "'declare'", &decl_tok)) {
     return nullptr;
   }
+  // Accept both EBNF orders for `[ identifier ] [ modifier ]` —
+  // strict `<name> <modifier>` AND audited `<modifier> <name>`.
+  // Either is valid in the audited NSL fixture corpus.
   ast::Identifier name;
-  if (check(TokenKind::tk_identifier)) {
-    Token name_tok = consume();
-    name = name_tok.spelling();
-  }
   ast::DeclareBlock::Modifier mod = ast::DeclareBlock::Modifier::None;
-  if (check(TokenKind::tk_interface)) {
-    consume();
-    mod = ast::DeclareBlock::Modifier::Interface;
-  } else if (check(TokenKind::tk_simulation)) {
-    consume();
-    mod = ast::DeclareBlock::Modifier::Simulation;
+  ast::Identifier clockName;
+  ast::Identifier resetName;
+  auto consumeModifierWithArgs =
+      [&](ast::DeclareBlock::Modifier &out_mod) -> bool {
+    if (check(TokenKind::tk_interface)) {
+      consume();
+      out_mod = ast::DeclareBlock::Modifier::Interface;
+    } else if (check(TokenKind::tk_simulation)) {
+      consume();
+      out_mod = ast::DeclareBlock::Modifier::Simulation;
+    } else {
+      return false;
+    }
+    // Optional `(clock=<name>, reset=<name>)` argument list — only
+    // accepted when the modifier is `interface` per S20, but the
+    // parser is permissive: the parens-form is parsed for either
+    // modifier and Sema-side checks decide what's valid.
+    if (check(TokenKind::tk_lparen)) {
+      consume();
+      while (!check(TokenKind::tk_rparen) && !check(TokenKind::tk_eof)) {
+        Token key;
+        if (!expect(TokenKind::tk_identifier, "modifier arg key", &key)) {
+          return true;
+        }
+        if (!expect(TokenKind::tk_assign, "'=' after modifier arg key")) {
+          return true;
+        }
+        Token val;
+        if (!expect(TokenKind::tk_identifier, "modifier arg value", &val)) {
+          return true;
+        }
+        if (key.spelling() == "clock") {
+          clockName = val.spelling();
+        } else if (key.spelling() == "reset") {
+          resetName = val.spelling();
+        }
+        if (check(TokenKind::tk_comma)) {
+          consume();
+        } else {
+          break;
+        }
+      }
+      expect(TokenKind::tk_rparen, "')' after modifier arg list");
+    }
+    return true;
+  };
+  if (consumeModifierWithArgs(mod)) {
+    // `<modifier> [name]` order.
+    if (check(TokenKind::tk_identifier)) {
+      Token name_tok = consume();
+      name = name_tok.spelling();
+    }
+  } else {
+    // `[name] [modifier]` order.
+    if (check(TokenKind::tk_identifier)) {
+      Token name_tok = consume();
+      name = name_tok.spelling();
+    }
+    consumeModifierWithArgs(mod);
   }
   if (!expect(TokenKind::tk_lbrace, "'{' to begin declare block")) {
     return nullptr;
@@ -239,7 +291,7 @@ std::unique_ptr<ast::Decl> Parser::parseDeclareBlock() {
   }
   return std::make_unique<ast::DeclareBlock>(
       rangeFromTo(decl_tok.range().begin(), rbr.range().end()), name, mod,
-      std::move(headerParams), std::move(port_list));
+      clockName, resetName, std::move(headerParams), std::move(port_list));
 }
 
 bool Parser::parseDeclareItem(
@@ -390,8 +442,103 @@ bool Parser::parseDeclareItem(
     return true;
   }
 
+  // wire <name>[[width]] { , <name>[[width]] }... ";"
+  // Wire-class internal terminal — referenced by func_self dummy
+  // args (S4). The strict EBNF `data_direction` doesn't list
+  // `wire`, but the audited NSL fixture corpus exercises it.
+  if (k == TokenKind::tk_wire) {
+    Token kw = consume();
+    bool first = true;
+    do {
+      if (!first) {
+        consume(); // `,`
+      }
+      first = false;
+      Token name_tok;
+      if (!expect(TokenKind::tk_identifier, "wire name", &name_tok)) {
+        return false;
+      }
+      std::unique_ptr<ast::Expr> width;
+      if (check(TokenKind::tk_lbracket)) {
+        consume();
+        width = parseExpr();
+        if (!width) {
+          return false;
+        }
+        if (!expect(TokenKind::tk_rbracket, "']' after wire width")) {
+          return false;
+        }
+      }
+      SourceLocation begin = kw.range().begin();
+      SourceLocation end = name_tok.range().end();
+      if (width) {
+        end = width->loc().end();
+      }
+      ports.push_back(std::make_unique<ast::PortDecl>(
+          rangeFromTo(begin, end), ast::PortDecl::Direction::Wire,
+          name_tok.spelling(), std::move(width),
+          std::vector<ast::Identifier>{}, ast::Identifier{}));
+    } while (check(TokenKind::tk_comma));
+    if (!expect(TokenKind::tk_semicolon, "';' after wire declaration")) {
+      return false;
+    }
+    return true;
+  }
+
+  // func_self <name> [ ( dummy_args ) ] [ : <ret> ] ";"
+  if (k == TokenKind::tk_func_self) {
+    Token kw = consume();
+    Token name_tok;
+    if (!expect(TokenKind::tk_identifier, "func_self name", &name_tok)) {
+      return false;
+    }
+    std::vector<ast::Identifier> dummyArgs;
+    if (check(TokenKind::tk_lparen)) {
+      consume();
+      if (!check(TokenKind::tk_rparen)) {
+        Token first_arg;
+        if (!expect(TokenKind::tk_identifier, "dummy-arg identifier",
+                    &first_arg)) {
+          return false;
+        }
+        dummyArgs.push_back(first_arg.spelling());
+        while (check(TokenKind::tk_comma)) {
+          consume();
+          Token nxt;
+          if (!expect(TokenKind::tk_identifier,
+                      "dummy-arg identifier after ','", &nxt)) {
+            return false;
+          }
+          dummyArgs.push_back(nxt.spelling());
+        }
+      }
+      if (!expect(TokenKind::tk_rparen, "')' after dummy-arg list")) {
+        return false;
+      }
+    }
+    ast::Identifier returnTerminal;
+    if (check(TokenKind::tk_colon)) {
+      consume();
+      Token ret_tok;
+      if (!expect(TokenKind::tk_identifier, "return-terminal identifier",
+                  &ret_tok)) {
+        return false;
+      }
+      returnTerminal = ret_tok.spelling();
+    }
+    Token semi;
+    if (!expect(TokenKind::tk_semicolon, "';' after func_self", &semi)) {
+      return false;
+    }
+    ports.push_back(std::make_unique<ast::PortDecl>(
+        rangeFromTo(kw.range().begin(), semi.range().end()),
+        ast::PortDecl::Direction::FuncSelf, name_tok.spelling(), nullptr,
+        std::move(dummyArgs), returnTerminal));
+    return true;
+  }
+
   errorAtPeek("expected 'param_int' / 'input' / 'output' / 'inout' / "
-              "'func_in' / 'func_out' in declare-item");
+              "'func_in' / 'func_out' / 'wire' / 'func_self' in declare-item");
   return false;
 }
 

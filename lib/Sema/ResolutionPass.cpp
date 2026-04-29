@@ -327,7 +327,10 @@ PortDirection mapPortDir(ast::PortDecl::Direction d) noexcept {
     return PortDirection::Inout;
   case ast::PortDecl::Direction::FuncIn:
   case ast::PortDecl::Direction::FuncOut:
-    // Unused — caller handles control terminals separately.
+  case ast::PortDecl::Direction::FuncSelf:
+  case ast::PortDecl::Direction::Wire:
+    // Unused — caller handles control terminals + wire-class
+    // declare-block items separately.
     return PortDirection::Input;
   }
   return PortDirection::Input;
@@ -797,6 +800,15 @@ void Walker::declPort(const ast::PortDecl &n) {
     break;
   case ast::PortDecl::Direction::FuncOut:
     sym = std::make_unique<FuncOutSymbol>(n.name(), n.loc());
+    break;
+  case ast::PortDecl::Direction::FuncSelf:
+    sym = std::make_unique<FuncSelfSymbol>(n.name(), n.loc());
+    break;
+  case ast::PortDecl::Direction::Wire:
+    // Wire-class declare-block terminal — model as a WireSymbol so
+    // S4's func_self dummy-arg check can identify it. Width
+    // defaults to bit if not set.
+    sym = std::make_unique<WireSymbol>(n.name(), n.loc());
     break;
   }
   Symbol *raw = sym.get();

@@ -4,12 +4,10 @@
 // Spec: lang.ebnf:896 — `interface` modifier requires explicit
 // clock and reset signal names.
 //
-// Implementation note: the M2 DeclareBlock AST carries the interface
-// modifier but NOT the `(clock=…, reset=…)` parenthesized form (the
-// parser doesn't parse the form yet). Until the parser surfaces
-// those names, this checker always fires for interface-modifier
-// declares. Once the form parses, refine to skip when both names
-// are present.
+// The parser now accepts `interface(clock=<name>, reset=<name>)`
+// modifier args; DeclareBlock carries `clockName()` and
+// `resetName()`. S20 fires only when the modifier is `Interface`
+// AND either name is empty.
 
 #include "../ConstraintCheckRegistry.h"
 #include "nsl/AST/CompilationUnit.h"
@@ -31,7 +29,8 @@ public:
         continue;
       }
       const auto &db = static_cast<const ast::DeclareBlock &>(*item);
-      if (db.modifier() == ast::DeclareBlock::Modifier::Interface) {
+      if (db.modifier() == ast::DeclareBlock::Modifier::Interface &&
+          (db.clockName().empty() || db.resetName().empty())) {
         ctx.diag->report(
             Severity::Error, db.loc().begin(),
             "'interface' modifier requires explicit clock and reset "

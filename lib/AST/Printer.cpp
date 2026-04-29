@@ -144,6 +144,10 @@ llvm::StringRef toString(PortDecl::Direction d) {
     return "FuncIn";
   case PortDecl::Direction::FuncOut:
     return "FuncOut";
+  case PortDecl::Direction::Wire:
+    return "Wire";
+  case PortDecl::Direction::FuncSelf:
+    return "FuncSelf";
   }
   return "<invalid-Direction>";
 }
