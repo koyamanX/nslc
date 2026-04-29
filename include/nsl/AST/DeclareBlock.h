@@ -11,13 +11,14 @@
 
 #include "nsl/AST/ASTNode.h"
 #include "nsl/AST/Decl.h"
-#include "nsl/AST/PortDecl.h"
 
 #include <memory>
 #include <utility>
 #include <vector>
 
 namespace nsl::ast {
+
+class PortDecl;
 
 class DeclareBlock final : public Decl {
 public:

@@ -34,26 +34,12 @@
 namespace nsl::sema {
 namespace {
 
-bool isCompileTimeConst(const ast::Expr *e, SymbolTable *symbols) noexcept {
+bool isCompileTimeConst(const ast::Expr *e) noexcept {
   if (e == nullptr) {
     return true;
   }
   if (e->kind() == ast::NodeKind::NK_LiteralExpr) {
     return true;
-  }
-  // A reference to an `integer` (compile-time structural variable
-  // per Ref §3.1) is compile-time-constant for the
-  // structural-expansion pass. Top-level `param_int` / `param_str`
-  // are also stored as `IntegerSymbol`s so they qualify too.
-  // Generate-loop variables (S10) are integers as well.
-  if (e->kind() == ast::NodeKind::NK_IdentifierExpr && symbols != nullptr) {
-    const auto &n = static_cast<const ast::IdentifierExpr &>(*e);
-    if (!n.name().parts.empty()) {
-      Symbol *sym = symbols->lookup(n.name().parts.front());
-      if (sym != nullptr && sym->kind() == SymbolKind::SK_Integer) {
-        return true;
-      }
-    }
   }
   return false;
 }
@@ -94,8 +80,7 @@ void walkSliceCheck(const ast::SliceExpr &n, DiagnosticEngine &diag,
       }
     }
   }
-  if (!isCompileTimeConst(n.hi(), symbols) ||
-      !isCompileTimeConst(n.lo(), symbols)) {
+  if (!isCompileTimeConst(n.hi()) || !isCompileTimeConst(n.lo())) {
     diag.report(Severity::Error, n.loc().begin(),
                 "bit-slice index must be a compile-time constant (S15)");
   }
