@@ -31,7 +31,6 @@
 
 #include "ParserImpl.h"
 #include "PrecedenceTable.h"
-
 #include "nsl/AST/BinaryExpr.h"
 #include "nsl/AST/CallExpr.h"
 #include "nsl/AST/ConcatExpr.h"
@@ -353,7 +352,8 @@ std::unique_ptr<ast::Expr> Parser::parseNudExpr() {
     // Recurse to grab a unary-tight operand. We pass the highest
     // useful precedence floor (Multiplicative) so nothing weaker
     // binds inside the unary's operand without parentheses.
-    auto sub = parseExprAtPrecedence(static_cast<int>(PrecLevel::Multiplicative));
+    auto sub =
+        parseExprAtPrecedence(static_cast<int>(PrecLevel::Multiplicative));
     if (!sub) {
       return nullptr;
     }
@@ -371,7 +371,8 @@ std::unique_ptr<ast::Expr> Parser::parseNudExpr() {
     const auto op = (op_tok.kind() == TokenKind::tk_plus_plus)
                         ? ast::IncDecExpr::Op::Inc
                         : ast::IncDecExpr::Op::Dec;
-    auto sub = parseExprAtPrecedence(static_cast<int>(PrecLevel::Multiplicative));
+    auto sub =
+        parseExprAtPrecedence(static_cast<int>(PrecLevel::Multiplicative));
     if (!sub) {
       return nullptr;
     }
@@ -419,8 +420,7 @@ std::unique_ptr<ast::Expr> Parser::parseNudExpr() {
       SourceRange ins(thenE->loc().end(), thenE->loc().end());
       b.addFixIt(ins, " else ");
     }
-    SourceLocation end_loc =
-        elseE ? elseE->loc().end() : thenE->loc().end();
+    SourceLocation end_loc = elseE ? elseE->loc().end() : thenE->loc().end();
     return std::make_unique<ast::ConditionalExpr>(
         rangeFromTo(if_tok.range().begin(), end_loc), std::move(cond),
         std::move(thenE), std::move(elseE));
@@ -433,7 +433,8 @@ std::unique_ptr<ast::Expr> Parser::parseNudExpr() {
 
 // ---------- Postfix tail walker ----------
 
-std::unique_ptr<ast::Expr> Parser::parsePostfix(std::unique_ptr<ast::Expr> head) {
+std::unique_ptr<ast::Expr>
+Parser::parsePostfix(std::unique_ptr<ast::Expr> head) {
   while (head && isPostfixStart(peekKind())) {
     if (check(TokenKind::tk_lbracket)) {
       Token lbr = consume();
@@ -508,13 +509,13 @@ std::unique_ptr<ast::Expr> Parser::parsePostfix(std::unique_ptr<ast::Expr> head)
       }
       ast::ScopedName target;
       if (head->kind() == ast::NodeKind::NK_IdentifierExpr) {
-        const auto *ident = static_cast<const ast::IdentifierExpr *>(head.get());
+        const auto *ident =
+            static_cast<const ast::IdentifierExpr *>(head.get());
         target = ident->name();
       }
       SourceLocation begin = head->loc().begin();
-      head = std::make_unique<ast::CallExpr>(rangeFromTo(begin, end_loc),
-                                              std::move(target),
-                                              std::move(args));
+      head = std::make_unique<ast::CallExpr>(
+          rangeFromTo(begin, end_loc), std::move(target), std::move(args));
       continue;
     }
     break;
@@ -556,7 +557,7 @@ std::unique_ptr<ast::Expr> Parser::parseExprAtPrecedence(int floor) {
     SourceLocation begin = lhs->loc().begin();
     SourceLocation end = rbr.range().end();
     lhs = std::make_unique<ast::RepeatExpr>(rangeFromTo(begin, end),
-                                             std::move(lhs), std::move(body));
+                                            std::move(lhs), std::move(body));
   }
 
   for (;;) {
@@ -585,9 +586,8 @@ std::unique_ptr<ast::Expr> Parser::parseExprAtPrecedence(int floor) {
       }
       SourceLocation begin = lhs->loc().begin();
       SourceLocation end = sub->loc().end();
-      lhs = std::make_unique<ast::SignExtendExpr>(rangeFromTo(begin, end),
-                                                   std::move(lhs),
-                                                   std::move(sub));
+      lhs = std::make_unique<ast::SignExtendExpr>(
+          rangeFromTo(begin, end), std::move(lhs), std::move(sub));
       continue;
     }
 
@@ -607,9 +607,8 @@ std::unique_ptr<ast::Expr> Parser::parseExprAtPrecedence(int floor) {
       }
       SourceLocation begin = lhs->loc().begin();
       SourceLocation end = rpar.range().end();
-      lhs = std::make_unique<ast::ZeroExtendExpr>(rangeFromTo(begin, end),
-                                                   std::move(lhs),
-                                                   std::move(sub));
+      lhs = std::make_unique<ast::ZeroExtendExpr>(
+          rangeFromTo(begin, end), std::move(lhs), std::move(sub));
       continue;
     }
 
@@ -618,14 +617,13 @@ std::unique_ptr<ast::Expr> Parser::parseExprAtPrecedence(int floor) {
     // the parser accepts any expression and lets Sema (M3) flag a
     // non-l-value target. Postfix has no RHS — just wrap the lhs.
     if (k == TokenKind::tk_plus_plus || k == TokenKind::tk_minus_minus) {
-      const auto op = (k == TokenKind::tk_plus_plus)
-                          ? ast::IncDecExpr::Op::Inc
-                          : ast::IncDecExpr::Op::Dec;
+      const auto op = (k == TokenKind::tk_plus_plus) ? ast::IncDecExpr::Op::Inc
+                                                     : ast::IncDecExpr::Op::Dec;
       const SourceLocation begin = lhs->loc().begin();
       const SourceLocation end = op_tok.range().end();
       lhs = std::make_unique<ast::IncDecExpr>(rangeFromTo(begin, end),
-                                               std::move(lhs), op,
-                                               /*prefix=*/false);
+                                              std::move(lhs), op,
+                                              /*prefix=*/false);
       continue;
     }
 
@@ -662,7 +660,7 @@ std::unique_ptr<ast::Expr> Parser::parseExprAtPrecedence(int floor) {
     SourceLocation end = rhs->loc().end();
     auto bop = binaryOpFor(k);
     lhs = std::make_unique<ast::BinaryExpr>(rangeFromTo(begin, end), bop,
-                                             std::move(lhs), std::move(rhs));
+                                            std::move(lhs), std::move(rhs));
   }
   return lhs;
 }

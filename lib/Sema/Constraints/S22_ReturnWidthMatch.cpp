@@ -8,7 +8,6 @@
 
 #include "../ConstraintCheckRegistry.h"
 #include "ConstraintHelpers.h"
-
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/DeclareBlock.h"
 #include "nsl/AST/FuncDefn.h"
@@ -54,8 +53,7 @@ public:
     llvm::DenseMap<llvm::StringRef, uint64_t> portWidths;
     llvm::DenseMap<llvm::StringRef, llvm::StringRef> funcReturn;
     for (const auto &item : ctx.unit->items()) {
-      if (!item ||
-          item->kind() != ast::NodeKind::NK_DeclareBlock) {
+      if (!item || item->kind() != ast::NodeKind::NK_DeclareBlock) {
         continue;
       }
       const auto &db = static_cast<const ast::DeclareBlock &>(*item);
@@ -85,8 +83,7 @@ public:
     }
 
     detail::walkUnit(
-        *ctx.unit, /*dcb=*/nullptr,
-        [&](const ast::Stmt &s, uint32_t lex) {
+        *ctx.unit, /*dcb=*/nullptr, [&](const ast::Stmt &s, uint32_t lex) {
           if (s.kind() != ast::NodeKind::NK_ReturnStmt) {
             return;
           }
@@ -111,8 +108,7 @@ public:
     // Per-FuncDefn walk: for each func, find all returns and check
     // them against the func's return-terminal.
     for (const auto &item : ctx.unit->items()) {
-      if (!item ||
-          item->kind() != ast::NodeKind::NK_ModuleBlock) {
+      if (!item || item->kind() != ast::NodeKind::NK_ModuleBlock) {
         continue;
       }
       const auto &mb = static_cast<const ast::ModuleBlock &>(*item);
@@ -136,18 +132,16 @@ public:
           }
         }
         detail::walkStmt(
-            *fd.body(), 0U,
-            [&](const ast::Stmt &s, uint32_t /*lex*/) {
+            *fd.body(), 0U, [&](const ast::Stmt &s, uint32_t /*lex*/) {
               if (s.kind() != ast::NodeKind::NK_ReturnStmt) {
                 return;
               }
               const auto &r = static_cast<const ast::ReturnStmt &>(s);
               if (r.value() == nullptr) {
                 if (has_terminal) {
-                  ctx.diag->report(
-                      Severity::Error, r.loc().begin(),
-                      "bare 'return;' is valid only when the func "
-                      "has no return-value terminal (S22)");
+                  ctx.diag->report(Severity::Error, r.loc().begin(),
+                                   "bare 'return;' is valid only when the func "
+                                   "has no return-value terminal (S22)");
                 }
                 return;
               }

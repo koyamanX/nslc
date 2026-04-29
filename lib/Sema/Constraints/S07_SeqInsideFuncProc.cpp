@@ -6,7 +6,6 @@
 
 #include "../ConstraintCheckRegistry.h"
 #include "ConstraintHelpers.h"
-
 #include "nsl/Basic/Diagnostic.h"
 
 namespace nsl::sema {
@@ -19,11 +18,9 @@ public:
       return;
     }
     detail::walkUnit(
-        *ctx.unit, /*dcb=*/nullptr,
-        [&](const ast::Stmt &s, uint32_t lex) {
-          bool in_func_or_proc =
-              detail::has(lex, detail::LexCtx::InFunc) ||
-              detail::has(lex, detail::LexCtx::InProc);
+        *ctx.unit, /*dcb=*/nullptr, [&](const ast::Stmt &s, uint32_t lex) {
+          bool in_func_or_proc = detail::has(lex, detail::LexCtx::InFunc) ||
+                                 detail::has(lex, detail::LexCtx::InProc);
           if (in_func_or_proc) {
             return;
           }
@@ -39,10 +36,9 @@ public:
                 "'while' block may appear only inside a function or "
                 "procedure body (S7)");
           } else if (s.kind() == ast::NodeKind::NK_ForBlock) {
-            ctx.diag->report(
-                Severity::Error, s.loc().begin(),
-                "'for' block may appear only inside a function or "
-                "procedure body (S7)");
+            ctx.diag->report(Severity::Error, s.loc().begin(),
+                             "'for' block may appear only inside a function or "
+                             "procedure body (S7)");
           }
         });
   }

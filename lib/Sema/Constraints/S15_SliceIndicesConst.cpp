@@ -6,7 +6,6 @@
 
 #include "../ConstraintCheckRegistry.h"
 #include "ConstraintHelpers.h"
-
 #include "nsl/AST/BinaryExpr.h"
 #include "nsl/AST/CallExpr.h"
 #include "nsl/AST/CompilationUnit.h"

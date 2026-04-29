@@ -199,8 +199,8 @@ void DiagnosticEngine::renderAll(llvm::raw_ostream &os, Format fmt) const {
         SourceLocation const loc = fx.range.begin();
         if (loc.isValid()) {
           auto v = impl_->sm.resolveVirtual(loc);
-          os << "fix-it:" << v.path << ':' << v.line << ':' << v.col
-             << ':' << fx.replacement << '\n';
+          os << "fix-it:" << v.path << ':' << v.line << ':' << v.col << ':'
+             << fx.replacement << '\n';
         } else {
           os << "fix-it:" << fx.replacement << '\n';
         }

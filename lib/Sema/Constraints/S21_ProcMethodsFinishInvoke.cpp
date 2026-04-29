@@ -8,7 +8,6 @@
 
 #include "../ConstraintCheckRegistry.h"
 #include "ConstraintHelpers.h"
-
 #include "nsl/AST/BareFinishStmt.h"
 #include "nsl/AST/ControlCallStmt.h"
 #include "nsl/Basic/Diagnostic.h"
@@ -20,13 +19,11 @@ namespace {
 class S21Visitor : public ConstraintVisitor {
 public:
   void run(const ConstraintContext &ctx) const override {
-    if (ctx.unit == nullptr || ctx.diag == nullptr ||
-        ctx.symbols == nullptr) {
+    if (ctx.unit == nullptr || ctx.diag == nullptr || ctx.symbols == nullptr) {
       return;
     }
     detail::walkUnit(
-        *ctx.unit, /*dcb=*/nullptr,
-        [&](const ast::Stmt &s, uint32_t lex) {
+        *ctx.unit, /*dcb=*/nullptr, [&](const ast::Stmt &s, uint32_t lex) {
           if (s.kind() == ast::NodeKind::NK_BareFinishStmt) {
             if (!detail::has(lex, detail::LexCtx::InProc)) {
               ctx.diag->report(
@@ -38,8 +35,7 @@ public:
             return;
           }
           if (s.kind() == ast::NodeKind::NK_ControlCallStmt) {
-            const auto &cc =
-                static_cast<const ast::ControlCallStmt &>(s);
+            const auto &cc = static_cast<const ast::ControlCallStmt &>(s);
             if (cc.target().parts.size() < 2) {
               return;
             }
@@ -49,13 +45,11 @@ public:
             }
             llvm::StringRef head = cc.target().parts.front();
             Symbol *sym = ctx.symbols->lookup(head);
-            if (sym == nullptr ||
-                sym->kind() != SymbolKind::SK_Proc) {
-              ctx.diag->report(
-                  Severity::Error, s.loc().begin(),
-                  "dotted form '<inst>.finish()' / "
-                  "'<inst>.invoke()' requires '<inst>' to resolve "
-                  "to a 'proc_name' declaration (S21)");
+            if (sym == nullptr || sym->kind() != SymbolKind::SK_Proc) {
+              ctx.diag->report(Severity::Error, s.loc().begin(),
+                               "dotted form '<inst>.finish()' / "
+                               "'<inst>.invoke()' requires '<inst>' to resolve "
+                               "to a 'proc_name' declaration (S21)");
             }
           }
         });

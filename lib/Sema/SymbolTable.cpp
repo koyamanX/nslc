@@ -22,8 +22,8 @@ namespace nsl::sema {
 // Out-of-line virtual destructors (vtable anchors)
 // -----------------------------------------------------------------
 
-Symbol::~Symbol()              = default;
-ValueSymbol::~ValueSymbol()    = default;
+Symbol::~Symbol() = default;
+ValueSymbol::~ValueSymbol() = default;
 ControlSymbol::~ControlSymbol() = default;
 
 // -----------------------------------------------------------------
@@ -32,13 +32,13 @@ ControlSymbol::~ControlSymbol() = default;
 
 llvm::StringRef toString(SymbolKind k) {
   switch (k) {
-#define NSL_SYMBOL_KIND(EnumName, ConcreteClass) \
-  case SymbolKind::SK_##EnumName:                \
+#define NSL_SYMBOL_KIND(EnumName, ConcreteClass)                               \
+  case SymbolKind::SK_##EnumName:                                              \
     return llvm::StringRef(#EnumName);
 #include "nsl/Sema/SymbolKind.def"
 #undef NSL_SYMBOL_KIND
-    case SymbolKind::SK_count:
-      break;
+  case SymbolKind::SK_count:
+    break;
   }
   return llvm::StringRef("<invalid>");
 }
@@ -79,7 +79,7 @@ bool Scope::insert(std::unique_ptr<Symbol> sym) {
 // SymbolTable
 // -----------------------------------------------------------------
 
-SymbolTable::SymbolTable()  = default;
+SymbolTable::SymbolTable() = default;
 SymbolTable::~SymbolTable() = default;
 
 void SymbolTable::enterScope(ScopeKind kind, Symbol *owner) {
@@ -123,8 +123,7 @@ Symbol *SymbolTable::lookup(ast::Identifier name) const {
   // introspection unit tests under
   // `test_unit/constructive_sn_test/`.
   if (scopes_.empty()) {
-    for (auto it = retiredScopes_.rbegin(); it != retiredScopes_.rend();
-         ++it) {
+    for (auto it = retiredScopes_.rbegin(); it != retiredScopes_.rend(); ++it) {
       if (Symbol *sym = (*it)->lookupLocal(name)) {
         return sym;
       }

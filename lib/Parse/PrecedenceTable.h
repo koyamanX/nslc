@@ -46,21 +46,21 @@ namespace nsl::parse {
 /// Numeric precedence level. Higher = binds tighter. Level 0 is the
 /// "no `led`" sentinel — Pratt-loop terminator.
 enum class PrecLevel : uint8_t {
-  None = 0,           ///< sentinel: no `led`; operator does not chain
-  LogicalOr = 10,     ///< `||`
-  LogicalAnd = 20,    ///< `&&`
-  BitOr = 30,         ///< `|`
-  BitXor = 40,        ///< `^`
-  BitAnd = 50,        ///< `&`
-  Equality = 60,      ///< `==`, `!=`
-  Relational = 70,    ///< `<`, `<=`, `>`, `>=`
-  Shift = 80,         ///< `<<`, `>>`
-  Additive = 90,      ///< `+`, `-`
+  None = 0,             ///< sentinel: no `led`; operator does not chain
+  LogicalOr = 10,       ///< `||`
+  LogicalAnd = 20,      ///< `&&`
+  BitOr = 30,           ///< `|`
+  BitXor = 40,          ///< `^`
+  BitAnd = 50,          ///< `&`
+  Equality = 60,        ///< `==`, `!=`
+  Relational = 70,      ///< `<`, `<=`, `>`, `>=`
+  Shift = 80,           ///< `<<`, `>>`
+  Additive = 90,        ///< `+`, `-`
   Multiplicative = 100, ///< `*`, `/`, `%`
-  Postfix = 110,      ///< postfix `++`, `--` (binds tighter than `*`,
-                      ///<   `/`, `%`; matches C/C++ convention so
-                      ///<   `a * i++` parses as `a * (i++)`)
-  Conditional = 5,    ///< `?:` ternary (right-assoc; below logical-or)
+  Postfix = 110,        ///< postfix `++`, `--` (binds tighter than `*`,
+                        ///<   `/`, `%`; matches C/C++ convention so
+                        ///<   `a * i++` parses as `a * (i++)`)
+  Conditional = 5,      ///< `?:` ternary (right-assoc; below logical-or)
 };
 
 /// Associativity for `led` entries. Pratt: left-assoc → recurse with
@@ -113,38 +113,38 @@ buildPrecedenceTable() {
   // Default rows are `{false, None, None}` (zero-init).
 
   // ----- Leaves: literals + identifier-like ----- //
-  t[static_cast<size_t>(TokenKind::tk_identifier)] =
-      {true, PrecLevel::None, Assoc::None};
-  t[static_cast<size_t>(TokenKind::tk_string_lit)] =
-      {true, PrecLevel::None, Assoc::None};
-  t[static_cast<size_t>(TokenKind::tk_decimal_lit)] =
-      {true, PrecLevel::None, Assoc::None};
-  t[static_cast<size_t>(TokenKind::tk_hex_lit)] =
-      {true, PrecLevel::None, Assoc::None};
-  t[static_cast<size_t>(TokenKind::tk_binary_lit)] =
-      {true, PrecLevel::None, Assoc::None};
-  t[static_cast<size_t>(TokenKind::tk_octal_lit)] =
-      {true, PrecLevel::None, Assoc::None};
-  t[static_cast<size_t>(TokenKind::tk_system_function)] =
-      {true, PrecLevel::None, Assoc::None};
+  t[static_cast<size_t>(TokenKind::tk_identifier)] = {true, PrecLevel::None,
+                                                      Assoc::None};
+  t[static_cast<size_t>(TokenKind::tk_string_lit)] = {true, PrecLevel::None,
+                                                      Assoc::None};
+  t[static_cast<size_t>(TokenKind::tk_decimal_lit)] = {true, PrecLevel::None,
+                                                       Assoc::None};
+  t[static_cast<size_t>(TokenKind::tk_hex_lit)] = {true, PrecLevel::None,
+                                                   Assoc::None};
+  t[static_cast<size_t>(TokenKind::tk_binary_lit)] = {true, PrecLevel::None,
+                                                      Assoc::None};
+  t[static_cast<size_t>(TokenKind::tk_octal_lit)] = {true, PrecLevel::None,
+                                                     Assoc::None};
+  t[static_cast<size_t>(TokenKind::tk_system_function)] = {
+      true, PrecLevel::None, Assoc::None};
 
   // ----- Parenthesized expression / concat / repeat starts ----- //
-  t[static_cast<size_t>(TokenKind::tk_lparen)] =
-      {true, PrecLevel::None, Assoc::None};
-  t[static_cast<size_t>(TokenKind::tk_lbrace)] =
-      {true, PrecLevel::None, Assoc::None};
-  t[static_cast<size_t>(TokenKind::tk_dot_lbrace)] =
-      {true, PrecLevel::None, Assoc::None}; // N3 `.{` LHS-concat
+  t[static_cast<size_t>(TokenKind::tk_lparen)] = {true, PrecLevel::None,
+                                                  Assoc::None};
+  t[static_cast<size_t>(TokenKind::tk_lbrace)] = {true, PrecLevel::None,
+                                                  Assoc::None};
+  t[static_cast<size_t>(TokenKind::tk_dot_lbrace)] = {
+      true, PrecLevel::None, Assoc::None}; // N3 `.{` LHS-concat
 
   // ----- Prefix unary operators ----- //
-  t[static_cast<size_t>(TokenKind::tk_plus)] =
-      {true, PrecLevel::Additive, Assoc::Left};
-  t[static_cast<size_t>(TokenKind::tk_minus)] =
-      {true, PrecLevel::Additive, Assoc::Left};
-  t[static_cast<size_t>(TokenKind::tk_tilde)] =
-      {true, PrecLevel::None, Assoc::None};
-  t[static_cast<size_t>(TokenKind::tk_logical_not)] =
-      {true, PrecLevel::None, Assoc::None};
+  t[static_cast<size_t>(TokenKind::tk_plus)] = {true, PrecLevel::Additive,
+                                                Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_minus)] = {true, PrecLevel::Additive,
+                                                 Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_tilde)] = {true, PrecLevel::None,
+                                                 Assoc::None};
+  t[static_cast<size_t>(TokenKind::tk_logical_not)] = {true, PrecLevel::None,
+                                                       Assoc::None};
 
   // ----- Inc/Dec operators (`lang.ebnf §11` lines 654–657) ----- //
   // `++`/`--` are listed under `primary_expr` in both prefix
@@ -155,20 +155,20 @@ buildPrecedenceTable() {
   // C/C++ convention. The Pratt loop's per-token branch in
   // `ParseExpr.cpp` constructs `IncDecExpr{prefix=false}` directly;
   // `Assoc::Left` is a placeholder (postfix has no second operand).
-  t[static_cast<size_t>(TokenKind::tk_plus_plus)] =
-      {true, PrecLevel::Postfix, Assoc::Left};
-  t[static_cast<size_t>(TokenKind::tk_minus_minus)] =
-      {true, PrecLevel::Postfix, Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_plus_plus)] = {true, PrecLevel::Postfix,
+                                                     Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_minus_minus)] = {true, PrecLevel::Postfix,
+                                                       Assoc::Left};
 
   // ----- N2: `&` `|` `^` are BOTH prefix (reduction) AND infix
   //       (bitwise binary). The parser inspects the call site to
   //       pick the right denotation.
-  t[static_cast<size_t>(TokenKind::tk_amp)] =
-      {true, PrecLevel::BitAnd, Assoc::Left};
-  t[static_cast<size_t>(TokenKind::tk_pipe)] =
-      {true, PrecLevel::BitOr, Assoc::Left};
-  t[static_cast<size_t>(TokenKind::tk_caret)] =
-      {true, PrecLevel::BitXor, Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_amp)] = {true, PrecLevel::BitAnd,
+                                               Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_pipe)] = {true, PrecLevel::BitOr,
+                                                Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_caret)] = {true, PrecLevel::BitXor,
+                                                 Assoc::Left};
 
   // ----- N5: `#` sign-extend in expression position (after the
   //       width literal); the lexer emits `tk_hash_sign_extend`
@@ -177,57 +177,57 @@ buildPrecedenceTable() {
   //       sign-extend operator is binary in NSL: `width # value`.
   //       Modeling it as infix simplifies Pratt; precedence is
   //       Multiplicative-tight per the EBNF.
-  t[static_cast<size_t>(TokenKind::tk_hash_sign_extend)] =
-      {false, PrecLevel::Multiplicative, Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_hash_sign_extend)] = {
+      false, PrecLevel::Multiplicative, Assoc::Left};
   // Zero-extend `'` mirrors sign-extend in tightness.
-  t[static_cast<size_t>(TokenKind::tk_apostrophe_zero_extend)] =
-      {false, PrecLevel::Multiplicative, Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_apostrophe_zero_extend)] = {
+      false, PrecLevel::Multiplicative, Assoc::Left};
 
   // ----- Multiplicative ----- //
-  t[static_cast<size_t>(TokenKind::tk_star)] =
-      {false, PrecLevel::Multiplicative, Assoc::Left};
-  t[static_cast<size_t>(TokenKind::tk_slash)] =
-      {false, PrecLevel::Multiplicative, Assoc::Left};
-  t[static_cast<size_t>(TokenKind::tk_percent)] =
-      {false, PrecLevel::Multiplicative, Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_star)] = {
+      false, PrecLevel::Multiplicative, Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_slash)] = {
+      false, PrecLevel::Multiplicative, Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_percent)] = {
+      false, PrecLevel::Multiplicative, Assoc::Left};
 
   // ----- Shift ----- //
-  t[static_cast<size_t>(TokenKind::tk_shift_left)] =
-      {false, PrecLevel::Shift, Assoc::Left};
-  t[static_cast<size_t>(TokenKind::tk_shift_right)] =
-      {false, PrecLevel::Shift, Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_shift_left)] = {false, PrecLevel::Shift,
+                                                      Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_shift_right)] = {false, PrecLevel::Shift,
+                                                       Assoc::Left};
 
   // ----- Relational ----- //
-  t[static_cast<size_t>(TokenKind::tk_less)] =
-      {false, PrecLevel::Relational, Assoc::Left};
-  t[static_cast<size_t>(TokenKind::tk_less_equal)] =
-      {false, PrecLevel::Relational, Assoc::Left};
-  t[static_cast<size_t>(TokenKind::tk_greater)] =
-      {false, PrecLevel::Relational, Assoc::Left};
-  t[static_cast<size_t>(TokenKind::tk_greater_equal)] =
-      {false, PrecLevel::Relational, Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_less)] = {false, PrecLevel::Relational,
+                                                Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_less_equal)] = {
+      false, PrecLevel::Relational, Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_greater)] = {false, PrecLevel::Relational,
+                                                   Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_greater_equal)] = {
+      false, PrecLevel::Relational, Assoc::Left};
 
   // ----- Equality ----- //
-  t[static_cast<size_t>(TokenKind::tk_equal)] =
-      {false, PrecLevel::Equality, Assoc::Left};
-  t[static_cast<size_t>(TokenKind::tk_not_equal)] =
-      {false, PrecLevel::Equality, Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_equal)] = {false, PrecLevel::Equality,
+                                                 Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_not_equal)] = {false, PrecLevel::Equality,
+                                                     Assoc::Left};
 
   // ----- Logical ----- //
-  t[static_cast<size_t>(TokenKind::tk_logical_and)] =
-      {false, PrecLevel::LogicalAnd, Assoc::Left};
-  t[static_cast<size_t>(TokenKind::tk_logical_or)] =
-      {false, PrecLevel::LogicalOr, Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_logical_and)] = {
+      false, PrecLevel::LogicalAnd, Assoc::Left};
+  t[static_cast<size_t>(TokenKind::tk_logical_or)] = {
+      false, PrecLevel::LogicalOr, Assoc::Left};
 
   // ----- Conditional `?:` (right-assoc; lowest-binding) ----- //
-  t[static_cast<size_t>(TokenKind::tk_question)] =
-      {false, PrecLevel::Conditional, Assoc::Right};
+  t[static_cast<size_t>(TokenKind::tk_question)] = {
+      false, PrecLevel::Conditional, Assoc::Right};
 
   // ----- N1: `if (...) a else b` expression form. The parser
   //       routes `tk_if_` as a `nud` (prefix) that builds a
   //       `ConditionalExpr`. No `led` for `if`.
-  t[static_cast<size_t>(TokenKind::tk_if_)] =
-      {true, PrecLevel::None, Assoc::None};
+  t[static_cast<size_t>(TokenKind::tk_if_)] = {true, PrecLevel::None,
+                                               Assoc::None};
 
   // ----- N11(b): no-parens `_random` / `_time` are leaves. The
   //       lexer emits `tk_system_function` for them already (see

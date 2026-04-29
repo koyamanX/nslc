@@ -7,7 +7,6 @@
 // message at every Identifier slot whose spelling contains `__`.
 
 #include "../ConstraintCheckRegistry.h"
-
 #include "nsl/AST/AltBlock.h"
 #include "nsl/AST/AnyBlock.h"
 #include "nsl/AST/CompilationUnit.h"

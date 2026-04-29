@@ -640,8 +640,7 @@ void Walker::markUnresolved(const ast::Expr &e) {
 
 void Walker::declTopLevelParam(const ast::TopLevelParamDecl &n) {
   // Treated as an integer-shaped declaration in the global scope.
-  bool ok = table_.declare(
-      std::make_unique<IntegerSymbol>(n.name(), n.loc()));
+  bool ok = table_.declare(std::make_unique<IntegerSymbol>(n.name(), n.loc()));
   if (!ok) {
     std::string msg = "duplicate declaration of '";
     msg += n.name().str();
@@ -927,8 +926,7 @@ void Walker::declSubmodule(const ast::SubmoduleDecl &n) {
   // Each instance becomes a SubmoduleSymbol; templateDecl is left
   // null at M3 (Phase 4 S20 / M5 lowering populates).
   for (const auto &inst : n.instances()) {
-    auto sym = std::make_unique<SubmoduleSymbol>(inst.name, n.loc(),
-                                                 nullptr);
+    auto sym = std::make_unique<SubmoduleSymbol>(inst.name, n.loc(), nullptr);
     SubmoduleSymbol *raw = sym.get();
     if (!table_.declare(std::move(sym))) {
       std::string msg = "duplicate declaration of '";
@@ -1311,7 +1309,7 @@ void Walker::exprBinary(const ast::BinaryExpr &n) {
   }
   if (!result) {
     result = topContext() != 0 ? types_.bitVector(topContext())
-                                : types_.bitVector(1);
+                               : types_.bitVector(1);
   }
   // Propagate Unresolved if either operand was unresolved.
   if ((tl && tl->kind() == TypeKind::Unresolved) ||
@@ -1552,7 +1550,9 @@ namespace {
 thread_local const ResolutionMap *g_currentMap = nullptr;
 } // namespace
 
-const ResolutionMap *currentResolutionMap() noexcept { return g_currentMap; }
+const ResolutionMap *currentResolutionMap() noexcept {
+  return g_currentMap;
+}
 
 void setCurrentResolutionMap(const ResolutionMap *map) noexcept {
   g_currentMap = map;

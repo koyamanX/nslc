@@ -5,7 +5,6 @@
 
 #include "../ConstraintCheckRegistry.h"
 #include "ConstraintHelpers.h"
-
 #include "nsl/AST/ForBlock.h"
 #include "nsl/AST/IdentifierExpr.h"
 #include "nsl/AST/IncDecStmt.h"
@@ -47,13 +46,11 @@ ast::Identifier loopVarFromInit(const ast::Stmt *init) noexcept {
 class S09Visitor : public ConstraintVisitor {
 public:
   void run(const ConstraintContext &ctx) const override {
-    if (ctx.unit == nullptr || ctx.diag == nullptr ||
-        ctx.symbols == nullptr) {
+    if (ctx.unit == nullptr || ctx.diag == nullptr || ctx.symbols == nullptr) {
       return;
     }
     detail::walkUnit(
-        *ctx.unit, /*dcb=*/nullptr,
-        [&](const ast::Stmt &s, uint32_t /*lex*/) {
+        *ctx.unit, /*dcb=*/nullptr, [&](const ast::Stmt &s, uint32_t /*lex*/) {
           if (s.kind() != ast::NodeKind::NK_ForBlock) {
             return;
           }

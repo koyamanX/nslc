@@ -5,7 +5,6 @@
 
 #include "../ConstraintCheckRegistry.h"
 #include "ConstraintHelpers.h"
-
 #include "nsl/AST/ProcNameDecl.h"
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Sema/SymbolTable.h"
@@ -16,8 +15,7 @@ namespace {
 class S06Visitor : public ConstraintVisitor {
 public:
   void run(const ConstraintContext &ctx) const override {
-    if (ctx.unit == nullptr || ctx.diag == nullptr ||
-        ctx.symbols == nullptr) {
+    if (ctx.unit == nullptr || ctx.diag == nullptr || ctx.symbols == nullptr) {
       return;
     }
     detail::walkUnit(

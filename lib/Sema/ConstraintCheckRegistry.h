@@ -86,8 +86,7 @@ void runAllConstraints(const ConstraintContext &ctx);
   namespace {                                                                  \
   struct VisitorClass##Registrar {                                             \
     VisitorClass##Registrar() {                                                \
-      ::nsl::sema::registerConstraint(                                         \
-          (SN), std::make_unique<VisitorClass>());                             \
+      ::nsl::sema::registerConstraint((SN), std::make_unique<VisitorClass>()); \
     }                                                                          \
   };                                                                           \
   static VisitorClass##Registrar g_##VisitorClass##_registrar;                 \

@@ -29,15 +29,10 @@ namespace llvm {
 template <>
 struct DenseMapInfo<std::pair<uint64_t, const nsl::sema::Type *>> {
   using Key = std::pair<uint64_t, const nsl::sema::Type *>;
-  static inline Key getEmptyKey() {
-    return {~uint64_t{0}, nullptr};
-  }
-  static inline Key getTombstoneKey() {
-    return {~uint64_t{0} - 1, nullptr};
-  }
+  static inline Key getEmptyKey() { return {~uint64_t{0}, nullptr}; }
+  static inline Key getTombstoneKey() { return {~uint64_t{0} - 1, nullptr}; }
   static unsigned getHashValue(const Key &k) {
-    return static_cast<unsigned>(
-        llvm::hash_combine(k.first, k.second));
+    return static_cast<unsigned>(llvm::hash_combine(k.first, k.second));
   }
   static bool isEqual(const Key &a, const Key &b) {
     return a.first == b.first && a.second == b.second;
@@ -87,12 +82,10 @@ struct TypeSystem::Impl {
   /// are unique per compilation unit (the `ResolutionPass` enforces
   /// this by declaring each `StructTypeSymbol` in the global scope),
   /// so the name alone is the cache key.
-  llvm::DenseMap<llvm::StringRef, std::unique_ptr<StructType>>
-      structCache;
+  llvm::DenseMap<llvm::StringRef, std::unique_ptr<StructType>> structCache;
 
   /// `mem` cache keyed by `(depth, element)`.
-  llvm::DenseMap<std::pair<uint64_t, TypeRef>,
-                 std::unique_ptr<MemoryType>>
+  llvm::DenseMap<std::pair<uint64_t, TypeRef>, std::unique_ptr<MemoryType>>
       memCache;
 
   Impl()

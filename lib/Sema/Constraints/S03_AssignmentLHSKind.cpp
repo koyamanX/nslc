@@ -9,7 +9,6 @@
 
 #include "../ConstraintCheckRegistry.h"
 #include "ConstraintHelpers.h"
-
 #include "nsl/AST/IdentifierExpr.h"
 #include "nsl/AST/SliceExpr.h"
 #include "nsl/AST/TransferStmt.h"
@@ -48,13 +47,11 @@ ast::Identifier headIdentifier(const ast::Expr *e) noexcept {
 class S03Visitor : public ConstraintVisitor {
 public:
   void run(const ConstraintContext &ctx) const override {
-    if (ctx.unit == nullptr || ctx.diag == nullptr ||
-        ctx.symbols == nullptr) {
+    if (ctx.unit == nullptr || ctx.diag == nullptr || ctx.symbols == nullptr) {
       return;
     }
     detail::walkUnit(
-        *ctx.unit, /*dcb=*/nullptr,
-        [&](const ast::Stmt &s, uint32_t /*lex*/) {
+        *ctx.unit, /*dcb=*/nullptr, [&](const ast::Stmt &s, uint32_t /*lex*/) {
           if (s.kind() != ast::NodeKind::NK_TransferStmt) {
             return;
           }
@@ -83,8 +80,7 @@ public:
               b.addFixIt(t.loc(), ":=");
             }
           } else if (t.op() == ast::TransferStmt::Op::RegColonEq) {
-            bool reg_target =
-                (k == SymbolKind::SK_Reg);
+            bool reg_target = (k == SymbolKind::SK_Reg);
             if (!reg_target) {
               auto b = ctx.diag->report(
                   Severity::Error, t.loc().begin(),

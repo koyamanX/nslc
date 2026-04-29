@@ -56,26 +56,28 @@ namespace nsl::sema::detail {
 
 /// Lexical context bits tracked while walking a Stmt subtree.
 enum class LexCtx : uint32_t {
-  None         = 0U,
-  InModule     = 1U << 0U,
-  InFunc       = 1U << 1U,
-  InProc       = 1U << 2U,
-  InState      = 1U << 3U,
-  InSeq        = 1U << 4U,
-  InParallel   = 1U << 5U,
-  InAlt        = 1U << 6U,
-  InAny        = 1U << 7U,
-  InIf         = 1U << 8U,
-  InWhile      = 1U << 9U,
-  InFor        = 1U << 10U,
-  InInitBlock  = 1U << 11U,
-  InGenerate   = 1U << 12U,
+  None = 0U,
+  InModule = 1U << 0U,
+  InFunc = 1U << 1U,
+  InProc = 1U << 2U,
+  InState = 1U << 3U,
+  InSeq = 1U << 4U,
+  InParallel = 1U << 5U,
+  InAlt = 1U << 6U,
+  InAny = 1U << 7U,
+  InIf = 1U << 8U,
+  InWhile = 1U << 9U,
+  InFor = 1U << 10U,
+  InInitBlock = 1U << 11U,
+  InGenerate = 1U << 12U,
   /// True when we have walked under ANY action block — i.e., the
   /// position is no longer "directly inside the module body".
-  InAnyAction  = 1U << 13U,
+  InAnyAction = 1U << 13U,
 };
 
-inline uint32_t toRaw(LexCtx c) noexcept { return static_cast<uint32_t>(c); }
+inline uint32_t toRaw(LexCtx c) noexcept {
+  return static_cast<uint32_t>(c);
+}
 inline uint32_t opOr(uint32_t a, LexCtx b) noexcept {
   return a | toRaw(b);
 }
@@ -168,8 +170,7 @@ inline void walkStmt(const ast::Stmt &s, uint32_t ctx, const StmtCb &cb) {
   }
   case ast::NodeKind::NK_InitBlockStmt: {
     const auto &n = static_cast<const ast::InitBlockStmt &>(s);
-    uint32_t c =
-        opOr(ctx | toRaw(LexCtx::InAnyAction), LexCtx::InInitBlock);
+    uint32_t c = opOr(ctx | toRaw(LexCtx::InAnyAction), LexCtx::InInitBlock);
     for (const auto &it : n.items()) {
       if (it) {
         walkStmt(*it, c, cb);
@@ -262,8 +263,7 @@ inline void walkDecl(const ast::Decl &d, uint32_t ctx, const DeclCb &dcb,
   }
   case ast::NodeKind::NK_StateDefn: {
     const auto &n = static_cast<const ast::StateDefn &>(d);
-    uint32_t c =
-        ctx | toRaw(LexCtx::InProc) | toRaw(LexCtx::InState);
+    uint32_t c = ctx | toRaw(LexCtx::InProc) | toRaw(LexCtx::InState);
     if (n.body() && scb) {
       walkStmt(*n.body(), c, scb);
     }

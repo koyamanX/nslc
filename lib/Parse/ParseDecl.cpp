@@ -16,7 +16,6 @@
 
 #include "ParserImpl.h"
 #include "Recovery.h"
-
 #include "nsl/AST/DeclareBlock.h"
 #include "nsl/AST/Expr.h"
 #include "nsl/AST/FirstStateDecl.h"
@@ -127,7 +126,8 @@ std::unique_ptr<ast::Decl> Parser::parseStructDecl() {
 
 std::unique_ptr<ast::Decl> Parser::parseTopLevelParam() {
   Token kw;
-  ast::TopLevelParamDecl::ParamKind kind = ast::TopLevelParamDecl::ParamKind::Int;
+  ast::TopLevelParamDecl::ParamKind kind =
+      ast::TopLevelParamDecl::ParamKind::Int;
   if (check(TokenKind::tk_param_int)) {
     kw = consume();
     kind = ast::TopLevelParamDecl::ParamKind::Int;
@@ -681,8 +681,7 @@ std::unique_ptr<ast::Decl> Parser::parseInternalDecl() {
       consume();
       if (!check(TokenKind::tk_rparen)) {
         Token first;
-        if (!expect(TokenKind::tk_identifier, "dummy-arg identifier",
-                    &first)) {
+        if (!expect(TokenKind::tk_identifier, "dummy-arg identifier", &first)) {
           return nullptr;
         }
         dummyArgs.push_back(first.spelling());
@@ -770,8 +769,8 @@ std::unique_ptr<ast::Decl> Parser::parseInternalDecl() {
           while (check(TokenKind::tk_comma)) {
             consume();
             Token rest;
-            if (!expect(TokenKind::tk_identifier,
-                        "proc_name reg-arg after ','", &rest)) {
+            if (!expect(TokenKind::tk_identifier, "proc_name reg-arg after ','",
+                        &rest)) {
               return nullptr;
             }
           }
@@ -1027,8 +1026,8 @@ std::unique_ptr<ast::Decl> Parser::parseInternalDecl() {
       while (check(TokenKind::tk_comma)) {
         consume();
         Token nxt;
-        if (!expect(TokenKind::tk_identifier,
-                    "struct-instance name after ','", &nxt)) {
+        if (!expect(TokenKind::tk_identifier, "struct-instance name after ','",
+                    &nxt)) {
           return nullptr;
         }
         if (check(TokenKind::tk_lbracket)) {
@@ -1109,12 +1108,11 @@ std::unique_ptr<ast::Decl> Parser::parseInternalDecl() {
         if (!check(TokenKind::tk_rparen)) {
           for (;;) {
             Token pa_name;
-            if (!expect(TokenKind::tk_identifier,
-                        "parameter-assignment name", &pa_name)) {
+            if (!expect(TokenKind::tk_identifier, "parameter-assignment name",
+                        &pa_name)) {
               return nullptr;
             }
-            if (!expect(TokenKind::tk_assign,
-                        "'=' in parameter-assignment")) {
+            if (!expect(TokenKind::tk_assign, "'=' in parameter-assignment")) {
               return nullptr;
             }
             // value: constant_expression OR string_literal
@@ -1171,8 +1169,8 @@ std::unique_ptr<ast::Decl> Parser::parseInternalDecl() {
         instances.push_back({nxt_name.spelling(), std::move(nxt_arr)});
       }
       Token semi;
-      if (!expect(TokenKind::tk_semicolon,
-                  "';' after submodule declaration", &semi)) {
+      if (!expect(TokenKind::tk_semicolon, "';' after submodule declaration",
+                  &semi)) {
         return nullptr;
       }
       return std::make_unique<ast::SubmoduleDecl>(
@@ -1222,7 +1220,8 @@ std::unique_ptr<ast::Decl> Parser::parseFuncDefn() {
   }
   SourceLocation end_loc = body->loc().end();
   return std::make_unique<ast::FuncDefn>(
-      rangeFromTo(kw.range().begin(), end_loc), std::move(name), std::move(body));
+      rangeFromTo(kw.range().begin(), end_loc), std::move(name),
+      std::move(body));
 }
 
 std::unique_ptr<ast::Decl> Parser::parseProcDefn() {

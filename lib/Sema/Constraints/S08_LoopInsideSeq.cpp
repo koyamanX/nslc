@@ -6,7 +6,6 @@
 
 #include "../ConstraintCheckRegistry.h"
 #include "ConstraintHelpers.h"
-
 #include "nsl/Basic/Diagnostic.h"
 
 namespace nsl::sema {
@@ -19,16 +18,14 @@ public:
       return;
     }
     detail::walkUnit(
-        *ctx.unit, /*dcb=*/nullptr,
-        [&](const ast::Stmt &s, uint32_t lex) {
+        *ctx.unit, /*dcb=*/nullptr, [&](const ast::Stmt &s, uint32_t lex) {
           if (detail::has(lex, detail::LexCtx::InSeq)) {
             return;
           }
           // Only fire if we're at least inside a func/proc body —
           // otherwise S7 will already have fired and S8 is noise.
-          bool in_func_or_proc =
-              detail::has(lex, detail::LexCtx::InFunc) ||
-              detail::has(lex, detail::LexCtx::InProc);
+          bool in_func_or_proc = detail::has(lex, detail::LexCtx::InFunc) ||
+                                 detail::has(lex, detail::LexCtx::InProc);
           if (!in_func_or_proc) {
             return;
           }

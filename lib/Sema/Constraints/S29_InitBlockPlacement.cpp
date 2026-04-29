@@ -6,7 +6,6 @@
 
 #include "../ConstraintCheckRegistry.h"
 #include "ConstraintHelpers.h"
-
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/DeclareBlock.h"
 #include "nsl/AST/InitBlockStmt.h"
@@ -27,8 +26,7 @@ public:
     }
     llvm::DenseSet<llvm::StringRef> simModules;
     for (const auto &item : ctx.unit->items()) {
-      if (!item ||
-          item->kind() != ast::NodeKind::NK_DeclareBlock) {
+      if (!item || item->kind() != ast::NodeKind::NK_DeclareBlock) {
         continue;
       }
       const auto &db = static_cast<const ast::DeclareBlock &>(*item);
@@ -38,8 +36,7 @@ public:
     }
 
     for (const auto &item : ctx.unit->items()) {
-      if (!item ||
-          item->kind() != ast::NodeKind::NK_ModuleBlock) {
+      if (!item || item->kind() != ast::NodeKind::NK_ModuleBlock) {
         continue;
       }
       const auto &mb = static_cast<const ast::ModuleBlock &>(*item);

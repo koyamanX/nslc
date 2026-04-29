@@ -35,7 +35,6 @@
 
 #include "ParserImpl.h"
 #include "Recovery.h"
-
 #include "nsl/AST/AltBlock.h"
 #include "nsl/AST/AnyBlock.h"
 #include "nsl/AST/BareFinishStmt.h"
@@ -86,7 +85,9 @@ bool isInternalDeclStart(TokenKind k) {
   }
 }
 
-bool isLabelNameDecl(TokenKind k) { return k == TokenKind::tk_label_name; }
+bool isLabelNameDecl(TokenKind k) {
+  return k == TokenKind::tk_label_name;
+}
 
 /// Skip a `label_name id { , id } ;` form. The AST has no node kind
 /// for it (it's a Sema/M3 concern); parsing it correctly preserves
@@ -197,8 +198,8 @@ std::unique_ptr<ast::Stmt> Parser::parseLValueLedStatement() {
       return nullptr;
     }
     Token semi;
-    if (!expect(TokenKind::tk_semicolon,
-                "';' after prefix increment/decrement", &semi)) {
+    if (!expect(TokenKind::tk_semicolon, "';' after prefix increment/decrement",
+                &semi)) {
       return nullptr;
     }
     return std::make_unique<ast::IncDecStmt>(
@@ -260,8 +261,8 @@ std::unique_ptr<ast::Stmt> Parser::parseLValueLedStatement() {
     // Build an LHS expression from the scoped name; postfix `[hi]`,
     // `[hi:lo]` etc. then attach. We synthesize an IdentifierExpr
     // and feed it through parsePostfix to pick up the bit-select tail.
-    std::unique_ptr<ast::Expr> lhs = std::make_unique<ast::IdentifierExpr>(
-        head_range, std::move(head_name));
+    std::unique_ptr<ast::Expr> lhs =
+        std::make_unique<ast::IdentifierExpr>(head_range, std::move(head_name));
     lhs = parsePostfix(std::move(lhs));
     if (!lhs) {
       return nullptr;
@@ -285,8 +286,8 @@ std::unique_ptr<ast::Stmt> Parser::parseLValueLedStatement() {
     }
     if (nxt == TokenKind::tk_assign || nxt == TokenKind::tk_assign_seq) {
       ast::TransferStmt::Op op = (nxt == TokenKind::tk_assign_seq)
-                                      ? ast::TransferStmt::Op::RegColonEq
-                                      : ast::TransferStmt::Op::WireEq;
+                                     ? ast::TransferStmt::Op::RegColonEq
+                                     : ast::TransferStmt::Op::WireEq;
       consume();
       auto rhs = parseExpr();
       if (!rhs) {
@@ -313,8 +314,8 @@ std::unique_ptr<ast::Stmt> Parser::parseLValueLedStatement() {
   TokenKind nxt = peekKind();
   if (nxt == TokenKind::tk_assign || nxt == TokenKind::tk_assign_seq) {
     ast::TransferStmt::Op op = (nxt == TokenKind::tk_assign_seq)
-                                    ? ast::TransferStmt::Op::RegColonEq
-                                    : ast::TransferStmt::Op::WireEq;
+                                   ? ast::TransferStmt::Op::RegColonEq
+                                   : ast::TransferStmt::Op::WireEq;
     consume();
     auto rhs = parseExpr();
     if (!rhs) {
@@ -648,7 +649,8 @@ std::unique_ptr<ast::Stmt> Parser::parseSeqBlock() {
     return nullptr;
   }
   return std::make_unique<ast::SeqBlock>(
-      rangeFromTo(seq_tok.range().begin(), rbr.range().end()), std::move(items));
+      rangeFromTo(seq_tok.range().begin(), rbr.range().end()),
+      std::move(items));
 }
 
 std::unique_ptr<ast::Stmt> Parser::parseWhileBlock() {
@@ -720,8 +722,8 @@ std::unique_ptr<ast::Stmt> Parser::parseWhileBlock() {
     return nullptr;
   }
   return std::make_unique<ast::WhileBlock>(
-      rangeFromTo(while_tok.range().begin(), rbr.range().end()), std::move(cond),
-      std::move(items));
+      rangeFromTo(while_tok.range().begin(), rbr.range().end()),
+      std::move(cond), std::move(items));
 }
 
 std::unique_ptr<ast::Stmt> Parser::parseForBlock() {
@@ -798,15 +800,13 @@ std::unique_ptr<ast::Stmt> Parser::parseForBlock() {
       // four lexical forms (`++id`, `--id`, `id++`, `id--`). The
       // M1 lexer emits `tk_plus_plus` / `tk_minus_minus` punctuators;
       // the for-step builds an `IncDecStmt` (data-model §1.5).
-      if (check(TokenKind::tk_plus_plus) ||
-          check(TokenKind::tk_minus_minus)) {
+      if (check(TokenKind::tk_plus_plus) || check(TokenKind::tk_minus_minus)) {
         // Prefix form `++id` / `--id`.
         const Token op_tok = consume();
         const auto op = incDecOpForStmt(op_tok.kind());
         Token name_tok;
         if (!expect(TokenKind::tk_identifier,
-                    "identifier after prefix increment/decrement",
-                    &name_tok)) {
+                    "identifier after prefix increment/decrement", &name_tok)) {
           return nullptr;
         }
         auto target = std::make_unique<ast::IdentifierExpr>(
@@ -959,7 +959,8 @@ std::unique_ptr<ast::Stmt> Parser::parseStructuralGenerate() {
     return nullptr;
   }
   Token name_tok;
-  if (!expect(TokenKind::tk_identifier, "generate-init identifier", &name_tok)) {
+  if (!expect(TokenKind::tk_identifier, "generate-init identifier",
+              &name_tok)) {
     return nullptr;
   }
   if (!expect(TokenKind::tk_assign, "'=' in generate-init")) {
@@ -989,7 +990,8 @@ std::unique_ptr<ast::Stmt> Parser::parseStructuralGenerate() {
   // M1; treat increment_decrement as out-of-scope at parser-shape
   // level. Require `id "=" expr` form.
   Token step_name;
-  if (!expect(TokenKind::tk_identifier, "generate-step identifier", &step_name)) {
+  if (!expect(TokenKind::tk_identifier, "generate-step identifier",
+              &step_name)) {
     return nullptr;
   }
   if (!expect(TokenKind::tk_assign, "'=' in generate-step")) {
@@ -1029,7 +1031,8 @@ std::unique_ptr<ast::Stmt> Parser::parseReturnStatement() {
     return nullptr;
   }
   return std::make_unique<ast::ReturnStmt>(
-      rangeFromTo(ret_tok.range().begin(), semi.range().end()), std::move(value));
+      rangeFromTo(ret_tok.range().begin(), semi.range().end()),
+      std::move(value));
 }
 
 std::unique_ptr<ast::Stmt> Parser::parseGotoStatement() {

@@ -6,7 +6,6 @@
 
 #include "../ConstraintCheckRegistry.h"
 #include "ConstraintHelpers.h"
-
 #include "nsl/AST/IdentifierExpr.h"
 #include "nsl/AST/SliceExpr.h"
 #include "nsl/AST/TransferStmt.h"
@@ -38,13 +37,11 @@ ast::Identifier underlyingHead(const ast::Expr *e) noexcept {
 class S12Visitor : public ConstraintVisitor {
 public:
   void run(const ConstraintContext &ctx) const override {
-    if (ctx.unit == nullptr || ctx.diag == nullptr ||
-        ctx.symbols == nullptr) {
+    if (ctx.unit == nullptr || ctx.diag == nullptr || ctx.symbols == nullptr) {
       return;
     }
     detail::walkUnit(
-        *ctx.unit, /*dcb=*/nullptr,
-        [&](const ast::Stmt &s, uint32_t /*lex*/) {
+        *ctx.unit, /*dcb=*/nullptr, [&](const ast::Stmt &s, uint32_t /*lex*/) {
           if (s.kind() != ast::NodeKind::NK_TransferStmt) {
             return;
           }
@@ -63,8 +60,7 @@ public:
             return;
           }
           Symbol *sym = ctx.symbols->lookup(head);
-          if (sym != nullptr &&
-              sym->kind() != SymbolKind::SK_Variable) {
+          if (sym != nullptr && sym->kind() != SymbolKind::SK_Variable) {
             ctx.diag->report(
                 Severity::Error, t.loc().begin(),
                 "partial assignment is permitted only on 'variable' "

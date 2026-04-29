@@ -23,8 +23,7 @@ namespace {
 // want: lower Sn runs first per Principle V.
 std::map<unsigned, std::vector<std::unique_ptr<ConstraintVisitor>>> &
 registry() {
-  static std::map<unsigned, std::vector<std::unique_ptr<ConstraintVisitor>>>
-      r;
+  static std::map<unsigned, std::vector<std::unique_ptr<ConstraintVisitor>>> r;
   return r;
 }
 

@@ -11,7 +11,6 @@
 // import context. The fixture s16/fail.nsl exercises this case.
 
 #include "../ConstraintCheckRegistry.h"
-
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/ModuleBlock.h"
 #include "nsl/AST/TopLevelParamDecl.h"

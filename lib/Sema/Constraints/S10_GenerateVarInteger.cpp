@@ -6,7 +6,6 @@
 
 #include "../ConstraintCheckRegistry.h"
 #include "ConstraintHelpers.h"
-
 #include "nsl/AST/StructuralGenerate.h"
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Sema/SymbolTable.h"
@@ -17,13 +16,11 @@ namespace {
 class S10Visitor : public ConstraintVisitor {
 public:
   void run(const ConstraintContext &ctx) const override {
-    if (ctx.unit == nullptr || ctx.diag == nullptr ||
-        ctx.symbols == nullptr) {
+    if (ctx.unit == nullptr || ctx.diag == nullptr || ctx.symbols == nullptr) {
       return;
     }
     detail::walkUnit(
-        *ctx.unit, /*dcb=*/nullptr,
-        [&](const ast::Stmt &s, uint32_t /*lex*/) {
+        *ctx.unit, /*dcb=*/nullptr, [&](const ast::Stmt &s, uint32_t /*lex*/) {
           if (s.kind() != ast::NodeKind::NK_StructuralGenerate) {
             return;
           }
@@ -34,10 +31,9 @@ public:
           }
           Symbol *sym = ctx.symbols->lookup(name);
           if (sym != nullptr && sym->kind() != SymbolKind::SK_Integer) {
-            ctx.diag->report(
-                Severity::Error, sg.loc().begin(),
-                "'generate' loop variable must be an 'integer' "
-                "identifier (S10)");
+            ctx.diag->report(Severity::Error, sg.loc().begin(),
+                             "'generate' loop variable must be an 'integer' "
+                             "identifier (S10)");
           }
         });
   }

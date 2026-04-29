@@ -12,7 +12,6 @@
 // are present.
 
 #include "../ConstraintCheckRegistry.h"
-
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/DeclareBlock.h"
 #include "nsl/AST/PortDecl.h"
@@ -28,8 +27,7 @@ public:
       return;
     }
     for (const auto &item : ctx.unit->items()) {
-      if (!item ||
-          item->kind() != ast::NodeKind::NK_DeclareBlock) {
+      if (!item || item->kind() != ast::NodeKind::NK_DeclareBlock) {
         continue;
       }
       const auto &db = static_cast<const ast::DeclareBlock &>(*item);

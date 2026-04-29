@@ -6,7 +6,6 @@
 
 #include "../ConstraintCheckRegistry.h"
 #include "ConstraintHelpers.h"
-
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/DeclareBlock.h"
 #include "nsl/AST/FuncSelfDecl.h"
@@ -28,8 +27,7 @@ public:
     // Build a name -> direction map for ports inside the same
     // declare block, so we can validate dummy-arg references.
     for (const auto &item : ctx.unit->items()) {
-      if (!item ||
-          item->kind() != ast::NodeKind::NK_DeclareBlock) {
+      if (!item || item->kind() != ast::NodeKind::NK_DeclareBlock) {
         continue;
       }
       const auto &db = static_cast<const ast::DeclareBlock &>(*item);
@@ -53,10 +51,9 @@ public:
                 continue;
               }
               if (it->second != ast::PortDecl::Direction::Input) {
-                ctx.diag->report(
-                    Severity::Error, pd.loc().begin(),
-                    "dummy argument of 'func_in' must be declared "
-                    "'input' (S4)");
+                ctx.diag->report(Severity::Error, pd.loc().begin(),
+                                 "dummy argument of 'func_in' must be declared "
+                                 "'input' (S4)");
               }
             }
           } else if (pd.direction() == ast::PortDecl::Direction::FuncOut) {

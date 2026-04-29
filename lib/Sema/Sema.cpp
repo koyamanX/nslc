@@ -17,7 +17,6 @@
 
 #include "ConstraintCheckRegistry.h"
 #include "ResolutionPass.h"
-
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/IdentifierExpr.h"
 #include "nsl/Basic/Diagnostic.h"
@@ -43,8 +42,7 @@ thread_local std::unique_ptr<ResolutionMap> g_lastRunMap;
 } // namespace
 
 Sema::Sema(DiagnosticEngine &diag)
-    : diag_(diag),
-      symbols_(std::make_unique<SymbolTable>()),
+    : diag_(diag), symbols_(std::make_unique<SymbolTable>()),
       types_(std::make_unique<TypeSystem>()) {}
 
 Sema::~Sema() = default;
@@ -73,8 +71,8 @@ SemaResult Sema::run(ast::CompilationUnit &unit) {
   // the result. After this, `*this` no longer owns either. Calling
   // `run()` a second time would assert at the top of this method.
   SemaResult result;
-  result.symbols   = std::move(symbols_);
-  result.types     = std::move(types_);
+  result.symbols = std::move(symbols_);
+  result.types = std::move(types_);
   result.hasErrors = errs;
   return result;
 }
@@ -128,8 +126,7 @@ void Sema::runResolutionPass(ast::CompilationUnit &unit) {
   // infers widths. The result map is stashed in the thread-local
   // `g_lastRunMap` so the post-Sema `-emit=ast` printer can
   // consume it via `currentResolutionMap()`.
-  assert(symbols_ && types_ &&
-         "runResolutionPass after ownership transfer");
+  assert(symbols_ && types_ && "runResolutionPass after ownership transfer");
   auto map = std::make_unique<ResolutionMap>(
       runResolutionPassImpl(unit, *symbols_, *types_, diag_));
   g_lastRunMap = std::move(map);
@@ -143,11 +140,11 @@ void Sema::runConstraintPasses(ast::CompilationUnit &unit) {
   // reads `ctx` (immutable post-resolution view) and emits any
   // S<NN> diagnostics into `ctx.diag`.
   ConstraintContext ctx;
-  ctx.unit        = &unit;
-  ctx.symbols     = symbols_.get();
-  ctx.types       = types_.get();
+  ctx.unit = &unit;
+  ctx.symbols = symbols_.get();
+  ctx.types = types_.get();
   ctx.resolutions = g_lastRunMap.get();
-  ctx.diag        = &diag_;
+  ctx.diag = &diag_;
   runAllConstraints(ctx);
 }
 

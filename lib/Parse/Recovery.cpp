@@ -38,6 +38,8 @@ RecoveryGuard::RecoveryGuard(Parser &p, TokenSet local) noexcept : p_(p) {
   p_.pushRecoverySet(local);
 }
 
-RecoveryGuard::~RecoveryGuard() noexcept { p_.popRecoverySet(); }
+RecoveryGuard::~RecoveryGuard() noexcept {
+  p_.popRecoverySet();
+}
 
 } // namespace nsl::parse

@@ -34,6 +34,7 @@
 #ifndef NSL_LIB_PARSE_PARSERIMPL_H
 #define NSL_LIB_PARSE_PARSERIMPL_H
 
+#include "Recovery.h"
 #include "nsl/AST/ASTNode.h"
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/Decl.h"
@@ -45,8 +46,6 @@
 #include "nsl/Lex/Token.h"
 
 #include "llvm/ADT/StringRef.h"
-
-#include "Recovery.h"
 
 #include <memory>
 #include <string>

@@ -12,7 +12,6 @@
 // and re-installs them on every StructTypeSymbol it can reach.
 
 #include "../ConstraintCheckRegistry.h"
-
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/StructDecl.h"
 #include "nsl/Sema/SymbolTable.h"
@@ -30,14 +29,12 @@ public:
       return;
     }
     for (const auto &item : ctx.unit->items()) {
-      if (!item ||
-          item->kind() != ast::NodeKind::NK_StructDecl) {
+      if (!item || item->kind() != ast::NodeKind::NK_StructDecl) {
         continue;
       }
       const auto &sd = static_cast<const ast::StructDecl &>(*item);
       Symbol *sym = ctx.symbols->lookup(sd.name());
-      if (sym == nullptr ||
-          sym->kind() != SymbolKind::SK_StructType) {
+      if (sym == nullptr || sym->kind() != SymbolKind::SK_StructType) {
         continue;
       }
       auto *st = static_cast<StructTypeSymbol *>(sym);
