@@ -1,7 +1,19 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.5.0 → 1.6.0
+Version change: 1.6.0 → 1.7.0
+Bump rationale: MINOR — Principle I gains a "no silent AST drops"
+sub-clause, surfaced by post-merge audit on M3 (commit eed9bdb)
+which fixed three places where the parser was consuming-then-
+discarding spec-grammatical constructs (multi-declarator forms,
+internal decls inside seq blocks, generate-step init expression).
+The new sub-clause codifies the rule that motivated those fixes
+so it's mechanically auditable for future parser changes. Rule
+addition only; no principle removed or relaxed. MINOR per the
+versioning policy ("rule narrowing or codification of existing
+intent is MINOR").
+
+Previous version change: 1.5.0 → 1.6.0
 Bump rationale: MINOR — coordinated bundle of two header/test-shape
 amendments surfaced by /speckit-analyze on feature 006-m3-sema:
 (a) Principle II §3 single-public-header exception extended to
@@ -59,8 +71,27 @@ Prior history:
     fixes bundled.
   - 1.5.0 (2026-04-28): Principle IX transitional clause retired;
     steady-state CI green merge gate governs all PRs.
+  - 1.6.0 (2026-04-28): Principle II §3 single-public-header
+    exception extended to `nsl-sema`; Principle VIII gains a
+    "constructive carve-out" for `Sn` that produce no diagnostic.
 
-Modified principles (1.5.0 → 1.6.0):
+Modified principles (1.6.0 → 1.7.0):
+  - I. Spec Is Authoritative — new "no silent AST drops"
+    sub-clause: every spec-grammatical construct the parser
+    accepts MUST be preserved in the AST. The parser MUST NOT
+    silently consume tokens, recognize a production, then
+    discard the parsed structure. Concretely lists four
+    parser-shape rules (multi-declarator forms emit one Decl
+    per declarator; internal decls inside compound bodies
+    appear in the enclosing block's AST surface; optional
+    sub-expressions are retained on the AST node; malformed
+    input flagged at parse time still keeps the parsed-but-
+    rejected sub-structure). When a new production needs an
+    AST representation that doesn't yet exist, the AST MUST be
+    extended before the parser branch ships. Adding a
+    parser-discards-result branch is a Principle I violation.
+
+Modified principles (prior 1.5.0 → 1.6.0):
   - II. Layered Library Architecture — single-public-header
     exception clause extended: now names BOTH `nsl-ast` (per-node-
     kind headers, established at 1.4.0) AND `nsl-sema` (three
@@ -176,6 +207,29 @@ in `docs/design/` and report it; the spec wins by policy.
   `docs/spec/` and a PDF disagree, the deliberate choice in `docs/` — with
   the audited open-source NSL projects as ground truth — prevails, and the
   rationale MUST be recorded in the affected `.ebnf` header comment.
+- **No silent AST drops.** Every spec-grammatical construct the parser
+  accepts MUST be preserved in the AST. The parser MUST NOT silently
+  consume tokens, recognize a production, then discard the parsed
+  structure. Concretely:
+  - Multi-declarator forms (`wire a, b, c;`, `reg p[8] = 0, q[8] = 0;`,
+    etc.) MUST emit one `*Decl` AST node per declarator.
+  - Internal declarations inside `seq` / `parallel` / `state` /
+    `proc` bodies MUST appear in the enclosing block's AST surface
+    (`SeqBlock::decls()` / `ParallelBlock::decls()` etc.) rather
+    than be dropped on the floor.
+  - Optional sub-expressions in compound forms (e.g. `generate
+    (i = 0; i < 8; i = i + 1)`'s init expression `0`) MUST be
+    retained on the AST node, not parsed-and-thrown-away.
+  - Malformed input that the parser flags as a Sema-level
+    diagnostic at parse time MAY accept the surrounding shape and
+    emit the diagnostic; if so, the parsed-but-rejected
+    sub-structure SHOULD still be retained on the AST so tooling
+    (LSP / IDE / formatter) can present the user's actual input.
+
+  When a new grammar production needs a representation the AST
+  doesn't yet have, the AST MUST be extended (new field, new node
+  kind) before the parser ships the production. Adding a parser
+  branch that drops its parsed result is a Principle I violation.
 
 **Rationale.** The project's value comes from a single, audited, reviewable
 language definition. Any drift between spec and implementation undermines the
@@ -673,4 +727,4 @@ Constitution wins.
   `T*`) follow the monotonic-numbering rule of Principle I — retired
   numbers MUST NOT be reused; renumbering is forbidden.
 
-**Version**: 1.6.0 | **Ratified**: 2026-04-25 | **Last Amended**: 2026-04-28
+**Version**: 1.7.0 | **Ratified**: 2026-04-25 | **Last Amended**: 2026-04-30
