@@ -620,6 +620,9 @@ bool Parser::parseModuleItem(std::vector<std::unique_ptr<ast::Decl>> &internals,
       return false;
     }
     internals.push_back(std::move(d));
+    for (auto &extra : drainPendingDecls()) {
+      internals.push_back(std::move(extra));
+    }
     return true;
   }
   if (isFuncDefStart(k)) {
@@ -659,6 +662,9 @@ bool Parser::parseModuleItem(std::vector<std::unique_ptr<ast::Decl>> &internals,
         return false;
       }
       internals.push_back(std::move(d));
+      for (auto &extra : drainPendingDecls()) {
+        internals.push_back(std::move(extra));
+      }
       return true;
     }
     if (next.kind() == TokenKind::tk_identifier) {
@@ -685,6 +691,9 @@ bool Parser::parseModuleItem(std::vector<std::unique_ptr<ast::Decl>> &internals,
 // ---------- §6 internal_declaration dispatch ----------
 
 std::unique_ptr<ast::Decl> Parser::parseInternalDecl() {
+  // Reset multi-declarator side-table at every call so trailing
+  // declarators from a prior call (if any) don't leak forward.
+  pendingExtraDecls_.clear();
   TokenKind k = peekKind();
 
   // wire signal_declarator { "," signal_declarator } ";"
@@ -719,24 +728,28 @@ std::unique_ptr<ast::Decl> Parser::parseInternalDecl() {
                     "'wire' may not have an initializer; use 'reg' "
                     "instead (S2)");
     }
-    // Discard any further comma-separated declarators at M2 — the
-    // first one wins (a known parser-shape simplification per
-    // SeqBlock-internal tradeoffs).
+    // Build a separate WireDecl for each comma-separated declarator
+    // and stash trailing ones on `pendingExtraDecls_` for the caller
+    // to drain. (M2 used to discard them; M3 retains them so Sema
+    // can see every declared name.)
     while (check(TokenKind::tk_comma)) {
       consume();
       Token nxt;
       if (!expectIdentifierAllowLabel("wire name after ','", &nxt)) {
         return nullptr;
       }
+      std::unique_ptr<ast::Expr> extra_width;
+      SourceLocation extra_end = nxt.range().end();
       if (check(TokenKind::tk_lbracket)) {
         consume();
-        auto extra_width = parseExpr();
+        extra_width = parseExpr();
         if (!extra_width) {
           return nullptr;
         }
         if (!expect(TokenKind::tk_rbracket, "']' after wire width")) {
           return nullptr;
         }
+        extra_end = extra_width->loc().end();
       }
       if (check(TokenKind::tk_assign)) {
         Token assign_tok = consume();
@@ -746,6 +759,9 @@ std::unique_ptr<ast::Decl> Parser::parseInternalDecl() {
                       "'wire' may not have an initializer; use 'reg' "
                       "instead (S2)");
       }
+      pendingExtraDecls_.push_back(std::make_unique<ast::WireDecl>(
+          rangeFromTo(kw.range().begin(), extra_end), nxt.spelling(),
+          std::move(extra_width)));
     }
     Token semi;
     if (!expect(TokenKind::tk_semicolon, "';' after wire declaration", &semi)) {
@@ -788,23 +804,31 @@ std::unique_ptr<ast::Decl> Parser::parseInternalDecl() {
       if (!expect(TokenKind::tk_identifier, "register name after ','", &nxt)) {
         return nullptr;
       }
+      std::unique_ptr<ast::Expr> extra_width;
+      SourceLocation extra_end = nxt.range().end();
       if (check(TokenKind::tk_lbracket)) {
         consume();
-        auto extra_width = parseExpr();
+        extra_width = parseExpr();
         if (!extra_width) {
           return nullptr;
         }
         if (!expect(TokenKind::tk_rbracket, "']' after register width")) {
           return nullptr;
         }
+        extra_end = extra_width->loc().end();
       }
+      std::unique_ptr<ast::Expr> extra_init;
       if (check(TokenKind::tk_assign)) {
         consume();
-        auto extra_init = parseExpr();
+        extra_init = parseExpr();
         if (!extra_init) {
           return nullptr;
         }
+        extra_end = extra_init->loc().end();
       }
+      pendingExtraDecls_.push_back(std::make_unique<ast::RegDecl>(
+          rangeFromTo(kw.range().begin(), extra_end), nxt.spelling(),
+          std::move(extra_width), std::move(extra_init)));
     }
     Token semi;
     if (!expect(TokenKind::tk_semicolon, "';' after register declaration",
@@ -1054,6 +1078,8 @@ std::unique_ptr<ast::Decl> Parser::parseInternalDecl() {
       if (!expect(TokenKind::tk_identifier, "integer name after ','", &nxt)) {
         return nullptr;
       }
+      pendingExtraDecls_.push_back(std::make_unique<ast::IntegerDecl>(
+          rangeFromTo(kw.range().begin(), nxt.range().end()), nxt.spelling()));
     }
     Token semi;
     if (!expect(TokenKind::tk_semicolon, "';' after integer declaration",
@@ -1089,16 +1115,22 @@ std::unique_ptr<ast::Decl> Parser::parseInternalDecl() {
       if (!expect(TokenKind::tk_identifier, "variable name after ','", &nxt)) {
         return nullptr;
       }
+      std::unique_ptr<ast::Expr> extra_width;
+      SourceLocation extra_end = nxt.range().end();
       if (check(TokenKind::tk_lbracket)) {
         consume();
-        auto extra_width = parseExpr();
+        extra_width = parseExpr();
         if (!extra_width) {
           return nullptr;
         }
         if (!expect(TokenKind::tk_rbracket, "']' after variable width")) {
           return nullptr;
         }
+        extra_end = extra_width->loc().end();
       }
+      pendingExtraDecls_.push_back(std::make_unique<ast::VariableDecl>(
+          rangeFromTo(kw.range().begin(), extra_end), nxt.spelling(),
+          std::move(extra_width)));
     }
     Token semi;
     if (!expect(TokenKind::tk_semicolon, "';' after variable declaration",

@@ -224,8 +224,19 @@ public:
                        std::vector<std::unique_ptr<ast::Decl>> &procs);
 
   /// Parse one `internal_declaration` form. Returns nullptr on syntax
-  /// error (with diagnostic raised).
+  /// error (with diagnostic raised). For multi-declarator forms
+  /// (`wire a, b, c;`, `reg p, q;`, etc.), the FIRST declarator is
+  /// returned and any extras are pushed onto `pendingExtraDecls_`;
+  /// callers MUST `drainPendingDecls()` immediately after the call
+  /// and append the result to the same parent vector that received
+  /// the primary return.
   std::unique_ptr<ast::Decl> parseInternalDecl();
+
+  /// Drain the multi-declarator pending list populated by the most
+  /// recent `parseInternalDecl` call. Returns the vector by move.
+  std::vector<std::unique_ptr<ast::Decl>> drainPendingDecls() noexcept {
+    return std::move(pendingExtraDecls_);
+  }
 
   std::unique_ptr<ast::Decl> parseFuncDefn();
   std::unique_ptr<ast::Decl> parseProcDefn();
@@ -271,6 +282,14 @@ private:
   /// (not `std::stack`) so `currentRecoverySet()` can iterate in
   /// deterministic index order to compute the merged union.
   std::vector<TokenSet> recovery_stack_;
+
+  /// Side-table populated by `parseInternalDecl` when the parsed
+  /// internal_declaration is a multi-declarator form (e.g.
+  /// `wire a, b, c;`). The FIRST declarator is returned by the
+  /// function; the trailing N−1 declarators are pushed here.
+  /// Callers drain via `drainPendingDecls()` immediately after the
+  /// call. Cleared at the top of every `parseInternalDecl` invocation.
+  std::vector<std::unique_ptr<ast::Decl>> pendingExtraDecls_;
 };
 
 } // namespace nsl::parse

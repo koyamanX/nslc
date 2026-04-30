@@ -376,6 +376,9 @@ std::unique_ptr<ast::Stmt> Parser::parseParallelBlock() {
         }
       } else {
         decls.push_back(std::move(d));
+        for (auto &extra : drainPendingDecls()) {
+          decls.push_back(std::move(extra));
+        }
       }
     } else if (check(TokenKind::tk_state)) {
       // `state <name> <action>` is a state_definition. The EBNF
@@ -613,6 +616,7 @@ std::unique_ptr<ast::Stmt> Parser::parseSeqBlock() {
   // resync points are `{Semi, RBrace, if, for, while, goto, return}`.
   RecoveryGuard guard(*this, recovery_sets::kSeqItem);
   std::vector<std::unique_ptr<ast::Stmt>> items;
+  std::vector<std::unique_ptr<ast::Decl>> decls;
   for (;;) {
     consumeLineMarkers();
     if (check(TokenKind::tk_rbrace) || check(TokenKind::tk_eof)) {
@@ -646,6 +650,11 @@ std::unique_ptr<ast::Stmt> Parser::parseSeqBlock() {
         if (check(TokenKind::tk_semicolon)) {
           consume();
         }
+      } else {
+        decls.push_back(std::move(d));
+        for (auto &extra : drainPendingDecls()) {
+          decls.push_back(std::move(extra));
+        }
       }
       continue;
     }
@@ -675,7 +684,7 @@ std::unique_ptr<ast::Stmt> Parser::parseSeqBlock() {
   }
   return std::make_unique<ast::SeqBlock>(
       rangeFromTo(seq_tok.range().begin(), rbr.range().end()),
-      std::move(items));
+      std::move(items), std::move(decls));
 }
 
 std::unique_ptr<ast::Stmt> Parser::parseWhileBlock() {
@@ -992,10 +1001,10 @@ std::unique_ptr<ast::Stmt> Parser::parseStructuralGenerate() {
     return nullptr;
   }
   // generate_init = identifier "=" constant_expression — we need the
-  // initializer expression but the AST node `StructuralGenerate` only
-  // stores the init identifier (per data-model §1.5 lines 92–93). So
-  // we parse and DROP the initializer expression. (The same applies
-  // to `step`'s LHS: spec stores only the step expression.)
+  // initializer expression and store it on `StructuralGenerate::initValue()`
+  // so the M5 structural-expansion pass can evaluate `<id> = <init_value>`.
+  // (The step's LHS is still implicit — only the step-expression is stored,
+  // since the LHS is fixed by the init identifier.)
   auto init_expr = parseExpr();
   if (!init_expr) {
     return nullptr;
@@ -1036,7 +1045,8 @@ std::unique_ptr<ast::Stmt> Parser::parseStructuralGenerate() {
   SourceLocation end_loc = body->loc().end();
   return std::make_unique<ast::StructuralGenerate>(
       rangeFromTo(gen_tok.range().begin(), end_loc), name_tok.spelling(),
-      std::move(cond), std::move(step_expr), std::move(body));
+      std::move(init_expr), std::move(cond), std::move(step_expr),
+      std::move(body));
 }
 
 std::unique_ptr<ast::Stmt> Parser::parseReturnStatement() {

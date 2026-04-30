@@ -1150,12 +1150,15 @@ void PrinterVisitor::visit(const AnyBlock &n) {
 
 void PrinterVisitor::visit(const SeqBlock &n) {
   emitOpen(n);
-  if (n.items().empty()) {
+  if (n.items().empty() && n.decls().empty()) {
     closeNoChildren();
     return;
   }
   std::vector<const ASTNode *> kids;
-  kids.reserve(n.items().size());
+  kids.reserve(n.items().size() + n.decls().size());
+  for (const auto &p : n.decls()) {
+    kids.push_back(p.get());
+  }
   for (const auto &p : n.items()) {
     kids.push_back(p.get());
   }
@@ -1223,6 +1226,9 @@ void PrinterVisitor::visit(const StructuralGenerate &n) {
   emitOpen(n);
   emitField("init", n.init());
   std::vector<const ASTNode *> kids;
+  if (n.initValue() != nullptr) {
+    kids.push_back(n.initValue());
+  }
   if (n.cond() != nullptr) {
     kids.push_back(n.cond());
   }
