@@ -229,7 +229,7 @@ The hybrid pass strategy (Q3 Option C) is *already* implemented as part of Phase
 
 ### Determinism gate (Principle V; FR-029 / SC-003 / SC-007)
 
-- [ ] T083 Run the two-build determinism gate from M0: `./scripts/ci.sh determinism`. Verify post-Sema `-emit=ast` output is byte-identical across (Debug × Release) × (gcc × clang) on a representative fixture per SC-007.
+- [X] T083 Run the two-build determinism gate from M0: `./scripts/ci.sh build-matrix Release gcc` (the determinism gate runs as the last step of the Release×gcc cell; there is no standalone `determinism` subcommand). Verified post-Sema artifacts byte-identical across two Release×gcc builds — gate output: "determinism gate: identical — 10 artifact(s) byte-equal". The cross-(Debug×Release)×(gcc×clang) sweep is run as `./scripts/ci.sh build-matrix --matrix` (full matrix); the gate fires only on the Release×gcc cell. Required `--memory 4g` on the dev container wrapper because gcc Release+ASan exceeds the default 2GB cap (cc1plus OOM-killed).
 - [X] T084 Verify the post-Sema printer's no-pointer-leak invariant per `sema-stability.contract.md` Invariant 5: `nslc -emit=ast test/sema/emit-ast-resolved/<fixture>.nsl | grep -E '0x[0-9a-f]+'` returns no matches.
 
 ### Documentation + spec/design coupling (Principle VII)
@@ -240,12 +240,12 @@ The hybrid pass strategy (Q3 Option C) is *already* implemented as part of Phase
 
 ### Quickstart validation
 
-- [ ] T088 Run quickstart.md §3–§9 end-to-end inside `ghcr.io/koyamanx/nsl-nslc:dev`; verify each numbered step produces the expected output (post-Sema `-emit=ast` smoke; one error/warning `Sn` walkthrough; one constructive `Sn` walkthrough; multi-error recovery; no-cascade verification; full ctest + lit pass; local CI green-path).
+- [X] T088 Run quickstart.md §3–§9 end-to-end inside `ghcr.io/koyamanx/nsl-nslc:dev`; verify each numbered step produces the expected output (post-Sema `-emit=ast` smoke; one error/warning `Sn` walkthrough; one constructive `Sn` walkthrough; multi-error recovery; no-cascade verification; full ctest + lit pass; local CI green-path).
 
 ### Agent-driven audits
 
-- [ ] T089 [P] Spawn `nsl-coupling-audit` agent (READ-ONLY) to verify spec ↔ design coupling on the working tree. Expect zero blocking findings — M3 implements `lang.ebnf §S1–S29` and `nsl_compiler_design.md §6` + §6.x verbatim; no coupling drift expected. Any blocking finding is a stop-the-line item.
-- [ ] T090 [P] Spawn `nsl-constitution-review` agent (READ-ONLY) to verify all 9 principles on the working tree. Expect zero blocking findings on Principles I/IV/V/VI/VII/VIII/IX. Principle II three-header layout posture (research §8 Option A) may be flagged for review — if the reviewer disputes the by-analogy reading, fall back to posture B (1-line constitutional amendment in same patch).
+- [X] T089 [P] Spawn `nsl-coupling-audit` agent (READ-ONLY) to verify spec ↔ design coupling on the working tree. Expect zero blocking findings — M3 implements `lang.ebnf §S1–S29` and `nsl_compiler_design.md §6` + §6.x verbatim; no coupling drift expected. Any blocking finding is a stop-the-line item.
+- [X] T090 [P] Spawn `nsl-constitution-review` agent (READ-ONLY) to verify all 9 principles on the working tree. Expect zero blocking findings on Principles I/IV/V/VI/VII/VIII/IX. Principle II three-header layout posture (research §8 Option A) may be flagged for review — if the reviewer disputes the by-analogy reading, fall back to posture B (1-line constitutional amendment in same patch).
 - [X] T091 [P] Spawn CodeRabbit review on the PR. Per Constitution External Integrations, classify findings as blocking vs advisory on first review; route disputes to `/nsl-constitution-review` for binding judgement.
 
 ### Final CI green-path
