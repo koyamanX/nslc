@@ -11,11 +11,16 @@
 // `type($dst)` token, so the printable surface form forces both
 // operands to share a printed type. To express the type mismatch we
 // use the generic-form so each operand has its own type field.
-// Expects diagnostic substring "operand type" once T102 lands.
+// Expects diagnostic substring "same type" — emitted by MLIR's
+// `SameTypeOperands` trait verifier (which fires before the hand-
+// written `ConnectOp::verify()` body and consumes the mismatch
+// path). Round-5 substring tightened during T102 from "operand type"
+// to "same type" because the trait diagnostic preempts the custom
+// verifier in MLIR's verifier ordering (trait verifiers run first).
 
 nsl.module @Wired {
   %src = nsl.wire "src" : !nsl.bits<8>
   %dst = nsl.wire "dst" : !nsl.bits<16>
-  // expected-error@+1 {{operand type}}
+  // expected-error@+1 {{same type}}
   "nsl.connect"(%dst, %src) : (!nsl.bits<16>, !nsl.bits<8>) -> ()
 }
