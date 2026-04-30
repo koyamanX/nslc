@@ -250,7 +250,7 @@ The hybrid pass strategy (Q3 Option C) is *already* implemented as part of Phase
 
 ### Final CI green-path
 
-- [ ] T092 Run `./scripts/ci.sh all` inside `ghcr.io/koyamanx/nsl-nslc:dev`. Expect all six pipeline stages green (build matrix × static checks × unit/layer × lowering × end-to-end-wired-but-empty × formal-wired-but-empty). Per Constitution Principle IX (no transitional clause; merge gate is hard).
+- [X] T092 Run `./scripts/ci.sh all` inside `ghcr.io/koyamanx/nsl-nslc:dev`. Expect all six pipeline stages green (build matrix × static checks × unit/layer × lowering × end-to-end-wired-but-empty × formal-wired-but-empty). Per Constitution Principle IX (no transitional clause; merge gate is hard).
 
 **Checkpoint**: M3 ready for PR. All 10 SCs measurable as met; all 9 Constitution Principles green; spec/design coupling preserved. **`README.md` §Roadmap "M3 is the unlock point" is now true** — T2 (formatter), T3 (LSP skeleton), and T6 (lint framework) can begin against the `nsl-sema` public-header surface in parallel with subsequent M-track work (M4 dialect onwards).
 
