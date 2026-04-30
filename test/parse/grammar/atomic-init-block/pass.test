@@ -27,7 +27,12 @@
 // it exits with the M1 driver's "unknown emit stage" path (exit 2),
 // so the FileCheck pipeline observes a mismatch and the test fails.
 
-// RUN: printf 'module m {\n  _init { }\n}\n' > %t.nsl
+// Sema (M3) requires a `simulation` modifier on the enclosing
+// module's declare block for `_init` (S29). Declare and module
+// share name "m"; module attaches by name-match. (Fixture re-cut
+// as part of M4 T022 acceptance — same pattern as M3 commit
+// eed9bdb's 11 re-cuts.)
+// RUN: printf 'declare m simulation { }\nmodule m {\n  _init { }\n}\n' > %t.nsl
 // RUN: %nslc -emit=ast %t.nsl | FileCheck %s
 
 // CHECK: (ModuleBlock

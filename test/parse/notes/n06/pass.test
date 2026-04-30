@@ -24,8 +24,15 @@
 
 // RUN: %nslc -emit=ast %s | FileCheck %s
 
+// Sema (M3) requires `<inst>` in `<inst>.finish()` / `<inst>.invoke()`
+// to resolve to a `proc_name` declaration in scope (S21). The
+// fixture declares both: `proc_name p` (the proc body containing
+// the calls) AND `proc_name inst` (the target of the dotted-form
+// calls). M3 commit eed9bdb re-cut similar fixtures; this one was
+// missed and re-cut as part of M4 T022 acceptance.
 module n6_proc_method {
     proc_name p;
+    proc_name inst;
     proc p {
         inst.invoke();
         inst.finish();

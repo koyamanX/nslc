@@ -21,8 +21,14 @@
 // FR-029 RED state: at 7bc1aea, no `-emit=ast` flag; RUN exits 2;
 // CHECK fails. Principle VIII.
 
+// Sema (M3) requires a `simulation` modifier on the enclosing
+// module's declare block for `_display` (S17). Declare and module
+// share name "n11_task"; module attaches by name-match. M3 commit
+// eed9bdb re-cut similar fixtures; this one was missed and re-cut
+// as part of M4 T022 acceptance.
 // RUN: %nslc -emit=ast %s | FileCheck %s
 
+declare n11_task simulation { }
 module n11_task {
     wire arg;
     proc_name p;

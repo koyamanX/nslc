@@ -64,15 +64,17 @@ def test_formal_stage_skipped(workflow):
         "FR-015: formal stage must be wired but skipped pre-M8"
 
 
-def test_triggers_pull_request_and_push_main(workflow):
+def test_triggers_pull_request_and_push_master(workflow):
     # PyYAML 'on' (a boolean keyword) is normalised to True; YAML 1.1
-    # quirk. Tolerate either parsed form.
+    # quirk. Tolerate either parsed form. Branch name is "master" per
+    # commit b75a105 (ci: retarget GitHub Actions to master branch
+    # was main); the project's default branch is master.
     on = workflow.get(True) or workflow.get("on")
     assert on is not None, "ci.yml missing top-level 'on:' key"
     pr = on.get("pull_request") or {}
     push = on.get("push") or {}
-    assert "main" in (pr.get("branches") or []), "FR-013: PR trigger to main"
-    assert "main" in (push.get("branches") or []), "FR-013: push trigger to main"
+    assert "master" in (pr.get("branches") or []), "FR-013: PR trigger to master"
+    assert "master" in (push.get("branches") or []), "FR-013: push trigger to master"
 
 
 # -----------------------------------------------------------------------------
