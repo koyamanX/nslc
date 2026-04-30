@@ -20,10 +20,10 @@ nsl.module @AltHost {
       // CHECK: nsl.alt
       nsl.alt {
         // CHECK: nsl.case %{{.*}}
-        nsl.case %c1 {
+        nsl.case %c1 : !nsl.bits<1> {
         }
         // CHECK: nsl.case %{{.*}}
-        nsl.case %c2 {
+        nsl.case %c2 : !nsl.bits<1> {
         }
         // CHECK: nsl.default
         nsl.default {

@@ -16,12 +16,10 @@
 // research §5) — no hand-written `Type::print` / `Type::parse`
 // needed.
 
+// Type-class definitions (`!nsl.bits<N>` / `!nsl.struct<@T>` /
+// `!nsl.mem<[D x T]>` storage + member fns) MOVED to
+// `NSLDialect.cpp` so `addTypes<>()` has complete Storage classes
+// for its template instantiation. This file is intentionally
+// empty (kept as a build-target sentinel; `add_nsl_library` lists
+// it).
 #include "nsl/Dialect/NSL/IR/NSLDialect.h"
-
-#include "mlir/IR/Builders.h"
-#include "mlir/IR/DialectImplementation.h"
-
-#include "llvm/ADT/TypeSwitch.h"
-
-#define GET_TYPEDEF_CLASSES
-#include "NSLOpsTypes.cpp.inc"

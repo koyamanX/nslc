@@ -15,12 +15,12 @@ nsl.module @WhileHost {
   nsl.func @loops {
     nsl.seq {
       // CHECK: nsl.while %{{.*}}
-      nsl.while %c {
+      nsl.while %c : !nsl.bits<1> {
       }
       // Nested through nsl.parallel — Q2 Option B transitive parent walk.
       nsl.parallel {
         // CHECK: nsl.while %{{.*}}
-        nsl.while %c {
+        nsl.while %c : !nsl.bits<1> {
         }
       }
     }

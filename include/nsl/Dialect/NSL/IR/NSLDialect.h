@@ -25,8 +25,26 @@
 #ifndef NSL_DIALECT_NSL_IR_NSLDIALECT_H
 #define NSL_DIALECT_NSL_IR_NSLDIALECT_H
 
+// MLIR umbrella includes needed by the TableGen-generated `.h.inc`
+// files below. The generated op-class headers reference
+// `mlir::Op<>`, `mlir::OperationState`, `mlir::EmptyProperties`,
+// `mlir::RegionRange`, `mlir::Symbol`, `mlir::OpAsmParser`/Printer,
+// `mlir::IntegerAttr`, etc. — pulling them in via the umbrella so
+// every consumer gets a complete picture (parallel to CIRCT's HW /
+// Comb / Seq dialect-umbrella convention).
+#include "mlir/Bytecode/BytecodeOpInterface.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Dialect.h"
+#include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/DialectRegistry.h"
+#include "mlir/IR/OpDefinition.h"
+#include "mlir/IR/OpImplementation.h"
+#include "mlir/IR/OperationSupport.h"
+#include "mlir/IR/RegionKindInterface.h"
+#include "mlir/IR/SymbolTable.h"
+#include "mlir/Interfaces/SideEffectInterfaces.h"
 
 // TableGen-generated dialect class declaration. Private build
 // artifact emitted by `add_mlir_dialect(NSLOps nsl)` (see

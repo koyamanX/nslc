@@ -14,8 +14,8 @@
 nsl.module @IncDecHost {
   // CHECK: %{{.*}} = nsl.reg "q" : !nsl.bits<8> = 0 : i64
   %q = nsl.reg "q" : !nsl.bits<8> = 0 : i64
-  // CHECK: nsl.incdec %{{.*}} {kind = #nsl<incdec_kind pre_inc>}
-  nsl.incdec %q {kind = #nsl<incdec_kind pre_inc>}
-  // CHECK: nsl.incdec %{{.*}} {kind = #nsl<incdec_kind post_dec>}
-  nsl.incdec %q {kind = #nsl<incdec_kind post_dec>}
+  // CHECK: nsl.incdec %{{.*}} : !nsl.bits<8> {kind = #nsl<incdec_kind pre_inc>}
+  nsl.incdec %q : !nsl.bits<8> {kind = #nsl<incdec_kind pre_inc>}
+  // CHECK: nsl.incdec %{{.*}} : !nsl.bits<8> {kind = #nsl<incdec_kind post_dec>}
+  nsl.incdec %q : !nsl.bits<8> {kind = #nsl<incdec_kind post_dec>}
 }

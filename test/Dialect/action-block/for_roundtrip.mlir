@@ -18,7 +18,7 @@ nsl.module @ForHost {
   nsl.func @loop {
     nsl.seq {
       // CHECK: nsl.for %{{.*}}, %{{.*}}, %{{.*}}
-      nsl.for %init, %cond, %step {
+      nsl.for %init, %cond, %step : !nsl.bits<8>, !nsl.bits<1>, !nsl.bits<8> {
       }
     }
   }

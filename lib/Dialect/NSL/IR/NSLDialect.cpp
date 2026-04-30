@@ -19,14 +19,38 @@
 #include "nsl/Dialect/NSL/IR/NSLDialect.h"
 
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/DialectRegistry.h"
+#include "mlir/IR/OpImplementation.h"
+#include "llvm/ADT/TypeSwitch.h"
 
 // TableGen-generated dialect-class definitions (the
 // `NSLDialect::Impl` accessors and the dialect-namespace metadata).
-// Private build artifact emitted by `add_mlir_dialect(NSLOps nsl)`.
-// Bare-basename include resolves via the
-// `${CMAKE_CURRENT_BINARY_DIR}` PUBLIC include path on `nsl-dialect`.
 #include "NSLOpsDialect.cpp.inc"
+
+// Enum-attr definitions (`IncDecKind` for `nsl.incdec`).
+#include "NSLOpsEnums.cpp.inc"
+
+// Attr-class definitions (`IncDecKindAttr` storage + member fns).
+// MUST be in this TU (and NOT in NSLOps.cpp) so `addAttributes<>()`
+// in `initialize()` has the complete `IncDecKindAttrStorage` type
+// for its template instantiation.
+#define GET_ATTRDEF_CLASSES
+#include "NSLOpsAttrDefs.cpp.inc"
+
+// Type-class definitions (`!nsl.bits<N>`, `!nsl.struct<@T>`,
+// `!nsl.mem<[D x T]>` storage + member fns). Same rationale as
+// the attr block above — `addTypes<>()` in `initialize()` needs
+// complete Storage classes.
+#define GET_TYPEDEF_CLASSES
+#include "NSLOpsTypes.cpp.inc"
+
+// Op-class definitions (constructors, accessors, parser, printer
+// for the 41 named ops). `verify()` member functions are
+// hand-written stubs in NSLOps.cpp (Phase 4 US2 fills them with
+// real structural-invariant checks).
+#define GET_OP_CLASSES
+#include "NSLOps.cpp.inc"
 
 namespace nsl::dialect {
 

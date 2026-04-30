@@ -21,22 +21,12 @@
 
 #include "nsl/Dialect/NSL/IR/NSLDialect.h"
 
-#include "mlir/IR/Builders.h"
-#include "mlir/IR/DialectImplementation.h"
-#include "mlir/IR/OpImplementation.h"
-
-#include "llvm/ADT/TypeSwitch.h"
-
-// Pull in the TableGen-generated `IncDecKind` enum-attr definitions
-// before the op-class definitions, since `IncDecOp` references the
-// enum in its argument list.
-#include "NSLOpsEnums.cpp.inc"
-
-#define GET_ATTRDEF_CLASSES
-#include "NSLOpsAttrDefs.cpp.inc"
-
-#define GET_OP_CLASSES
-#include "NSLOps.cpp.inc"
+// Op-class definitions (constructors / accessors / parser / printer
+// emitted by TableGen via `GET_OP_CLASSES`) MOVED to
+// `NSLDialect.cpp` so `addOperations<>()` has them complete in the
+// dialect's `initialize()` body. This file keeps only the hand-
+// written `verify()` stubs (Phase 4 US2 will replace these stubs
+// with real structural-invariant checks per FR-013 / Q1 Option A).
 
 // ---------------------------------------------------------------------------
 // Phase 3 US1 verifier stubs — every op's `verify()` returns success.

@@ -64,6 +64,16 @@ def IncDecKindEnum : I32EnumAttr<"IncDecKind",
     [IncDecKindPreInc, IncDecKindPostInc,
      IncDecKindPreDec, IncDecKindPostDec]> {
   let cppNamespace = "::nsl::dialect";
+  // Suppress I32EnumAttr's auto-generated `IncDecKindAttr` wrapper
+  // class (NSLOpsEnums.h.inc) so the dialect-style `EnumAttr<>` def
+  // below can claim that name in NSLOpsAttrDefs.h.inc without
+  // collision. This is the standard MLIR-modern pattern (see
+  // mlir/include/mlir/IR/EnumAttr.td) for enums that want the
+  // `#dialect<mnemonic value>` print form rather than the integer
+  // form. The Phase 3 fixture `incdec_roundtrip.mlir` uses
+  // `#nsl<incdec_kind pre_inc>`, which requires the dialect-attr
+  // form.
+  let genSpecializedAttr = 0;
 }
 
 def IncDecKindAttr : EnumAttr<NSL_Dialect, IncDecKindEnum, "incdec_kind">;
@@ -117,8 +127,12 @@ def NSL_SubmoduleOp : NSL_Op<"submodule", [
   }];
   let arguments = (ins
     SymbolNameAttr:$sym_name,
-    FlatSymbolRefAttr:$template);
-  let assemblyFormat = "$sym_name `:` $template attr-dict";
+    // NOTE: rename `$template` → `$templateRef`; `template` is a
+    // C++ reserved keyword and TableGen emits per-attribute getter/
+    // setter / property-storage members that fail to compile when
+    // the attribute name collides with reserved keywords.
+    FlatSymbolRefAttr:$templateRef);
+  let assemblyFormat = "$sym_name `:` $templateRef attr-dict";
 }
 
 def NSL_ConnectOp : NSL_Op<"connect", [
@@ -282,7 +296,7 @@ def NSL_IfOp : NSL_Op<"if", [NoTerminator]> {
   let arguments = (ins NSL_AnyBits:$cond);
   let regions = (region SizedRegion<1>:$thenRegion, SizedRegion<1>:$elseRegion);
   let assemblyFormat = [{
-    $cond attr-dict-with-keyword $thenRegion `else` $elseRegion
+    $cond `:` type($cond) attr-dict-with-keyword $thenRegion `else` $elseRegion
   }];
 }
 
@@ -304,7 +318,7 @@ def NSL_WhileOp : NSL_Op<"while", [NoTerminator, SingleBlock]> {
   let summary = "While-loop (transitive parent = `nsl.seq` per Q2 Option B).";
   let arguments = (ins NSL_AnyBits:$cond);
   let regions = (region SizedRegion<1>:$body);
-  let assemblyFormat = "$cond attr-dict-with-keyword $body";
+  let assemblyFormat = "$cond `:` type($cond) attr-dict-with-keyword $body";
   let hasVerifier = 1;
 }
 
@@ -316,7 +330,7 @@ def NSL_ForOp : NSL_Op<"for", [NoTerminator, SingleBlock]> {
     NSL_BitsOrStruct:$step);
   let regions = (region SizedRegion<1>:$body);
   let assemblyFormat = [{
-    $init `,` $cond `,` $step attr-dict-with-keyword $body
+    $init `,` $cond `,` $step `:` type($init) `,` type($cond) `,` type($step) attr-dict-with-keyword $body
   }];
   let hasVerifier = 1;
 }
@@ -331,7 +345,7 @@ def NSL_CaseOp : NSL_Op<"case", [
   let summary = "A case in `nsl.alt` / `nsl.any`.";
   let arguments = (ins NSL_AnyBits:$cond);
   let regions = (region SizedRegion<1>:$body);
-  let assemblyFormat = "$cond attr-dict-with-keyword $body";
+  let assemblyFormat = "$cond `:` type($cond) attr-dict-with-keyword $body";
 }
 
 def NSL_DefaultOp : NSL_Op<"default", [
@@ -365,7 +379,7 @@ def NSL_IncDecOp : NSL_Op<"incdec"> {
   let arguments = (ins
     NSL_AnyBits:$dst,
     IncDecKindAttr:$kind);
-  let assemblyFormat = "$dst attr-dict";
+  let assemblyFormat = "$dst `:` type($dst) attr-dict";
   let hasVerifier = 1;
 }
 

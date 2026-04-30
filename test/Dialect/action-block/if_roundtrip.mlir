@@ -13,11 +13,11 @@ nsl.module @IfHost {
   nsl.func @body {
     nsl.seq {
       // CHECK: nsl.if %{{.*}}
-      nsl.if %c {
+      nsl.if %c : !nsl.bits<1> {
       } else {
       }
       // CHECK: nsl.if %{{.*}}
-      nsl.if %c {
+      nsl.if %c : !nsl.bits<1> {
       } else {
       }
     }
