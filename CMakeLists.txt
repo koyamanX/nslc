@@ -113,16 +113,20 @@ include(TableGen)
 include(AddLLVM)
 include(AddMLIR)
 
-# LLVM/MLIR ship CMake `IMPORTED` targets (LLVMSupport, MLIRSupport, …)
-# but their `LLVMConfig.cmake` does NOT populate
-# `INTERFACE_INCLUDE_DIRECTORIES` on the target itself — the LLVM
-# convention is for consumers to pull `${LLVM_INCLUDE_DIRS}` /
-# `${MLIR_INCLUDE_DIRS}` separately. Without this, downstream
+# LLVM/MLIR/CIRCT ship CMake `IMPORTED` targets (LLVMSupport,
+# MLIRSupport, CIRCTHW, …) but their `*Config.cmake` files do NOT
+# populate `INTERFACE_INCLUDE_DIRECTORIES` on the targets themselves
+# — the LLVM-ecosystem convention is for consumers to pull
+# `${LLVM_INCLUDE_DIRS}` / `${MLIR_INCLUDE_DIRS}` /
+# `${CIRCT_INCLUDE_DIRS}` separately. Without this, downstream
 # `target_link_libraries(... PUBLIC LLVMSupport)` propagates the
 # library link but not the header search path, and any TU that
-# `#include <llvm/...>` fails at compile time. SYSTEM marks the
-# headers as system includes so warnings inside them don't fire.
-include_directories(SYSTEM ${MLIR_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS})
+# `#include <llvm/...>` / `<mlir/...>` / `<circt/...>` fails at
+# compile time. SYSTEM marks the headers as system includes so
+# warnings inside them don't fire. CIRCT was added at M4 to support
+# `tools/nsl-opt/main.cpp`'s registration of the 5 CIRCT dialects
+# per design §11 lines 1146–1150 and spec FR-014.
+include_directories(SYSTEM ${MLIR_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS} ${CIRCT_INCLUDE_DIRS})
 
 # -----------------------------------------------------------------------------
 # Subdirectories

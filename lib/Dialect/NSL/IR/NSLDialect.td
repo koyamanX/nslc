@@ -40,7 +40,14 @@ def NSL_Dialect : Dialect {
     `docs/design/nsl_compiler_design.md` §§7–10.
   }];
 
-  let useDefaultTypePrinterParser = 1;
+  // Phase 2: 0 (no types yet — Phase 3 T070 flips back to 1 when the
+  // 3 type records land in NSLTypes.td). With useDefaultTypePrinterParser=1
+  // and zero type records, TableGen still declares NSLDialect::parseType /
+  // ::printType in the dialect-class header but emits no definitions
+  // (defs go in NSLTypes.cpp.inc which has no real content at Phase 2),
+  // producing undefined-reference linker errors at any consumer that
+  // pulls libnsl-dialect.a. Phase 3 T070 amends this to 1.
+  let useDefaultTypePrinterParser = 0;
 }
 
 //===----------------------------------------------------------------------===//

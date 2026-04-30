@@ -64,6 +64,18 @@ add_nsl_library(nsl-dialect
 # before any TU that includes them is compiled.
 add_dependencies(nsl-dialect MLIRNSLOpsIncGen)
 
+# MLIR upstream is built with `-fno-rtti` (LLVM-ecosystem convention).
+# A consumer that inherits from `mlir::Dialect` (this library does:
+# class NSLDialect : public mlir::Dialect) and is built WITH RTTI
+# emits a vtable that references `typeinfo for mlir::Dialect`, which
+# MLIR doesn't ship — fails at link time with
+# "undefined reference to typeinfo for mlir::Dialect". Match upstream
+# by compiling this library `-fno-rtti`. Affects M4-introduced MLIR-
+# consuming targets (this library + `nsl-opt` + `nsl-driver`'s
+# Compilation.cpp); M0–M3 layers don't include MLIR headers and stay
+# RTTI-on by project default.
+target_compile_options(nsl-dialect PRIVATE -fno-rtti)
+
 # The tablegen-generated `.h.inc` / `.cpp.inc` files land in
 # `${CMAKE_CURRENT_BINARY_DIR}` (per upstream `mlir_tablegen`'s
 # fixed output convention; see AddMLIR.cmake). The umbrella

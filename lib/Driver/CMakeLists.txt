@@ -36,3 +36,14 @@ add_nsl_library(nsl-driver
     # forbidden by Principle II + AddNSLLibrary's layer-index check.
     nsl-dialect
     nsl-lower)
+
+# nsl-driver is the first M-track library to consume MLIR headers
+# (Compilation.cpp pulls in mlir::MLIRContext + the dialect-load call
+# site per design §11 line 1145; LowerToNSL.cpp / RunNSLPasses.cpp
+# reference mlir::ModuleOp / mlir::LogicalResult). MLIR upstream is
+# built `-fno-rtti`, so consumers must match to avoid vtable-typeinfo
+# link errors. The other nsl-driver TUs (EmitTokens.cpp / EmitAST.cpp
+# / Sema.cpp) don't include any MLIR header but compile fine
+# `-fno-rtti` (no dynamic_cast / typeid / exception-handling RTTI
+# usage in the project per Build/Code/Licensing standards).
+target_compile_options(nsl-driver PRIVATE -fno-rtti)

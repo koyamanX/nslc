@@ -45,6 +45,14 @@ set_target_properties(nsl-opt PROPERTIES
 
 target_compile_features(nsl-opt PRIVATE cxx_std_17)
 
+# Match MLIR's `-fno-rtti` build (LLVM-ecosystem convention). nsl-opt's
+# main.cpp instantiates an mlir::DialectRegistry and inserts CIRCT
+# dialects; the polymorphic types involved emit vtable references to
+# `typeinfo for mlir::Dialect` if compiled WITH RTTI, which the
+# upstream MLIR libs don't ship. Stay consistent with `nsl-dialect`'s
+# RTTI-off build.
+target_compile_options(nsl-opt PRIVATE -fno-rtti)
+
 # Optional install rule, gated by the option above per FR-016.
 if(NSL_INSTALL_DEV_TOOLS)
   install(TARGETS nsl-opt RUNTIME DESTINATION bin)
