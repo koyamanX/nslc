@@ -21,10 +21,12 @@
 // ships the M0 anchor TU). The expected red→green observation is
 // encoded in the assertions below.
 
-#include "nsl/Sema/SymbolTable.h"
+#include "nsl/AST/ASTNode.h"
 #include "nsl/Sema/TypeSystem.h"
 
 #include <gtest/gtest.h>
+
+#include <vector>
 
 namespace {
 

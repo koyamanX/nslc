@@ -168,8 +168,8 @@ TEST(SymbolTableScopeStackTest, LookupScopedSinglePartLikeLookup) {
   // Phase-3 ResolutionPass will replace the impl wholesale; the
   // public-API contract is unchanged).
   nsl::ast::ScopedName multi;
-  multi.parts.push_back(Identifier("missing_sub"));
-  multi.parts.push_back(Identifier("port"));
+  multi.parts.emplace_back("missing_sub");
+  multi.parts.emplace_back("port");
   EXPECT_EQ(table.lookupScoped(multi), nullptr);
 
   table.leaveScope();
