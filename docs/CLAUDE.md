@@ -22,7 +22,7 @@ nslc/                              ← parent project (compiler implementation)
     ├── README.md                  ← human-facing intro
     ├── spec/                      ← authoritative grammar (input to parser/lexer)
     │   ├── nsl_pp.ebnf           (559 lines) — preprocessor grammar
-    │   └── nsl_lang.ebnf         (1149 lines) — NSL language proper
+    │   └── nsl_lang.ebnf         (1155 lines) — NSL language proper
     ├── design/                    ← implementation specifications (how we implement the spec)
     │   ├── nsl_compiler_design.md (1303 lines) — frontend → MLIR → CIRCT → Verilog
     │   └── nsl_tooling_design.md  (1015 lines) — LSP, formatter, linter, highlighter
@@ -79,12 +79,12 @@ Rule of thumb: a typical task needs **2–4 sections totaling 200–600 lines**,
 
 ### Implementing the parser
 - `spec/nsl_lang.ebnf` lines **65–712** (the grammar productions)
-- `spec/nsl_lang.ebnf` lines **1011–1149** (parser notes N1–N14 — disambiguation rules)
+- `spec/nsl_lang.ebnf` lines **1017–1155** (parser notes N1–N14 — disambiguation rules)
 - `design/nsl_compiler_design.md` lines **189–197** (Parser class skeleton)
 - `design/nsl_compiler_design.md` lines **299–682** (AST node hierarchy the parser builds)
 
 ### Implementing semantic analysis (Sema)
-- `spec/nsl_lang.ebnf` lines **826–1009** (semantic constraints S1–S29 — the entire Sema spec)
+- `spec/nsl_lang.ebnf` lines **826–1015** (semantic constraints S1–S29 — the entire Sema spec)
 - `design/nsl_compiler_design.md` lines **688–857** (SymbolTable + TypeSystem)
 - `design/nsl_compiler_design.md` lines **1260–1270** (testing strategy: one test per S1–S29)
 
@@ -103,7 +103,7 @@ Rule of thumb: a typical task needs **2–4 sections totaling 200–600 lines**,
 
 ### Adding a lint rule
 - `design/nsl_tooling_design.md` lines **719–889** (linter architecture, rule interface, example)
-- For a Sema-style rule, look at the matching constraint in `spec/nsl_lang.ebnf` 826–1009
+- For a Sema-style rule, look at the matching constraint in `spec/nsl_lang.ebnf` 826–1015
 - For a hardware rule (H001+), see lines **742–751** for the established list
 
 ### Working on the formatter
@@ -119,8 +119,8 @@ Rule of thumb: a typical task needs **2–4 sections totaling 200–600 lines**,
 - For a specific production: see §4 below for the file's section TOC, then `view` that range only
 
 ### Looking up a semantic constraint S<n> or parser note N<n>
-- All Sn: `spec/nsl_lang.ebnf` lines **826–1009** (read range `826 + 6*(n−1)` ish, or grep for `(S<n>)`)
-- All Nn: `spec/nsl_lang.ebnf` lines **1011–1149**
+- All Sn: `spec/nsl_lang.ebnf` lines **826–1015** (read range `826 + 6*(n−1)` ish, or grep for `(S<n>)`)
+- All Nn: `spec/nsl_lang.ebnf` lines **1017–1155**
 - All Pn (preprocessor): `spec/nsl_pp.ebnf` lines **391–559**
 
 ### Driver / build / CLI flags
@@ -168,7 +168,7 @@ The 6-phase workflow (Linear → plan → implement → CodeRabbit self-review �
 
 ---
 
-## 5. `spec/nsl_lang.ebnf` — section TOC (1149 lines)
+## 5. `spec/nsl_lang.ebnf` — section TOC (1155 lines)
 
 | Lines | Section |
 |---|---|
@@ -190,8 +190,8 @@ The 6-phase workflow (Linear → plan → implement → CodeRabbit self-review �
 | 714–770 | §13 Lexical elements (identifiers, numbers, string literals, value Z/X/U) |
 | 772–781 | §14 Whitespace and comments |
 | 783–824 | §15 Reserved keywords (App. 3 corrected & augmented) |
-| 826–1009 | **Semantic constraints S1–S29** (Sema's full responsibility) |
-| 1011–1149 | **Parser notes N1–N14** (disambiguation, lexer hints) |
+| 826–1015 | **Semantic constraints S1–S29** (Sema's full responsibility) |
+| 1017–1155 | **Parser notes N1–N14** (disambiguation, lexer hints) |
 
 ### Quick map of S/N constraints (so you can jump straight to what you need)
 
@@ -209,32 +209,32 @@ The 6-phase workflow (Linear → plan → implement → CodeRabbit self-review �
 | S10 | generate loop var must be integer | nsl_lang.ebnf:860 |
 | S11 | state_name proc-scope | nsl_lang.ebnf:863 |
 | S12 | partial LHS only for variable | nsl_lang.ebnf:866 |
-| S13 | alt = priority, any = parallel | nsl_lang.ebnf:871 |
-| S14 | conditional expr `else` mandatory | nsl_lang.ebnf:874 |
-| S15 | bit-slice indices compile-time | nsl_lang.ebnf:877 |
-| S16 | param_int/str only for HDL submodules | nsl_lang.ebnf:880 |
-| S17 | system tasks need `simulation` modifier | nsl_lang.ebnf:884 |
-| S18 | struct MSB-first packing | nsl_lang.ebnf:889 |
-| S19 | one-clock per goto in seq | nsl_lang.ebnf:892 |
-| S20 | `interface` modifier explicit clk/rst | nsl_lang.ebnf:896 |
-| S21 | proc methods `.finish()` / `.invoke()` | nsl_lang.ebnf:900 |
-| S22 | `return` only in func; width must match | nsl_lang.ebnf:931 |
-| S23 | reg width-omitted with init = 1-bit | nsl_lang.ebnf:936 |
-| S24 | mem partial init = zero-fill | nsl_lang.ebnf:940 |
-| S25 | `goto` two kinds (label vs state) | nsl_lang.ebnf:944 |
-| S26 | `func` ≡ `function` (canonical: `func`) | nsl_lang.ebnf:959 |
-| S27 | control-terminal name as 1-bit value | nsl_lang.ebnf:965 |
-| S28 | `first_state` positioning rules | nsl_lang.ebnf:986 |
-| S29 | `_init` block placement | nsl_lang.ebnf:1001 |
-| N1 | `if` statement-vs-expression | nsl_lang.ebnf:1014 |
-| N2 | `&` `\|` `^` reduction-vs-bitwise | nsl_lang.ebnf:1023 |
-| N3 | `.{` two-character lookahead | nsl_lang.ebnf:1027 |
-| N5 | `#` line-marker vs sign-extend | nsl_lang.ebnf:1035 |
-| N6 | proc-instance method access | nsl_lang.ebnf:1051 |
-| N7 | dotted `func` def for submodule out | nsl_lang.ebnf:1061 |
-| N10 | `label` reserved (mostly unused) | nsl_lang.ebnf:1075 |
-| N11 | three classes of `_`-prefix names | nsl_lang.ebnf:1083 |
-| N14 | `#line` source-location tracking | nsl_lang.ebnf:1113 |
+| S13 (constructive) | alt = priority, any = parallel | nsl_lang.ebnf:871 |
+| S14 | conditional expr `else` mandatory | nsl_lang.ebnf:875 |
+| S15 | bit-slice indices compile-time | nsl_lang.ebnf:878 |
+| S16 | param_int/str only for HDL submodules | nsl_lang.ebnf:881 |
+| S17 | system tasks need `simulation` modifier | nsl_lang.ebnf:885 |
+| S18 (constructive) | struct MSB-first packing | nsl_lang.ebnf:890 |
+| S19 (constructive) | one-clock per goto in seq | nsl_lang.ebnf:894 |
+| S20 | `interface` modifier explicit clk/rst | nsl_lang.ebnf:899 |
+| S21 | proc methods `.finish()` / `.invoke()` | nsl_lang.ebnf:903 |
+| S22 | `return` only in func; width must match | nsl_lang.ebnf:934 |
+| S23 (constructive) | reg width-omitted with init = 1-bit | nsl_lang.ebnf:939 |
+| S24 (constructive) | mem partial init = zero-fill | nsl_lang.ebnf:944 |
+| S25 | `goto` two kinds (label vs state) | nsl_lang.ebnf:949 |
+| S26 | `func` ≡ `function` (canonical: `func`) | nsl_lang.ebnf:964 |
+| S27 (constructive) | control-terminal name as 1-bit value | nsl_lang.ebnf:970 |
+| S28 | `first_state` positioning rules | nsl_lang.ebnf:992 |
+| S29 | `_init` block placement | nsl_lang.ebnf:1007 |
+| N1 | `if` statement-vs-expression | nsl_lang.ebnf:1020 |
+| N2 | `&` `\|` `^` reduction-vs-bitwise | nsl_lang.ebnf:1029 |
+| N3 | `.{` two-character lookahead | nsl_lang.ebnf:1033 |
+| N5 | `#` line-marker vs sign-extend | nsl_lang.ebnf:1041 |
+| N6 | proc-instance method access | nsl_lang.ebnf:1057 |
+| N7 | dotted `func` def for submodule out | nsl_lang.ebnf:1067 |
+| N10 | `label` reserved (mostly unused) | nsl_lang.ebnf:1081 |
+| N11 | three classes of `_`-prefix names | nsl_lang.ebnf:1089 |
+| N14 | `#line` source-location tracking | nsl_lang.ebnf:1119 |
 
 ---
 
@@ -249,18 +249,18 @@ The 6-phase workflow (Linear → plan → implement → CodeRabbit self-review �
 | 152–295 | §4 Class Diagram Overview (Mermaid) |
 | 299–615 | §5 AST Class Hierarchy (3 Mermaid diagrams: Decl/Stmt/Expr) |
 | 617–682 | §5.x AST node skeleton (C++17 code) |
-| 688–799 | §6 Symbol Table — Symbol class hierarchy + scopes table |
-| 802–857 | §6.x Type System — TypeSystem code |
-| 860–963 | §7 The `nsl` MLIR Dialect (op summary, rationale, TableGen) |
-| 967–1045 | §8 Lowering: AST → `nsl` dialect (visitor + per-node rule table) |
-| 1048–1061 | §9 Structural Expansion Passes (NSL-dialect local) |
-| 1065–1098 | §10 Lowering: `nsl` → CIRCT (per-op mapping table) |
-| 1102–1157 | §11 Driver / Compilation Object (CompileOptions, run loop) |
-| 1161–1195 | §12 Error Handling and Diagnostics (DiagnosticEngine, FixItHint) |
-| 1199–1256 | §13 Build System and Dependencies (CMake, repo layout) |
-| 1260–1273 | §14 Testing Strategy (lexer→e2e+formal layers) |
-| 1274–1290 | §14.5 Milestone Plan (routing pointer to `../../README.md` §Roadmap, `../../CLAUDE.md` §1, and the Constitution; do not duplicate the table) |
-| 1295–1303 | §15 Extension Points (verif, LSP, alternate backends) |
+| 688–817 | §6 Symbol Table — Symbol class hierarchy + scopes table (incl. constructive-`Sn` carve-out note) |
+| 820–875 | §6.x Type System — TypeSystem code |
+| 878–981 | §7 The `nsl` MLIR Dialect (op summary, rationale, TableGen) |
+| 985–1063 | §8 Lowering: AST → `nsl` dialect (visitor + per-node rule table) |
+| 1066–1079 | §9 Structural Expansion Passes (NSL-dialect local) |
+| 1083–1116 | §10 Lowering: `nsl` → CIRCT (per-op mapping table) |
+| 1120–1175 | §11 Driver / Compilation Object (CompileOptions, run loop) |
+| 1179–1213 | §12 Error Handling and Diagnostics (DiagnosticEngine, FixItHint) |
+| 1217–1274 | §13 Build System and Dependencies (CMake, repo layout) |
+| 1278–1291 | §14 Testing Strategy (lexer→e2e+formal layers) |
+| 1292–1308 | §14.5 Milestone Plan (routing pointer to `../../README.md` §Roadmap, `../../CLAUDE.md` §1, and the Constitution; do not duplicate the table) |
+| 1313–1321 | §15 Extension Points (verif, LSP, alternate backends) |
 
 ---
 
@@ -306,12 +306,12 @@ When you touch one of these areas, both sides are involved:
 |---|---|---|
 | Lexical reserved words | nsl_lang.ebnf:783–824 | nsl_compiler_design.md (Lexer, §3 layer 3); nsl_tooling_design.md:304–358 (highlighter) |
 | `_`-prefix system names | nsl_lang.ebnf:1083–1105 (N11) | nsl_compiler_design.md (Lexer, §3 layer 3) |
-| `#line` directive | nsl_pp.ebnf:516–559 (P13); nsl_lang.ebnf:1113–1149 (N14) | nsl_compiler_design.md (SourceLocation in §6 Symbol Table area, §12 Diagnostics) |
+| `#line` directive | nsl_pp.ebnf:516–559 (P13); nsl_lang.ebnf:1119–1155 (N14) | nsl_compiler_design.md (SourceLocation in §6 Symbol Table area, §12 Diagnostics) |
 | Compile-time helpers | nsl_pp.ebnf:236–310, P5/P7 | nsl_compiler_design.md (Preprocessor in §3, expansion in §9) |
 | `%IDENT%` macros | nsl_pp.ebnf:312–343, P3 | nsl_compiler_design.md §9 (`NSLCheckSemanticsPass` checks residue-free) |
 | AST shape | nsl_lang.ebnf §§1–11 | nsl_compiler_design.md:299–682 |
-| Sema constraints S1–S29 | nsl_lang.ebnf:826–1009 | nsl_compiler_design.md:688–857 (SymbolTable/TypeSystem); nsl_tooling_design.md:723–741 (lint W/S elevations) |
-| Parser disambiguation N1–N14 | nsl_lang.ebnf:1011–1149 | nsl_compiler_design.md (Parser, §3 layer 4) |
+| Sema constraints S1–S29 | nsl_lang.ebnf:826–1015 | nsl_compiler_design.md:688–857 (SymbolTable/TypeSystem); nsl_tooling_design.md:723–741 (lint W/S elevations) |
+| Parser disambiguation N1–N14 | nsl_lang.ebnf:1017–1155 | nsl_compiler_design.md (Parser, §3 layer 4) |
 | `proc`/`state`/`finish` semantics | nsl_lang.ebnf:1051–1059 (N6); 900–929 (S21) | nsl_compiler_design.md:860–963 (dialect ops); 1065–1098 (FSM lowering) |
 | `seq` / `while` / `for` placement | nsl_lang.ebnf:850–858 (S7–S9) | nsl_compiler_design.md:1065–1098 (`nsl.seq` → fsm.machine) |
 | `generate` unrolling | nsl_lang.ebnf §8 + S10 | nsl_compiler_design.md:1048–1061 (`NSLExpandGeneratePass`) |

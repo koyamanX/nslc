@@ -687,6 +687,24 @@ All AST nodes are owned via `std::unique_ptr` in a tree shape — no shared owne
 
 ## 6. Symbol Table and Type System
 
+> **Constructive `Sn` carve-out (Constitution v1.6.0 Principle VIII).**
+> Six of the 29 semantic constraints — `S13`, `S18`, `S19`, `S23`,
+> `S24`, `S27` — are *constructive*: they describe a positive shape
+> the symbol/type system MUST realize (struct MSB-first packing,
+> alt vs any case classification, control-terminal-as-1-bit, etc.)
+> rather than a forbidden shape. Per the v1.6.0 Principle VIII
+> carve-out, they ship a paired `pass.nsl` lit fixture plus a
+> GoogleTest unit case asserting the introspection observable on a
+> Sema-public API (e.g., `StructTypeSymbol::fields()` MSB-first,
+> `Sema::classifyIdentifierExpr` returning
+> `ClassifierKind::ControlTerminalTap`). The introspection-API
+> signature is frozen by the unit test, parallel to the way the
+> diagnostic-message string is frozen for the 23 error/warning
+> `Sn` via `// CHECK: error: ...` lines.
+>
+> See `specs/006-m3-sema/contracts/sema-api.contract.md` Invariant
+> 4 for the full table of (Sn → introspection-method) pairs.
+
 ```mermaid
 classDiagram
     class Symbol {

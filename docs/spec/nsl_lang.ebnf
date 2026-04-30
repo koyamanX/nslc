@@ -868,7 +868,8 @@ reserved_keyword =
  *         permit partial assignment.                            (Ref §6,
  *                                                                cache.nsl)
  *
- *  (S13)  In "alt" blocks, only the first matching case fires (priority);
+ *  (S13, constructive)
+ *         In "alt" blocks, only the first matching case fires (priority);
  *         in "any" blocks, all matching cases fire (parallel).  (Ref §5)
  *
  *  (S14)  "else" in a conditional EXPRESSION (not statement) is MANDATORY:
@@ -886,10 +887,12 @@ reserved_keyword =
  *         modules whose declare{} block carries the "simulation" modifier.
  *                                                                 (Ref App. 2)
  *
- *  (S18)  In a struct, earlier-declared members occupy the more-significant
+ *  (S18, constructive)
+ *         In a struct, earlier-declared members occupy the more-significant
  *         bit positions of the packed layout.                   (Ref §12)
  *
- *  (S19)  A single goto transition in a seq-block consumes one clock.
+ *  (S19, constructive)
+ *         A single goto transition in a seq-block consumes one clock.
  *         A while/for block consumes one additional clock per condition check
  *         and per loop-back transition.                          (Ref §7)
  *
@@ -933,11 +936,13 @@ reserved_keyword =
  *         width (see S5). Bare "return;" (no value) is valid only when the
  *         func has no return terminal.
  *
- *  (S23)  "reg" may be declared with an initializer but no explicit width,
+ *  (S23, constructive)
+ *         "reg" may be declared with an initializer but no explicit width,
  *         in which case the register is 1 bit wide with the given init value:
  *             reg flushing = 0;     ← 1-bit reg, initialized to 0
  *
- *  (S24)  A  mem  initializer may supply fewer values than the memory's depth:
+ *  (S24, constructive)
+ *         A  mem  initializer may supply fewer values than the memory's depth:
  *             mem cache_tag_way0[256][20] = {0};
  *         The missing addresses are implicitly initialized to zero. (Ref §4)
  *
@@ -962,7 +967,8 @@ reserved_keyword =
  *         for reference-compatibility only and implementations may warn on
  *         its use, emitting "func" in canonical output.
  *
- *  (S27)  CONTROL-TERMINAL NAMES AS 1-BIT VALUES.
+ *  (S27, constructive)
+ *         CONTROL-TERMINAL NAMES AS 1-BIT VALUES.
  *         When a func_in, func_out, func_self, or proc_name identifier
  *         appears in expression position (RHS of an assignment, inside a
  *         conditional, etc.) it evaluates to 1 iff the control signal is

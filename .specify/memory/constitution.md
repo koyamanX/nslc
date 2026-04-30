@@ -673,4 +673,4 @@ Constitution wins.
   `T*`) follow the monotonic-numbering rule of Principle I — retired
   numbers MUST NOT be reused; renumbering is forbidden.
 
-**Version**: 1.5.0 | **Ratified**: 2026-04-25 | **Last Amended**: 2026-04-27
+**Version**: 1.6.0 | **Ratified**: 2026-04-25 | **Last Amended**: 2026-04-28

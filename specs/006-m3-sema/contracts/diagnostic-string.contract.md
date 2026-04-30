@@ -90,7 +90,7 @@ included here because it is part of Sema's frozen surface (FR-017).
 - `S22` and `S25` etc. with multiple frozen messages get one
   `s<NN>/fail_<variant>.nsl` per variant (e.g.,
   `s22/fail_outside_func.nsl`, `s22/fail_width_mismatch.nsl`,
-  `s22/fail_bare_with_return_terminal.nsl`).
+  `s22/fail_bare_with_terminal.nsl`).
 - Renaming or weakening a frozen message is a spec amendment + a
   row update in this contract — never a routine PR.
 
