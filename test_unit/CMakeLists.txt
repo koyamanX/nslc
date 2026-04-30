@@ -61,7 +61,13 @@ foreach(suite
     type_system_test
     sema_lifecycle_test
     resolution_pass_test
-    constructive_sn_test)
+    constructive_sn_test
+    # M4 Phase 2 (007-m4-mlir-dialect, T020 + T021) — gtest suite for
+    # the `nsl::dialect::registerNSLDialect` entry-point idempotency
+    # invariant. Authored RED before `lib/Dialect/NSL/IR/NSLDialect.cpp`
+    # lands a real registration body; the translation unit fails to
+    # link until T006 ships the dialect class + entry-point.
+    dialect_register_test)
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${suite}/CMakeLists.txt")
     add_subdirectory(${suite})
   endif()
