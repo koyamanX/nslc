@@ -10,10 +10,12 @@
 // Picked the C-style names; flag for Phase 4 review when the
 // `IncDecKind` enum-attr is materialized.
 
+// Phase 4 SYN-5: `I64Attr` prints just `0` (no `: i64`).
+
 // CHECK-LABEL: nsl.module @IncDecHost
 nsl.module @IncDecHost {
-  // CHECK: %{{.*}} = nsl.reg "q" : !nsl.bits<8> = 0 : i64
-  %q = nsl.reg "q" : !nsl.bits<8> = 0 : i64
+  // CHECK: %{{.*}} = nsl.reg "q" : !nsl.bits<8> = 0
+  %q = nsl.reg "q" : !nsl.bits<8> = 0
   // CHECK: nsl.incdec %{{.*}} : !nsl.bits<8> {kind = #nsl<incdec_kind pre_inc>}
   nsl.incdec %q : !nsl.bits<8> {kind = #nsl<incdec_kind pre_inc>}
   // CHECK: nsl.incdec %{{.*}} : !nsl.bits<8> {kind = #nsl<incdec_kind post_dec>}

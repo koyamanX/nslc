@@ -286,12 +286,18 @@ def NSL_AnyOp : NSL_Op<"any", [NoTerminator, SingleBlock]> {
   let hasVerifier = 1;
 }
 
-def NSL_IfOp : NSL_Op<"if", [NoTerminator]> {
+def NSL_IfOp : NSL_Op<"if", [NoTerminator, SingleBlock]> {
   let summary = "Two-region conditional (then / else).";
   let description = [{
     `nsl.if %c { ... } else { ... }`. Two regions; both MAY be empty
     per FR-013 (else region's emptiness is structurally legal but
     may be semantically degenerate — Sema's M3 domain).
+
+    Carries `SingleBlock` (in addition to `NoTerminator`) so the parser
+    auto-materializes an implicit `^bb0:` block when the source spells
+    an empty region as `{}`. Without `SingleBlock`, MLIR parses `{}` as
+    a zero-block region and the `SizedRegion<1>` constraint then rejects
+    it.
   }];
   let arguments = (ins NSL_AnyBits:$cond);
   let regions = (region SizedRegion<1>:$thenRegion, SizedRegion<1>:$elseRegion);

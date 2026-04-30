@@ -10,8 +10,10 @@
 nsl.module @FireProbeHost {
   // CHECK: nsl.wire "a" : !nsl.bits<8>
   %a = nsl.wire "a" : !nsl.bits<8>
-  // CHECK: nsl.func_in "do"({{.*}}) : !nsl.bits<8>
-  nsl.func_in "do"(%a) : !nsl.bits<8>
+  // Phase 4 SYN-4: variadic-operand control terminals use MLIR's
+  // standard `functional-type($args, results)` form `(args) -> result`.
+  // CHECK: nsl.func_in "do"({{.*}}) : (!nsl.bits<8>) -> ()
+  nsl.func_in "do"(%a) : (!nsl.bits<8>) -> ()
   // CHECK: nsl.fire_probe @do
   nsl.fire_probe @do
 }

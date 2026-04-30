@@ -11,9 +11,14 @@
 // for loop bounds. Picked descriptive `lower`/`upper`/`step` int
 // attrs; flag for Phase 4 review when the attr set is materialized.
 
+// Phase 4 SYN-6: `attr-dict-with-keyword` requires the `attributes`
+// keyword before the inline-attr brace block, otherwise the parser
+// reads `{...}` as the body region. Attribute order is alphabetized
+// by the printer (`lower`, `step`, `upper`).
+
 // CHECK-LABEL: nsl.module @GenHost
 nsl.module @GenHost {
-  // CHECK: nsl.structural_generate
-  nsl.structural_generate {lower = 0 : i64, upper = 8 : i64, step = 1 : i64} {
+  // CHECK: nsl.structural_generate attributes {lower = 0 : i64, step = 1 : i64, upper = 8 : i64}
+  nsl.structural_generate attributes {lower = 0 : i64, upper = 8 : i64, step = 1 : i64} {
   }
 }
