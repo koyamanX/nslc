@@ -22,8 +22,12 @@ on:
 
 permissions:
   contents: read
-  packages: read         # pull ghcr.io/<owner>/nsl-nslc:dev
   pull-requests: write   # for the wired-but-empty sticky comment
+  # No `packages: read` — the dev container at
+  # `ghcr.io/koyamanx/nsl-nslc:dev` MUST be set to public visibility
+  # on ghcr.io. Public packages pull anonymously, so the workflow
+  # needs no token scope for them and the per-job `credentials:`
+  # block is omitted from each `container:` directive.
 
 env:
   # Documents the canonical container image. NOT consumed by
@@ -55,11 +59,11 @@ jobs:
       # context in `jobs.<id>.container.image` (only github / needs /
       # strategy / matrix / vars / inputs are allowed there). Forks
       # should update both this string and the registry namespace in
-      # `.github/workflows/publish-images.yml`.
+      # `.github/workflows/publish-images.yml`. The package MUST be
+      # set to public visibility on ghcr.io after the first
+      # publish-images run; with public visibility the pull happens
+      # anonymously and no `credentials:` block is required.
       image: ghcr.io/koyamanx/nsl-nslc:dev
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -94,11 +98,11 @@ jobs:
       # context in `jobs.<id>.container.image` (only github / needs /
       # strategy / matrix / vars / inputs are allowed there). Forks
       # should update both this string and the registry namespace in
-      # `.github/workflows/publish-images.yml`.
+      # `.github/workflows/publish-images.yml`. The package MUST be
+      # set to public visibility on ghcr.io after the first
+      # publish-images run; with public visibility the pull happens
+      # anonymously and no `credentials:` block is required.
       image: ghcr.io/koyamanx/nsl-nslc:dev
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -123,11 +127,11 @@ jobs:
       # context in `jobs.<id>.container.image` (only github / needs /
       # strategy / matrix / vars / inputs are allowed there). Forks
       # should update both this string and the registry namespace in
-      # `.github/workflows/publish-images.yml`.
+      # `.github/workflows/publish-images.yml`. The package MUST be
+      # set to public visibility on ghcr.io after the first
+      # publish-images run; with public visibility the pull happens
+      # anonymously and no `credentials:` block is required.
       image: ghcr.io/koyamanx/nsl-nslc:dev
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -151,11 +155,11 @@ jobs:
       # context in `jobs.<id>.container.image` (only github / needs /
       # strategy / matrix / vars / inputs are allowed there). Forks
       # should update both this string and the registry namespace in
-      # `.github/workflows/publish-images.yml`.
+      # `.github/workflows/publish-images.yml`. The package MUST be
+      # set to public visibility on ghcr.io after the first
+      # publish-images run; with public visibility the pull happens
+      # anonymously and no `credentials:` block is required.
       image: ghcr.io/koyamanx/nsl-nslc:dev
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
