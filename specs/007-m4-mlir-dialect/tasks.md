@@ -29,7 +29,7 @@ description: "Tasks for M4 — `nsl` MLIR Dialect (`nsl-dialect`: TableGen ops +
   - lit + FileCheck tests: `test/Dialect/{module-level,storage,control-terminal,action-block,action-helper,atomic,procedure,procedure-helper,system-task,marker,expansion-only,Types}/`
   - GoogleTest unit tests: `test_unit/dialect_register_test/`
 
-> **Op count note.** Spec FR-010 describes **40 named ops + auto-generated terminators** (the draft-era "Total: 35" miscount was corrected pre-implementation in commit `<TBD>` after `/speckit-analyze` flagged it; finding F2 in the analyze report). 40 ops + 3 types is the authoritative count enumerated in the FR-010 table and `data-model.md` §2.
+> **Op count note.** Spec FR-010 describes **40 named ops + auto-generated terminators** (the draft-era "Total: 35" miscount was corrected pre-implementation in commit `e47484a` after `/speckit-analyze` flagged it; finding F2 in the analyze report). 40 ops + 3 types is the authoritative count enumerated in the FR-010 table and `data-model.md` §2.
 
 ---
 
@@ -296,7 +296,7 @@ description: "Tasks for M4 — `nsl` MLIR Dialect (`nsl-dialect`: TableGen ops +
 - [ ] T125 [P] Update `docs/design/nsl_compiler_design.md` §7 — add the consolidation note flagged by plan.md Constitution-VII (b): the marker / lowering-helper ops introduced in §§8–10 (`nsl.fire_probe`, `nsl.struct_cast`, `nsl.field`, `nsl.case`, `nsl.default`, `nsl.goto`, `nsl.structural_generate`) belong in §7's op summary as well; document them inline so the dialect's full op list is in one section. Per Principle VII (spec/design coupling) + spec SC-009.
 - [ ] T126 [P] Update `docs/CLAUDE.md` §6 (compiler-design TOC) — refresh §7 line ranges if T125's consolidation note shifts boundaries. Per Principle VII line-range rule.
 - [ ] T127 [P] Update `README.md` Building/Status — add a 5-line `nsl-opt` round-trip example matching the M3-era `nslc -emit=ast` example pattern. Reference the M4 quickstart at `specs/007-m4-mlir-dialect/quickstart.md` §3.
-- [X] T128 Polish — **DONE pre-implementation 2026-04-30** in commit `<TBD>` (post-`/speckit-analyze` remediation): spec.md FR-010 footer + SC-001 + SC-009 + SC-012, plan.md (5 occurrences), research.md, data-model.md (4 occurrences), quickstart.md, contracts/dialect-api.contract.md (2 occurrences) all corrected from "35 named ops"/"36th op"/"42 public types" to "40 named ops"/"41st op"/"47 public types". Per `/speckit-analyze` finding F2.
+- [X] T128 Polish — **DONE pre-implementation 2026-04-30** in commit `e47484a` (post-`/speckit-analyze` remediation): spec.md FR-010 footer + SC-001 + SC-009 + SC-012, plan.md (5 occurrences), research.md, data-model.md (4 occurrences), quickstart.md, contracts/dialect-api.contract.md (2 occurrences) all corrected from "35 named ops"/"36th op"/"42 public types" to "40 named ops"/"41st op"/"47 public types". Per `/speckit-analyze` finding F2.
 - [ ] T129 [P] Run `scripts/check_spdx.py` against `git ls-files` — expect: 100% of new files under `lib/Dialect/`, `include/nsl/Dialect/`, `tools/nsl-opt/`, `test/Dialect/`, `test_unit/dialect_register_test/`, plus the new driver source files carry the SPDX header. Per SC-010.
 - [ ] T130 Final M4 acceptance: run `./scripts/ci.sh all` once more end-to-end inside the dev container — expect: all 6 stages green; ~88 dialect fixtures pass; M0–M3 corpus stays green; `--version` is unchanged or shows the MLIR/CIRCT pin update only. SC-001 through SC-012 all measured.
 
