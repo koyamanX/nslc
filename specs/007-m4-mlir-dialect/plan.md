@@ -24,7 +24,7 @@ parens):
   single umbrella public header `NSLDialect.h` that re-exports the
   TableGen-generated per-op classes. Concrete op classes mirror
   [`docs/design/nsl_compiler_design.md`](../../docs/design/nsl_compiler_design.md)
-  §§7–10 verbatim — 35 named ops (`nsl.module`, `nsl.proc`,
+  §§7–10 verbatim — 40 named ops (`nsl.module`, `nsl.proc`,
   `nsl.transfer`, …, `nsl.structural_generate`, the 4 `nsl.sim_*`
   variants, the 3 markers `nsl.fire_probe` / `nsl.struct_cast` /
   `nsl.field`) plus auto-generated implicit-terminator ops for
@@ -33,7 +33,7 @@ parens):
   via `useDefaultTypePrinterParser = 1`. FR-001, FR-006, FR-007,
   FR-009, FR-010.
 - **TableGen + ODS sources** (`lib/Dialect/NSL/IR/NSL*.td`)
-  declare the dialect, the 35 ops, the 3 types, and every TableGen-
+  declare the dialect, the 40 ops, the 3 types, and every TableGen-
   expressible structural trait (`Symbol`, `SymbolTable`,
   `HasParent<...>`, `SingleBlockImplicitTerminator<...>`,
   `SameOperandsElementType`, `SameOperandsShape`). Standard CMake
@@ -67,7 +67,7 @@ parens):
   FR-004, FR-022, FR-024.
 - **Test corpus** under `test/Dialect/` — Constitution Principle VI's
   "**Dialect tests use `nsl-opt` for round-trip verification of
-  `.mlir`**" (line 350) applied: 35 round-trip pass fixtures
+  `.mlir`**" (line 350) applied: 40 round-trip pass fixtures
   (one `<op>_roundtrip.mlir` per op in spec FR-010), 3 type-round-
   trip fixtures (`!nsl.bits` / `!nsl.struct` / `!nsl.mem`), and ~50
   invalid fixtures (one `<op>_invalid_<reason>.mlir` per cell in
@@ -178,7 +178,7 @@ Evaluation against Constitution v1.7.0 (in `.specify/memory/constitution.md`):
 | **V. Inspectable, Deterministic Pipeline** | **Yes — gating** | ✅ | M4 does NOT add a new `-emit=` flag in `nslc` (per FR-022/FR-023; `-emit=mlir` lands at M5). The new `nsl-opt` binary IS the M4 inspectability surface: stdin/stdout/file-arg per upstream `MlirOptMain` (FR-015). **Determinism**: byte-stable `nsl-opt` output across two builds (FR-025); no pointer-leaks (FR-027); deterministic collection iteration in printer (FR-026); no env-var influence; no embedded timestamps. The TableGen-generated parsers/printers use MLIR's deterministic `SmallVector`/insertion-ordered iteration for op regions and operand lists. |
 | **VI. Layered Test Discipline** | **Yes — NON-NEGOTIABLE** | ✅ | "Dialect tests use `nsl-opt` for round-trip verification of `.mlir`" (Principle VI line 350) — M4 implements this verbatim. Per-op round-trip fixtures (FR-017) collectively exercise the 35-op surface; per-type round-trip fixtures (FR-018) cover the 3 type forms; per-invariant invalid fixtures (FR-019) exercise the structural-verifier surface (Q1 Option A; ~50 fixtures). lit + FileCheck for round-trip and invalid; gtest for the dialect-registry idempotency unit case. **Audited-project gate** (Principle VI's seven projects): forward-looking, gates M7. M4 leaves CI's stage 5 (e2e) and stage 6 (formal) wired-but-empty unchanged. |
 | **VII. Spec ↔ Design Coupling** | **Yes** | ✅ | M4 implements `nsl_compiler_design.md` §§7–10 verbatim; **no edits to `docs/spec/*.ebnf` are required** by this plan (the spec is unchanged at M4). Three design-doc actions: (a) `docs/design/nsl_compiler_design.md` §7 lines 882–931 are implemented as written — no edits planned for the op summary itself; (b) **A small consolidation note** is added to design §7 in the M4 patch documenting that the marker / lowering-helper ops (`nsl.fire_probe`, `nsl.struct_cast`, `nsl.field`, `nsl.case`, `nsl.default`, `nsl.goto`, `nsl.structural_generate`) introduced in §§8–10 are dialect ops shipping at M4, not §7 omissions — this is the single Principle VII "design doc was incomplete; the M4 implementation surfaces a gap" action; (c) `docs/CLAUDE.md` §6 (compiler-design TOC) line ranges are kept current if the §7 consolidation note shifts boundaries. The project-root `CLAUDE.md` §1 NSL-feature roll-up's "Lower to dialect" column entries already cite M4 by op name (`nsl::ModuleOp`, `nsl::DeclareOp` shorthand, etc.); no edits required. |
-| **VIII. Test-First Development** | **Yes — NON-NEGOTIABLE, gating** | ✅ | FR-020 codifies the per-fixture TDD discipline (parallel to M3's FR-028). Tasks plan will sequence each behavior as: (1) test-author commit (observed failing on then-current tree because the op is undefined or the verifier is unimplemented) → (2) implementation commit (TableGen + verifier glue lands; test passes). The 35 round-trip fixtures + 3 type fixtures + ~50 invalid fixtures are the test-first artifacts; the corresponding TableGen records and verifier bodies follow them. The pre-M7 carve-out for refactor exemption (Principle VIII condition d, the Verilog-diff condition) is **vacuous at M4** because M5's `-emit=verilog` end-to-end pipeline is forward-looking. **The Principle VIII diagnostic-string clause** is honored under a **deliberate dialect-layer carve-out** documented in spec Assumptions: substring-match instead of literal-string-match, because dialect verifier wording follows MLIR upstream conventions, not NSL-spec conventions. The spec's Assumptions paragraph and FR-012 frame this carve-out; the Constitution does not need amendment because Principle VIII's clause specifically covers `Sn`/`Nn`/`Pn` (NSL-spec constraints), not MLIR-layer structural rules. |
+| **VIII. Test-First Development** | **Yes — NON-NEGOTIABLE, gating** | ✅ | FR-020 codifies the per-fixture TDD discipline (parallel to M3's FR-028). Tasks plan will sequence each behavior as: (1) test-author commit (observed failing on then-current tree because the op is undefined or the verifier is unimplemented) → (2) implementation commit (TableGen + verifier glue lands; test passes). The 40 round-trip fixtures + 3 type fixtures + ~50 invalid fixtures are the test-first artifacts; the corresponding TableGen records and verifier bodies follow them. The pre-M7 carve-out for refactor exemption (Principle VIII condition d, the Verilog-diff condition) is **vacuous at M4** because M5's `-emit=verilog` end-to-end pipeline is forward-looking. **The Principle VIII diagnostic-string clause** is honored under a **deliberate dialect-layer carve-out** documented in spec Assumptions: substring-match instead of literal-string-match, because dialect verifier wording follows MLIR upstream conventions, not NSL-spec conventions. The spec's Assumptions paragraph and FR-012 frame this carve-out; the Constitution does not need amendment because Principle VIII's clause specifically covers `Sn`/`Nn`/`Pn` (NSL-spec constraints), not MLIR-layer structural rules. |
 | **IX. Continuous Integration & Delivery** | **Yes** | ✅ | M0 wired the 6-stage pipeline; M1/M2/M3 filled stages 3 + 4 with lex/preprocess/parse/sema content. M4 grows stage 3 (Unit & layer tests) with the dialect round-trip + invalid corpora, and stage 4 (Lowering tests via lit + FileCheck) with `nsl-opt`-driven `.mlir` round-trip and verifier-reject tests. Stages 5 (end-to-end) and 6 (formal) remain wired-but-empty (gated to M7/M8). The local-reproduction `scripts/ci.sh` continues to be the single authoritative entry point. **The Principle IX transitional clause was retired at v1.5.0** — green CI is a hard merge gate for M4's PR. |
 | **Build/Code/Licensing Standards** | **Yes** | ✅ | C++17 enforced by M0's `target_compile_features` + `set(CMAKE_CXX_EXTENSIONS OFF)`. LLVM/MLIR conventions throughout (`mlir::Op`, `mlir::OpBuilder`, `mlir::Location`, `mlir::SymbolRefAttr`, the standard CMake helpers). Apache-2.0 WITH LLVM-exception SPDX header on every new file (M0's `check_spdx.py` runs against `git ls-files`; SC-010). TableGen `.td` files MUST carry the SPDX header in the file's leading multi-line C-style `/* … */` comment block — verified by the same script. |
 | **Development Workflow** | Yes | ✅ | This plan was drafted via `/speckit-specify` → `/speckit-clarify` → `/speckit-plan`. AI-attribution per `CONTRIBUTING.md` §5. |
@@ -221,10 +221,10 @@ nslc/
 │   │       └── IR/
 │   │           ├── CMakeLists.txt           # NEW — add_mlir_dialect + add_nsl_library + tablegen invocations
 │   │           ├── NSLDialect.td            # NEW — dialect class, namespace, useDefaultTypePrinterParser
-│   │           ├── NSLOps.td                # NEW — 35 ops + auto-generated terminators in one file (per Phase 0 research)
+│   │           ├── NSLOps.td                # NEW — 40 ops + auto-generated terminators in one file (per Phase 0 research)
 │   │           ├── NSLTypes.td              # NEW — 3 types (!nsl.bits, !nsl.struct, !nsl.mem)
 │   │           ├── NSLDialect.cpp           # NEW — dialect-init code; type printer/parser glue
-│   │           ├── NSLOps.cpp               # NEW — verifier bodies for 35 ops (TableGen HasParent for immediate; hand-walk for transitive per Q2 Option B)
+│   │           ├── NSLOps.cpp               # NEW — verifier bodies for 40 ops (TableGen HasParent for immediate; hand-walk for transitive per Q2 Option B)
 │   │           └── NSLTypes.cpp             # NEW — type-class glue (init, hash, equal)
 │   └── Driver/
 │       ├── CMakeLists.txt                   # MODIFIED — add Compilation.cpp dialect-load line; add LowerToNSL.cpp + RunNSLPasses.cpp stub sources

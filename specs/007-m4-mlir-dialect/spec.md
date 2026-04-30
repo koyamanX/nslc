@@ -79,7 +79,7 @@
 
 ### Session 2026-04-30
 
-- Q: M4 op verifier strictness — what does each `nsl.*` op's `hasVerifier = 1` hook check (structural invariants only; structural + cheap post-Sema; or full `Sn` re-check)? → A: **Option A — structural invariants only.** The verifier asserts parent-op kind via `HasParent<...>`, region count + kind, attribute presence/type, and trait-declared operand-result type relations (`SameOperandsElementType`, `SameOperandsShape`, `SingleBlockImplicitTerminator`, etc.). Re-checking of `S1`–`S29` semantic constraints is OUT of scope at M4 — those are Sema's M3 domain. Rationale: preserves the architectural seam between Sema (the single semantic checker) and the dialect (the IR), avoids drift between two parallel checkers, matches MLIR upstream conventions, and aligns with Constitution Principle III ("stock CIRCT below the dialect" → clean separation of concerns). Expected fail-fixture cardinality: ~50 invalid cases (≈ 35 ops × ~1.5 invariants each).
+- Q: M4 op verifier strictness — what does each `nsl.*` op's `hasVerifier = 1` hook check (structural invariants only; structural + cheap post-Sema; or full `Sn` re-check)? → A: **Option A — structural invariants only.** The verifier asserts parent-op kind via `HasParent<...>`, region count + kind, attribute presence/type, and trait-declared operand-result type relations (`SameOperandsElementType`, `SameOperandsShape`, `SingleBlockImplicitTerminator`, etc.). Re-checking of `S1`–`S29` semantic constraints is OUT of scope at M4 — those are Sema's M3 domain. Rationale: preserves the architectural seam between Sema (the single semantic checker) and the dialect (the IR), avoids drift between two parallel checkers, matches MLIR upstream conventions, and aligns with Constitution Principle III ("stock CIRCT below the dialect" → clean separation of concerns). Expected fail-fixture cardinality: ~50 invalid cases (≈ 40 ops × ~1.25 invariants each).
 - Q: "Parent" relation semantics in FR-013 — for rows marked "parent (transitively) = X", does the verifier check immediate parent only (TableGen `HasParent`), any ancestor (custom walk), or a widened immediate-parent set? → A: **Option B — any-ancestor walk via custom verifier.** Rows in FR-013 marked "parent (transitively) = X" are checked by a hand-written `verify()` body that walks `op->getParentOp()` upward until it finds an ancestor of kind X or hits the top of the op tree. Affects ~5 ops (`nsl.while`, `nsl.for`, `nsl.finish`, `nsl.goto` label-form, plus any future transitive-parent op). Standard MLIR `HasParent<...>` TableGen trait covers the immediate-parent rows (the bulk of FR-013); custom ancestor-walk covers the ~5 transitive rows. Rationale: NSL grammar permits intervening control-flow ops (`nsl.parallel`, `nsl.alt`, `nsl.any`, `nsl.if`) between an enclosing `nsl.seq` and a `nsl.while` body — strict immediate-parent (Option A) would force the M5 AST→MLIR lowering to rewrite block shapes or insert wrapper ops; Option B keeps M5's lowering structurally faithful to the AST and pushes the validation cost to ~5 small custom verifiers. Option C (widened immediate-parent set) is laxer than NSL grammar and would silently accept `nsl.alt { nsl.while }` without any enclosing `nsl.seq` (a `S8` violation that the dialect should still surface even though Sema also catches it at M3).
 
 ## User Scenarios & Testing *(mandatory)*
@@ -504,7 +504,7 @@ the link-time dependency direction (per FR-005) by failing fast if
   | Expansion-only | `nsl.structural_generate` | `NSL_StructuralGenerateOp` | one-region; consumed by M5's `NSLExpandGeneratePass` | design §9 line 1073 |
   | Auto-terminators | `nsl.module_terminator`, `nsl.proc_terminator`, ... | (auto) | per-parent implicit-terminator ops | design §7 lines 950, 959 |
 
-  *Total: 35 named ops + auto-generated terminators. Adding a 36th
+  *Total: 40 named ops + auto-generated terminators. Adding a 41st
   is a routine PR provided design §7 (or §8/§9/§10) is updated in
   the same change per Principle VII; M4's scaffolding is
   layer-extensible (per SC-009).*
@@ -570,7 +570,7 @@ the link-time dependency direction (per FR-005) by failing fast if
   | `nsl.variable` | parent = `nsl.module` or `nsl.func`; result type is `!nsl.bits<N>` |
   | `nsl.mem` | parent = `nsl.module`; result type is `!nsl.mem<[D x T]>` |
   | `nsl.func_in`, `nsl.func_out`, `nsl.func_self` | parent = `nsl.module` |
-  | `nsl.alt`, `nsl.any` | one region; children are zero-or-more `nsl.case` followed by zero-or-one `nsl.default`; case-ordering is preserved (priority for `nsl.alt`, semantic-don't-care for `nsl.any` — but the verifier itself does NOT distinguish) |
+  | `nsl.alt`, `nsl.any` | one region; **≥ 1 child total** (one-or-more `nsl.case`, optionally followed by one `nsl.default`; OR a lone `nsl.default`); case-ordering is preserved (priority for `nsl.alt`, semantic-don't-care for `nsl.any` — but the verifier itself does NOT distinguish) |
   | `nsl.if` | two regions (then, else); else region MAY be empty |
   | `nsl.parallel` | one region |
   | `nsl.seq` | parent = `nsl.func`; one region |
@@ -593,8 +593,8 @@ the link-time dependency direction (per FR-005) by failing fast if
   | `nsl.struct_cast`, `nsl.field` | type-match on operand and result; `nsl.field` carries an integer attribute for the field index |
   | `nsl.structural_generate` | one region; loop-bound attributes shape |
 
-  *Cardinality (per Q1 Option A — structural-only): ~35 ops
-  × ~1.5 invariants each ≈ 50 distinct invalid-fixture cases.
+  *Cardinality (per Q1 Option A — structural-only): ~40 ops
+  × ~1.25 invariants each ≈ 50 distinct invalid-fixture cases.
   The exact count is mechanical: every row above whose
   "invariants" cell names ≥ 1 invariant ships ≥ 1
   `<op>_invalid_<reason>.mlir` fixture per FR-019.*
@@ -745,11 +745,11 @@ the link-time dependency direction (per FR-005) by failing fast if
 
 ### Measurable Outcomes
 
-- **SC-001**: For every op enumerated in FR-010 (35 named ops +
+- **SC-001**: For every op enumerated in FR-010 (40 named ops +
   auto-generated terminators), `test/Dialect/<category>/
   <op>_roundtrip.mlir` exists, is authored before its
   implementation per Principle VIII TDD, AND passes lit + FileCheck
-  on a green CI run. 0 of the 35 ops are without a round-trip
+  on a green CI run. 0 of the 40 ops are without a round-trip
   fixture; 100% op coverage.
 - **SC-002**: For every cell in the FR-013 invariant table with
   ≥ 1 structural invariant, `test/Dialect/<category>/
@@ -785,7 +785,7 @@ the link-time dependency direction (per FR-005) by failing fast if
   TableGen or verifier source code (re-statement of M1 SC-008 /
   M2 SC-005 / M3 SC-006 for M4 fixtures).
 - **SC-009**: After M4 lands, the M5 AST→`nsl` lowering work
-  begins against a frozen dialect surface — all 35 ops + 3 types
+  begins against a frozen dialect surface — all 40 ops + 3 types
   + the registration entry-point are stable, allowing
   `Compilation::lowerToNSL` (declaration shipped at M4 per FR-004,
   body landing at M5) to be implemented without additional dialect
@@ -802,7 +802,7 @@ the link-time dependency direction (per FR-005) by failing fast if
   CI guard MUST verify this — no link-time edge from
   `nsl-dialect` to `nsl-ast`, `nsl-sema`, `nsl-parse`, `nsl-lex`,
   `nsl-preprocess`, `nsl-lower`, or `nsl-driver`.
-- **SC-012**: Adding a 36th op to the dialect (a hypothetical
+- **SC-012**: Adding a 41st op to the dialect (a hypothetical
   language change in a later release) requires editing exactly
   the `.td` file, one new round-trip fixture, one or more
   invalid fixtures (one per structural invariant), one new row in

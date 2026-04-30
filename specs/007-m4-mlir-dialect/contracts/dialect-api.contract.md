@@ -81,8 +81,8 @@ header carve-out for `nsl-ast` and `nsl-sema`).
 | `nsl::dialect::MemType` | class | TableGen `def NSL_MemType` |
 | `nsl::dialect::registerNSLDialect` | function | hand-written |
 
-That's 35 op classes + 2 auto-generated terminators + 3 type
-classes + the dialect class + the registration function = **42
+That's 40 op classes + 2 auto-generated terminators + 3 type
+classes + the dialect class + the registration function = **47
 public types/functions**.
 
 ## 3. Registration entry-point contract
@@ -152,8 +152,8 @@ public:
 
 Once M4 is merged, the following are FROZEN:
 
-1. **Op-class set**: 35 ops + 2 auto-generated terminators. Adding
-   a 36th is an M4 amendment + design §7 update (per SC-012).
+1. **Op-class set**: 40 ops + 2 auto-generated terminators. Adding
+   a 41st is an M4 amendment + design §7 update (per SC-012).
    Removing or renaming an op is a MAJOR version change.
 2. **Op-class trait set per op**: per the data-model.md table.
    Adding a trait is a minor amendment; removing one (especially

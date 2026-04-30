@@ -121,7 +121,7 @@ contributor onboarding cost (a CIRCT contributor opening this repo
 immediately recognizes the layout) and makes the
 TableGen-generated header set predictable
 (`NSLDialect.h.inc`, `NSLOps.h.inc`, `NSLTypes.h.inc`). The
-partition is small enough that ~35 ops in `NSLOps.td` stays
+partition is small enough that ~40 ops in `NSLOps.td` stays
 manageable (~1600 LOC TableGen at typical density); a future split
 into per-category .td files (`NSLActionOps.td`,
 `NSLProcedureOps.td`, etc.) is a routine refactor if the file
