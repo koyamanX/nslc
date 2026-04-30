@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/m4_emit_mlir_rejected.test — FR-023 `-emit=mlir`
+// rejection guard.
+//
+// **Specification anchors**:
+//   - `specs/007-m4-mlir-dialect/spec.md` FR-023, SC-009 — at M4
+//     the public CLI MUST reject `-emit=mlir` (the dialect is loaded
+//     into the `mlir::MLIRContext` but unreachable via the driver;
+//     the `Compilation::lowerToNSL` stub is reachable only from a
+//     direct C++ caller). M5 will flip this to acceptance.
+//   - `specs/007-m4-mlir-dialect/tasks.md` T123 (Phase 5 US3).
+//
+// The M3-era driver's emit-stage handler emits
+// "unknown emit stage: <stage>" on stderr + the usage line and
+// exits 2 for any value not in {`tokens`, `ast`} (see
+// `tools/nslc/main.cpp` final fall-through branch). M4 MUST NOT add
+// `mlir` to that allow-list.
+//
+// `not` makes lit pass when nslc exits non-zero; the FileCheck
+// pipeline asserts the diagnostic text on stderr. We use `%t.nsl`
+// for the input file path so the rejection occurs at argv parse
+// time before any I/O — the file's contents do not matter.
+
+// RUN: printf '' > %t.nsl
+// RUN: not %nslc -emit=mlir %t.nsl 2>&1 | FileCheck %s
+
+// CHECK: unknown emit stage: mlir

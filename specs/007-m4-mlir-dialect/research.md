@@ -285,8 +285,8 @@ new files:
   ```cpp
   mlir::OwningOpRef<mlir::ModuleOp>
   Compilation::lowerToNSL(ast::CompilationUnit&, sema::SemaResult&) {
-      diag_.emit(Severity::Fatal, /*loc*/{},
-                 "MLIR lowering not yet implemented; see M5");
+      diag_.report(Severity::Error, /*loc*/{},
+                   "MLIR lowering not yet implemented; see M5");
       return {};
   }
   ```

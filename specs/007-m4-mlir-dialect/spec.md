@@ -727,8 +727,8 @@ the link-time dependency direction (per FR-005) by failing fast if
   `include/nsl/Dialect/`, `tools/nsl-opt/`, AND `test/Dialect/`
   MUST carry the `Apache-2.0 WITH LLVM-exception` SPDX header
   (M0 FR-010 hygiene re-stated for the M4 file set). TableGen
-  `.td` files MUST carry the header in the file's leading
-  multi-line C-style comment block.
+  `.td` files MUST carry the header as a `//` line-comment per
+  `scripts/check_spdx.py`'s `.td` recipe.
 
 ### Key Entities
 
