@@ -16,11 +16,12 @@ nsl.module @CallHost {
   // CHECK: nsl.func @body
   nsl.func @body {
     nsl.seq {
-      // CHECK: nsl.call @target(%{{.*}}, %{{.*}})
-      nsl.call @target(%a, %b)
+      // Per Phase 4 SYN-4: variadic operands use `functional-type`.
+      // CHECK: nsl.call @target(%{{.*}}, %{{.*}}) : (!nsl.bits<8>, !nsl.bits<8>) -> ()
+      nsl.call @target(%a, %b) : (!nsl.bits<8>, !nsl.bits<8>) -> ()
       // Dotted-form call (per N7 / Q5).
-      // CHECK: nsl.call @ic.ready(%{{.*}})
-      nsl.call @ic.ready(%a)
+      // CHECK: nsl.call @ic.ready(%{{.*}}) : (!nsl.bits<8>) -> ()
+      nsl.call @ic.ready(%a) : (!nsl.bits<8>) -> ()
     }
   }
 }

@@ -11,9 +11,9 @@
 
 // CHECK-LABEL: nsl.module @Wired
 nsl.module @Wired {
-  // CHECK: nsl.wire "src" : !nsl.bits<8>
+  // CHECK: %{{.*}} = nsl.wire "src" : !nsl.bits<8>
   %src = nsl.wire "src" : !nsl.bits<8>
-  // CHECK: nsl.wire "dst" : !nsl.bits<8>
+  // CHECK: %{{.*}} = nsl.wire "dst" : !nsl.bits<8>
   %dst = nsl.wire "dst" : !nsl.bits<8>
   // CHECK: nsl.connect %{{.*}}, %{{.*}} : !nsl.bits<8>
   nsl.connect %dst, %src : !nsl.bits<8>

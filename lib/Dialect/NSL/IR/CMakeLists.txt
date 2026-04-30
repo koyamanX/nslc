@@ -32,6 +32,17 @@
 # the build tree's include path.
 add_mlir_dialect(NSLOps nsl)
 
+# In addition to the six artifacts emitted by `add_mlir_dialect`, the
+# `nsl` dialect carries one TableGen `EnumAttr` (`IncDecKindAttr` —
+# the kind enum on `nsl.incdec`). Emit the enum decls/defs +
+# attrdef decls/defs explicitly.
+set(LLVM_TARGET_DEFINITIONS NSLOps.td)
+mlir_tablegen(NSLOpsEnums.h.inc -gen-enum-decls)
+mlir_tablegen(NSLOpsEnums.cpp.inc -gen-enum-defs)
+mlir_tablegen(NSLOpsAttrDefs.h.inc -gen-attrdef-decls -attrdefs-dialect=nsl)
+mlir_tablegen(NSLOpsAttrDefs.cpp.inc -gen-attrdef-defs -attrdefs-dialect=nsl)
+add_public_tablegen_target(MLIRNSLOpsEnumsIncGen)
+
 # Markdown doc generation (`add_mlir_doc(NSLOps NSLOps Dialect/
 # -gen-op-doc)`) is conventional for upstream MLIR/CIRCT dialects but
 # is **deferred to M5** — at Phase 2 the op set is empty, so the
@@ -62,7 +73,7 @@ add_nsl_library(nsl-dialect
 # target carrying every tablegen-generated header. The dialect
 # library MUST depend on it so the generated `.h.inc` files exist
 # before any TU that includes them is compiled.
-add_dependencies(nsl-dialect MLIRNSLOpsIncGen)
+add_dependencies(nsl-dialect MLIRNSLOpsIncGen MLIRNSLOpsEnumsIncGen)
 
 # MLIR upstream is built with `-fno-rtti` (LLVM-ecosystem convention).
 # A consumer that inherits from `mlir::Dialect` (this library does:

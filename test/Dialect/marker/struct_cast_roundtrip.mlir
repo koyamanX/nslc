@@ -10,13 +10,14 @@
 
 // CHECK-LABEL: nsl.module @StructCastHost
 nsl.module @StructCastHost {
+  // Per Q6 Option B: struct-internal field decls use `nsl.field_decl`.
   // CHECK: nsl.struct @S
   nsl.struct @S {
-    nsl.field "lo" : !nsl.bits<8>
-    nsl.field "hi" : !nsl.bits<8>
+    nsl.field_decl "lo" : !nsl.bits<8>
+    nsl.field_decl "hi" : !nsl.bits<8>
   }
-  // CHECK: nsl.wire "raw" : !nsl.bits<16>
+  // CHECK: %{{.*}} = nsl.wire "raw" : !nsl.bits<16>
   %raw = nsl.wire "raw" : !nsl.bits<16>
-  // CHECK: nsl.struct_cast %{{.*}} : !nsl.bits<16> to !nsl.struct<@S>
+  // CHECK: %{{.*}} = nsl.struct_cast %{{.*}} : !nsl.bits<16> to !nsl.struct<@S>
   %rec = nsl.struct_cast %raw : !nsl.bits<16> to !nsl.struct<@S>
 }

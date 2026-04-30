@@ -40,14 +40,18 @@ def NSL_Dialect : Dialect {
     `docs/design/nsl_compiler_design.md` §§7–10.
   }];
 
-  // Phase 2: 0 (no types yet — Phase 3 T070 flips back to 1 when the
-  // 3 type records land in NSLTypes.td). With useDefaultTypePrinterParser=1
-  // and zero type records, TableGen still declares NSLDialect::parseType /
-  // ::printType in the dialect-class header but emits no definitions
-  // (defs go in NSLTypes.cpp.inc which has no real content at Phase 2),
-  // producing undefined-reference linker errors at any consumer that
-  // pulls libnsl-dialect.a. Phase 3 T070 amends this to 1.
-  let useDefaultTypePrinterParser = 0;
+  // Phase 3 T070 flips this back to 1 — the three type records in
+  // NSLTypes.td (NSL_BitsType / NSL_StructType / NSL_MemType) now
+  // exist, so TableGen emits the parseType/printType definitions in
+  // NSLOpsTypes.cpp.inc and the dialect class can dispatch to the
+  // default `<>`-bracketed printer/parser per FR-008.
+  let useDefaultTypePrinterParser = 1;
+  // The `IncDecKind` enum-attr (`#nsl<incdec_kind ...>`) is the
+  // dialect's only `AttrDef` at M4. Setting this enables MLIR's
+  // default attribute printer/parser dispatcher in the dialect class
+  // so the enum-attr round-trips via the standard `<...>` bracketed
+  // form per Phase 3's `incdec_roundtrip.mlir` fixture.
+  let useDefaultAttributePrinterParser = 1;
 }
 
 //===----------------------------------------------------------------------===//

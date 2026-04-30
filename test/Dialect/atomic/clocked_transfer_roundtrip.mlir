@@ -7,9 +7,9 @@
 
 // CHECK-LABEL: nsl.module @ClockedHost
 nsl.module @ClockedHost {
-  // CHECK: nsl.reg "q" : !nsl.bits<8> = 0
-  %q = nsl.reg "q" : !nsl.bits<8> = 0
-  // CHECK: nsl.wire "src" : !nsl.bits<8>
+  // CHECK: %{{.*}} = nsl.reg "q" : !nsl.bits<8> = 0 : i64
+  %q = nsl.reg "q" : !nsl.bits<8> = 0 : i64
+  // CHECK: %{{.*}} = nsl.wire "src" : !nsl.bits<8>
   %src = nsl.wire "src" : !nsl.bits<8>
   // CHECK: nsl.clocked_transfer %{{.*}}, %{{.*}} : !nsl.bits<8>
   nsl.clocked_transfer %q, %src : !nsl.bits<8>

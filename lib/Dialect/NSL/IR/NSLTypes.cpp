@@ -9,18 +9,19 @@
 //   - `specs/007-m4-mlir-dialect/data-model.md` §3 — !nsl.bits<N>,
 //     !nsl.struct<@T>, !nsl.mem<[D x T]>.
 //
-// At Phase 2 this file is empty scaffolding — the TableGen records
-// have not been authored yet (Phase 3 US1, T070–T072), so the
-// generated `NSLOpsTypes.cpp.inc` is empty and there is nothing to
-// pull in via `#define GET_TYPEDEF_CLASSES`. Once T070–T072 land,
-// extend this file to include the generated definitions.
+// At Phase 3 (T070–T072) the three type records ship in NSLTypes.td;
+// the TableGen-generated storage/accessor classes are pulled in here
+// via `GET_TYPEDEF_CLASSES`. The default printer/parser is wired by
+// `useDefaultTypePrinterParser = 1` on the dialect (per FR-008 +
+// research §5) — no hand-written `Type::print` / `Type::parse`
+// needed.
 
 #include "nsl/Dialect/NSL/IR/NSLDialect.h"
 
-// Phase 3 US1 (T070–T072): once type records exist, uncomment:
-//
-//   #define GET_TYPEDEF_CLASSES
-//   #include "NSLOpsTypes.cpp.inc"
-//
-// to pull in the storage-class definitions. Bare-basename resolves
-// via the `${CMAKE_CURRENT_BINARY_DIR}` PUBLIC include path.
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/DialectImplementation.h"
+
+#include "llvm/ADT/TypeSwitch.h"
+
+#define GET_TYPEDEF_CLASSES
+#include "NSLOpsTypes.cpp.inc"

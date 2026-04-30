@@ -8,12 +8,12 @@
 
 // CHECK-LABEL: nsl.module @bits_widths
 nsl.module @bits_widths {
-  // CHECK: nsl.wire "w1" : !nsl.bits<1>
-  nsl.wire "w1" : !nsl.bits<1>
-  // CHECK: nsl.wire "w8" : !nsl.bits<8>
-  nsl.wire "w8" : !nsl.bits<8>
-  // CHECK: nsl.wire "w16" : !nsl.bits<16>
-  nsl.wire "w16" : !nsl.bits<16>
-  // CHECK: nsl.wire "w64" : !nsl.bits<64>
-  nsl.wire "w64" : !nsl.bits<64>
+  // CHECK: %{{.*}} = nsl.wire "w1" : !nsl.bits<1>
+  %w1 = nsl.wire "w1" : !nsl.bits<1>
+  // CHECK: %{{.*}} = nsl.wire "w8" : !nsl.bits<8>
+  %w8 = nsl.wire "w8" : !nsl.bits<8>
+  // CHECK: %{{.*}} = nsl.wire "w16" : !nsl.bits<16>
+  %w16 = nsl.wire "w16" : !nsl.bits<16>
+  // CHECK: %{{.*}} = nsl.wire "w64" : !nsl.bits<64>
+  %w64 = nsl.wire "w64" : !nsl.bits<64>
 }

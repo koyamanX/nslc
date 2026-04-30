@@ -7,8 +7,8 @@
 
 // CHECK-LABEL: nsl.module @WireHost
 nsl.module @WireHost {
-  // CHECK: nsl.wire "a" : !nsl.bits<1>
-  nsl.wire "a" : !nsl.bits<1>
-  // CHECK: nsl.wire "bus" : !nsl.bits<32>
-  nsl.wire "bus" : !nsl.bits<32>
+  // CHECK: %{{.*}} = nsl.wire "a" : !nsl.bits<1>
+  %a = nsl.wire "a" : !nsl.bits<1>
+  // CHECK: %{{.*}} = nsl.wire "bus" : !nsl.bits<32>
+  %bus = nsl.wire "bus" : !nsl.bits<32>
 }

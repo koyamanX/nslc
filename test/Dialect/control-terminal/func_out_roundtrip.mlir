@@ -9,8 +9,9 @@
 nsl.module @FuncOutHost {
   // CHECK: nsl.wire "r" : !nsl.bits<8>
   %r = nsl.wire "r" : !nsl.bits<8>
-  // CHECK: nsl.func_out "done"({{.*}})
-  nsl.func_out "done"(%r)
-  // CHECK: nsl.func_out "ack"()
-  nsl.func_out "ack"()
+  // Per Phase 4 SYN-4: standard `functional-type` form.
+  // CHECK: nsl.func_out "done"({{.*}}) : (!nsl.bits<8>) -> ()
+  nsl.func_out "done"(%r) : (!nsl.bits<8>) -> ()
+  // CHECK: nsl.func_out "ack"() : () -> ()
+  nsl.func_out "ack"() : () -> ()
 }

@@ -8,16 +8,17 @@
 
 // CHECK-LABEL: nsl.module @RegHost
 nsl.module @RegHost {
-  // CHECK: nsl.reg "q" : !nsl.bits<8> = 0
-  nsl.reg "q" : !nsl.bits<8> = 0
-  // CHECK: nsl.reg "ctr" : !nsl.bits<4> = 0
-  nsl.reg "ctr" : !nsl.bits<4> = 0
-  // CHECK: nsl.reg "cfg" : !nsl.bits<16> = 42
-  nsl.reg "cfg" : !nsl.bits<16> = 42
+  // CHECK: %{{.*}} = nsl.reg "q" : !nsl.bits<8> = 0 : i64
+  %q = nsl.reg "q" : !nsl.bits<8> = 0 : i64
+  // CHECK: %{{.*}} = nsl.reg "ctr" : !nsl.bits<4> = 0 : i64
+  %ctr = nsl.reg "ctr" : !nsl.bits<4> = 0 : i64
+  // CHECK: %{{.*}} = nsl.reg "cfg" : !nsl.bits<16> = 42 : i64
+  %cfg = nsl.reg "cfg" : !nsl.bits<16> = 42 : i64
+  // Per Q6 Option B: struct-internal field decls use `nsl.field_decl`.
   // CHECK: nsl.struct @S
   nsl.struct @S {
-    nsl.field "x" : !nsl.bits<8>
+    nsl.field_decl "x" : !nsl.bits<8>
   }
-  // CHECK: nsl.reg "rec" : !nsl.struct<@S>
-  nsl.reg "rec" : !nsl.struct<@S>
+  // CHECK: %{{.*}} = nsl.reg "rec" : !nsl.struct<@S>
+  %rec = nsl.reg "rec" : !nsl.struct<@S>
 }

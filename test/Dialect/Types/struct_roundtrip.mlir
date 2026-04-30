@@ -9,9 +9,13 @@
 nsl.module @struct_typed {
   // CHECK: nsl.struct @MyRec
   nsl.struct @MyRec {
-    nsl.field "lo" : !nsl.bits<8>
-    nsl.field "hi" : !nsl.bits<8>
+    // Per Q6 Option B (Session 2026-04-30): the struct-internal
+    // field-declaration role uses the new `nsl.field_decl` op; the
+    // access-marker form (in `marker/field_roundtrip.mlir`) keeps
+    // `nsl.field`.
+    nsl.field_decl "lo" : !nsl.bits<8>
+    nsl.field_decl "hi" : !nsl.bits<8>
   }
-  // CHECK: nsl.reg "r" : !nsl.struct<@MyRec>
-  nsl.reg "r" : !nsl.struct<@MyRec>
+  // CHECK: %{{.*}} = nsl.reg "r" : !nsl.struct<@MyRec>
+  %r = nsl.reg "r" : !nsl.struct<@MyRec>
 }

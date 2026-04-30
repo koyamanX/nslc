@@ -8,20 +8,23 @@
 
 // CHECK-LABEL: nsl.module @StructHost
 nsl.module @StructHost {
+  // Per Q6 Option B: in-struct-body field declarations use the new
+  // `nsl.field_decl` op (the access-marker form `nsl.field` is split
+  // off into the marker category — see `marker/field_roundtrip.mlir`).
   // CHECK: nsl.struct @Pair
   nsl.struct @Pair {
-    // CHECK: nsl.field "lo" : !nsl.bits<4>
-    nsl.field "lo" : !nsl.bits<4>
-    // CHECK: nsl.field "hi" : !nsl.bits<4>
-    nsl.field "hi" : !nsl.bits<4>
+    // CHECK: nsl.field_decl "lo" : !nsl.bits<4>
+    nsl.field_decl "lo" : !nsl.bits<4>
+    // CHECK: nsl.field_decl "hi" : !nsl.bits<4>
+    nsl.field_decl "hi" : !nsl.bits<4>
   }
   // CHECK: nsl.struct @Wide
   nsl.struct @Wide {
-    // CHECK: nsl.field "a" : !nsl.bits<32>
-    nsl.field "a" : !nsl.bits<32>
-    // CHECK: nsl.field "b" : !nsl.bits<32>
-    nsl.field "b" : !nsl.bits<32>
-    // CHECK: nsl.field "c" : !nsl.bits<32>
-    nsl.field "c" : !nsl.bits<32>
+    // CHECK: nsl.field_decl "a" : !nsl.bits<32>
+    nsl.field_decl "a" : !nsl.bits<32>
+    // CHECK: nsl.field_decl "b" : !nsl.bits<32>
+    nsl.field_decl "b" : !nsl.bits<32>
+    // CHECK: nsl.field_decl "c" : !nsl.bits<32>
+    nsl.field_decl "c" : !nsl.bits<32>
   }
 }

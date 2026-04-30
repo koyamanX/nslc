@@ -10,8 +10,10 @@
 nsl.module @SimDisplayHost {
   // CHECK: nsl.wire "x" : !nsl.bits<8>
   %x = nsl.wire "x" : !nsl.bits<8>
-  // CHECK: nsl.sim_display "x = %d", %{{.*}}
-  nsl.sim_display "x = %d", %x
+  // Per Phase 4 SYN-4: variadic operands carry their types after the
+  // format string for parseability.
+  // CHECK: nsl.sim_display "x = %d", %{{.*}} : !nsl.bits<8>
+  nsl.sim_display "x = %d", %x : !nsl.bits<8>
   // CHECK: nsl.sim_display "tick"
   nsl.sim_display "tick"
 }

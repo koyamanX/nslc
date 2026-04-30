@@ -12,13 +12,13 @@
 //     §7 — calling twice on the same registry is a no-op.
 //   - `specs/007-m4-mlir-dialect/data-model.md` §1 — entity catalog.
 //
-// At Phase 2 the dialect's `addOperations<>` and `addTypes<>` lists
-// are empty; Phase 3 US1 (T084) extends `initialize()` to register
-// the 40 ops + 3 types via the TableGen-generated `GET_OP_LIST` /
-// `GET_TYPEDEF_LIST` macros.
+// At Phase 3 (US1, T084) `initialize()` registers the 41 ops + 3
+// types + the `IncDecKind` enum-attr via the TableGen-generated
+// `GET_OP_LIST` / `GET_TYPEDEF_LIST` / `GET_ATTRDEF_LIST` macros.
 
 #include "nsl/Dialect/NSL/IR/NSLDialect.h"
 
+#include "mlir/IR/Builders.h"
 #include "mlir/IR/DialectRegistry.h"
 
 // TableGen-generated dialect-class definitions (the
@@ -31,10 +31,18 @@
 namespace nsl::dialect {
 
 void NSLDialect::initialize() {
-  // Phase 3 US1 (T084): addOperations<...>() over the 40 ops via
-  // `#define GET_OP_LIST` from `NSLOps.cpp.inc`.
-  // Phase 3 US1 (T084): addTypes<...>() over the 3 types via
-  // `#define GET_TYPEDEF_LIST` from `NSLTypes.cpp.inc`.
+  addOperations<
+#define GET_OP_LIST
+#include "NSLOps.cpp.inc"
+      >();
+  addTypes<
+#define GET_TYPEDEF_LIST
+#include "NSLOpsTypes.cpp.inc"
+      >();
+  addAttributes<
+#define GET_ATTRDEF_LIST
+#include "NSLOpsAttrDefs.cpp.inc"
+      >();
 }
 
 void registerNSLDialect(mlir::DialectRegistry &registry) {

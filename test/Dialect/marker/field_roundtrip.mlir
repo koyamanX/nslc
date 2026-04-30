@@ -17,14 +17,17 @@
 
 // CHECK-LABEL: nsl.module @FieldHost
 nsl.module @FieldHost {
+  // Per Q6 Option B: in-struct-body declarations now use the new
+  // `nsl.field_decl` op (covered by `marker/field_decl_roundtrip.mlir`);
+  // this fixture exercises the access-marker form of `nsl.field` only.
   // CHECK: nsl.struct @Pair
   nsl.struct @Pair {
-    // CHECK: nsl.field "lo" : !nsl.bits<8>
-    nsl.field "lo" : !nsl.bits<8>
-    // CHECK: nsl.field "hi" : !nsl.bits<8>
-    nsl.field "hi" : !nsl.bits<8>
+    // CHECK: nsl.field_decl "lo" : !nsl.bits<8>
+    nsl.field_decl "lo" : !nsl.bits<8>
+    // CHECK: nsl.field_decl "hi" : !nsl.bits<8>
+    nsl.field_decl "hi" : !nsl.bits<8>
   }
-  // CHECK: nsl.reg "r" : !nsl.struct<@Pair>
+  // CHECK: %{{.*}} = nsl.reg "r" : !nsl.struct<@Pair>
   %r = nsl.reg "r" : !nsl.struct<@Pair>
   // Field-access marker form with int index.
   // CHECK: nsl.field %{{.*}} {index = 0 : i64} : !nsl.struct<@Pair> -> !nsl.bits<8>

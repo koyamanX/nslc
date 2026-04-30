@@ -8,8 +8,8 @@
 
 // CHECK-LABEL: nsl.module @VarHost
 nsl.module @VarHost {
-  // CHECK: nsl.variable "v" : !nsl.bits<8>
-  nsl.variable "v" : !nsl.bits<8>
-  // CHECK: nsl.variable "tmp" : !nsl.bits<16>
-  nsl.variable "tmp" : !nsl.bits<16>
+  // CHECK: %{{.*}} = nsl.variable "v" : !nsl.bits<8>
+  %v = nsl.variable "v" : !nsl.bits<8>
+  // CHECK: %{{.*}} = nsl.variable "tmp" : !nsl.bits<16>
+  %tmp = nsl.variable "tmp" : !nsl.bits<16>
 }

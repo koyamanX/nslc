@@ -13,8 +13,8 @@ nsl.module @Empty {
 
 // CHECK-LABEL: nsl.module @WithChildren
 nsl.module @WithChildren {
-  // CHECK: nsl.wire "w" : !nsl.bits<8>
-  nsl.wire "w" : !nsl.bits<8>
-  // CHECK: nsl.reg "q" : !nsl.bits<8> = 0
-  nsl.reg "q" : !nsl.bits<8> = 0
+  // CHECK: %{{.*}} = nsl.wire "w" : !nsl.bits<8>
+  %w = nsl.wire "w" : !nsl.bits<8>
+  // CHECK: %{{.*}} = nsl.reg "q" : !nsl.bits<8> = 0 : i64
+  %q = nsl.reg "q" : !nsl.bits<8> = 0 : i64
 }

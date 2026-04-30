@@ -10,18 +10,58 @@
 //     !nsl.struct<@T>, !nsl.mem<[D x T]>.
 //   - `specs/007-m4-mlir-dialect/research.md` §5 — interning via
 //     MLIR's standard `TypeStorage`.
-//
-// At Phase 2 this file is scaffolding only — the three type records
-// land in Phase 3 US1 (T070–T072) per the TDD ordering (round-trip
-// fixtures gate the type definitions).
 
 #ifndef NSL_TYPES_TD
 #define NSL_TYPES_TD
 
+include "mlir/IR/AttrTypeBase.td"
 include "NSLDialect.td"
 
-// Phase 3 US1 (T070): NSL_BitsType — `!nsl.bits<N>`.
-// Phase 3 US1 (T071): NSL_StructType — `!nsl.struct<@T>`.
-// Phase 3 US1 (T072): NSL_MemType — `!nsl.mem<[D x T]>`.
+//===----------------------------------------------------------------------===//
+// !nsl.bits<N> — N-wide bit vector (lowers bijectively to CIRCT's `iN`).
+//===----------------------------------------------------------------------===//
+
+def NSL_BitsType : NSL_Type<"Bits", "bits"> {
+  let summary = "N-wide bit-vector type";
+  let description = [{
+    `!nsl.bits<N>` is an N-wide bit vector (the NSL equivalent of an
+    unsigned integer of width N). At M6 the lowering is bijective:
+    `!nsl.bits<N>` → CIRCT `i<N>`. Zero-width (`!nsl.bits<0>`) is a
+    degenerate but valid form per spec Edge-Cases.
+  }];
+  let parameters = (ins "unsigned":$width);
+  let assemblyFormat = "`<` $width `>`";
+}
+
+//===----------------------------------------------------------------------===//
+// !nsl.struct<@StructName> — structural type referring to a sibling
+// `nsl.struct` op via a SymbolRefAttr.
+//===----------------------------------------------------------------------===//
+
+def NSL_StructType : NSL_Type<"Struct", "struct"> {
+  let summary = "Structural type referring to a sibling `nsl.struct` op";
+  let description = [{
+    `!nsl.struct<@T>` is a type-level reference to a sibling
+    `nsl.struct` declaration. Lowers to `hw.struct<...>` at M6 via
+    expansion of the referenced `nsl.struct` body.
+  }];
+  let parameters = (ins "::mlir::SymbolRefAttr":$name);
+  let assemblyFormat = "`<` $name `>`";
+}
+
+//===----------------------------------------------------------------------===//
+// !nsl.mem<[D x T]> — depth-D memory of element type T (lowers to
+// `hw.array<D x T>` at M6).
+//===----------------------------------------------------------------------===//
+
+def NSL_MemType : NSL_Type<"Mem", "mem"> {
+  let summary = "Memory type with integer depth and element type";
+  let description = [{
+    `!nsl.mem<[D x T]>` is a memory of `D` elements of type `T`. Per
+    spec Edge-Cases, depth-zero is a degenerate but valid form.
+  }];
+  let parameters = (ins "unsigned":$depth, "::mlir::Type":$elementType);
+  let assemblyFormat = "`<` `[` $depth `x` $elementType `]` `>`";
+}
 
 #endif // NSL_TYPES_TD

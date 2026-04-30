@@ -13,8 +13,9 @@ nsl.module @InvokeMethodHost {
   // CHECK: nsl.func @driver
   nsl.func @driver {
     nsl.seq {
-      // CHECK: nsl.invoke_method @procInst(%{{.*}})
-      nsl.invoke_method @procInst(%a)
+      // Per Phase 4 SYN-4: variadic operands use `functional-type`.
+      // CHECK: nsl.invoke_method @procInst(%{{.*}}) : (!nsl.bits<8>) -> ()
+      nsl.invoke_method @procInst(%a) : (!nsl.bits<8>) -> ()
     }
   }
 }

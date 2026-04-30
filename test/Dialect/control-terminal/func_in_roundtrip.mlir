@@ -12,8 +12,10 @@ nsl.module @FuncInHost {
   %a = nsl.wire "a" : !nsl.bits<8>
   // CHECK: nsl.wire "b" : !nsl.bits<8>
   %b = nsl.wire "b" : !nsl.bits<8>
-  // CHECK: nsl.func_in "do"({{.*}}, {{.*}}) : !nsl.bits<8>
-  nsl.func_in "do"(%a, %b) : !nsl.bits<8>
-  // CHECK: nsl.func_in "noret"({{.*}})
-  nsl.func_in "noret"(%a)
+  // Per Phase 4 SYN-4: variadic-operand ops use MLIR's standard
+  // `functional-type($args, results)` spelling — `(args) -> result`.
+  // CHECK: nsl.func_in "do"({{.*}}, {{.*}}) : (!nsl.bits<8>, !nsl.bits<8>) -> !nsl.bits<8>
+  nsl.func_in "do"(%a, %b) : (!nsl.bits<8>, !nsl.bits<8>) -> !nsl.bits<8>
+  // CHECK: nsl.func_in "noret"({{.*}}) : (!nsl.bits<8>) -> ()
+  nsl.func_in "noret"(%a) : (!nsl.bits<8>) -> ()
 }

@@ -38,18 +38,22 @@
 // bare-basename include resolves for every consumer.
 #include "NSLOpsDialect.h.inc"
 
-// Phase 3 US1 (T070–T072 + T073–T083): once the type and op
-// records ship, uncomment the type-decls and op-decls includes:
-//
-//   #define GET_TYPEDEF_CLASSES
-//   #include "NSLOpsTypes.h.inc"
-//
-//   #define GET_OP_CLASSES
-//   #include "NSLOps.h.inc"
-//
-// At Phase 2 the generated headers contain no records to declare;
-// including them is harmless but adds no symbols to the public
-// surface.
+// Type-decls (Phase 3 US1, T070–T072): the three `!nsl.*` types.
+// Op-decls (Phase 3 US1, T073–T083): the 41 `nsl.*` ops.
+// Plus enum + attrdef decls (the `IncDecKind` enum on `nsl.incdec`).
+// All TableGen-generated headers are private build artifacts under
+// `${CMAKE_CURRENT_BINARY_DIR}` and are reached by every consumer
+// through this umbrella only.
+#include "NSLOpsEnums.h.inc"
+
+#define GET_ATTRDEF_CLASSES
+#include "NSLOpsAttrDefs.h.inc"
+
+#define GET_TYPEDEF_CLASSES
+#include "NSLOpsTypes.h.inc"
+
+#define GET_OP_CLASSES
+#include "NSLOps.h.inc"
 
 namespace nsl::dialect {
 

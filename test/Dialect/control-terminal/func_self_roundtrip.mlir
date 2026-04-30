@@ -9,6 +9,7 @@
 nsl.module @FuncSelfHost {
   // CHECK: nsl.wire "w" : !nsl.bits<1>
   %w = nsl.wire "w" : !nsl.bits<1>
-  // CHECK: nsl.func_self "fire"({{.*}})
-  nsl.func_self "fire"(%w)
+  // Per Phase 4 SYN-4: standard `functional-type` form.
+  // CHECK: nsl.func_self "fire"({{.*}}) : (!nsl.bits<1>) -> ()
+  nsl.func_self "fire"(%w) : (!nsl.bits<1>) -> ()
 }

@@ -8,8 +8,8 @@
 
 // CHECK-LABEL: nsl.module @MemHost
 nsl.module @MemHost {
-  // CHECK: nsl.mem "ram" : !nsl.mem<[256 x !nsl.bits<8>]>
-  nsl.mem "ram" : !nsl.mem<[256 x !nsl.bits<8>]>
-  // CHECK: nsl.mem "rom" : !nsl.mem<[1024 x !nsl.bits<32>]>
-  nsl.mem "rom" : !nsl.mem<[1024 x !nsl.bits<32>]>
+  // CHECK: %{{.*}} = nsl.mem "ram" : !nsl.mem<[256 x !nsl.bits<8>]>
+  %ram = nsl.mem "ram" : !nsl.mem<[256 x !nsl.bits<8>]>
+  // CHECK: %{{.*}} = nsl.mem "rom" : !nsl.mem<[1024 x !nsl.bits<32>]>
+  %rom = nsl.mem "rom" : !nsl.mem<[1024 x !nsl.bits<32>]>
 }

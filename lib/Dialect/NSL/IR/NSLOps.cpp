@@ -10,41 +10,64 @@
 //   - `specs/007-m4-mlir-dialect/data-model.md` §2 — per-op trait
 //     set and verifier-implementation style.
 //   - `specs/007-m4-mlir-dialect/data-model.md` §4 — verifier-helper
-//     utilities (`emitParentMismatch`, `isRegLikeValue`, etc.).
+//     utilities (subsumed by upstream `op->getParentOfType<T>()` per
+//     F9 carry-over from Pass 4 of `/speckit-analyze`).
 //   - `specs/007-m4-mlir-dialect/research.md` §4 — verifier-impl
 //     language (hand-written C++ in this file).
 //
-// At Phase 2 this file is empty scaffolding — the TableGen records
-// have not been authored yet (Phase 3 US1, T073–T083), so the
-// generated `NSLOps.cpp.inc` is empty and there is nothing to pull
-// in via `#define GET_OP_CLASSES`. Once T073–T083 land, the verifier
-// bodies (Phase 4 US2, T100–T118) populate the namespace below.
+// At Phase 3 (US1) the verifier bodies are TRIVIAL STUBS that return
+// `success()` — the round-trip fixtures don't exercise them. Phase 4
+// (US2, T100–T118) fills the bodies with structural-invariant checks.
 
 #include "nsl/Dialect/NSL/IR/NSLDialect.h"
 
-namespace {
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/DialectImplementation.h"
+#include "mlir/IR/OpImplementation.h"
 
-// Verifier helpers (Phase 4 US2, T098). Reserved for the ~5
-// transitive-parent verifiers per Q2 Option B and the reg-like-value
-// helper used by `nsl.clocked_transfer` / `nsl.incdec`. F9 carry-over
-// (Pass 4 of `/speckit-analyze`): `op->getParentOfType<T>()` is the
-// upstream MLIR helper that subsumes any `findAncestorOfKind<T>`
-// candidate; Phase 4 verifiers MUST use the upstream helper, NOT a
-// hand-rolled equivalent.
-//
-//   mlir::LogicalResult emitParentMismatch(
-//       mlir::Operation *op, llvm::StringRef expectedKind);
-//   bool isRegLikeValue(mlir::Value v);
+#include "llvm/ADT/TypeSwitch.h"
 
-} // namespace
+// Pull in the TableGen-generated `IncDecKind` enum-attr definitions
+// before the op-class definitions, since `IncDecOp` references the
+// enum in its argument list.
+#include "NSLOpsEnums.cpp.inc"
 
-// Phase 3 US1 (T073–T083): once op records exist, uncomment the
-// op-class definitions include. The generated file is
-// `NSLOps.cpp.inc` (the .td stem matches the `add_mlir_dialect`
-// dialect-file argument):
-//
-//   #define GET_OP_CLASSES
-//   #include "NSLOps.cpp.inc"
-//
-// Bare-basename resolves via the `${CMAKE_CURRENT_BINARY_DIR}`
-// PUBLIC include path.
+#define GET_ATTRDEF_CLASSES
+#include "NSLOpsAttrDefs.cpp.inc"
+
+#define GET_OP_CLASSES
+#include "NSLOps.cpp.inc"
+
+// ---------------------------------------------------------------------------
+// Phase 3 US1 verifier stubs — every op's `verify()` returns success.
+// Phase 4 US2 (T100–T118) replaces these with the real structural-
+// invariant checks (parent-op kind, region count + kind, attribute
+// presence/type, operand-result type relations per FR-013).
+// ---------------------------------------------------------------------------
+
+namespace nsl::dialect {
+
+mlir::LogicalResult ModuleOp::verify() { return mlir::success(); }
+mlir::LogicalResult StructOp::verify() { return mlir::success(); }
+mlir::LogicalResult ConnectOp::verify() { return mlir::success(); }
+mlir::LogicalResult RegOp::verify() { return mlir::success(); }
+mlir::LogicalResult WireOp::verify() { return mlir::success(); }
+mlir::LogicalResult VariableOp::verify() { return mlir::success(); }
+mlir::LogicalResult MemOp::verify() { return mlir::success(); }
+mlir::LogicalResult AltOp::verify() { return mlir::success(); }
+mlir::LogicalResult AnyOp::verify() { return mlir::success(); }
+mlir::LogicalResult WhileOp::verify() { return mlir::success(); }
+mlir::LogicalResult ForOp::verify() { return mlir::success(); }
+mlir::LogicalResult ClockedTransferOp::verify() { return mlir::success(); }
+mlir::LogicalResult IncDecOp::verify() { return mlir::success(); }
+mlir::LogicalResult CallOp::verify() { return mlir::success(); }
+mlir::LogicalResult FinishOp::verify() { return mlir::success(); }
+mlir::LogicalResult ProcOp::verify() { return mlir::success(); }
+mlir::LogicalResult FirstStateOp::verify() { return mlir::success(); }
+mlir::LogicalResult GotoOp::verify() { return mlir::success(); }
+mlir::LogicalResult FireProbeOp::verify() { return mlir::success(); }
+mlir::LogicalResult StructCastOp::verify() { return mlir::success(); }
+mlir::LogicalResult FieldOp::verify() { return mlir::success(); }
+mlir::LogicalResult StructuralGenerateOp::verify() { return mlir::success(); }
+
+} // namespace nsl::dialect
