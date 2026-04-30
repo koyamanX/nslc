@@ -87,6 +87,53 @@ add_dependencies(nsl-dialect MLIRNSLOpsIncGen MLIRNSLOpsEnumsIncGen)
 # RTTI-on by project default.
 target_compile_options(nsl-dialect PRIVATE -fno-rtti)
 
+# Determinism (Constitution Principle V): disable ASan's
+# globals-instrumentation for `NSLDialect.cpp` only.
+#
+# Root cause (investigated 2026-04-30): GCC's ASan instrumentation
+# embeds the absolute path of each instrumented global's defining
+# source file into `.rodata.str1.8`, AND honors neither
+# `-ffile-prefix-map=` nor `-fmacro-prefix-map=` for those strings
+# (verified empirically on GCC 13.2 with absolute-path source
+# invocation; the maps DO work for `__FILE__` macro expansions and
+# DWARF debug info, but NOT for the path baked into ASan's
+# `__asan_global` location records). `NSLDialect.cpp` `#include`s
+# the four TableGen-generated `.cpp.inc` files from
+# `${CMAKE_CURRENT_BINARY_DIR}` — every TableGen-emitted global
+# inside those files therefore inherits a build-tree-absolute path
+# (e.g. `/work/build-Release-gcc/lib/Dialect/NSL/IR/NSLOps.cpp.inc`).
+# Two consecutive builds into different build-dirs (e.g. `build1/`
+# vs `build2/`) produce different rodata strings → different `.o`
+# size → archive non-determinism, breaking SC-008 / FR-018 in
+# `scripts/check_determinism.sh`.
+#
+# `--param=asan-globals=0` disables ONLY the globals-shadow
+# instrumentation; stack-buffer-overflow / heap / use-after-free
+# coverage stays on. `NSLOps.cpp` (the verifier-body TU — the
+# hand-written code where ASan most matters) keeps full
+# instrumentation; `NSLTypes.cpp` likewise. Loss: ASan no longer
+# catches out-of-bounds R/W on the read-only TableGen-generated
+# dispatch / constraint tables — a small cost given those tables
+# are immutable at runtime.
+#
+# This is a per-TU surgical fix targeting the single TU that pulls
+# build-tree-pathed includes; do NOT extend to other layers without
+# the same investigation.
+if(NSL_ENABLE_ASAN)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # GCC spelling: standard `--param=` knob.
+    set_source_files_properties(NSLDialect.cpp PROPERTIES
+      COMPILE_OPTIONS "--param=asan-globals=0")
+  elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Clang spelling: pass through to LLVM's ASan pass.
+    # `;` is the CMake list separator — `set_source_files_properties`
+    # consumes COMPILE_OPTIONS as a list, so `-mllvm;-asan-globals=0`
+    # is two argv tokens, matching how clang's driver wants them.
+    set_source_files_properties(NSLDialect.cpp PROPERTIES
+      COMPILE_OPTIONS "-mllvm;-asan-globals=0")
+  endif()
+endif()
+
 # The tablegen-generated `.h.inc` / `.cpp.inc` files land in
 # `${CMAKE_CURRENT_BINARY_DIR}` (per upstream `mlir_tablegen`'s
 # fixed output convention; see AddMLIR.cmake). The umbrella
