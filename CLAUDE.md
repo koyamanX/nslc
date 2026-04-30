@@ -154,20 +154,22 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `006-m3-sema` — land the `nsl-sema` (6) static
-library (SymbolTable + TypeSystem + per-`Sn` constraint checking
-`S1`–`S29`), threading it into the driver between parse and any
-`-emit=*` from `-emit=ast` forward. Hybrid recovery: one top-down
-resolution pass + per-`Sn` independent walkers (per /speckit-
-clarify Q3 Option C); paired pass+introspection for the 6
-constructive `Sn` `S13`/`S18`/`S19`/`S23`/`S24`/`S27` (Q1 Option B);
-`-emit=ast` re-cut in place to print resolved types and decl-loc
-inline (Q2 Option A). For technologies, project structure, Symbol
-+ Type entity catalog, contracts, and quickstart, read the current
-plan: [`specs/006-m3-sema/plan.md`](./specs/006-m3-sema/plan.md).
-Companion artifacts: [`spec.md`](./specs/006-m3-sema/spec.md),
-[`research.md`](./specs/006-m3-sema/research.md),
-[`data-model.md`](./specs/006-m3-sema/data-model.md),
-[`contracts/`](./specs/006-m3-sema/contracts/),
-[`quickstart.md`](./specs/006-m3-sema/quickstart.md).
+**Active feature**: `007-m4-mlir-dialect` — land the `nsl-dialect`
+(7) static library (TableGen + ODS-defined `nsl::*` MLIR ops + 3
+types + structural-invariant verifiers), build the operational
+`nsl-opt` developer/test binary, and wire `Compilation`'s
+dialect-load + `lowerToNSL` / `runNSLPasses` stub bodies (real
+bodies land at M5). Verifier scope: structural invariants only
+(per /speckit-clarify Q1 Option A — preserves the architectural
+seam from Sema); parent-op invariants split between TableGen
+`HasParent` (immediate) and hand-written ancestor-walk (transitive,
+per Q2 Option B). For technologies, project structure, op + type
+entity catalog, contracts, and quickstart, read the current plan:
+[`specs/007-m4-mlir-dialect/plan.md`](./specs/007-m4-mlir-dialect/plan.md).
+Companion artifacts:
+[`spec.md`](./specs/007-m4-mlir-dialect/spec.md),
+[`research.md`](./specs/007-m4-mlir-dialect/research.md),
+[`data-model.md`](./specs/007-m4-mlir-dialect/data-model.md),
+[`contracts/`](./specs/007-m4-mlir-dialect/contracts/),
+[`quickstart.md`](./specs/007-m4-mlir-dialect/quickstart.md).
 <!-- SPECKIT END -->
