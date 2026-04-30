@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #
 # scripts/apply_branch_protection.sh — apply the canonical
-# branch-protection settings to `main` via the GitHub REST API.
+# branch-protection settings to `master` via the GitHub REST API.
 #
 # Idempotent: running it on an already-applied configuration produces
 # no changes. Requires `gh auth login` and repo-admin privileges.
@@ -35,7 +35,7 @@ fi
 # Discover owner/repo from the current `gh repo view` context unless
 # overridden by env. This avoids hard-coding the upstream owner.
 OWNER_REPO="${GITHUB_OWNER_REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}"
-BRANCH="${GITHUB_BRANCH:-main}"
+BRANCH="${GITHUB_BRANCH:-master}"
 
 # GitHub's branch-protection PUT endpoint strictly rejects unknown
 # fields (since 2018-11-01) — sending the JSON with our `_comment_*`

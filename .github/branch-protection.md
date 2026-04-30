@@ -9,18 +9,18 @@ two disagree, **the JSON is authoritative** — it is what
 
 ## What is enforced
 
-Branch `main` has the following protections, applied via
-`gh api repos/<owner>/<repo>/branches/main/protection`:
+Branch `master` has the following protections, applied via
+`gh api repos/<owner>/<repo>/branches/master/protection`:
 
 | Setting | Value | Why |
 |---|---|---|
 | `required_status_checks.contexts` | 7 entries | The four `build-matrix` cells (`Debug × Release × {gcc, clang}` per spec Q2) plus stages 2–4 (`static-checks`, `unit-and-layer-tests`, `lowering-tests`). |
-| `required_status_checks.strict` | `true` | PR branches must be up to date with `main` before merge. |
+| `required_status_checks.strict` | `true` | PR branches must be up to date with `master` before merge. |
 | `enforce_admins` | `true` | **The mandatory clause from spec Q3.** Branch protection MUST apply to repo admins too; without this, an admin merge silently bypasses every guarantee Constitution Principle V/VI/VII/VIII makes. |
 | `required_pull_request_reviews.dismiss_stale_reviews` | `true` | A review approving an old commit should not transitively approve a force-push to a new commit. |
 | `required_pull_request_reviews.required_approving_review_count` | `1` | One human review required, in addition to CI green. |
-| `allow_force_pushes` | `false` | Force-pushes to `main` would void Principle V's "byte-identical artifacts at the same ref" guarantee since refs would change content. |
-| `allow_deletions` | `false` | `main` cannot be deleted. |
+| `allow_force_pushes` | `false` | Force-pushes to `master` would void Principle V's "byte-identical artifacts at the same ref" guarantee since refs would change content. |
+| `allow_deletions` | `false` | `master` cannot be deleted. |
 | `required_conversation_resolution` | `true` | Unresolved review threads block merge. |
 
 ## What is NOT enforced (and why)
@@ -50,7 +50,7 @@ The following are NOT acceptable bypass mechanisms:
 - `git commit --no-verify` / `--no-gpg-sign` (bypasses local hooks
   only; `enforce_admins` prevents them from short-circuiting the
   remote required-checks list).
-- A `git push --force` to `main` — `allow_force_pushes: false`
+- A `git push --force` to `master` — `allow_force_pushes: false`
   rejects this.
 - A maintainer-comment-only override (e.g., "/skip-ci"). Linear or
   CodeRabbit conventions for ad-hoc bypass have no effect on the

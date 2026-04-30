@@ -17,7 +17,7 @@ name: publish-images
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - '.docker/**'
       - 'cmake/deps.lock'
