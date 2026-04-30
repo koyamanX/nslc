@@ -120,52 +120,52 @@ description: "Tasks for M4 — `nsl` MLIR Dialect (`nsl-dialect`: TableGen ops +
 
 #### Type round-trip fixtures (3 fixtures; all [P])
 
-- [ ] T027 [P] [US1] Author `test/Dialect/Types/bits_roundtrip.mlir` — exercises `!nsl.bits<N>` for N ∈ {1, 8, 16, 64} on representative ops (e.g., `nsl.wire "w" : !nsl.bits<8>`). lit run-line: `// RUN: nsl-opt %s | FileCheck %s` + `// RUN: nsl-opt %s | nsl-opt - | FileCheck %s` per FR-017's two-pass clause. CHECK lines assert the type form round-trips byte-identically.
-- [ ] T028 [P] [US1] Author `test/Dialect/Types/struct_roundtrip.mlir` — exercises `!nsl.struct<@T>` referring to a sibling `nsl.struct @T { ... }`. Two-pass round-trip.
-- [ ] T029 [P] [US1] Author `test/Dialect/Types/mem_roundtrip.mlir` — exercises `!nsl.mem<[D x T]>` for representative shapes (e.g., `!nsl.mem<[256 x !nsl.bits<8>]>`, `!nsl.mem<[16 x !nsl.struct<@MyStruct>]>`). Two-pass round-trip.
+- [X] T027 [P] [US1] **Done 2026-04-30 (TDD red)**: `test/Dialect/Types/bits_roundtrip.mlir` exercises `!nsl.bits<N>` for N ∈ {1, 8, 16, 64} on `nsl.wire`. Two-pass run-lines per FR-017; CHECK-LABEL + per-width CHECKs. Red-state confirmed via `nsl-opt module_roundtrip.mlir` → `error: custom op 'nsl.module' is unknown` (Phase 4 TableGen records pending).
+- [X] T028 [P] [US1] **Done 2026-04-30 (TDD red)**: `test/Dialect/Types/struct_roundtrip.mlir` — `!nsl.struct<@MyRec>` on `nsl.reg` with sibling `nsl.struct @MyRec { ... }`. Two-pass.
+- [X] T029 [P] [US1] **Done 2026-04-30 (TDD red)**: `test/Dialect/Types/mem_roundtrip.mlir` — `!nsl.mem<[256 x !nsl.bits<8>]>` and `!nsl.mem<[16 x !nsl.struct<@Word>]>` on `nsl.mem`. Two-pass.
 
 #### Op round-trip fixtures (40 fixtures; all [P]; bulk authoring)
 
-- [ ] T030 [P] [US1] Author `test/Dialect/module-level/module_roundtrip.mlir` — `nsl.module @M { ... }` empty + populated forms.
-- [ ] T031 [P] [US1] Author `test/Dialect/module-level/struct_roundtrip.mlir` — `nsl.struct @MyStruct { ... }` with multiple fields.
-- [ ] T032 [P] [US1] Author `test/Dialect/module-level/submodule_roundtrip.mlir` — `nsl.submodule @Inst : @Template`.
-- [ ] T033 [P] [US1] Author `test/Dialect/module-level/connect_roundtrip.mlir` — `nsl.connect %sub.port, %sig`.
-- [ ] T034 [P] [US1] Author `test/Dialect/storage/reg_roundtrip.mlir` — `nsl.reg "q" : !nsl.bits<8> = 0` with init attribute.
-- [ ] T035 [P] [US1] Author `test/Dialect/storage/wire_roundtrip.mlir` — `nsl.wire "w" : !nsl.bits<8>`.
-- [ ] T036 [P] [US1] Author `test/Dialect/storage/variable_roundtrip.mlir` — `nsl.variable "v" : !nsl.bits<8>`.
-- [ ] T037 [P] [US1] Author `test/Dialect/storage/mem_roundtrip.mlir` — `nsl.mem "m" : !nsl.mem<[256 x !nsl.bits<8>]>`.
-- [ ] T038 [P] [US1] Author `test/Dialect/control-terminal/func_in_roundtrip.mlir` — `nsl.func_in "do"(...) : !nsl.bits<8>`.
-- [ ] T039 [P] [US1] Author `test/Dialect/control-terminal/func_out_roundtrip.mlir` — `nsl.func_out "done"(...)`.
-- [ ] T040 [P] [US1] Author `test/Dialect/control-terminal/func_self_roundtrip.mlir` — `nsl.func_self "fire"(...)`.
-- [ ] T041 [P] [US1] Author `test/Dialect/action-block/alt_roundtrip.mlir` — `nsl.alt { nsl.case %c1 { ... } nsl.default { ... } }`.
-- [ ] T042 [P] [US1] Author `test/Dialect/action-block/any_roundtrip.mlir` — `nsl.any { nsl.case %c1 { ... } nsl.default { ... } }`.
-- [ ] T043 [P] [US1] Author `test/Dialect/action-block/if_roundtrip.mlir` — `nsl.if %c { ... } else { ... }`.
-- [ ] T044 [P] [US1] Author `test/Dialect/action-block/parallel_roundtrip.mlir` — `nsl.parallel { ... }`.
-- [ ] T045 [P] [US1] Author `test/Dialect/action-block/seq_roundtrip.mlir` — `nsl.seq { ... }` inside `nsl.func`.
-- [ ] T046 [P] [US1] Author `test/Dialect/action-block/while_roundtrip.mlir` — `nsl.while %c { ... }` inside `nsl.seq`.
-- [ ] T047 [P] [US1] Author `test/Dialect/action-block/for_roundtrip.mlir` — `nsl.for %init, %cond, %step { ... }` inside `nsl.seq`.
-- [ ] T048 [P] [US1] Author `test/Dialect/action-helper/case_roundtrip.mlir` — `nsl.case %c { ... }` inside `nsl.alt` and `nsl.any` (two variant fixtures or one with both).
-- [ ] T049 [P] [US1] Author `test/Dialect/action-helper/default_roundtrip.mlir` — `nsl.default { ... }`.
-- [ ] T050 [P] [US1] Author `test/Dialect/atomic/transfer_roundtrip.mlir` — `nsl.transfer %dst, %src`.
-- [ ] T051 [P] [US1] Author `test/Dialect/atomic/clocked_transfer_roundtrip.mlir` — `nsl.clocked_transfer %reg, %src`.
-- [ ] T052 [P] [US1] Author `test/Dialect/atomic/incdec_roundtrip.mlir` — `nsl.incdec %reg { kind = pre_inc }` for the kind-enum variants.
-- [ ] T053 [P] [US1] Author `test/Dialect/atomic/call_roundtrip.mlir` — `nsl.call @target(%a, %b)`.
-- [ ] T054 [P] [US1] Author `test/Dialect/atomic/finish_roundtrip.mlir` — `nsl.finish` inside `nsl.proc`.
-- [ ] T055 [P] [US1] Author `test/Dialect/atomic/finish_method_roundtrip.mlir` — `nsl.finish_method @procInst`.
-- [ ] T056 [P] [US1] Author `test/Dialect/atomic/invoke_method_roundtrip.mlir` — `nsl.invoke_method @procInst(%a)`.
-- [ ] T057 [P] [US1] Author `test/Dialect/procedure/proc_roundtrip.mlir` — `nsl.proc @P { ... }` with first_state + states.
-- [ ] T058 [P] [US1] Author `test/Dialect/procedure/first_state_roundtrip.mlir` — `nsl.first_state @s0` inside `nsl.proc`.
-- [ ] T059 [P] [US1] Author `test/Dialect/procedure/state_roundtrip.mlir` — `nsl.state @s0 { nsl.goto @s1 }`.
-- [ ] T060 [P] [US1] Author `test/Dialect/procedure/func_roundtrip.mlir` — `nsl.func @scopedName { ... }`; cover both bare and dotted-name (`@ic.ready`) forms.
-- [ ] T061 [P] [US1] Author `test/Dialect/procedure-helper/goto_roundtrip.mlir` — `nsl.goto @target` inside `nsl.seq` (label form) and inside `nsl.state` (state form).
-- [ ] T062 [P] [US1] Author `test/Dialect/system-task/sim_display_roundtrip.mlir` — `nsl.sim_display "fmt", %args`.
-- [ ] T063 [P] [US1] Author `test/Dialect/system-task/sim_finish_roundtrip.mlir` — `nsl.sim_finish "fmt", %args`.
-- [ ] T064 [P] [US1] Author `test/Dialect/system-task/sim_init_roundtrip.mlir` — `nsl.sim_init { nsl.sim_delay 10 }`.
-- [ ] T065 [P] [US1] Author `test/Dialect/system-task/sim_delay_roundtrip.mlir` — standalone `nsl.sim_delay 10`.
-- [ ] T066 [P] [US1] Author `test/Dialect/marker/fire_probe_roundtrip.mlir` — `nsl.fire_probe @controlTerminal`.
-- [ ] T067 [P] [US1] Author `test/Dialect/marker/struct_cast_roundtrip.mlir` — `nsl.struct_cast %v : @T`.
-- [ ] T068 [P] [US1] Author `test/Dialect/marker/field_roundtrip.mlir` — `nsl.field @member`.
-- [ ] T069 [P] [US1] Author `test/Dialect/expansion-only/structural_generate_roundtrip.mlir` — `nsl.structural_generate { ... }` with loop-bound attrs.
+- [X] T030 [P] [US1] **Done 2026-04-30 (TDD red)**: `module-level/module_roundtrip.mlir` — empty + populated `nsl.module @M { ... }` forms.
+- [X] T031 [P] [US1] **Done 2026-04-30 (TDD red)**: `module-level/struct_roundtrip.mlir` — multi-field `nsl.struct @Pair / @Wide` with mixed widths.
+- [X] T032 [P] [US1] **Done 2026-04-30 (TDD red)**: `module-level/submodule_roundtrip.mlir` — `nsl.submodule @u_inner : @Inner` template-ref form.
+- [X] T033 [P] [US1] **Done 2026-04-30 (TDD red)**: `module-level/connect_roundtrip.mlir` — `nsl.connect %dst, %src : !nsl.bits<8>` (Q3 strict-`mlir::Type` equality; both bits<8>).
+- [X] T034 [P] [US1] **Done 2026-04-30 (TDD red)**: `storage/reg_roundtrip.mlir` — bits/struct result types + init attribute variants.
+- [X] T035 [P] [US1] **Done 2026-04-30 (TDD red)**: `storage/wire_roundtrip.mlir` — bits-only result type per FR-013.
+- [X] T036 [P] [US1] **Done 2026-04-30 (TDD red)**: `storage/variable_roundtrip.mlir` — bits-only result type.
+- [X] T037 [P] [US1] **Done 2026-04-30 (TDD red)**: `storage/mem_roundtrip.mlir` — `!nsl.mem<[256 x !nsl.bits<8>]>` + `[1024 x !nsl.bits<32>]`.
+- [X] T038 [P] [US1] **Done 2026-04-30 (TDD red)**: `control-terminal/func_in_roundtrip.mlir` — `nsl.func_in "do"(...) : !nsl.bits<8>` with-ret + no-ret variants.
+- [X] T039 [P] [US1] **Done 2026-04-30 (TDD red)**: `control-terminal/func_out_roundtrip.mlir` — `nsl.func_out "done"(%r)` + nullary form.
+- [X] T040 [P] [US1] **Done 2026-04-30 (TDD red)**: `control-terminal/func_self_roundtrip.mlir` — `nsl.func_self "fire"(%w)`.
+- [X] T041 [P] [US1] **Done 2026-04-30 (TDD red)**: `action-block/alt_roundtrip.mlir` — case+case+default children inside seq+func.
+- [X] T042 [P] [US1] **Done 2026-04-30 (TDD red)**: `action-block/any_roundtrip.mlir` — same shape as alt; verifier doesn't distinguish per FR-013.
+- [X] T043 [P] [US1] **Done 2026-04-30 (TDD red)**: `action-block/if_roundtrip.mlir` — two-region (then/else) with empty-else allowed per FR-013.
+- [X] T044 [P] [US1] **Done 2026-04-30 (TDD red)**: `action-block/parallel_roundtrip.mlir` — single-region inside `nsl.func`.
+- [X] T045 [P] [US1] **Done 2026-04-30 (TDD red)**: `action-block/seq_roundtrip.mlir` — `nsl.seq { }` immediate-parent `nsl.func` per FR-013.
+- [X] T046 [P] [US1] **Done 2026-04-30 (TDD red)**: `action-block/while_roundtrip.mlir` — both immediate `seq` parent and nested `seq → parallel → while` (Q2 Option B transitive walk).
+- [X] T047 [P] [US1] **Done 2026-04-30 (TDD red)**: `action-block/for_roundtrip.mlir` — C-style three-operand `nsl.for %init, %cond, %step`.
+- [X] T048 [P] [US1] **Done 2026-04-30 (TDD red)**: `action-helper/case_roundtrip.mlir` — case under both alt and any (variadic HasParent).
+- [X] T049 [P] [US1] **Done 2026-04-30 (TDD red)**: `action-helper/default_roundtrip.mlir` — default under both alt and any.
+- [X] T050 [P] [US1] **Done 2026-04-30 (TDD red)**: `atomic/transfer_roundtrip.mlir` — `nsl.transfer %dst, %src : !nsl.bits<8>` (SameOperandsElementType + SameOperandsShape).
+- [X] T051 [P] [US1] **Done 2026-04-30 (TDD red)**: `atomic/clocked_transfer_roundtrip.mlir` — reg-target + wire-source typed bits<8>.
+- [X] T052 [P] [US1] **Done 2026-04-30 (TDD red)**: `atomic/incdec_roundtrip.mlir` — `pre_inc` + `post_dec` kind variants. **Phase 4 review flag**: spec doesn't pin enum-attr text form; picked `#nsl<incdec_kind pre_inc>`.
+- [X] T053 [P] [US1] **Done 2026-04-30 (TDD red)**: `atomic/call_roundtrip.mlir` — bare `@target(...)` and dotted `@ic.ready(...)` per Q5 Option A'.
+- [X] T054 [P] [US1] **Done 2026-04-30 (TDD red)**: `atomic/finish_roundtrip.mlir` — bare `nsl.finish` nested under `nsl.proc → nsl.state` (transitive parent per Q2).
+- [X] T055 [P] [US1] **Done 2026-04-30 (TDD red)**: `atomic/finish_method_roundtrip.mlir` — `nsl.finish_method @procInst`.
+- [X] T056 [P] [US1] **Done 2026-04-30 (TDD red)**: `atomic/invoke_method_roundtrip.mlir` — `nsl.invoke_method @procInst(%a)`.
+- [X] T057 [P] [US1] **Done 2026-04-30 (TDD red)**: `procedure/proc_roundtrip.mlir` — proc with first_state + two states + cross-state goto.
+- [X] T058 [P] [US1] **Done 2026-04-30 (TDD red)**: `procedure/first_state_roundtrip.mlir` — single first_state pointing at sibling state.
+- [X] T059 [P] [US1] **Done 2026-04-30 (TDD red)**: `procedure/state_roundtrip.mlir` — two states with goto crossover.
+- [X] T060 [P] [US1] **Done 2026-04-30 (TDD red)**: `procedure/func_roundtrip.mlir` — bare `@reset` + dotted `@ic.ready` (Q5 StringAttr literal-dotted form).
+- [X] T061 [P] [US1] **Done 2026-04-30 (TDD red)**: `procedure-helper/goto_roundtrip.mlir` — both state-form (inside `nsl.state`) and label-form (inside `nsl.seq`) per Q2 transitive walk.
+- [X] T062 [P] [US1] **Done 2026-04-30 (TDD red)**: `system-task/sim_display_roundtrip.mlir` — format-string + var-arg and bare format-only.
+- [X] T063 [P] [US1] **Done 2026-04-30 (TDD red)**: `system-task/sim_finish_roundtrip.mlir` — `nsl.sim_finish "done"`.
+- [X] T064 [P] [US1] **Done 2026-04-30 (TDD red)**: `system-task/sim_init_roundtrip.mlir` — sim_init body holding sim_delay + sim_display.
+- [X] T065 [P] [US1] **Done 2026-04-30 (TDD red)**: `system-task/sim_delay_roundtrip.mlir` — three int-literal cycles values nested under sim_init.
+- [X] T066 [P] [US1] **Done 2026-04-30 (TDD red)**: `marker/fire_probe_roundtrip.mlir` — `nsl.fire_probe @do` resolving to sibling `nsl.func_in`.
+- [X] T067 [P] [US1] **Done 2026-04-30 (TDD red)**: `marker/struct_cast_roundtrip.mlir` — `nsl.struct_cast %raw : !nsl.bits<16> to !nsl.struct<@S>` (the explicit bridge per Q3 Option A).
+- [X] T068 [P] [US1] **Done 2026-04-30 (TDD red)**: `marker/field_roundtrip.mlir` — both struct-body declaration form and integer-indexed access form. **Phase 4 review flag**: int-index access syntax not pinned in spec; picked `{index = 0 : i64} : !nsl.struct<@Pair> -> !nsl.bits<8>`.
+- [X] T069 [P] [US1] **Done 2026-04-30 (TDD red)**: `expansion-only/structural_generate_roundtrip.mlir` — `lower`/`upper`/`step` int attrs. **Phase 4 review flag**: spec doesn't pin loop-bound attr names; picked descriptive trio.
 
 ### Implementation — Type records (3 records; all [P])
 
