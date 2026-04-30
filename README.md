@@ -181,6 +181,21 @@ docker run --rm -v "$PWD:/work" -v "/tmp:/tmp" -w /work \
 #    line is consumed by the preprocessor (P12 boundary).
 ```
 
+```bash
+# M4 quick check: round-trip a hand-written `nsl`-dialect MLIR
+# fixture through `nsl-opt` (parser + verifiers + printer). See
+# specs/007-m4-mlir-dialect/quickstart.md §3 for the full walkthrough.
+echo 'nsl.module @hello {
+  nsl.reg "q" : !nsl.bits<8> = 0
+}' > /tmp/hello.mlir
+docker run --rm -v "$PWD:/work" -v "/tmp:/tmp" -w /work \
+  ghcr.io/koyamanx/nsl-nslc:dev \
+  ./build-Release-gcc/bin/nsl-opt /tmp/hello.mlir
+# -> byte-identical to the input (the dialect's parser/printer is a
+#    fixed point per spec FR-017). The driver's `-emit=mlir` is NOT
+#    wired at M4 — invoke `nsl-opt` directly. M5 lands `-emit=mlir`.
+```
+
 ## Building
 
 `nslc` builds inside the project's docker dev container —

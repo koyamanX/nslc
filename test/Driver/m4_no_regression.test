@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/m4_no_regression.test — focused smoke fixture asserting
+// that M4's `nsl-dialect` patch did not perturb the existing
+// `nslc -emit=tokens` / `nslc -emit=ast` driver paths.
+//
+// **Specification anchors**:
+//   - `specs/007-m4-mlir-dialect/spec.md` FR-022, SC-007 — M0–M3
+//     `-emit=tokens` and `-emit=ast` outputs are byte-identical
+//     pre/post-M4.
+//   - `specs/007-m4-mlir-dialect/tasks.md` T121 (Phase 5 US3).
+//
+// Broad coverage already comes from the M0–M3 lit corpus running on
+// every CI run; this fixture is intentionally narrow — three lines
+// of golden per emit stage on the simplest possible input — so that
+// a regression jumps out without re-cutting per-keyword fixtures.
+//
+// The input is written via lit's `%t` substitution rather than
+// embedded inline; otherwise the SPDX header / FileCheck directives
+// would enter the lex/parse stream and confuse the goldens.
+
+// ----- POS-TOKENS: smoke for `-emit=tokens` ----------------------------
+//
+// RUN: printf 'module foo { reg w[8] = 0; }\n' > %t.nsl
+// RUN: %nslc -emit=tokens %t.nsl | FileCheck %s --check-prefix=TOKENS
+
+// TOKENS:      tk_module	module	{{[^:]+}}:1:1:0	{{[^:]+}}:1:1	[]
+// TOKENS-NEXT: tk_identifier	foo	{{[^:]+}}:1:8:7	{{[^:]+}}:1:8	[]
+// TOKENS-NEXT: tk_lbrace	{	{{[^:]+}}:1:12:11	{{[^:]+}}:1:12	[]
+// TOKENS-NEXT: tk_reg	reg	{{[^:]+}}:1:14:13	{{[^:]+}}:1:14	[]
+
+// ----- POS-AST: smoke for `-emit=ast` ----------------------------------
+//
+// RUN: printf 'module hello {\n  reg q[8] = 0;\n}\n' > %t.nsl
+// RUN: %nslc -emit=ast %t.nsl | FileCheck %s --check-prefix=AST
+
+// AST:      (CompilationUnit loc={{[^:]+}}:1:1-4:1
+// AST-NEXT:  (ModuleBlock loc={{[^:]+}}:1:1-3:2 name=hello
+// AST-NEXT:  (RegDecl loc={{[^:]+}}:2:3-2:16 name=q

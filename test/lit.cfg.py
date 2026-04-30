@@ -17,7 +17,7 @@ config.name = "nslc"
 config.test_format = lit.formats.ShTest(execute_external=True)
 
 # Anything matching a suffix below is discovered as a fixture.
-config.suffixes = [".test", ".nsl"]
+config.suffixes = [".test", ".nsl", ".mlir"]
 config.excludes = ["CMakeFiles", "Inputs", "lit.cfg.py", "lit.site.cfg.py"]
 
 # Test-source root and execution-output root come from the site-config
@@ -41,6 +41,20 @@ llvm_tools = getattr(config, "llvm_tools_binary_dir", "")
 nslc_bin   = getattr(config, "nslc_binary_dir", "")
 nslc_src   = getattr(config, "nslc_source_dir", "")
 python     = getattr(config, "python_executable", "python3")
+
+# M4 dialect fixtures (`test/Dialect/<category>/<op>_roundtrip.mlir`)
+# RUN lines invoke `nsl-opt` and `FileCheck` by bare name. Prepend the
+# build's `bin/` (where `nsl-opt` and `nslc` live) and the LLVM tools
+# directory (where `FileCheck` lives) onto `$PATH` so the bare-name
+# invocations resolve.
+extra_paths = []
+if nslc_bin:
+    extra_paths.append(os.path.join(nslc_bin, "bin"))
+if llvm_tools:
+    extra_paths.append(llvm_tools)
+if extra_paths:
+    config.environment["PATH"] = os.pathsep.join(
+        extra_paths + [config.environment.get("PATH", "")])
 
 # Substitutions land verbatim inside RUN: shell commands, so paths
 # are shell-quoted to survive contributors who clone into a

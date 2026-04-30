@@ -927,6 +927,22 @@ nsl.func @scopedName { ... }
 nsl.sim_display "fmt", %args
 nsl.sim_finish "fmt", %args
 nsl.sim_init { ... nsl.sim_delay 10 ... }
+
+# Marker / lowering-helper ops (consolidated for §7)
+#   Introduced organically by §§8–10; mirrored here so §7 is the
+#   single op-summary section. These ops carry no NSL surface
+#   keyword but are essential to the IR shape:
+nsl.field_decl "name" : !nsl.bits<W>      # in-struct-body field declaration
+                                          # (parent = nsl.struct; symbol-trait machinery)
+nsl.struct_cast %v : !nsl.struct<@T>      # bitvector ↔ struct view (S18 packing)
+nsl.field %s {index = N : i64}            # field access by index (chains struct_cast)
+nsl.case %cond { ... }                    # one branch inside nsl.alt / nsl.any
+nsl.default { ... }                       # default branch inside nsl.alt / nsl.any
+nsl.goto @target                          # state-scope (S25) or label-scope transfer
+nsl.fire_probe @ctrlName                  # control-terminal name used as 1-bit value (S27);
+                                          # marker lowered later to a 1-bit tap
+nsl.structural_generate { ... }           # generate-loop carrier; unrolled by
+                                          # NSLExpandGeneratePass (§9) before CIRCT lowering
 ```
 
 ### Why a dedicated dialect

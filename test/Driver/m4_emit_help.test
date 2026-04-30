@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/m4_emit_help.test — FR-024 driver-help surface lock.
+//
+// **Specification anchors**:
+//   - `specs/007-m4-mlir-dialect/spec.md` FR-024, SC-009 — the
+//     public `nslc` CLI surface MUST NOT mention `mlir`, `hw`, or
+//     `verilog` at M4. The dialect is loaded into `mlir::MLIRContext`
+//     but unreachable from the public emit-stage menu.
+//   - `specs/007-m4-mlir-dialect/tasks.md` T122 (Phase 5 US3).
+//
+// The M3-era `nslc` driver (see `tools/nslc/main.cpp`) does not
+// implement a dedicated `--help` flag; an unknown argument emits
+// `unknown argument: <a>` then the canonical usage line on stderr
+// and exits 2. That usage line IS the help surface this fixture
+// locks. Run-time `-emit=` accepts `tokens` and `ast`; M4 MUST NOT
+// silently accept `mlir` (covered separately by
+// `m4_emit_mlir_rejected.test`, FR-023).
+
+// RUN: not %nslc --help 2>&1 | FileCheck %s
+
+// CHECK:     usage: nslc {{.*}}-emit=<stage>{{.*}}<input>
+// CHECK-NOT: mlir
+// CHECK-NOT: hw
+// CHECK-NOT: verilog

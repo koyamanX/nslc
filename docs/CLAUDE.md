@@ -24,7 +24,7 @@ nslc/                              ← parent project (compiler implementation)
     │   ├── nsl_pp.ebnf           (559 lines) — preprocessor grammar
     │   └── nsl_lang.ebnf         (1155 lines) — NSL language proper
     ├── design/                    ← implementation specifications (how we implement the spec)
-    │   ├── nsl_compiler_design.md (1303 lines) — frontend → MLIR → CIRCT → Verilog
+    │   ├── nsl_compiler_design.md (1337 lines) — frontend → MLIR → CIRCT → Verilog
     │   └── nsl_tooling_design.md  (1015 lines) — LSP, formatter, linter, highlighter
 ```
 
@@ -89,12 +89,12 @@ Rule of thumb: a typical task needs **2–4 sections totaling 200–600 lines**,
 - `design/nsl_compiler_design.md` lines **1260–1270** (testing strategy: one test per S1–S29)
 
 ### Adding an MLIR `nsl` dialect op
-- `design/nsl_compiler_design.md` lines **860–963** (dialect overview + TableGen skeleton)
-- `design/nsl_compiler_design.md` lines **967–1045** (AST → nsl-dialect lowering rules)
-- `design/nsl_compiler_design.md` lines **1065–1098** (nsl → CIRCT lowering — your op needs a target)
+- `design/nsl_compiler_design.md` lines **878–997** (§7 dialect overview, op summary incl. M4 marker / lowering-helper consolidation, TableGen skeleton)
+- `design/nsl_compiler_design.md` lines **1001–1079** (§8 AST → nsl-dialect lowering rules)
+- `design/nsl_compiler_design.md` lines **1099–1132** (§10 nsl → CIRCT lowering — your op needs a target)
 
 ### Writing a structural-expansion pass (generate-loop unroll, etc.)
-- `design/nsl_compiler_design.md` lines **1048–1061** (pass list)
+- `design/nsl_compiler_design.md` lines **1082–1095** (§9 pass list)
 - `spec/nsl_lang.ebnf` — search for `generate` / structural-expansion clauses (§§ around 8)
 
 ### Implementing the LSP
@@ -124,8 +124,8 @@ Rule of thumb: a typical task needs **2–4 sections totaling 200–600 lines**,
 - All Pn (preprocessor): `spec/nsl_pp.ebnf` lines **391–559**
 
 ### Driver / build / CLI flags
-- `design/nsl_compiler_design.md` lines **1102–1157** (Compilation class, `-emit=` flags)
-- `design/nsl_compiler_design.md` lines **1199–1256** (CMake layout, dependencies)
+- `design/nsl_compiler_design.md` lines **1136–1191** (§11 Compilation class, `-emit=` flags)
+- `design/nsl_compiler_design.md` lines **1233–1290** (§13 CMake layout, dependencies)
 
 ### Testing / CI
 - `design/nsl_compiler_design.md` lines **1260–1270** (compiler testing strategy)
@@ -238,7 +238,7 @@ The 6-phase workflow (Linear → plan → implement → CodeRabbit self-review �
 
 ---
 
-## 6. `design/nsl_compiler_design.md` — section TOC (1303 lines)
+## 6. `design/nsl_compiler_design.md` — section TOC (1337 lines)
 
 | Lines | Section |
 |---|---|
@@ -251,16 +251,16 @@ The 6-phase workflow (Linear → plan → implement → CodeRabbit self-review �
 | 617–682 | §5.x AST node skeleton (C++17 code) |
 | 688–817 | §6 Symbol Table — Symbol class hierarchy + scopes table (incl. constructive-`Sn` carve-out note) |
 | 820–875 | §6.x Type System — TypeSystem code |
-| 878–981 | §7 The `nsl` MLIR Dialect (op summary, rationale, TableGen) |
-| 985–1063 | §8 Lowering: AST → `nsl` dialect (visitor + per-node rule table) |
-| 1066–1079 | §9 Structural Expansion Passes (NSL-dialect local) |
-| 1083–1116 | §10 Lowering: `nsl` → CIRCT (per-op mapping table) |
-| 1120–1175 | §11 Driver / Compilation Object (CompileOptions, run loop) |
-| 1179–1213 | §12 Error Handling and Diagnostics (DiagnosticEngine, FixItHint) |
-| 1217–1274 | §13 Build System and Dependencies (CMake, repo layout) |
-| 1278–1291 | §14 Testing Strategy (lexer→e2e+formal layers) |
-| 1292–1308 | §14.5 Milestone Plan (routing pointer to `../../README.md` §Roadmap, `../../CLAUDE.md` §1, and the Constitution; do not duplicate the table) |
-| 1313–1321 | §15 Extension Points (verif, LSP, alternate backends) |
+| 878–997 | §7 The `nsl` MLIR Dialect (op summary incl. M4 marker / lowering-helper consolidation, rationale, TableGen) |
+| 1001–1079 | §8 Lowering: AST → `nsl` dialect (visitor + per-node rule table) |
+| 1082–1095 | §9 Structural Expansion Passes (NSL-dialect local) |
+| 1099–1132 | §10 Lowering: `nsl` → CIRCT (per-op mapping table) |
+| 1136–1191 | §11 Driver / Compilation Object (CompileOptions, run loop) |
+| 1195–1229 | §12 Error Handling and Diagnostics (DiagnosticEngine, FixItHint) |
+| 1233–1290 | §13 Build System and Dependencies (CMake, repo layout) |
+| 1294–1307 | §14 Testing Strategy (lexer→e2e+formal layers) |
+| 1308–1324 | §14.5 Milestone Plan (routing pointer to `../../README.md` §Roadmap, `../../CLAUDE.md` §1, and the Constitution; do not duplicate the table) |
+| 1329–1337 | §15 Extension Points (verif, LSP, alternate backends) |
 
 ---
 
