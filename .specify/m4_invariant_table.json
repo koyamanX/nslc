@@ -1,0 +1,4 @@
+{
+  "_doc": "M4 dialect coverage-guard machine-readable mirror of spec FR-013. Authored at Phase 2 (T025) as an empty entry; populated incrementally by Phase 3 (T085, op list) and Phase 4 (T119, per-op invariants). The script `scripts/check_dialect_coverage.py` reads this file to assert per-op + per-invariant fixture existence under `test/Dialect/`. Schema documented in `specs/007-m4-mlir-dialect/data-model.md` §8. Stays in sync with FR-013's human-authored Markdown table; CI flags drift via the coverage-guard run in stage 2.",
+  "ops": []
+}

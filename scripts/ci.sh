@@ -162,6 +162,20 @@ stage_static_checks() {
     log "  (skipping SPDX check: scripts/check_spdx.py not yet present — lands at T065)"
   fi
 
+  # 4. M4 dialect fixture-coverage guard (spec FR-021 + research.md §9).
+  # Vacuous at Phase 2 (op set empty); goes live as Phase 3 / 4
+  # populate `lib/Dialect/NSL/IR/NSLOps.td` and
+  # `.specify/m4_invariant_table.json`. The script self-locates the
+  # repo root so it runs identically inside and outside the dev
+  # container.
+  if [[ -x "${REPO_ROOT}/scripts/check_dialect_coverage.py" ]]; then
+    log "  python3 scripts/check_dialect_coverage.py"
+    python3 "${REPO_ROOT}/scripts/check_dialect_coverage.py" --quiet \
+      || rc=$?
+  else
+    log "  (skipping dialect-coverage check: scripts/check_dialect_coverage.py not yet present)"
+  fi
+
   return "${rc}"
 }
 
