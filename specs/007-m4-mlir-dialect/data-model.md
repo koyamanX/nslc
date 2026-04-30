@@ -195,7 +195,7 @@ These helpers are compile-unit-local — no public-header surface.
 |---|---|---|
 | `Compilation::lowerToNSL(ast::CompilationUnit&, sema::SemaResult&)` | `lib/Driver/LowerToNSL.cpp` | **STUB at M4** — emits diagnostic "MLIR lowering not yet implemented; see M5" and returns empty `mlir::OwningOpRef<mlir::ModuleOp>`. Body lands at M5. |
 | `Compilation::runNSLPasses(mlir::ModuleOp)` | `lib/Driver/RunNSLPasses.cpp` | **STUB at M4** — same diagnostic + returns `mlir::failure()`. Body lands at M5. |
-| `Compilation::Compilation(CompileOptions)` | `lib/Driver/Compilation.cpp` | **MODIFIED at M4** — gains the line `mlirCtx_.loadDialect<nsl::dialect::NSLDialect>()` per design §11 line 1145. |
+| `Compilation::Compilation(CompileOptions)` | `lib/Driver/Compilation.cpp` (NEW at M4) + `include/nsl/Driver/Compilation.h` (NEW at M4) | **CREATED at M4** — pre-M4 driver used free functions per `lib/Driver/EmitTokens.cpp` / `EmitAST.cpp` / `Sema.cpp` precedent; `Compilation` did not exist as a class. M4 introduces the minimal class skeleton (`DiagnosticEngine&` + `mlir::MLIRContext` members) so the dialect-load call site has a home: the constructor calls `mlirCtx_.loadDialect<nsl::dialect::NSLDialect>()` per design §11 line 1145. M5 extends the class with the full per-stage pipeline + CIRCT-dialect-load lines per design §11 lines 1146–1166. |
 
 The stubs are reachable only via `lowerToNSL`'s C++ caller; FR-023
 ensures the `nslc` CLI never reaches them at M4 (the `-emit=*` parser

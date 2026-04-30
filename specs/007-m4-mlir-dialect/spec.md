@@ -70,10 +70,13 @@
 > forward-looking. The M3 driver surface (`nslc -emit=tokens` /
 > `-emit=ast`) is **unchanged** at M4 — M4 adds a developer/test
 > binary (`nsl-opt`), not a user-facing driver flag. The
-> `Compilation::lowerToNSL()` / `Compilation::runNSLPasses()` member
-> functions declared in design §11 are **declared at M4** (so the
-> driver compiles against the dialect-loaded `mlir::MLIRContext`)
-> but their **bodies are M5**; their signatures are frozen at M4.
+> `Compilation` class itself is **created at M4** (the M3 driver
+> used free functions per `lib/Driver/EmitTokens.cpp` / `EmitAST.cpp`
+> / `Sema.cpp` — design §11's class definition was target-state,
+> not extant code). The new class skeleton ships with a constructor
+> that calls `loadDialect<NSLDialect>()` plus stub `lowerToNSL` /
+> `runNSLPasses` member functions; their **signatures are frozen
+> at M4** but their **bodies land at M5**.
 
 ## Clarifications
 
@@ -406,17 +409,28 @@ the link-time dependency direction (per FR-005) by failing fast if
   on `nsl-ast` or `nsl-sema`. The dialect IS NOT the AST; it is a
   separate IR. CI MUST guard this with a static dependency-graph
   assertion (re-using M3's FR-003 mechanism).
-- **FR-004**: The `Compilation` class declared in design §11
-  (`lib/Driver/Compilation.cpp` and friends) MUST gain — at M4 —
-  the `mlirCtx_` member's dialect-loading line
-  (`mlirCtx_.loadDialect<nsl::dialect::NSLDialect>()`) AND the
-  `lowerToNSL` / `runNSLPasses` member-function **declarations**.
-  Their **bodies** are M5 deliverables; at M4 they MUST exist
-  either as forward declarations or as trivial stubs that emit a
-  diagnostic ("MLIR lowering not yet implemented; see M5") if
+- **FR-004**: The `Compilation` class described in design §11 is
+  **created at M4** (the M3 driver uses free functions per
+  `lib/Driver/EmitTokens.cpp` / `EmitAST.cpp` / `Sema.cpp`
+  precedent — `Compilation` did not exist as a class pre-M4;
+  design §11 was target-state, not extant code). M4 introduces
+  the minimal class skeleton in `include/nsl/Driver/Compilation.h`
+  + `lib/Driver/Compilation.cpp` carrying (a) a `DiagnosticEngine&`
+  and an `mlir::MLIRContext` member, (b) a constructor that calls
+  `mlirCtx_.loadDialect<nsl::dialect::NSLDialect>()` (per design
+  §11 line 1145), and (c) declarations of the `lowerToNSL` and
+  `runNSLPasses` member functions. Their **bodies** are M5
+  deliverables; at M4 they MUST exist as trivial stubs that emit
+  a diagnostic ("MLIR lowering not yet implemented; see M5") if
   ever invoked. The `nslc` driver MUST NOT expose `-emit=mlir` at
   M4 (per FR-024) — invoking the stub from `nslc` is unreachable
-  via the public CLI.
+  via the public CLI. M5 will extend `Compilation` with the full
+  per-stage pipeline (`preprocess()` → `parse()` → `sema()` →
+  `lowerToNSL()` → `runNSLPasses()` → `lowerToCIRCT()` →
+  `runCIRCTPasses()` → `emit()` per design §11 lines 1156–1166)
+  AND with the CIRCT-dialect-load lines per design §11 lines
+  1146–1150 (those are loaded by `nsl-opt` only at M4, since the
+  driver never reaches a CIRCT-emitting stage at M4).
 - **FR-005**: The CI dependency-graph guard MUST prevent any of
   `nsl-basic`, `nsl-preprocess`, `nsl-lex`, `nsl-parse`, `nsl-ast`,
   `nsl-sema` from gaining a dependency edge into `nsl-dialect`.
@@ -878,13 +892,17 @@ the link-time dependency direction (per FR-005) by failing fast if
   (`nsl-lsp`, `nsl-fmt`, `nsl-lint`) link against
   `libNSLFrontend.a` (Sema's domain) and do NOT consume the
   dialect at all in their M4 form.
-- **The `Compilation::lowerToNSL` / `Compilation::runNSLPasses`
-  member-function bodies are M5 deliverables, but their
-  declarations and the dialect-load call site
-  (`mlirCtx_.loadDialect<nsl::dialect::NSLDialect>()`) ship at
-  M4** so that the driver compiles against the dialect-loaded
-  context. `nslc -emit=mlir` is **not** wired at M4 (per
-  FR-023/FR-024); the M5 spec opens that surface.
+- **The `Compilation` class is created at M4** (the M3 driver
+  used free functions; design §11's class was target-state, not
+  extant code). The class skeleton ships at M4 with a constructor
+  that calls `mlirCtx_.loadDialect<nsl::dialect::NSLDialect>()`
+  plus stub `lowerToNSL` / `runNSLPasses` member functions whose
+  signatures are frozen but whose bodies emit a
+  "MLIR lowering not yet implemented; see M5" diagnostic. M5 will
+  extend the class with the full per-stage pipeline (per design §11
+  lines 1156–1166) AND with the CIRCT-dialect-load lines per design
+  §11 lines 1146–1150. `nslc -emit=mlir` is **not** wired at M4
+  (per FR-023/FR-024); the M5 spec opens that surface.
 - **Diagnostic message text from the M4 verifier is NOT frozen by
   fail-case fixture text-asserts** (unlike Sema's `Sn`
   diagnostics, frozen at M3 per Principle VIII's
