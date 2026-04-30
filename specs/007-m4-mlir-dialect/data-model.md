@@ -6,7 +6,7 @@
 **Plan**: [plan.md](./plan.md)
 
 This file enumerates the *types* M4 introduces to the codebase —
-the dialect class, the 40 op classes, the 3 type classes, and the
+the dialect class, the 41 op classes, the 3 type classes, and the
 verifier-helper utilities. Definitions mirror
 [`docs/design/nsl_compiler_design.md`](../../docs/design/nsl_compiler_design.md)
 §§7–10 verbatim per Principle VII; this file is the plan-level
@@ -25,7 +25,7 @@ invalid fixtures.
 
 | Type | Field / member | Purpose |
 |---|---|---|
-| `nsl::dialect::NSLDialect` | (TableGen-generated) | The MLIR dialect class. Inherits `mlir::Dialect`. Constructor calls `addOperations<...>()` and `addTypes<...>()` to register the 40 ops + 3 types. |
+| `nsl::dialect::NSLDialect` | (TableGen-generated) | The MLIR dialect class. Inherits `mlir::Dialect`. Constructor calls `addOperations<...>()` and `addTypes<...>()` to register the 41 ops + 3 types (post-Q6 — `nsl.field_decl` added). |
 | `nsl::dialect::registerNSLDialect` | function | Registration entry-point. Called by `Compilation` ctor (per FR-004 / design §11 line 1145) and `nsl-opt` main (per FR-014). Idempotent (calling twice on the same `mlir::DialectRegistry` is a no-op; verified by `test_unit/dialect_register_test/`). |
 
 The dialect's TableGen record lives in `NSLDialect.td`:
@@ -47,7 +47,7 @@ defined in `NSLDialect.td` and inherited by every op record below.
 
 ## 2. Op set (`lib/Dialect/NSL/IR/NSLOps.td`)
 
-The 40 ops, in the same category-grouping as spec FR-010. Each row
+The 41 ops, in the same category-grouping as spec FR-010. Each row
 notes the TableGen record name, the `nsl.*` syntactic name, the
 trait set, and the verifier-implementation style (TableGen-trait-only
 vs hand-written body per Q2 Option B).
@@ -140,6 +140,7 @@ vs hand-written body per Q2 Option B).
 | `nsl.fire_probe` | `NSL_FireProbeOp` | `SymbolRefAttr` | TableGen-trait + hand-written (sym ref resolves to a sibling control-terminal) |
 | `nsl.struct_cast` | `NSL_StructCastOp` | type-match operand/result | TableGen-trait + hand-written (operand bits-width = result struct totalWidth) |
 | `nsl.field` | `NSL_FieldOp` | int-attr field index | TableGen-trait + hand-written (field index in range; result type matches struct field) |
+| `nsl.field_decl` | `NSL_FieldDeclOp` | `Symbol`, `HasParent<"NSL_StructOp">`; `sym_name` StringAttr + width type | TableGen-trait only (per Q6 Option B — struct-internal field declaration role split off from `nsl.field`) |
 
 ### 2.11 Expansion-only (1 op)
 
@@ -217,7 +218,7 @@ Total: ~50 lines of C++ in one source file.
 
 | Path | Count | Per FR | Purpose |
 |---|---|---|---|
-| `test/Dialect/<category>/<op>_roundtrip.mlir` | 40 | FR-017 | Per-op round-trip pass fixture |
+| `test/Dialect/<category>/<op>_roundtrip.mlir` | 41 | FR-017 | Per-op round-trip pass fixture (post-Q6: includes `field_decl_roundtrip.mlir`) |
 | `test/Dialect/Types/<type>_roundtrip.mlir` | 3 | FR-018 | Per-type round-trip pass fixture |
 | `test/Dialect/<category>/<op>_invalid_<reason>.mlir` | ~50 | FR-019 | Per-invariant invalid-rejection fixture |
 | `test_unit/dialect_register_test/register_idempotency_test.cc` | 1 | (research §1) | gtest: `registerNSLDialect()` × 2 = no-op |

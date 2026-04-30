@@ -73,6 +73,7 @@ header carve-out for `nsl-ast` and `nsl-sema`).
 | `nsl::dialect::FireProbeOp` | class | (TableGen) |
 | `nsl::dialect::StructCastOp` | class | (TableGen) |
 | `nsl::dialect::FieldOp` | class | (TableGen) |
+| `nsl::dialect::FieldDeclOp` | class | (TableGen, post-Q6) |
 | `nsl::dialect::StructuralGenerateOp` | class | (TableGen) |
 | `nsl::dialect::ModuleTerminatorOp` | class | (TableGen, auto from `SingleBlockImplicitTerminator`) |
 | `nsl::dialect::ProcTerminatorOp` | class | (TableGen, auto) |
@@ -81,9 +82,9 @@ header carve-out for `nsl-ast` and `nsl-sema`).
 | `nsl::dialect::MemType` | class | TableGen `def NSL_MemType` |
 | `nsl::dialect::registerNSLDialect` | function | hand-written |
 
-That's 40 op classes + 2 auto-generated terminators + 3 type
-classes + the dialect class + the registration function = **47
-public types/functions**.
+That's 41 op classes + 2 auto-generated terminators + 3 type
+classes + the dialect class + the registration function = **48
+public types/functions** (post-Q6: `nsl.field_decl` added).
 
 ## 3. Registration entry-point contract
 
@@ -152,8 +153,8 @@ public:
 
 Once M4 is merged, the following are FROZEN:
 
-1. **Op-class set**: 40 ops + 2 auto-generated terminators. Adding
-   a 41st is an M4 amendment + design §7 update (per SC-012).
+1. **Op-class set**: 41 ops + 2 auto-generated terminators. Adding
+   a 42nd is an M4 amendment + design §7 update (per SC-012).
    Removing or renaming an op is a MAJOR version change.
 2. **Op-class trait set per op**: per the data-model.md table.
    Adding a trait is a minor amendment; removing one (especially

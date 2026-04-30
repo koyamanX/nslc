@@ -82,11 +82,12 @@
 
 ### Session 2026-04-30
 
-- Q: M4 op verifier strictness — what does each `nsl.*` op's `hasVerifier = 1` hook check (structural invariants only; structural + cheap post-Sema; or full `Sn` re-check)? → A: **Option A — structural invariants only.** The verifier asserts parent-op kind via `HasParent<...>`, region count + kind, attribute presence/type, and trait-declared operand-result type relations (`SameOperandsElementType`, `SameOperandsShape`, `SingleBlockImplicitTerminator`, etc.). Re-checking of `S1`–`S29` semantic constraints is OUT of scope at M4 — those are Sema's M3 domain. Rationale: preserves the architectural seam between Sema (the single semantic checker) and the dialect (the IR), avoids drift between two parallel checkers, matches MLIR upstream conventions, and aligns with Constitution Principle III ("stock CIRCT below the dialect" → clean separation of concerns). Expected fail-fixture cardinality: ~50 invalid cases (≈ 40 ops × ~1.25 invariants each).
+- Q: M4 op verifier strictness — what does each `nsl.*` op's `hasVerifier = 1` hook check (structural invariants only; structural + cheap post-Sema; or full `Sn` re-check)? → A: **Option A — structural invariants only.** The verifier asserts parent-op kind via `HasParent<...>`, region count + kind, attribute presence/type, and trait-declared operand-result type relations (`SameOperandsElementType`, `SameOperandsShape`, `SingleBlockImplicitTerminator`, etc.). Re-checking of `S1`–`S29` semantic constraints is OUT of scope at M4 — those are Sema's M3 domain. Rationale: preserves the architectural seam between Sema (the single semantic checker) and the dialect (the IR), avoids drift between two parallel checkers, matches MLIR upstream conventions, and aligns with Constitution Principle III ("stock CIRCT below the dialect" → clean separation of concerns). Expected fail-fixture cardinality: ~50 invalid cases (≈ 41 ops × ~1.22 invariants each, post-Q6).
 - Q: "Parent" relation semantics in FR-013 — for rows marked "parent (transitively) = X", does the verifier check immediate parent only (TableGen `HasParent`), any ancestor (custom walk), or a widened immediate-parent set? → A: **Option B — any-ancestor walk via custom verifier.** Rows in FR-013 marked "parent (transitively) = X" are checked by a hand-written `verify()` body that walks `op->getParentOp()` upward until it finds an ancestor of kind X or hits the top of the op tree. Affects ~5 ops (`nsl.while`, `nsl.for`, `nsl.finish`, `nsl.goto` label-form, plus any future transitive-parent op). Standard MLIR `HasParent<...>` TableGen trait covers the immediate-parent rows (the bulk of FR-013); custom ancestor-walk covers the ~5 transitive rows. Rationale: NSL grammar permits intervening control-flow ops (`nsl.parallel`, `nsl.alt`, `nsl.any`, `nsl.if`) between an enclosing `nsl.seq` and a `nsl.while` body — strict immediate-parent (Option A) would force the M5 AST→MLIR lowering to rewrite block shapes or insert wrapper ops; Option B keeps M5's lowering structurally faithful to the AST and pushes the validation cost to ~5 small custom verifiers. Option C (widened immediate-parent set) is laxer than NSL grammar and would silently accept `nsl.alt { nsl.while }` without any enclosing `nsl.seq` (a `S8` violation that the dialect should still surface even though Sema also catches it at M3).
 - Q: `nsl.connect` operand type-match semantics — strict `mlir::Type` equality, bidirectional `!nsl.bits<N>` ↔ `!nsl.struct<@T>` width-equality, or CIRCT-`hw`-style element-and-width compatibility? → A: **Option A — strict `mlir::Type` equality.** `ConnectOp::verify()` rejects any pair of operands whose `mlir::Type`s are not pointer-equal (types are interned in `MLIRContext` per FR-008, so pointer equality implies type equality). The M5 AST→MLIR lowering is responsible for inserting `nsl.struct_cast` (per FR-010) at any user-written `struct ↔ bits` conversion site; the dialect verifier never tolerates implicit reinterpretation. Rationale: aligns with Constitution Principle III's clean architectural seam (the dialect is shape-only IR; semantic type-compatibility lives in Sema + M5 lowering); matches CIRCT's `hw`/`comb`/`seq` dialect conventions where verifiers check exact-type equality; M5 lowering burden is small (~3 lines per cast site, and the `nsl.struct_cast` op is already in the M4 op set for exactly this purpose). Option B (bidirectional bits↔struct) was rejected because it would permit silent reinterpretation across the seam and obscure user-intent in the printed IR. Option C (CIRCT-`hw`-style) was rejected because NSL has no narrowing/widening implicit conversions in source; the strict-equality form is honest about that.
 - Q: `nsl.func` scoped-name attribute encoding — `mlir::SymbolRefAttr` with multi-segment, `mlir::StringAttr` containing the literal dotted form, or a custom `NSL_ScopedNameAttr`? → A: **Option A — `mlir::SymbolRefAttr` with multi-segment.** _**SUPERSEDED by Q5 — see below; this option contradicted MLIR's `SymbolOpInterface` contract (sym_name must be `StringAttr`), surfaced by `/speckit-analyze` Pass 3 finding F14.**_
-- Q: `nsl.func` `sym_name` encoding — re-clarification of Q4 per F14 (`SymbolOpInterface` requires `sym_name: StringAttr`, not `SymbolRefAttr`). Choose: A' (StringAttr literal dotted form), A'' (StringAttr local-name + optional `submodule_qualifier: FlatSymbolRefAttr`), or A''' (nested-region symbol scoping)? → A: **Option A' — `sym_name: StringAttr` containing the literal dotted form.** Bare-form `nsl.func @reset` stores `sym_name = "reset"`; dotted-form `nsl.func @ic.ready` stores `sym_name = "ic.ready"` as a single `StringAttr`. MLIR symbol identifiers permit `.` per upstream lexical rules (matches `func.func @some.dotted.name` precedent). Cross-op references (`nsl.call @ic.ready`) use `FlatSymbolRefAttr` with literal-string match against `sym_name`. Rationale: simplest encoding compatible with `SymbolOpInterface`; matches MLIR upstream convention verbatim per Constitution Principle II/III; no new public-attribute surface (the `dialect-api.contract.md` §2 freeze surface stays at 47 public types). Option A'' (`submodule_qualifier`) was rejected because it adds a new attribute to the API surface for no tangible benefit — `nsl.call @ic.ready` resolves the same way under both encodings. Option A''' (nested-region scoping) was rejected as overengineered for M4 — would force the M5 lowering to construct nested symbol-table regions for every dotted-form func.
+- Q: `nsl.func` `sym_name` encoding — re-clarification of Q4 per F14 (`SymbolOpInterface` requires `sym_name: StringAttr`, not `SymbolRefAttr`). Choose: A' (StringAttr literal dotted form), A'' (StringAttr local-name + optional `submodule_qualifier: FlatSymbolRefAttr`), or A''' (nested-region symbol scoping)? → A: **Option A' — `sym_name: StringAttr` containing the literal dotted form.** Bare-form `nsl.func @reset` stores `sym_name = "reset"`; dotted-form `nsl.func @ic.ready` stores `sym_name = "ic.ready"` as a single `StringAttr`. MLIR symbol identifiers permit `.` per upstream lexical rules (matches `func.func @some.dotted.name` precedent). Cross-op references (`nsl.call @ic.ready`) use `FlatSymbolRefAttr` with literal-string match against `sym_name`. Rationale: simplest encoding compatible with `SymbolOpInterface`; matches MLIR upstream convention verbatim per Constitution Principle II/III; no new public-attribute surface (the `dialect-api.contract.md` §2 freeze surface stays at 47 public types — note Q6 below subsequently grows it to 48 with the addition of `nsl.field_decl`). Option A'' (`submodule_qualifier`) was rejected because it adds a new attribute to the API surface for no tangible benefit — `nsl.call @ic.ready` resolves the same way under both encodings. Option A''' (nested-region scoping) was rejected as overengineered for M4 — would force the M5 lowering to construct nested symbol-table regions for every dotted-form func.
+- Q: `nsl.field` op overloading — Phase 3 fixture-author (`nsl-test-author` agent) surfaced two distinct roles: (1) struct-decl form (`nsl.field "name" : !nsl.bits<N>` inside `nsl.struct`), (2) access-marker form (`nsl.field %v {index = K} : !nsl.struct<@T> -> !nsl.bits<N>`). Spec FR-010 + design §8 line 1061 named only the access-marker form. How should the dialect express both? → A: **Option B — two-op split.** Add a new dialect op `nsl.field_decl` for the struct-internal field-declaration role; keep `nsl.field` for the access-marker role only. FR-010 grows from 40 to 41 named ops; FR-013 gains an invariant row for `nsl.field_decl` (parent = `nsl.struct`; `sym_name` StringAttr present); SC-012's "next op" baseline updates from "41st op" to "42nd op"; `dialect-api.contract.md` §2 freeze surface grows from 47 to 48 public types/functions. Phase 3's `Types/struct_roundtrip.mlir` will need its in-struct-body `nsl.field` uses renamed to `nsl.field_decl`; a new `test/Dialect/marker/field_decl_roundtrip.mlir` fixture covers the new op per FR-017. Rationale: cleanest disambiguation; one op per role; matches MLIR's "small single-purpose ops" principle. Option A (attribute-encoded fields) was rejected because it loses per-field SourceRange granularity that NSL source's `struct S { a[4]; b[12]; }` line-by-line layout naturally supplies. Option C (custom assemblyFormat with branching) was rejected because the TableGen complexity outweighs the cost of a second op record. Option D (type-level encoding) was rejected because it forces hand-written type printer/parser (losing `useDefaultTypePrinterParser`) AND requires substantial Phase 3 fixture rewrite.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -517,11 +518,12 @@ the link-time dependency direction (per FR-005) by failing fast if
   | System task | `nsl.sim_delay` | `NSL_SimDelayOp` | sim-only; integer-literal cycles attr | design §7 line 929 |
   | Marker | `nsl.fire_probe` | `NSL_FireProbeOp` | `S27` 1-bit-tap marker; symbol ref to control-terminal | design §8 line 1062 |
   | Marker | `nsl.struct_cast` | `NSL_StructCastOp` | bits → struct preserve | design §8 line 1061 |
-  | Marker | `nsl.field` | `NSL_FieldOp` | struct field access | design §8 line 1061 |
+  | Marker | `nsl.field` | `NSL_FieldOp` | struct field access (expression position) | design §8 line 1061 |
+  | Marker | `nsl.field_decl` | `NSL_FieldDeclOp` | struct-internal field declaration; parent = `nsl::StructOp`; `sym_name` StringAttr + width type | per Q6 Option B (Session 2026-04-30) |
   | Expansion-only | `nsl.structural_generate` | `NSL_StructuralGenerateOp` | one-region; consumed by M5's `NSLExpandGeneratePass` | design §9 line 1073 |
   | Auto-terminators | `nsl.module_terminator`, `nsl.proc_terminator`, ... | (auto) | per-parent implicit-terminator ops | design §7 lines 950, 959 |
 
-  *Total: 40 named ops + auto-generated terminators. Adding a 41st
+  *Total: 41 named ops + auto-generated terminators. Adding a 42nd
   is a routine PR provided design §7 (or §8/§9/§10) is updated in
   the same change per Principle VII; M4's scaffolding is
   layer-extensible (per SC-009).*
@@ -608,9 +610,10 @@ the link-time dependency direction (per FR-005) by failing fast if
   | `nsl.sim_*` | parent = `nsl.module` (system-task placement) |
   | `nsl.fire_probe` | symbol ref to a sibling `nsl.func_in` / `nsl.func_out` / `nsl.func_self` |
   | `nsl.struct_cast`, `nsl.field` | type-match on operand and result; `nsl.field` carries an integer attribute for the field index |
+  | `nsl.field_decl` | parent = `nsl.struct`; `sym_name` StringAttr present; result type is `!nsl.bits<N>` (or `!nsl.struct<@T>` for nested struct fields per future amendment) |
   | `nsl.structural_generate` | one region; loop-bound attributes shape |
 
-  *Cardinality (per Q1 Option A — structural-only): ~40 ops
+  *Cardinality (per Q1 Option A — structural-only): ~41 ops
   × ~1.25 invariants each ≈ 50 distinct invalid-fixture cases.
   The exact count is mechanical: every row above whose
   "invariants" cell names ≥ 1 invariant ships ≥ 1
@@ -762,11 +765,11 @@ the link-time dependency direction (per FR-005) by failing fast if
 
 ### Measurable Outcomes
 
-- **SC-001**: For every op enumerated in FR-010 (40 named ops +
+- **SC-001**: For every op enumerated in FR-010 (41 named ops +
   auto-generated terminators), `test/Dialect/<category>/
   <op>_roundtrip.mlir` exists, is authored before its
   implementation per Principle VIII TDD, AND passes lit + FileCheck
-  on a green CI run. 0 of the 40 ops are without a round-trip
+  on a green CI run. 0 of the 41 ops are without a round-trip
   fixture; 100% op coverage.
 - **SC-002**: For every cell in the FR-013 invariant table with
   ≥ 1 structural invariant, `test/Dialect/<category>/
@@ -802,7 +805,7 @@ the link-time dependency direction (per FR-005) by failing fast if
   TableGen or verifier source code (re-statement of M1 SC-008 /
   M2 SC-005 / M3 SC-006 for M4 fixtures).
 - **SC-009**: After M4 lands, the M5 AST→`nsl` lowering work
-  begins against a frozen dialect surface — all 40 ops + 3 types
+  begins against a frozen dialect surface — all 41 ops + 3 types
   + the registration entry-point are stable, allowing
   `Compilation::lowerToNSL` (declaration shipped at M4 per FR-004,
   body landing at M5) to be implemented without additional dialect
@@ -819,7 +822,7 @@ the link-time dependency direction (per FR-005) by failing fast if
   CI guard MUST verify this — no link-time edge from
   `nsl-dialect` to `nsl-ast`, `nsl-sema`, `nsl-parse`, `nsl-lex`,
   `nsl-preprocess`, `nsl-lower`, or `nsl-driver`.
-- **SC-012**: Adding a 41st op to the dialect (a hypothetical
+- **SC-012**: Adding a 42nd op to the dialect (a hypothetical
   language change in a later release) requires editing exactly
   the `.td` file, one new round-trip fixture, one or more
   invalid fixtures (one per structural invariant), one new row in

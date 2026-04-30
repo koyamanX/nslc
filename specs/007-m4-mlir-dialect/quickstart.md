@@ -238,7 +238,7 @@ say) the routine PR shape is:
 8. **`scripts/check_dialect_coverage.py` runs green**: per-op
    fixture existence verified; layered-deps invariant verified.
 
-The pattern is the same per op category. The existing 40 ops at
+The pattern is the same per op category. The existing 41 ops at
 M4 already follow this pattern — the per-op subdirectories under
 `test/Dialect/` plus the FR-010/FR-013 tables are the documented
 extension points.

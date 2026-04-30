@@ -29,7 +29,7 @@ description: "Tasks for M4 — `nsl` MLIR Dialect (`nsl-dialect`: TableGen ops +
   - lit + FileCheck tests: `test/Dialect/{module-level,storage,control-terminal,action-block,action-helper,atomic,procedure,procedure-helper,system-task,marker,expansion-only,Types}/`
   - GoogleTest unit tests: `test_unit/dialect_register_test/`
 
-> **Op count note.** Spec FR-010 describes **40 named ops + auto-generated terminators** (the draft-era "Total: 35" miscount was corrected pre-implementation in commit `e47484a` after `/speckit-analyze` flagged it; finding F2 in the analyze report). 40 ops + 3 types is the authoritative count enumerated in the FR-010 table and `data-model.md` §2.
+> **Op count note.** Spec FR-010 describes **41 named ops + auto-generated terminators** (post-Q6 of Session 2026-04-30 — `nsl.field_decl` added per Option B's two-op split for the `nsl.field` overload). The earlier draft-era "Total: 35" miscount was corrected pre-implementation in commit `e47484a` after `/speckit-analyze` Pass 1 flagged it as F2; the bump from 40 to 41 followed Q6's resolution. 41 ops + 3 types is the authoritative count enumerated in the FR-010 table and `data-model.md` §2.
 
 ---
 
@@ -101,7 +101,7 @@ description: "Tasks for M4 — `nsl` MLIR Dialect (`nsl-dialect`: TableGen ops +
 ### Coverage-guard CI script (research §9)
 
 - [X] T024 **Done 2026-04-30**: `scripts/check_dialect_coverage.py` (~190 lines incl. comments) parses `lib/Dialect/NSL/IR/NSLOps.td` via `_OP_RECORD_RE` regex; for each `nsl.<name>` asserts a `<name>_roundtrip.mlir` fixture exists under any `test/Dialect/<category>/` subdirectory; for each `.specify/m4_invariant_table.json` op entry with `invariants` ≥ 1, asserts at least one `<name>_invalid_*.mlir` fixture exists. Exits 0 (vacuous-pass when op set empty), 1 (coverage gap), 2 (script error). Made executable (`chmod +x`); SPDX header in `#` line-comment style.
-- [X] T025 **Done 2026-04-30**: `.specify/m4_invariant_table.json` initial empty `{ "ops": [] }` payload with a `_doc` field anchoring the schema to data-model.md §8. Phase 3 (T085) populates the array with 40 op entries (each `name` + `category`); Phase 4 (T119) extends each entry with the `invariants` list from FR-013.
+- [X] T025 **Done 2026-04-30**: `.specify/m4_invariant_table.json` initial empty `{ "ops": [] }` payload with a `_doc` field anchoring the schema to data-model.md §8. Phase 3 (T085) populates the array with 41 op entries (each `name` + `category`; post-Q6 — includes `nsl.field_decl`); Phase 4 (T119) extends each entry with the `invariants` list from FR-013.
 - [X] T026 **Done 2026-04-30**: `scripts/ci.sh`'s `stage_static_checks` extended with check 4 — invokes `python3 scripts/check_dialect_coverage.py --quiet` after the SPDX scan. Per FR-021 + Constitution Principle IX stage 2 (static checks). Vacuous at Phase 2; goes live as Phase 3 / 4 populate the op + invariant tables.
 
 **Checkpoint** (target): nsl-dialect library scaffolding builds; `nsl-opt --version` runs and lists the `nsl` + 5 CIRCT dialects via `--show-dialects`; `nslc -emit=tokens` and `nslc -emit=ast` outputs are byte-identical pre/post (regression-tested by T022's `./scripts/ci.sh all`); 1 new gtest suite green; CI guard scripts wired but vacuous. Phase 3 (US1: round-trip every op via nsl-opt) work can begin.
@@ -110,7 +110,7 @@ description: "Tasks for M4 — `nsl` MLIR Dialect (`nsl-dialect`: TableGen ops +
 
 ## Phase 3: User Story 1 — Round-trip every `nsl.*` op via `nsl-opt` (Priority: P1) 🎯 MVP
 
-**Goal**: Every `nsl.*` op listed in spec FR-010 (40 named ops) and every `!nsl.*` type (3 types) parses, verifies clean (with the trivial-success verifier from Phase 2 — real verifier bodies land at US2), and prints to byte-identical output through `nsl-opt`. Fixed-point round-trip property holds: `nsl-opt %s | nsl-opt - | FileCheck %s` succeeds on every fixture.
+**Goal**: Every `nsl.*` op listed in spec FR-010 (41 named ops, post-Q6) and every `!nsl.*` type (3 types) parses, verifies clean (with the trivial-success verifier from Phase 2 — real verifier bodies land at US2), and prints to byte-identical output through `nsl-opt`. Fixed-point round-trip property holds: `nsl-opt %s | nsl-opt - | FileCheck %s` succeeds on every fixture.
 
 **Independent Test**: After this phase, `nsl-opt fixture.mlir` round-trips every op + every type without emitting diagnostics; `scripts/check_dialect_coverage.py` confirms a `<op>_roundtrip.mlir` fixture exists for each registered op. Independent of US2 (verifier rejection — those fixtures don't exist yet at the end of US1) and US3 (driver invariant — that's a regression check).
 
@@ -124,7 +124,7 @@ description: "Tasks for M4 — `nsl` MLIR Dialect (`nsl-dialect`: TableGen ops +
 - [X] T028 [P] [US1] **Done 2026-04-30 (TDD red)**: `test/Dialect/Types/struct_roundtrip.mlir` — `!nsl.struct<@MyRec>` on `nsl.reg` with sibling `nsl.struct @MyRec { ... }`. Two-pass.
 - [X] T029 [P] [US1] **Done 2026-04-30 (TDD red)**: `test/Dialect/Types/mem_roundtrip.mlir` — `!nsl.mem<[256 x !nsl.bits<8>]>` and `!nsl.mem<[16 x !nsl.struct<@Word>]>` on `nsl.mem`. Two-pass.
 
-#### Op round-trip fixtures (40 fixtures; all [P]; bulk authoring)
+#### Op round-trip fixtures (41 fixtures, post-Q6; all [P]; bulk authoring)
 
 - [X] T030 [P] [US1] **Done 2026-04-30 (TDD red)**: `module-level/module_roundtrip.mlir` — empty + populated `nsl.module @M { ... }` forms.
 - [X] T031 [P] [US1] **Done 2026-04-30 (TDD red)**: `module-level/struct_roundtrip.mlir` — multi-field `nsl.struct @Pair / @Wide` with mixed widths.
@@ -184,22 +184,22 @@ description: "Tasks for M4 — `nsl` MLIR Dialect (`nsl-dialect`: TableGen ops +
 - [ ] T079 [P] [US1] Add procedure op records (`NSL_ProcOp`, `NSL_FirstStateOp`, `NSL_StateOp`, `NSL_FuncOp`) per data-model §2.7. T057–T060 turn green.
 - [ ] T080 [P] [US1] Add procedure-helper op record (`NSL_GotoOp`) per data-model §2.8. T061 turns green.
 - [ ] T081 [P] [US1] Add system-task op records (`NSL_SimDisplayOp`, `NSL_SimFinishOp`, `NSL_SimInitOp`, `NSL_SimDelayOp`) per data-model §2.9. T062–T065 turn green.
-- [ ] T082 [P] [US1] Add marker op records (`NSL_FireProbeOp`, `NSL_StructCastOp`, `NSL_FieldOp`) per data-model §2.10. T066–T068 turn green.
+- [ ] T082 [P] [US1] Add marker op records (`NSL_FireProbeOp`, `NSL_StructCastOp`, `NSL_FieldOp`, **`NSL_FieldDeclOp`** post-Q6) per data-model §2.10. T066–T068 + T133 turn green. **Per Q6 Option B**, `NSL_FieldOp` keeps its access-marker-only role (operand-bearing); the new `NSL_FieldDeclOp` carries `Symbol` + `HasParent<"NSL_StructOp">` traits + a `sym_name: StringAttr` + a width type, with no operand.
 - [ ] T083 [P] [US1] Add expansion-only op record (`NSL_StructuralGenerateOp`) per data-model §2.11. T069 turns green.
 
 ### Dialect registration update
 
-- [ ] T084 [US1] Edit `lib/Dialect/NSL/IR/NSLDialect.cpp` — extend `NSLDialect::initialize()` body to call `addOperations<...>()` over all 40 ops (plus auto-generated terminators) and `addTypes<...>()` over all 3 types via the TableGen-generated `#define GET_OP_LIST` / `#define GET_TYPEDEF_LIST` macros. After this lands, `nsl-opt --show-dialects --dialect=nsl` lists the full op + type set.
+- [ ] T084 [US1] Edit `lib/Dialect/NSL/IR/NSLDialect.cpp` — extend `NSLDialect::initialize()` body to call `addOperations<...>()` over all 41 ops (plus auto-generated terminators; post-Q6) and `addTypes<...>()` over all 3 types via the TableGen-generated `#define GET_OP_LIST` / `#define GET_TYPEDEF_LIST` macros. After this lands, `nsl-opt --show-dialects --dialect=nsl` lists the full op + type set.
 
 ### Coverage-guard data update
 
-- [ ] T085 [US1] Update `.specify/m4_invariant_table.json` — populate the `ops` array with the 40 op entries (each with `name` + `category`; `invariants` arrays remain empty until US2). Sync with FR-010's table mechanically (see `scripts/check_dialect_coverage.py` syntax). The CI guard now exercises real op-coverage assertions.
+- [ ] T085 [US1] Update `.specify/m4_invariant_table.json` — populate the `ops` array with the 41 op entries (post-Q6; each with `name` + `category`; `invariants` arrays remain empty until US2). Sync with FR-010's table mechanically (see `scripts/check_dialect_coverage.py` syntax). The CI guard now exercises real op-coverage assertions.
 
 ### Verification
 
 - [ ] T086 [US1] Run `./scripts/ci.sh all` — expect: 40 round-trip op fixtures pass + 3 type round-trip fixtures pass; `scripts/check_dialect_coverage.py` confirms paired `<op>_roundtrip.mlir` exists for every registered op (43 lit fixtures total under `test/Dialect/`); the dialect-register idempotency unit test stays green; existing M0–M3 corpus stays green. Per FR-017, FR-018, FR-021, SC-001, SC-003, SC-004.
 
-**Checkpoint** (target): User Story 1 fully functional. `nsl-opt fixture.mlir` round-trips every op and every type. The dialect surface is structurally complete (40 ops + 3 types + 2 auto-terminators); only the verifier bodies (US2) and driver-invariant verification (US3) remain. **MVP deliverable**: contributors and M5 implementors can author and inspect `.mlir` IR using the full dialect at this point.
+**Checkpoint** (target): User Story 1 fully functional. `nsl-opt fixture.mlir` round-trips every op and every type. The dialect surface is structurally complete (41 ops + 3 types + 2 auto-terminators, post-Q6); only the verifier bodies (US2) and driver-invariant verification (US3) remain. **MVP deliverable**: contributors and M5 implementors can author and inspect `.mlir` IR using the full dialect at this point.
 
 ---
 
@@ -301,6 +301,8 @@ description: "Tasks for M4 — `nsl` MLIR Dialect (`nsl-dialect`: TableGen ops +
 - [ ] T130 Final M4 acceptance: run `./scripts/ci.sh all` once more end-to-end inside the dev container — expect: all 6 stages green; ~88 dialect fixtures pass; M0–M3 corpus stays green; `--version` is unchanged or shows the MLIR/CIRCT pin update only. SC-001 through SC-012 all measured.
 - [ ] T131 [P] Polish — fold the Phase-2 wording corrections (FU1, FU2) discovered by the `nsl-mlir-impl` agent: (a) FU1 — replace `Severity::Fatal` references in spec.md FR-004 / research.md §7 / tasks.md T017–T018 task descriptions + `lib/Driver/LowerToNSL.cpp` source comments with `Severity::Error` (the project's actual `Severity` enum is `Note < Warning < Error`; `Fatal` was a draft-era assumption). (b) FU2 — amend spec.md FR-028 wording from "TableGen `.td` files MUST carry the header in the file's leading multi-line C-style `/* … */` comment block" to "TableGen `.td` files MUST carry the header as a `//` line-comment per `scripts/check_spdx.py`'s `.td` recipe". Both are wording-only; no code changes needed.
 - [X] T132 Polish — **DONE 2026-04-30** in commit `763eb73` (FU4 spec/data-model amendment): spec.md FR-004 + scope-interpretation block + Assumptions paragraph + data-model.md §5 row for `Compilation::Compilation` all updated from "Compilation class declared in design §11 MUST gain ... at M4" / "MODIFIED at M4" to "**created at M4**". Documents that the M3 driver used free functions per `lib/Driver/EmitTokens.cpp` / `EmitAST.cpp` / `Sema.cpp` precedent; design §11's class definition was target-state, not extant code; M4 introduces the class skeleton, M5 extends it. Per `nsl-mlir-impl` agent's Phase 2 follow-up FU4.
+- [ ] T133 [P] [US1] Author `test/Dialect/marker/field_decl_roundtrip.mlir` — round-trip fixture for the new `nsl.field_decl` op (per Q6 Option B). Pattern: `nsl.struct @S { nsl.field_decl "a" : !nsl.bits<4> nsl.field_decl "b" : !nsl.bits<12> }`. Two-pass run-line per FR-017. CHECK lines on `nsl.field_decl` + sym_name attribute. Phase 4 agent's responsibility (handles T082's `NSL_FieldDeclOp` record + this fixture in the same commit).
+- [ ] T134 [P] [US1] Update `test/Dialect/Types/struct_roundtrip.mlir` — rename in-struct-body `nsl.field "name" : !nsl.bits<N>` uses to `nsl.field_decl "name" : !nsl.bits<N>` (per Q6 Option B). The access-marker form (in `marker/field_roundtrip.mlir`) keeps `nsl.field`. Phase 4 agent's responsibility (handles in the same commit as T133 + T082's `NSL_FieldDeclOp` record).
 
 ---
 
@@ -341,7 +343,7 @@ description: "Tasks for M4 — `nsl` MLIR Dialect (`nsl-dialect`: TableGen ops +
 ## Parallel Example: User Story 1
 
 ```bash
-# Launch fixture authoring for all 40 op round-trip fixtures + 3 type fixtures together:
+# Launch fixture authoring for all 41 op round-trip fixtures + 3 type fixtures together (post-Q6):
 Task: "Author test/Dialect/Types/bits_roundtrip.mlir"
 Task: "Author test/Dialect/Types/struct_roundtrip.mlir"
 Task: "Author test/Dialect/Types/mem_roundtrip.mlir"
@@ -397,7 +399,7 @@ With multiple developers post-Foundational:
 
 1. Team completes Setup + Foundational together (small phase, ~1 dev-day)
 2. Once Foundational is done:
-   - Developer A: US1 (40 op round-trip fixtures + 40 op TableGen records + 3 types)
+   - Developer A: US1 (41 op round-trip fixtures + 41 op TableGen records + 3 types, post-Q6)
    - Developer B: US2 (~50 invalid fixtures + ~15 hand-written verifier bodies + ~25 trait updates) — starts after US1's TableGen records land
    - Developer C: US3 + Polish (driver-invariant verification + design-doc consolidation)
 3. Stories integrate independently; Polish phase wraps the bundle.

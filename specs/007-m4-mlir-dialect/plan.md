@@ -24,7 +24,7 @@ parens):
   single umbrella public header `NSLDialect.h` that re-exports the
   TableGen-generated per-op classes. Concrete op classes mirror
   [`docs/design/nsl_compiler_design.md`](../../docs/design/nsl_compiler_design.md)
-  §§7–10 verbatim — 40 named ops (`nsl.module`, `nsl.proc`,
+  §§7–10 verbatim — 41 named ops (`nsl.module`, `nsl.proc`,
   `nsl.transfer`, …, `nsl.structural_generate`, the 4 `nsl.sim_*`
   variants, the 3 markers `nsl.fire_probe` / `nsl.struct_cast` /
   `nsl.field`) plus auto-generated implicit-terminator ops for
@@ -33,7 +33,7 @@ parens):
   via `useDefaultTypePrinterParser = 1`. FR-001, FR-006, FR-007,
   FR-009, FR-010.
 - **TableGen + ODS sources** (`lib/Dialect/NSL/IR/NSL*.td`)
-  declare the dialect, the 40 ops, the 3 types, and every TableGen-
+  declare the dialect, the 41 ops, the 3 types, and every TableGen-
   expressible structural trait (`Symbol`, `SymbolTable`,
   `HasParent<...>`, `SingleBlockImplicitTerminator<...>`,
   `SameOperandsElementType`, `SameOperandsShape`). Standard CMake
@@ -221,10 +221,10 @@ nslc/
 │   │       └── IR/
 │   │           ├── CMakeLists.txt           # NEW — add_mlir_dialect + add_nsl_library + tablegen invocations
 │   │           ├── NSLDialect.td            # NEW — dialect class, namespace, useDefaultTypePrinterParser
-│   │           ├── NSLOps.td                # NEW — 40 ops + auto-generated terminators in one file (per Phase 0 research)
+│   │           ├── NSLOps.td                # NEW — 41 ops + auto-generated terminators in one file (per Phase 0 research, post-Q6)
 │   │           ├── NSLTypes.td              # NEW — 3 types (!nsl.bits, !nsl.struct, !nsl.mem)
 │   │           ├── NSLDialect.cpp           # NEW — dialect-init code; type printer/parser glue
-│   │           ├── NSLOps.cpp               # NEW — verifier bodies for 40 ops (TableGen HasParent for immediate; hand-walk for transitive per Q2 Option B)
+│   │           ├── NSLOps.cpp               # NEW — verifier bodies for 41 ops (TableGen HasParent for immediate; hand-walk for transitive per Q2 Option B)
 │   │           └── NSLTypes.cpp             # NEW — type-class glue (init, hash, equal)
 │   └── Driver/
 │       ├── CMakeLists.txt                   # MODIFIED — add Compilation.cpp dialect-load line; add LowerToNSL.cpp + RunNSLPasses.cpp stub sources
