@@ -116,7 +116,7 @@ vs hand-written body per Q2 Option B).
 | `nsl.proc` | `NSL_ProcOp` | `Symbol`, `SymbolTable`, `HasParent<"NSL_ModuleOp">`, `SingleBlockImplicitTerminator<"ProcTerminatorOp">` | TableGen-trait + hand-written (`sym_name` presence; ≤ 1 first_state child) |
 | `nsl.first_state` | `NSL_FirstStateOp` | `HasParent<"NSL_ProcOp">`, `SymbolRefAttr` | TableGen-trait + hand-written (sym ref resolves to sibling state) |
 | `nsl.state` | `NSL_StateOp` | `Symbol`, `HasParent<"NSL_ProcOp">`, one region | TableGen-trait only |
-| `nsl.func` | `NSL_FuncOp` | `Symbol`, `HasParent<"NSL_ModuleOp">` | TableGen-trait only |
+| `nsl.func` | `NSL_FuncOp` | `Symbol`, `HasParent<"NSL_ModuleOp">`; `sym_name` is `StringAttr` containing the literal dotted form per Q5 Option A' (bare-form stores `"reset"`; dotted-form e.g. `@ic.ready` stores `"ic.ready"`; cross-op refs use `FlatSymbolRefAttr` literal-match) | TableGen-trait only |
 
 ### 2.8 Procedure helper (1 op)
 
