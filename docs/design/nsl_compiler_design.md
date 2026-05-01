@@ -891,7 +891,21 @@ nsl.struct @Name { field types }     # structural type declaration
                                      # level structs (sibling of nsl.module) are
                                      # legal — matches NSL grammar (lang.ebnf §1).
 nsl.submodule @Inst : @Template
+                                     # Post-merge M4-amendment 2026-05-02 #4:
+                                     # adds OPTIONAL `array_size : I64Attr`
+                                     # — the printer emits `@Inst : @Template[N]`
+                                     # for the array form (NSL `SUB[3] inst;`);
+                                     # singleton form unchanged. M5's
+                                     # NSLExplodeSubmodArrayPass replicates each
+                                     # entry per FR-016.
 nsl.connect %sub.port, %sig          # structural wiring
+
+# Top-level integer / string parameters (per S16 + grammar §3.1)
+# Post-merge M4-amendment 2026-05-02 #4: closes the M5 US2 gap
+# (NSLResolveParamsPass slot 1 needs an IR target to consume).
+# Both Symbol-bearing; parent = mlir::ModuleOp (top-level placement).
+nsl.param_int @N      = 8            # Verilog/VHDL/SystemC submodule param_int
+nsl.param_str @WIDTH  = "8"          # Verilog/VHDL/SystemC submodule param_str
 
 # Terminal / register / memory
 nsl.reg "name" : !nsl.bits<4> = 0    # carries init attribute
@@ -1006,6 +1020,10 @@ nsl.fire_probe @ctrlName                  # control-terminal name used as 1-bit 
                                           # marker lowered later to a 1-bit tap
 nsl.structural_generate { ... }           # generate-loop carrier; unrolled by
                                           # NSLExpandGeneratePass (§9) before CIRCT lowering
+                                          # Post-merge M4-amendment 2026-05-02 #4: adds
+                                          # OPTIONAL `loop_var : StrAttr` carrying the
+                                          # loop variable name (e.g., "i") so the pass
+                                          # knows which %IDENT% residue to substitute.
 ```
 
 ### Why a dedicated dialect
@@ -1212,6 +1230,10 @@ The main lowering into CIRCT core dialects is done by a conversion pass (`NSLToC
 | `nsl.concat` (M4-amendment #2) | `comb.concat` (variadic) |
 | `nsl.extract` (M4-amendment #2) | `comb.extract` (`lowBit` IntegerAttr + result-type-derived width) |
 | `nsl.repeat` (M4-amendment #2) | `comb.replicate` (or N-fold `comb.concat`) |
+| `nsl.param_int` (M4-amendment #4) | `hw.instance` parameter wire on every consuming `hw.instance` (Verilog/VHDL/SystemC submodule param_int per S16) |
+| `nsl.param_str` (M4-amendment #4) | `hw.instance` parameter wire (string-typed) per S16 |
+| `nsl.submodule` (array form, M4-amendment #4) | per-element `hw.instance` (M5's `NSLExplodeSubmodArrayPass` replicates the singleton form before M6 lowering, so by the time `nsl→hw` runs the array form is gone) |
+| `nsl.structural_generate` (and its `loop_var` field, M4-amendment #4) | no CIRCT counterpart — fully eliminated by M5's `NSLExpandGeneratePass` before M6 lowering |
 
 After this pass the module is entirely in CIRCT's `hw`/`comb`/`seq`/`fsm`/`sv` dialects. From here, the pipeline invokes stock CIRCT passes:
 

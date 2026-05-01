@@ -58,8 +58,10 @@ vs hand-written body per Q2 Option B).
 |---|---|---|---|
 | `nsl.module` | `NSL_ModuleOp` | `Symbol`, `SymbolTable`, `SingleBlockImplicitTerminator<"ModuleTerminatorOp">`, `HasParent<"::mlir::ModuleOp">` | TableGen-trait + hand-written (`sym_name` presence; struct-field non-circularity for nested `nsl.struct` siblings) |
 | `nsl.struct` | `NSL_StructOp` | `Symbol`, `NoTerminator`, `SingleBlock`, `ParentOneOf<["::mlir::ModuleOp", "ModuleOp"]>` (post-merge amendment 2026-05-02 #3 — was `HasParent<"ModuleOp">`; relaxed so top-level structs sibling-of-`nsl.module` are legal per NSL grammar lang.ebnf §1) | TableGen-trait + hand-written (`sym_name` presence; field-list non-circular via `getNearestSymbolTable`) |
-| `nsl.submodule` | `NSL_SubmoduleOp` | `Symbol`, `HasParent<"NSL_ModuleOp">` | TableGen-trait only (`Symbol` machinery resolves the template ref) |
+| `nsl.submodule` | `NSL_SubmoduleOp` | `Symbol`, `HasParent<"NSL_ModuleOp">` | TableGen-trait only (`Symbol` machinery resolves the template ref). Post-merge amendment 2026-05-02 #4 adds `OptionalAttr<I64Attr>:$array_size` for the NSL `SUB[3] inst;` array form per FR-016; absent ⇔ singleton (existing fixtures unchanged). |
 | `nsl.connect` | `NSL_ConnectOp` | `HasParent<"NSL_ModuleOp">` | TableGen-trait + hand-written (operand-type match) |
+| `nsl.param_int` | `NSL_ParamIntOp` | `Symbol`, `HasParent<"::mlir::ModuleOp">` (post-merge amendment 2026-05-02 #4 — top-level S16 parameter, sibling of `nsl.module`) | TableGen-trait only (`Symbol` machinery handles `sym_name` presence) |
+| `nsl.param_str` | `NSL_ParamStrOp` | `Symbol`, `HasParent<"::mlir::ModuleOp">` (post-merge amendment 2026-05-02 #4 — top-level S16 parameter, sibling of `nsl.module`) | TableGen-trait only |
 
 ### 2.2 Storage (4 ops)
 
@@ -146,7 +148,7 @@ vs hand-written body per Q2 Option B).
 
 | Op | Record | Traits | Verifier style |
 |---|---|---|---|
-| `nsl.structural_generate` | `NSL_StructuralGenerateOp` | one region, loop-bound attrs | TableGen-trait + hand-written (loop-bound attr shape) |
+| `nsl.structural_generate` | `NSL_StructuralGenerateOp` | one region, loop-bound attrs (`lower`/`upper`/`step` `I64Attr` required); post-merge amendment 2026-05-02 #4 adds `OptionalAttr<StrAttr>:$loop_var` carrying the loop variable name (e.g., `"i"` for `generate(i = 0..N)`) so M5's `NSLExpandGeneratePass` knows which `%IDENT%` macro residue to substitute. Absent ⇔ existing fixtures unchanged | TableGen-trait + hand-written (loop-bound attr shape) |
 
 ### 2.12 Auto-generated terminators
 

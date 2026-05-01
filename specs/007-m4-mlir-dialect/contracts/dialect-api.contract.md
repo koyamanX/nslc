@@ -42,6 +42,8 @@ header carve-out for `nsl-ast` and `nsl-sema`).
 | `nsl::dialect::WireOp` | class | (TableGen) |
 | `nsl::dialect::VariableOp` | class | (TableGen) |
 | `nsl::dialect::MemOp` | class | (TableGen) |
+| `nsl::dialect::ParamIntOp` | class | (TableGen, post-merge amendment 2026-05-02 #4) |
+| `nsl::dialect::ParamStrOp` | class | (TableGen, post-merge amendment 2026-05-02 #4) |
 | `nsl::dialect::ConstantOp` | class | (TableGen, post-merge amendment 2026-05-01) |
 | `nsl::dialect::AddOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 1) |
 | `nsl::dialect::SubOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 1) |
@@ -111,12 +113,13 @@ header carve-out for `nsl-ast` and `nsl-sema`).
 | `nsl::dialect::MemType` | class | TableGen `def NSL_MemType` |
 | `nsl::dialect::registerNSLDialect` | function | hand-written |
 
-That's 70 op classes + 2 auto-generated terminators + 3 type
-classes + the dialect class + the registration function = **77
+That's 72 op classes + 2 auto-generated terminators + 3 type
+classes + the dialect class + the registration function = **79
 public types/functions** (post-Q6: `nsl.field_decl` added; post-merge
 amendment 2026-05-01: `nsl.constant` added; post-merge amendment
-2026-05-02 (Phase A): the 28-op expression surface added — see notes
-below).
+2026-05-02 (Phase A): the 28-op expression surface added; post-merge
+amendment 2026-05-02 (#4): `nsl.param_int` + `nsl.param_str` added —
+see notes below).
 
 > **Post-merge amendment 2026-05-01 (#1).** `nsl.constant` (a Pure +
 > ConstantLike value-producer of `!nsl.bits<N>`) was added after M4
@@ -199,6 +202,63 @@ below).
 > remain valid and continue to PASS. SC-012's "next op" baseline is
 > unchanged ("71st op"). Cross-reference:
 > `specs/008-m5-structural-passes/research.md` §17 documents the
+> M5-side reasoning.
+
+> **Post-merge amendment 2026-05-02 (#4).** Bundled three changes
+> that unblock M5 US2 + US3, all surfaced during the implementation
+> of the structural-expansion passes (`NSLResolveParamsPass`,
+> `NSLExpandGeneratePass`, `NSLExplodeSubmodArrayPass` per design §9
+> lines 1151–1154):
+>
+> 1. **Two new top-level parameter ops**: `nsl.param_int` (`I64Attr:
+>    $value`) and `nsl.param_str` (`StrAttr:$value`), both
+>    Symbol-bearing with parent = `mlir::ModuleOp` (top-level
+>    placement, sibling of `nsl.module` per S16 + grammar §3.1).
+>    M5's `NSLResolveParamsPass` slot 1 references them by
+>    `FlatSymbolRefAttr` lookup via `mlir::SymbolTable`. Without
+>    these ops, the resolve-params pass had nothing to consume.
+> 2. **Field addition to `nsl.structural_generate`**: an
+>    `OptionalAttr<StrAttr>:$loop_var` carrying the loop variable
+>    name (e.g., `"i"` from `generate(i = 0..N)`). M5's
+>    `NSLExpandGeneratePass` reads this to know which `%IDENT%`
+>    macro residue to substitute when materialising per-iteration
+>    body copies. Optional-with-empty-default preserves backward
+>    compatibility with existing fixtures.
+> 3. **Field addition to `nsl.submodule`**: an
+>    `OptionalAttr<I64Attr>:$array_size` representing the array
+>    size when the source spells `SUB[3] inst;` (NSL submodule-
+>    array form per FR-016). The printer emits `@inst : @SUB[3]`
+>    when present and `@inst : @SUB` when absent (the original M4
+>    singleton form). M5's `NSLExplodeSubmodArrayPass` slot 4
+>    consumes the array form by replicating each entry as a
+>    sibling singleton submodule.
+>
+> The user authorised four-way decision option (B) — "amend M4 to
+> add the missing primitives + field surface" — over (A) emit
+> CIRCT-side helpers directly from M5 (violates Principle III: M5
+> lowers to the `nsl` dialect, not skip ahead to CIRCT), (C) defer
+> the structural-expansion passes to M6 (semantically opaque IR),
+> (D) downgrade to stub-only ops (postpones the M5→M6 cut and
+> breaks Principle VIII test sequencing). This grows the freeze
+> surface from 77 → 79 (the two new ops only — the field
+> additions on `nsl.structural_generate` and `nsl.submodule` do
+> NOT add new op classes). Round-trip fixtures live under
+> `test/Dialect/storage/param_int_roundtrip.mlir`,
+> `test/Dialect/storage/param_str_roundtrip.mlir`,
+> `test/Dialect/storage/submodule_array_roundtrip.mlir`, and
+> `test/Dialect/expansion-only/structural_generate_loopvar_roundtrip.mlir`.
+> The pre-existing fixtures
+> (`test/Dialect/module-level/submodule_roundtrip.mlir`,
+> `test/Dialect/module-level/submodule_invalid_wrong_parent.mlir`,
+> `test/Dialect/expansion-only/structural_generate_roundtrip.mlir`,
+> `test/Dialect/expansion-only/structural_generate_invalid_bad_loop_attrs.mlir`)
+> remain valid and continue to PASS — the optional-attr defaults
+> (empty StrAttr / absent I64Attr) preserve their printed form
+> exactly. SC-012's "next op" baseline updates from "71st op" to
+> "73rd op". CIRCT-side conversion code does NOT land at M4 —
+> design §10 documents the M6 mapping per-op (Principle III
+> firewall: M4 dialect is the seam, NOT CIRCT). Cross-reference:
+> `specs/008-m5-structural-passes/research.md` §18 documents the
 > M5-side reasoning.
 
 ## 3. Registration entry-point contract

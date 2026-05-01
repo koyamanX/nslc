@@ -142,6 +142,16 @@ def NSL_SubmoduleOp : NSL_Op<"submodule", [
     `u_inner` of the sibling-module `@Inner`. Both operands are
     symbolic — the parser resolves the template via MLIR's
     `SymbolRefAttr` machinery.
+
+    Post-merge M4-amendment 2026-05-02 (#4): an OPTIONAL `array_size`
+    `I64Attr` carries the array size when the source spells
+    `SUB[3] inst;` (NSL submodule-array form). When present, the op
+    represents an array of `array_size` submodule instances; when
+    absent, a singleton (the original M4 shape). M5's
+    `NSLExplodeSubmodArrayPass` (slot 4 per design §9) consumes
+    the array form per FR-016, replicating each entry as a sibling
+    singleton submodule. The printer emits `@inst : @SUB[3]` for
+    the array form and `@inst : @SUB` for the singleton form.
   }];
   let arguments = (ins
     SymbolNameAttr:$sym_name,
@@ -149,8 +159,11 @@ def NSL_SubmoduleOp : NSL_Op<"submodule", [
     // C++ reserved keyword and TableGen emits per-attribute getter/
     // setter / property-storage members that fail to compile when
     // the attribute name collides with reserved keywords.
-    FlatSymbolRefAttr:$templateRef);
-  let assemblyFormat = "$sym_name `:` $templateRef attr-dict";
+    FlatSymbolRefAttr:$templateRef,
+    OptionalAttr<I64Attr>:$array_size);
+  let assemblyFormat = [{
+    $sym_name `:` $templateRef (`[` $array_size^ `]`)? attr-dict
+  }];
 }
 
 def NSL_ConnectOp : NSL_Op<"connect", [
@@ -166,6 +179,60 @@ def NSL_ConnectOp : NSL_Op<"connect", [
   let arguments = (ins NSL_BitsOrStruct:$dst, NSL_BitsOrStruct:$src);
   let assemblyFormat = "$dst `,` $src `:` type($dst) attr-dict";
   let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// 2.1bis Top-level parameter ops (2): nsl.param_int, nsl.param_str
+//===----------------------------------------------------------------------===//
+//
+// Post-merge M4-amendment 2026-05-02 (#4) — bundled. M5 US2 + US3
+// surfaced a structural gap: NSL grammar (lang.ebnf §3.1) places
+// `param_int N = 8;` / `param_str WIDTH = "8";` at compilation-unit
+// top level (sibling of `module B { ... }` / `struct S { ... }` per
+// S16); the M4 dialect (post-merge surface 77) carried no top-level
+// parameter ops, leaving M5's `NSLResolveParamsPass` (slot 1 per
+// design §9 line 1151) with no IR target to consume. The user
+// authorised four-way decision option (B) — "amend M4 to add the
+// missing primitives" — over (A) emit `hw.constant` + custom-cast
+// helpers (violates Principle III: M5 lowers to the `nsl` dialect),
+// (C) defer the resolve-params pass to M6 (semantically opaque IR),
+// (D) downgrade to a stub. The two ops are top-level placement
+// (parent = `mlir::ModuleOp`) and Symbol-bearing so M5's resolve-
+// params pass can look them up by name via `mlir::SymbolTable`.
+// CIRCT-side conversion code does NOT land at M4 — design §10
+// documents the M6 mapping per-op (Principle III firewall: M4
+// dialect is the seam, NOT CIRCT). Cross-reference:
+// `specs/008-m5-structural-passes/research.md` §18.
+
+def NSL_ParamIntOp : NSL_Op<"param_int", [
+    Symbol,
+    HasParent<"::mlir::ModuleOp">]> {
+  let summary = "An NSL integer parameter (Verilog/VHDL/SystemC submodule param_int).";
+  let description = [{
+    `nsl.param_int @sym_name = value` declares a top-level integer
+    parameter used by Verilog/VHDL/SystemC submodules per S16. Value
+    is an `I64Attr`; consumed at M5's `NSLResolveParamsPass` slot 1
+    (per design §9), which resolves operand-side `FlatSymbolRefAttr`
+    references to the `sym_name` and replaces them with `nsl.constant`
+    SSA values. Top-level placement (sibling of `nsl.module`) per S16
+    + grammar §3.1.
+  }];
+  let arguments = (ins SymbolNameAttr:$sym_name, I64Attr:$value);
+  let assemblyFormat = "$sym_name `=` $value attr-dict";
+}
+
+def NSL_ParamStrOp : NSL_Op<"param_str", [
+    Symbol,
+    HasParent<"::mlir::ModuleOp">]> {
+  let summary = "An NSL string parameter (Verilog/VHDL/SystemC submodule param_str).";
+  let description = [{
+    `nsl.param_str @sym_name = "value"` declares a top-level string
+    parameter per S16. Symmetric to `nsl.param_int`; consumed by M5's
+    `NSLResolveParamsPass`. Top-level placement (sibling of
+    `nsl.module`) per S16 + grammar §3.1.
+  }];
+  let arguments = (ins SymbolNameAttr:$sym_name, StrAttr:$value);
+  let assemblyFormat = "$sym_name `=` $value attr-dict";
 }
 
 //===----------------------------------------------------------------------===//
@@ -1089,11 +1156,20 @@ def NSL_StructuralGenerateOp : NSL_Op<"structural_generate",
   let description = [{
     Carries `lower` / `upper` / `step` integer attributes describing
     the expansion bounds; consumed by M5's `NSLExpandGeneratePass`.
+
+    Post-merge M4-amendment 2026-05-02 (#4): an OPTIONAL
+    `loop_var` `StrAttr` carries the loop variable name (e.g., `"i"`
+    from `generate(i = 0..N)`). M5's `NSLExpandGeneratePass` reads
+    this to know which `%IDENT%` macro residue to substitute when
+    materialising the per-iteration body. Empty-string default
+    preserves backward compatibility with existing fixtures that
+    omit the attribute.
   }];
   let arguments = (ins
     I64Attr:$lower,
     I64Attr:$upper,
-    I64Attr:$step);
+    I64Attr:$step,
+    OptionalAttr<StrAttr>:$loop_var);
   let regions = (region SizedRegion<1>:$body);
   let assemblyFormat = "attr-dict-with-keyword $body";
   let hasVerifier = 1;

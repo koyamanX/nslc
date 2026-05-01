@@ -826,6 +826,134 @@ which round-trips a top-level struct that is referenced by a sibling
 
 ---
 
+## 18. M4-amendment 2026-05-02 (#4): bundled US2 + US3 unblock
+
+**Decision**: Amend M4 (a fourth time) — bundled — to:
+
+1. **Add two new top-level parameter ops**: `nsl.param_int`
+   (`I64Attr:$value`) and `nsl.param_str` (`StrAttr:$value`), both
+   Symbol-bearing with parent = `mlir::ModuleOp` (top-level
+   placement, sibling of `nsl.module` per S16 + grammar §3.1).
+2. **Add `OptionalAttr<StrAttr>:$loop_var` to
+   `nsl.structural_generate`**: carries the loop variable name
+   (e.g., `"i"` from `generate(i = 0..N)`).
+3. **Add `OptionalAttr<I64Attr>:$array_size` to `nsl.submodule`**:
+   carries the array size when the source spells `SUB[3] inst;`
+   (NSL submodule-array form per FR-016).
+
+**Why this is in the M5 research file** (rather than only M4): the
+gaps were surfaced during M5 implementation. (1) was surfaced when
+US2's `NSLResolveParamsPass` slot 1 implementation reached the
+contract author's pen and needed an IR target — six M5 contracts
+referenced `nsl.param_int` / `nsl.param_str` ops that didn't exist
+in the M4 freeze surface. (2) was surfaced when M5's
+`NSLExpandGeneratePass` realised the bare `lower`/`upper`/`step`
+attrs (per amendment-cluster heritage) carried no loop-variable name
+to substitute for `%IDENT%` residue in the per-iteration body
+copies. (3) was surfaced by US3 design — `NSLExplodeSubmodArrayPass`
+slot 4 needs an array-form input shape per FR-016, but the M4
+`nsl.submodule` only spelled the singleton form. Recording the
+four-way decision here keeps the implementation history honest about
+the *fourth* M4 amendment.
+
+**Four-way decision** (user-authorised option (B)):
+
+- *(A) Emit CIRCT-side helpers directly from M5* — Rejected.
+  Violates Principle III's architectural seam: M5 lowers AST →
+  `nsl` dialect; the dialect must contain everything M5 produces.
+  CIRCT-side mapping lives at M6 per design §10.
+- *(B) Amend M4 with the bundled three changes* — **CHOSEN.**
+  Two new ops + two OptionalAttr additions. Existing fixtures
+  (`test/Dialect/module-level/submodule_roundtrip.mlir`,
+  `test/Dialect/module-level/submodule_invalid_wrong_parent.mlir`,
+  `test/Dialect/expansion-only/structural_generate_roundtrip.mlir`,
+  `test/Dialect/expansion-only/structural_generate_invalid_bad_loop_attrs.mlir`)
+  continue to verify and round-trip — the optional-attr defaults
+  (empty StrAttr / absent I64Attr) preserve their printed form
+  exactly. Freeze surface grows 77 → 79 (the two new ops only —
+  field additions on existing ops do NOT add new op classes).
+- *(C) Defer the structural-expansion passes to M6* — Rejected.
+  Breaks the M5→M6 cut: `-emit=mlir` would emit semantically
+  opaque IR with `%IDENT%` residue, undermining the inspectability
+  guarantee in Principle V.
+- *(D) Downgrade to stub-only ops* — Rejected. Postpones the
+  M5→M6 cut and breaks Principle VIII test sequencing (FileCheck
+  fixtures need the real IR shape, not stubs).
+
+**Backward-compatibility guarantee**: The OptionalAttr additions
+preserve existing fixtures byte-for-byte. `OptionalAttr<StrAttr>`
+prints nothing (and parses absent) by default; an existing
+`nsl.structural_generate attributes {lower = 0, upper = 8, step = 1}`
+form prints exactly as it always did. `OptionalAttr<I64Attr>` with
+the assemblyFormat `(`[` $array_size^ `]`)?` prints nothing when the
+attr is absent; an existing `nsl.submodule @inst : @SUB` continues
+to print as `nsl.submodule @inst : @SUB`. Confirmed end-to-end:
+prior to this amendment 471/471 lit PASS; after this amendment
+475/475 lit PASS (471 baseline preserved + 4 new round-trip
+fixtures); 32/32 m5_smoke.sh ROUND-TRIP PASS unchanged.
+
+**Why bundle?**: the three changes are individually small but
+share a single cross-cutting motivation (M5 US2 + US3 implementation
+contract author needs the M4 IR surface to refer to). Splitting
+into three amendments would triple the documentation churn for
+zero technical benefit; bundling matches the precedent set by
+amendment cluster commits during the original M4 phase.
+
+**Cost paid by this amendment**:
+
+- `lib/Dialect/NSL/IR/NSLOps.td` — two new op records (`nsl.param_int`,
+  `nsl.param_str`) + two OptionalAttr additions
+  (`structural_generate.loop_var`, `submodule.array_size`) + a custom
+  assemblyFormat clause on `nsl.submodule` for the bracketed array-
+  size form. ~60 LOC including documentation comments.
+- No verifier-body amendment. The two new ops are Symbol-bearing
+  with `HasParent<"::mlir::ModuleOp">` — the trait machinery handles
+  the structural invariants. The OptionalAttr additions are
+  consumed at M5 pass time, not at M4 verifier time.
+- Four new round-trip fixtures (~80 LOC).
+- `specs/007-m4-mlir-dialect/contracts/dialect-api.contract.md` §2
+  — post-merge amendment #4 note appended; freeze surface 77 → 79;
+  ParamIntOp + ParamStrOp added to the symbol-export table.
+- `specs/007-m4-mlir-dialect/spec.md` — Clarifications session
+  2026-05-02 amendment #4 entry recording the four-way decision.
+- `specs/008-m5-structural-passes/spec.md` Assumptions bullet —
+  M4-frozen-count update 77 → 79.
+- `docs/design/nsl_compiler_design.md` §7 op summary — two new ops
+  added; field annotations on existing op rows.
+- `docs/design/nsl_compiler_design.md` §10 mapping table —
+  `nsl.param_int` → submodule parameter on `hw.instance`; the
+  array-form `nsl.submodule` maps to per-element `hw.instance`;
+  `structural_generate.loop_var` has no CIRCT counterpart since
+  `nsl.structural_generate` is M5-eliminated.
+
+**Constraints honoured**:
+
+- No RTTI: trait machinery is TableGen-emitted; no `dyn_cast`-on-
+  Operation-pointer code introduced.
+- Determinism: OptionalAttr printer/parser is deterministic; new op
+  printer/parser is deterministic (verified via two-pass
+  `nsl-opt %.mlir | nsl-opt - | diff`).
+- Round-trip: every new fixture is a fixed point under
+  `nsl-opt %s | nsl-opt -` (verified locally).
+- Principle III firewall: pure dialect-internal additions; no
+  CIRCT-mapping code added at M4 (design §10 documents the M6
+  mapping but no compile-time codegen).
+- Principle VII coupling: spec / contract / data-model / research /
+  design updates land in the same commit as the code edit.
+
+**Cross-references**:
+
+- M4 spec: `specs/007-m4-mlir-dialect/spec.md` Clarifications
+  session 2026-05-02 amendment #4.
+- M4 contract: `specs/007-m4-mlir-dialect/contracts/
+  dialect-api.contract.md` §2 post-merge note #4 (count 77 → 79).
+- Design: `docs/design/nsl_compiler_design.md` §7 op summary +
+  §10 mapping table.
+- M5 spec: `specs/008-m5-structural-passes/spec.md` Assumptions
+  bullet for the M4-frozen op count.
+
+---
+
 ## Cross-references
 
 - Spec: [`spec.md`](./spec.md) (FR-001 … FR-031, SC-001 … SC-012)
