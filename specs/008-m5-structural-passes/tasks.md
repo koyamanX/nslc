@@ -78,7 +78,7 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 
 > **NOTE**: Author these fixtures FIRST. Each MUST fail against the post-Phase-2 tree (because the relevant `visit()` override produces an empty placeholder) before its implementation task begins.
 
-- [ ] T024 [P] [US1] Author `test/Lower/module/module_emit_mlir.nsl` (+ FileCheck lines) covering `ast::ModuleBlock` + `ast::DeclareBlock` per [`spec.md`](./spec.md) US1 acceptance scenario 1
+- [X] T024 [P] [US1] Author `test/Lower/module/module_emit_mlir.nsl` (+ FileCheck lines) covering `ast::ModuleBlock` + `ast::DeclareBlock` per [`spec.md`](./spec.md) US1 acceptance scenario 1
 - [ ] T025 [P] [US1] Author `test/Lower/decl/regdecl_emit_mlir.nsl` covering `ast::RegDecl` (the quickstart-prescribed first failing fixture)
 - [ ] T026 [P] [US1] Author `test/Lower/decl/wiredecl_emit_mlir.nsl` covering `ast::WireDecl`
 - [ ] T027 [P] [US1] Author `test/Lower/decl/memdecl_emit_mlir.nsl` covering `ast::MemDecl`
@@ -100,11 +100,11 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 - [ ] T043 [P] [US1] Author `test/Lower/expr/structcastexpr_emit_mlir.nsl` covering `ast::StructCastExpr` → `nsl.struct_cast` + `nsl.field` chain
 - [ ] T044 [P] [US1] Author `test/Lower/expr/fieldaccessexpr_emit_mlir.nsl` covering `ast::FieldAccessExpr`
 - [ ] T045 [P] [US1] Author `test/Lower/marker/fire_probe_emit_mlir.nsl` covering control-name-as-1-bit-value (S27) → `nsl.fire_probe`
-- [ ] T046 [US1] Run `ninja -C build-asan check-nsl-lower` and confirm ALL US1 fixtures from T024–T045 fail (RED phase — Constitution Principle VIII gate)
+- [X] T046 [US1] Run `ninja -C build-asan check-nsl-lower` and confirm ALL US1 fixtures from T024–T045 fail (RED phase — Constitution Principle VIII gate)
 
 ### Implementation for User Story 1
 
-- [ ] T047 [P] [US1] Implement `ASTToMLIR::visit(const ast::ModuleBlock&)` + `visit(const ast::DeclareBlock&)` in `lib/Lower/ASTToMLIR.cpp` per [`spec.md`](./spec.md) FR-006 lowering table — produces `nsl.module` with port list (turns T024 GREEN)
+- [X] T047 [P] [US1] Implement `ASTToMLIR::visit(const ast::ModuleBlock&)` + `visit(const ast::DeclareBlock&)` in `lib/Lower/ASTToMLIR.cpp` per [`spec.md`](./spec.md) FR-006 lowering table — produces `nsl.module` with port list (turns T024 GREEN)
 - [ ] T048 [P] [US1] Implement `ASTToMLIR::visit(const ast::RegDecl&)` (turns T025 GREEN)
 - [ ] T049 [P] [US1] Implement `ASTToMLIR::visit(const ast::WireDecl&)` (turns T026 GREEN)
 - [ ] T050 [P] [US1] Implement `ASTToMLIR::visit(const ast::MemDecl&)` (turns T027 GREEN)

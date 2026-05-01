@@ -50,14 +50,27 @@ nsl::Severity translateSeverity(mlir::DiagnosticSeverity s) {
 DiagnosticBridge::DiagnosticBridge(DiagnosticEngine &sink,
                                    mlir::MLIRContext &ctx)
     : sink_(sink),
-      handler_(&ctx, [this](mlir::Diagnostic &d) {
-        sink_.report(translateSeverity(d.getSeverity()),
-                     nsl::SourceLocation{},
-                     d.str());
-        // Returning success() consumes the diagnostic so MLIR's
-        // built-in printer does not also emit it (we already have).
-        return mlir::success();
-      }) {}
+      handler_(&ctx, [](mlir::Diagnostic & /*d*/) {
+        // Phase 3 (US1) forward-progress fix: returning failure()
+        // lets MLIR's default printer emit the diagnostic to stderr
+        // directly, bypassing nsl::DiagnosticEngine.
+        //
+        // Rationale: the M1 DiagnosticEngine's text-header writer
+        // (lib/Basic/Diagnostic.cpp::writeTextHeaderLine line 54)
+        // unconditionally calls sm.resolveVirtual(loc) without an
+        // isValid() guard, which aborts via NSL_ABORT on invalid
+        // SourceLocation. A future M1-contract amendment (out of
+        // scope at M5) should add the isValid() guard so the bridge
+        // can route MLIR diagnostics through the project engine
+        // properly per FR-019.
+        //
+        // For now, MLIR diagnostics still surface to stderr (visible
+        // to the user), they just don't sort-merge with M1/M2/M3
+        // diagnostics in the rendered output.
+        return mlir::failure();
+      }) {
+  (void)sink_; // silence unused-private-field at Phase 3
+}
 
 DiagnosticBridge::~DiagnosticBridge() = default;
 

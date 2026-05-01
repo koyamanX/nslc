@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/module/empty_module_emit_mlir.nsl — US1 fixture covering
+// `ast::ModuleBlock` (empty body). Per US1 acceptance scenario 1
+// + FR-006 lowering table row 1.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module Empty {
+}
+
+// CHECK: module {
+// CHECK-NEXT: nsl.module @Empty {
+// CHECK-NEXT: }
+// CHECK-NEXT: }
