@@ -20,6 +20,7 @@
 #include "nsl/AST/LiteralExpr.h"
 #include "nsl/AST/MemDecl.h"
 #include "nsl/AST/ModuleBlock.h"
+#include "nsl/AST/ProcDefn.h"
 #include "nsl/AST/RegDecl.h"
 #include "nsl/AST/WireDecl.h"
 #include "nsl/Dialect/NSL/IR/NSLDialect.h"
@@ -106,10 +107,23 @@ void ASTToMLIR::visit(const ast::ModuleBlock &node) {
   for (const auto &decl : node.internals()) {
     decl->accept(*this);
   }
-  // actions/funcs/procs lowering arrives in subsequent US1 sub-tasks
-  // (T053, T054, T056). At Phase 3 they're skipped here; the visitor
-  // remains correct because the body region is well-formed (single
-  // block) regardless of whether internals are non-empty.
+  // Recurse into procs at the same insertion point. Funcs and
+  // top-level actions arrive in later US1 sub-tasks (T051, T053).
+  for (const auto &proc : node.procs()) {
+    proc->accept(*this);
+  }
+}
+
+void ASTToMLIR::visit(const ast::ProcDefn &node) {
+  // FR-006 row "ProcDefn → nsl.proc @p { ... }". Body Stmt
+  // recursion arrives in T052 (state-defn / first-state / goto
+  // visitors). At Phase 3 we emit just the proc shell with an
+  // empty entry block; the M4 verifier accepts SingleBlock +
+  // NoTerminator on an empty block.
+  auto loc = builder_.getUnknownLoc();
+  auto proc_op = nsl::dialect::ProcOp::create(
+      builder_, loc, builder_.getStringAttr(node.name()));
+  proc_op.getBody().emplaceBlock();
 }
 
 void ASTToMLIR::visit(const ast::RegDecl &node) {
@@ -165,7 +179,6 @@ STUB(FirstStateDecl)
 STUB(SubmoduleDecl)
 STUB(StructInstDecl)
 STUB(FuncDefn)
-STUB(ProcDefn)
 STUB(StateDefn)
 
 STUB(TransferStmt)

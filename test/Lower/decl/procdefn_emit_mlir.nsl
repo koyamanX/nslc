@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/decl/procdefn_emit_mlir.nsl — US1 fixture covering
+// `ast::ProcDefn`. Per FR-006 lowering table row "ProcDefn → nsl.proc
+// @p { ... }". At Phase 3 the proc body's state defns lower as
+// no-op stubs (visit(StateDefn) lands later in T052); the proc
+// shell verifies clean.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  proc_name p;
+  proc p {
+    state_name s0;
+    state s0 { }
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.proc @p
