@@ -16,6 +16,7 @@
 #include "ASTToMLIR.h"
 
 #include "nsl/AST/BareFinishStmt.h"
+#include "nsl/AST/BinaryExpr.h"
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/ControlCallStmt.h"
 #include "nsl/AST/DelayTaskStmt.h"
@@ -484,7 +485,96 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr) {
     }
     return it->getValue();
   }
-  // Other expression-position kinds (Binary/Unary/Conditional/Slice/
+  if (expr->kind() == ast::BinaryExpr::kKind) {
+    // FR-007 row "BinaryExpr → nsl.<op>" per the M4 expression-op
+    // surface frozen at 77 (post-amendment cluster 1+2+3+4). LHS/RHS
+    // recurse through `lowerExpr`. Six trait-shapes drive the create
+    // signature:
+    //   - arith / bitwise / shift: `Pure + SameOperandsAndResultType`
+    //     create(loc, lhs, rhs) — result type inferred from operands.
+    //   - comparison + logical (`==`/`!=`/`<`/`<=`/`>`/`>=`/`&&`/`||`):
+    //     `Pure + SameTypeOperands`, result is `!nsl.bits<1>`. The
+    //     create overload is create(loc, resultType, lhs, rhs).
+    // `Div` and `Mod` from the AST enum have no M4 counterpart (the
+    // M4 surface omits them); soft-fail per FR-010 — Sema-clean
+    // inputs upstream of M5 wouldn't surface those at this layer.
+    const auto *bin = static_cast<const ast::BinaryExpr *>(expr);
+    auto lhs_val = lowerExpr(bin->lhs());
+    auto rhs_val = lowerExpr(bin->rhs());
+    if (!lhs_val || !rhs_val) {
+      return {};
+    }
+    auto loc = builder_.getUnknownLoc();
+    auto bits1_ty = nsl::dialect::BitsType::get(&ctx_, /*width=*/1);
+    using BO = ast::BinaryExpr::Op;
+    switch (bin->op()) {
+    // SameOperandsAndResultType: result type inferred from operands.
+    case BO::Add:
+      return nsl::dialect::AddOp::create(builder_, loc, lhs_val, rhs_val)
+          .getResult();
+    case BO::Sub:
+      return nsl::dialect::SubOp::create(builder_, loc, lhs_val, rhs_val)
+          .getResult();
+    case BO::Mul:
+      return nsl::dialect::MulOp::create(builder_, loc, lhs_val, rhs_val)
+          .getResult();
+    case BO::BitAnd:
+      return nsl::dialect::AndOp::create(builder_, loc, lhs_val, rhs_val)
+          .getResult();
+    case BO::BitOr:
+      return nsl::dialect::OrOp::create(builder_, loc, lhs_val, rhs_val)
+          .getResult();
+    case BO::BitXor:
+      return nsl::dialect::XorOp::create(builder_, loc, lhs_val, rhs_val)
+          .getResult();
+    case BO::ShiftLeft:
+      return nsl::dialect::ShlOp::create(builder_, loc, lhs_val, rhs_val)
+          .getResult();
+    case BO::ShiftRight:
+      return nsl::dialect::ShrOp::create(builder_, loc, lhs_val, rhs_val)
+          .getResult();
+    // SameTypeOperands; result is !nsl.bits<1>.
+    case BO::Equal:
+      return nsl::dialect::EqOp::create(builder_, loc, bits1_ty, lhs_val,
+                                         rhs_val)
+          .getResult();
+    case BO::NotEqual:
+      return nsl::dialect::NeOp::create(builder_, loc, bits1_ty, lhs_val,
+                                         rhs_val)
+          .getResult();
+    case BO::Less:
+      return nsl::dialect::LtOp::create(builder_, loc, bits1_ty, lhs_val,
+                                         rhs_val)
+          .getResult();
+    case BO::LessEqual:
+      return nsl::dialect::LeOp::create(builder_, loc, bits1_ty, lhs_val,
+                                         rhs_val)
+          .getResult();
+    case BO::Greater:
+      return nsl::dialect::GtOp::create(builder_, loc, bits1_ty, lhs_val,
+                                         rhs_val)
+          .getResult();
+    case BO::GreaterEqual:
+      return nsl::dialect::GeOp::create(builder_, loc, bits1_ty, lhs_val,
+                                         rhs_val)
+          .getResult();
+    case BO::LogicalAnd:
+      return nsl::dialect::LandOp::create(builder_, loc, bits1_ty, lhs_val,
+                                           rhs_val)
+          .getResult();
+    case BO::LogicalOr:
+      return nsl::dialect::LorOp::create(builder_, loc, bits1_ty, lhs_val,
+                                          rhs_val)
+          .getResult();
+    case BO::Div:
+    case BO::Mod:
+      // No M4 op for these; soft-fail per FR-010 (Sema would have
+      // caught the absence of the lowering at the source layer).
+      return {};
+    }
+    return {};
+  }
+  // Other expression-position kinds (Unary/Conditional/Slice/
   // Concat/Repeat/SignExtend/ZeroExtend/FieldAccess/Call/IncDec/
   // StructCast/SystemVar) — T055.
   return {};
@@ -503,6 +593,13 @@ void ASTToMLIR::visit(const ast::LiteralExpr &node) {
 void ASTToMLIR::visit(const ast::IdentifierExpr &node) {
   // Visitor entry-point form (cf. `visit(LiteralExpr)`). Pure value
   // — no IR emitted at the current insertion point.
+  (void)lowerExpr(&node);
+}
+
+void ASTToMLIR::visit(const ast::BinaryExpr &node) {
+  // Visitor entry-point form (cf. `visit(LiteralExpr)`). The actual
+  // dispatch into the per-operator `nsl.<op>` lowering is in
+  // `lowerExpr` — callers wanting an `mlir::Value` route through it.
   (void)lowerExpr(&node);
 }
 
@@ -612,7 +709,6 @@ STUB(StructuralGenerate)
 
 STUB(SystemVarExpr)
 STUB(UnaryExpr)
-STUB(BinaryExpr)
 STUB(ConditionalExpr)
 STUB(ConcatExpr)
 STUB(RepeatExpr)
