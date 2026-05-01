@@ -49,6 +49,10 @@
     { "name": "nsl.gt",                    "category": "expr",             "invariants": ["result-type-bits1"] },
     { "name": "nsl.ge",                    "category": "expr",             "invariants": ["result-type-bits1"] },
     { "name": "nsl.land",                  "category": "expr",             "invariants": ["result-type-bits1", "operand-width-1"] },
-    { "name": "nsl.lor",                   "category": "expr",             "invariants": ["result-type-bits1", "operand-width-1"] }
+    { "name": "nsl.lor",                   "category": "expr",             "invariants": ["result-type-bits1", "operand-width-1"] },
+    { "name": "nsl.lnot",                  "category": "expr",             "invariants": ["result-type-bits1", "operand-width-1"] },
+    { "name": "nsl.reduce_and",            "category": "expr",             "invariants": ["result-type-bits1"] },
+    { "name": "nsl.reduce_or",             "category": "expr",             "invariants": ["result-type-bits1"] },
+    { "name": "nsl.reduce_xor",            "category": "expr",             "invariants": ["result-type-bits1"] }
   ]
 }

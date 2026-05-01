@@ -441,6 +441,97 @@ def NSL_LorOp : NSL_BinaryCmpOp<"lor", [Commutative]> {
 }
 
 //===----------------------------------------------------------------------===//
+// 2.2quinque Expression-unary ops (Phase A cluster 5 of post-merge
+//            M4-amendment 2026-05-02 — option (B)).
+//
+// Two shapes:
+//   (a) Same-operand-and-result-type: bitwise NOT (`~`), unary minus (`-`).
+//       Trait-covered by `Pure + SameOperandsAndResultType`; no
+//       hand-written verifier.
+//   (b) Width-1-result: logical NOT (`!`), reduction `& | ^`. Operand
+//       width is N, result width is 1. Hand-written verifier asserts
+//       result is `!nsl.bits<1>`; for `nsl.lnot` the operand must also
+//       be width-1 (logical NOT's operand is boolean per N2).
+//
+// Negated reductions (`~&`, `~|`, `~^` from §11 line 635) decompose at
+// M5 lowering into a reduction + `nsl.not`; not surfaced as
+// dedicated ops at M4 to keep the surface minimal.
+//
+// Unary plus (§11 line 629) is a no-op identity — M5 lowering drops
+// it entirely; no dialect op needed.
+//===----------------------------------------------------------------------===//
+
+class NSL_UnaryArithOp<string mnemonic>
+    : NSL_Op<mnemonic, [Pure, SameOperandsAndResultType]> {
+  let arguments = (ins NSL_AnyBits:$operand);
+  let results = (outs NSL_AnyBits:$result);
+  let assemblyFormat = "$operand `:` type($result) attr-dict";
+}
+
+def NSL_NotOp : NSL_UnaryArithOp<"not"> {
+  let summary = "Bitwise NOT (NSL `~`).";
+  let description = [{
+    `nsl.not %a : !nsl.bits<N>` — bitwise complement (every bit flipped).
+    Lowers to `comb.xor %a, all-ones` at M6 per design §10.
+  }];
+}
+
+def NSL_NegOp : NSL_UnaryArithOp<"neg"> {
+  let summary = "Two's-complement negation (NSL unary `-`).";
+  let description = [{
+    `nsl.neg %a : !nsl.bits<N>` — two's-complement negation; equivalent
+    to `(0 - %a)` modulo 2^N. Lowers to `comb.sub 0, %a` at M6.
+  }];
+}
+
+class NSL_UnaryReduceOp<string mnemonic>
+    : NSL_Op<mnemonic, [Pure]> {
+  let arguments = (ins NSL_AnyBits:$operand);
+  let results = (outs NSL_AnyBits:$result);
+  let assemblyFormat = [{
+    $operand `:` type($operand) `->` type($result) attr-dict
+  }];
+  let hasVerifier = 1;
+}
+
+def NSL_LnotOp : NSL_UnaryReduceOp<"lnot"> {
+  let summary = "Logical NOT (NSL `!`).";
+  let description = [{
+    `nsl.lnot %a : !nsl.bits<1> -> !nsl.bits<1>`. Operand and result are
+    both width-1; the verifier rejects wider operands (those are NSL
+    Sema's domain at M3 — but the dialect surfaces them here for
+    symmetry with `nsl.land` / `nsl.lor`). Lowers to `comb.icmp eq %a, 0`
+    at M6.
+  }];
+}
+
+def NSL_ReduceAndOp : NSL_UnaryReduceOp<"reduce_and"> {
+  let summary = "Reduction AND (NSL `&` prefix per §11 line 634).";
+  let description = [{
+    `nsl.reduce_and %a : !nsl.bits<N> -> !nsl.bits<1>` — true iff every
+    bit of `%a` is 1. Lowers to `comb.icmp eq %a, all-ones` at M6
+    (CIRCT has no dedicated reduction-AND op; the equality-with-all-ones
+    is the canonical form).
+  }];
+}
+
+def NSL_ReduceOrOp : NSL_UnaryReduceOp<"reduce_or"> {
+  let summary = "Reduction OR (NSL `|` prefix per §11 line 634).";
+  let description = [{
+    `nsl.reduce_or %a : !nsl.bits<N> -> !nsl.bits<1>` — true iff any
+    bit of `%a` is 1. Lowers to `comb.icmp ne %a, 0` at M6.
+  }];
+}
+
+def NSL_ReduceXorOp : NSL_UnaryReduceOp<"reduce_xor"> {
+  let summary = "Reduction XOR / parity (NSL `^` prefix per §11 line 634).";
+  let description = [{
+    `nsl.reduce_xor %a : !nsl.bits<N> -> !nsl.bits<1>` — XOR-fold of all
+    bits of `%a` (parity). Lowers to `comb.parity` at M6.
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // 2.3 Control-terminal ops (3): nsl.func_in, nsl.func_out, nsl.func_self
 //===----------------------------------------------------------------------===//
 

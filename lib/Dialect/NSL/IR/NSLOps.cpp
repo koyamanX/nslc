@@ -391,6 +391,24 @@ mlir::LogicalResult LorOp::verify() {
   return verifyLogicalOpOperandsWidth1(*this, getLhs().getType());
 }
 
+// Cluster 5 — unary reductions + logical-NOT. Trait-covered unary ops
+// (`nsl.not`, `nsl.neg`) have no hand-written body.
+mlir::LogicalResult LnotOp::verify() {
+  if (mlir::failed(verifyResultIsBits1(*this, getResult().getType()))) {
+    return mlir::failure();
+  }
+  return verifyLogicalOpOperandsWidth1(*this, getOperand().getType());
+}
+mlir::LogicalResult ReduceAndOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+mlir::LogicalResult ReduceOrOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+mlir::LogicalResult ReduceXorOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+
 // ===========================================================================
 // 2.4 Action-block verifiers
 // ===========================================================================
