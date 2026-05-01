@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/stmt/systemtaskstmt_delay_emit_mlir.nsl — US1 fixture
+// covering `ast::DelayTaskStmt`. Per FR-006 row "SystemTaskStmt ×
+// {..., _delay} → ... / nsl.sim_delay". `_delay(N)` reaches the
+// AST as the dedicated `DelayTaskStmt` node (per ParseStmt.cpp:
+// 1159–1160). `nsl.sim_delay` accepts `ParentOneOf<["ModuleOp",
+// "SimInitOp"]>`; the canonical placement (mirroring
+// `test/Dialect/system-task/sim_delay_roundtrip.mlir`) is inside
+// an `_init { ... }` block.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+declare M simulation { }
+module M {
+  _init {
+    _delay(10);
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.sim_init
+// CHECK-NEXT: nsl.sim_delay 10

@@ -17,9 +17,11 @@
 
 #include "nsl/AST/BareFinishStmt.h"
 #include "nsl/AST/CompilationUnit.h"
+#include "nsl/AST/DelayTaskStmt.h"
 #include "nsl/AST/Expr.h"
 #include "nsl/AST/FirstStateDecl.h"
 #include "nsl/AST/FuncDefn.h"
+#include "nsl/AST/InitBlockStmt.h"
 #include "nsl/AST/LiteralExpr.h"
 #include "nsl/AST/MemDecl.h"
 #include "nsl/AST/ModuleBlock.h"
@@ -87,6 +89,29 @@ unsigned resolveWidth(const ast::Expr *width_expr) {
     value = value * 10 + static_cast<unsigned>(c - '0');
   }
   return value == 0 ? 1 : value;
+}
+
+/// Resolve a decimal-literal `Expr` to an `int64_t`. Phase 3 helper
+/// used for op-attribute integer payloads (e.g., `nsl.sim_delay
+/// $cycles`); richer int evaluation (param refs, hex/bin, sized
+/// literals) lands with the expression sub-visitor (T055). Returns
+/// 0 if the expression is not a parseable decimal literal.
+int64_t resolveDecimalLiteral(const ast::Expr *expr) {
+  if (!expr || expr->kind() != ast::LiteralExpr::kKind) {
+    return 0;
+  }
+  const auto *lit = static_cast<const ast::LiteralExpr *>(expr);
+  if (lit->litKind() != ast::LiteralExpr::Lit::Decimal) {
+    return 0;
+  }
+  int64_t value = 0;
+  for (char c : lit->spelling()) {
+    if (c < '0' || c > '9') {
+      return 0;
+    }
+    value = value * 10 + static_cast<int64_t>(c - '0');
+  }
+  return value;
 }
 
 } // namespace
@@ -265,6 +290,35 @@ void ASTToMLIR::visit(const ast::MemDecl &node) {
                                     builder_.getStringAttr(node.name()));
 }
 
+void ASTToMLIR::visit(const ast::InitBlockStmt &node) {
+  // FR-006 row "SystemTaskStmt × {..., _init, ...} → ... /
+  // nsl.sim_init / ...". `_init { ... }` reaches the AST as the
+  // dedicated `InitBlockStmt` (per ParseStmt.cpp:1156-1157).
+  // `nsl.sim_init` requires `HasParent<"ModuleOp">` (S29 enforced
+  // upstream by Sema). Body items recurse into the new region.
+  auto loc = builder_.getUnknownLoc();
+  auto init_op = nsl::dialect::SimInitOp::create(builder_, loc);
+  auto &body_block = init_op.getBody().emplaceBlock();
+  mlir::OpBuilder::InsertionGuard guard(builder_);
+  builder_.setInsertionPointToStart(&body_block);
+  for (const auto &item : node.items()) {
+    item->accept(*this);
+  }
+}
+
+void ASTToMLIR::visit(const ast::DelayTaskStmt &node) {
+  // FR-006 row "SystemTaskStmt × {..., _delay} → ... / nsl.sim_delay".
+  // `_delay(N)` reaches the AST as the dedicated `DelayTaskStmt`
+  // (per ParseStmt.cpp:1159-1160). `nsl.sim_delay` carries an
+  // `I64Attr:$cycles` and accepts `ParentOneOf<["ModuleOp",
+  // "SimInitOp"]>`. Phase 3 reads the count from a decimal literal;
+  // richer count expressions land with T055.
+  auto loc = builder_.getUnknownLoc();
+  int64_t cycles = resolveDecimalLiteral(node.count());
+  (void)nsl::dialect::SimDelayOp::create(builder_, loc,
+                                         builder_.getI64IntegerAttr(cycles));
+}
+
 void ASTToMLIR::visit(const ast::SystemTaskStmt &node) {
   // FR-006 row "SystemTaskStmt × {_display, _finish, _init, _delay}
   // → nsl.sim_display / nsl.sim_finish / nsl.sim_init / nsl.sim_delay".
@@ -370,8 +424,6 @@ STUB(ReturnStmt)
 STUB(EmptyStmt)
 STUB(LabeledStmt)
 STUB(GotoStmt)
-STUB(InitBlockStmt)
-STUB(DelayTaskStmt)
 STUB(AltBlock)
 STUB(AnyBlock)
 STUB(SeqBlock)
