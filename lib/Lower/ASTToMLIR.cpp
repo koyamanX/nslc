@@ -31,6 +31,7 @@
 #include "nsl/AST/FirstStateDecl.h"
 #include "nsl/AST/ForBlock.h"
 #include "nsl/AST/FuncDefn.h"
+#include "nsl/AST/FuncSelfDecl.h"
 #include "nsl/AST/IdentifierExpr.h"
 #include "nsl/AST/IfStmt.h"
 #include "nsl/AST/IncDecStmt.h"
@@ -39,6 +40,7 @@
 #include "nsl/AST/MemDecl.h"
 #include "nsl/AST/ModuleBlock.h"
 #include "nsl/AST/ParallelBlock.h"
+#include "nsl/AST/PortDecl.h"
 #include "nsl/AST/ProcDefn.h"
 #include "nsl/AST/RegDecl.h"
 #include "nsl/AST/SeqBlock.h"
@@ -496,7 +498,25 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr) {
     if (ident->name().parts.size() != 1) {
       return {};
     }
-    auto it = nameTable_.find(ident->name().parts.front());
+    llvm::StringRef leaf = ident->name().parts.front();
+    // FR-006 last row: control-name used as 1-bit value (per S27) →
+    // emit `nsl.fire_probe @name` as a sibling marker. Per the
+    // offload note (Commit 5 / T045) M3-Sema-stub treats the M4-
+    // valid subset (`func_in`/`func_out`/`func_self`) as the only
+    // recognised control-terminal taps; ProcName/StateName fall
+    // through to soft-fail. fire_probe carries zero results
+    // (NSLOps.h.inc: `ZeroResults`) so the marker is the side-
+    // effect; the consuming op (`nsl.transfer`/...) sees a null
+    // Value and soft-fails per FR-010 — Phase 3 emits the marker
+    // and lets the consuming statement skip emission. Real value-
+    // synthesis lands at M6.
+    if (controlTable_.contains(leaf)) {
+      auto loc = builder_.getUnknownLoc();
+      auto target = mlir::FlatSymbolRefAttr::get(builder_.getStringAttr(leaf));
+      (void)nsl::dialect::FireProbeOp::create(builder_, loc, target);
+      return {};
+    }
+    auto it = nameTable_.find(leaf);
     if (it == nameTable_.end()) {
       // Unresolved identifier — Sema-clean inputs (FR-010) would have
       // already flagged this; soft-fail per the offload decision.
@@ -1063,6 +1083,67 @@ void ASTToMLIR::visit(const ast::ControlCallStmt &node) {
                                      mlir::ValueRange(arg_vals));
 }
 
+// ---------- Control-terminal decl visitors ----------
+
+void ASTToMLIR::visit(const ast::FuncSelfDecl &node) {
+  // FR-006 (M4 ops mapping) — `func_self <name>;` declared at
+  // module-internal scope lowers to `nsl.func_self "<name>"() : () ->
+  // ()`. `nsl.func_self` carries `HasParent<"ModuleOp">`; this visit
+  // fires only during `visit(ModuleBlock)`'s internals recursion so
+  // the insertion point is inside the parent `nsl.module` body —
+  // ancestor invariant holds by construction.
+  //
+  // Phase 3 emits the no-arg shell only (dummy-args + return-
+  // terminal lowering land in a follow-up that ties into the
+  // `nameTable_` for arg Values). The op exists to satisfy the
+  // `nsl.fire_probe` verifier, which scans the enclosing
+  // `nsl.module`'s direct children for a sibling
+  // `nsl.func_in`/`nsl.func_out`/`nsl.func_self` matching its
+  // target symbol (`NSLOps.cpp:792-822`).
+  auto loc = builder_.getUnknownLoc();
+  (void)nsl::dialect::FuncSelfOp::create(
+      builder_, loc, builder_.getStringAttr(node.name()),
+      /*args=*/mlir::ValueRange{});
+  controlTable_.insert(node.name());
+}
+
+void ASTToMLIR::visit(const ast::PortDecl &node) {
+  // FR-006 (M4 ops mapping) — `declare` block port declarations.
+  // Phase 3 only emits the control-terminal flavours (`FuncIn`,
+  // `FuncOut`, `FuncSelf`) so the `nsl.fire_probe` verifier finds
+  // its sibling target. Data terminals (`Input`, `Output`, `Inout`)
+  // and dummy-arg `Wire`s are deferred — Phase 3's smoke fixtures
+  // don't exercise them, and lowering them requires `hw::PortInfo`-
+  // shaped plumbing that's an M6 concern (per design §10).
+  using D = ast::PortDecl::Direction;
+  if (node.direction() != D::FuncIn && node.direction() != D::FuncOut &&
+      node.direction() != D::FuncSelf) {
+    return;
+  }
+  auto loc = builder_.getUnknownLoc();
+  llvm::StringRef name = node.name();
+  switch (node.direction()) {
+  case D::FuncIn:
+    (void)nsl::dialect::FuncInOp::create(
+        builder_, loc, /*result=*/mlir::Type{},
+        builder_.getStringAttr(name), /*args=*/mlir::ValueRange{});
+    break;
+  case D::FuncOut:
+    (void)nsl::dialect::FuncOutOp::create(builder_, loc,
+                                           builder_.getStringAttr(name),
+                                           /*args=*/mlir::ValueRange{});
+    break;
+  case D::FuncSelf:
+    (void)nsl::dialect::FuncSelfOp::create(builder_, loc,
+                                            builder_.getStringAttr(name),
+                                            /*args=*/mlir::ValueRange{});
+    break;
+  default:
+    return;
+  }
+  controlTable_.insert(name);
+}
+
 // ---------- Action-block stmt-position visitors ----------
 
 // Shared body for `visit(AltBlock)` / `visit(AnyBlock)` — both AST
@@ -1268,10 +1349,8 @@ void ASTToMLIR::visit(const ast::ForBlock &node) {
 
 STUB(TopLevelParamDecl)
 STUB(DeclareBlock)
-STUB(PortDecl)
 STUB(VariableDecl)
 STUB(IntegerDecl)
-STUB(FuncSelfDecl)
 STUB(ProcNameDecl)
 STUB(StateNameDecl)
 STUB(SubmoduleDecl)

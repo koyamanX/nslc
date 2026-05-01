@@ -99,7 +99,7 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 - [X] T042 [P] [US1] Author `test/Lower/expr/{unary,literal,identifier,conditional,slice,concat}_emit_mlir.nsl` covering the remaining expression-position `ast::*Expr` kinds (`unary` + `SignExtendExpr` + `ZeroExtendExpr` shipped Phase B Commit 2; `conditional` + `slice` + `concat` shipped Phase B Commit 3; `literal` + `identifier` covered indirectly via `transferstmt_*` + `regdecl_init`)
 - [X] T043 [P] [US1] Author `test/Lower/expr/structcastexpr_emit_mlir.nsl` covering `ast::StructCastExpr` → `nsl.struct_cast` + `nsl.field` chain
 - [X] T044 [P] [US1] Author `test/Lower/expr/fieldaccessexpr_emit_mlir.nsl` covering `ast::FieldAccessExpr`
-- [ ] T045 [P] [US1] Author `test/Lower/marker/fire_probe_emit_mlir.nsl` covering control-name-as-1-bit-value (S27) → `nsl.fire_probe`
+- [X] T045 [P] [US1] Author `test/Lower/marker/fire_probe_emit_mlir.nsl` covering control-name-as-1-bit-value (S27) → `nsl.fire_probe` (M4-valid subset only — `func_in`/`func_out`/`func_self`; ProcName/StateName escalated per fire_probe verifier `NSLOps.cpp:792-822`)
 - [X] T046 [US1] Run `ninja -C build-asan check-nsl-lower` and confirm ALL US1 fixtures from T024–T045 fail (RED phase — Constitution Principle VIII gate)
 
 ### Implementation for User Story 1
@@ -110,10 +110,10 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 - [X] T050 [P] [US1] Implement `ASTToMLIR::visit(const ast::MemDecl&)` (turns T027 GREEN)
 - [X] T051 [P] [US1] Implement `ASTToMLIR::visit(const ast::FuncDefn&)` (turns T028 GREEN)
 - [X] T052 [P] [US1] Implement `ASTToMLIR::visit(const ast::ProcDefn&)` + `visit(const ast::StateDefn&)` + `visit(const ast::FirstStateDecl&)` per US1 acceptance scenario 2 (turns T029 GREEN)
-- [ ] T053 [P] [US1] Implement action-block visitors (`ParallelBlock`, `AltBlock`, `AnyBlock`, `SeqBlock`, `WhileBlock`, `ForBlock` × 2 forms, `IfStmt`) (turns T030–T036 GREEN)
-- [ ] T054 [P] [US1] Implement statement visitors (`TransferStmt` × 2 modes, `ControlCallStmt`, `BareFinishStmt`, `SystemTaskStmt` × 4 flavours) (turns T037–T040 GREEN)
-- [ ] T055 [P] [US1] Implement `ASTToMLIR::lowerExpr` plus expression sub-visitors (`BinaryExpr`, `UnaryExpr`, `LiteralExpr`, `IdentifierExpr`, `ConditionalExpr`, `SliceExpr`, `ConcatExpr`, `StructCastExpr`, `FieldAccessExpr`) per FR-007 (turns T041–T044 GREEN)
-- [ ] T056 [US1] Implement S27 marker emission (control-name-as-1-bit-value → `nsl.fire_probe`) in the appropriate visitor sites per [`spec.md`](./spec.md) FR-006 last row (turns T045 GREEN; depends on T053–T055)
+- [X] T053 [P] [US1] Implement action-block visitors (`ParallelBlock`, `AltBlock`, `AnyBlock`, `SeqBlock`, `WhileBlock`, `ForBlock` × 2 forms, `IfStmt`) (turns T030–T036 GREEN; ForBlock enum-form escalated per T035 note)
+- [X] T054 [P] [US1] Implement statement visitors (`TransferStmt` × 2 modes, `ControlCallStmt`, `BareFinishStmt`, `SystemTaskStmt` × 4 flavours) (turns T037–T040 GREEN)
+- [X] T055 [P] [US1] Implement `ASTToMLIR::lowerExpr` plus expression sub-visitors (`BinaryExpr`, `UnaryExpr`, `LiteralExpr`, `IdentifierExpr`, `ConditionalExpr`, `SliceExpr`, `ConcatExpr`, `StructCastExpr`, `FieldAccessExpr`) per FR-007 (turns T041–T044 GREEN)
+- [X] T056 [US1] Implement S27 marker emission (control-name-as-1-bit-value → `nsl.fire_probe`) in the appropriate visitor sites per [`spec.md`](./spec.md) FR-006 last row (turns T045 GREEN; M4-valid subset — ProcName/StateName escalated)
 - [ ] T057 [US1] Author `scripts/audit_lower_fixtures.sh` enforcing FR-027 — greps `lib/Lower/ASTToMLIR.cpp` for `visit(...)` overrides, asserts a paired fixture exists under `test/Lower/`; CI-blocking on missing fixture
 - [ ] T058 [US1] Wire T057 into `scripts/ci.sh` stage 2 (static checks)
 - [ ] T059 [US1] Run `ninja -C build-asan check-nsl-lower` and confirm ALL US1 fixtures pass (GREEN phase); run `nsl-opt %.mlir | nsl-opt -` round-trip check on every output and confirm fixed-point (per US1 acceptance scenario 6)

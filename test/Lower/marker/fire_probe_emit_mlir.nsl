@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/marker/fire_probe_emit_mlir.nsl — US1 fixture covering
+// S27 marker emission. Per FR-006 last row "Control-name used as
+// 1-bit value (per S27) → `nsl.fire_probe @name`" (design §8 line
+// 1062 + `lang.ebnf:965`).
+//
+// Phase 3 scope (offload 2026-04-30 Commit 5 / T045): the M4 op
+// surface accepts only `func_in` / `func_out` / `func_self` as
+// `nsl.fire_probe` targets (verifier `NSLOps.cpp:792-822`); the
+// broader S27 set (which also includes `proc_name` / `state_name`)
+// is escalated. This fixture exercises the `func_self` flavour.
+//
+// `nsl.fire_probe` carries zero results (the consuming op sees a
+// null Value); the marker is the side-effect at the use-site. The
+// canonical NSL shape is `tap_wire = f` where `f` is a `func_self`
+// — the TransferStmt's RHS-Value lookup soft-fails per FR-010, but
+// the marker emission survives at the par-block insertion point.
+// The transfer itself is suppressed, matching design §8's claim
+// that S27 sites lower TO the marker, not THROUGH it.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  func_self fire;
+  wire tap[1];
+  {
+    tap = fire;
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK-DAG: nsl.func_self "fire"
+// CHECK-DAG: nsl.wire "tap" : !nsl.bits<1>
+// CHECK: nsl.parallel
+// CHECK: nsl.fire_probe @fire

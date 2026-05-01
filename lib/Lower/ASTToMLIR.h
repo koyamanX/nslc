@@ -18,6 +18,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringSet.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
@@ -126,6 +127,24 @@ private:
   /// emission ordering. The inner `SmallVector` IS iterated, but
   /// only by index — that's deterministic.
   llvm::StringMap<llvm::SmallVector<StructField, 4>> structTable_;
+
+  /// TRANSITIONAL (offload 2026-04-30 Commit 5 / T045): name-keyed
+  /// catalog of control terminals whose `nsl.fire_probe @<name>`
+  /// targets are valid per the M4 op verifier. Populated by
+  /// `visit(PortDecl)` for `Direction::FuncIn` / `Direction::FuncOut`
+  /// and by `visit(FuncSelfDecl)`. Lookup-only; never iterated for
+  /// emission ordering (Constitution Principle V).
+  ///
+  /// Note: NSL S27 (`lang.ebnf:965`) classifies a broader set as
+  /// "control-terminal-tap" (`func_in`, `func_out`, `func_self`,
+  /// `proc_name`, `state_name`). The M4 `nsl.fire_probe` verifier
+  /// (`NSLOps.cpp:792-822`) accepts only the first three; ProcName /
+  /// StateName tap requires either an op-surface amendment (out of
+  /// scope at Phase 3) or an alternative marker (M3 territory). So
+  /// `controlTable_` tracks only the M4-valid subset; ProcName /
+  /// StateName identifiers reach `lowerExpr` and soft-fail per
+  /// FR-010.
+  llvm::StringSet<> controlTable_;
 };
 
 } // namespace nsl::lower
