@@ -262,14 +262,23 @@ void ASTToMLIR::visit(const ast::FirstStateDecl &node) {
 
 void ASTToMLIR::visit(const ast::RegDecl &node) {
   // FR-006 row "RegDecl → nsl.reg "n" : !nsl.bits<W> = init".
-  // At Phase 3 the init expression is dropped (init goes through
-  // the expression-lowering pipeline which lands in T055); width
-  // resolves via resolveWidth().
+  // The init expression is lowered to an `OptionalAttr<I64Attr>` via
+  // `resolveDecimalLiteral` — Phase 3 only handles a Decimal literal
+  // initialiser (richer init expressions, e.g., param refs / hex /
+  // binary, land alongside the expression sub-visitor in T055).
+  // Absence of an init clause leaves the attribute null (printer
+  // omits the `= …` form).
   auto loc = builder_.getUnknownLoc();
   auto bits_ty = nsl::dialect::BitsType::get(&ctx_, resolveWidth(node.width()));
+  mlir::IntegerAttr init_attr;
+  if (const ast::Expr *init = node.init();
+      init && init->kind() == ast::LiteralExpr::kKind &&
+      static_cast<const ast::LiteralExpr *>(init)->litKind() ==
+          ast::LiteralExpr::Lit::Decimal) {
+    init_attr = builder_.getI64IntegerAttr(resolveDecimalLiteral(init));
+  }
   (void)nsl::dialect::RegOp::create(
-      builder_, loc, bits_ty, builder_.getStringAttr(node.name()),
-      /*init=*/mlir::IntegerAttr{});
+      builder_, loc, bits_ty, builder_.getStringAttr(node.name()), init_attr);
 }
 
 void ASTToMLIR::visit(const ast::WireDecl &node) {

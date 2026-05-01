@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/decl/regdecl_init_emit_mlir.nsl — US1 fixture covering
+// `ast::RegDecl` with a Decimal-literal init clause. Per FR-006
+// lowering table row "RegDecl → nsl.reg "n" : !nsl.bits<W> = init":
+// the init Expr is lowered through `resolveDecimalLiteral` to an
+// `OptionalAttr<I64Attr>` on `nsl.reg`. Phase 3 covers only Decimal
+// literal initialisers; richer init expressions land alongside the
+// expression sub-visitor (T055).
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  reg q[8] = 5;
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.reg "q" : !nsl.bits<8> = 5

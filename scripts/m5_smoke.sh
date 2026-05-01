@@ -5,6 +5,7 @@ set -e
 cd /workspace
 for f in test/Lower/module/empty_module_emit_mlir.nsl \
          test/Lower/decl/regdecl_emit_mlir.nsl \
+         test/Lower/decl/regdecl_init_emit_mlir.nsl \
          test/Lower/decl/wiredecl_emit_mlir.nsl \
          test/Lower/decl/memdecl_emit_mlir.nsl \
          test/Lower/decl/procdefn_emit_mlir.nsl \
