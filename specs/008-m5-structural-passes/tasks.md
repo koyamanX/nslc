@@ -190,7 +190,7 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 
 ### Tests for User Story 4 (MANDATORY per Constitution Principle VIII) ⚠️
 
-- [ ] T084 [P] [US4] Author `test/Lower/passes/nsl-explode-submod-array/{size_3,size_1,size_0}.mlir` pass-standalone fixtures per [`data-model.md`](./data-model.md) §7.2
+- [X] T084 [P] [US4] Author `test/Lower/passes/nsl-explode-submod-array/{size_3,size_1,size_0}.mlir` pass-standalone fixtures per [`data-model.md`](./data-model.md) §7.2 — *delivered offload-2026-04-30 Commit 1; 3 fixtures (size_3, size_1, size_0) covering N≥1, N=1 (degenerate singleton-pluralized), N=0 (vacuous-erase) — all GREEN post-T095. Naming scheme: `<orig-name>_<index>` (`@inst[3]` → `@inst_0`/`@inst_1`/`@inst_2`); MLIR symbol names cannot carry unescaped `[`/`]`.*
 - [ ] T085 [P] [US4] Author `test/Lower/passes/nsl-check-semantics/residue_typo.mlir` per US4 acceptance scenario 1 + `residue-detection.contract.md` §8 row 1
 - [ ] T086 [P] [US4] Author `test/Lower/passes/nsl-check-semantics/residue_undefined.mlir` per `residue-detection.contract.md` §8 row 2
 - [ ] T087 [P] [US4] Author `test/Lower/passes/nsl-check-semantics/residue_multi.mlir` per US4 acceptance scenario 3 (two diagnostics on different lines)
@@ -204,7 +204,7 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 
 ### Implementation for User Story 4
 
-- [ ] T095 [P] [US4] Implement `NSLExplodeSubmodArrayPass::runOnOperation` body in `lib/Lower/Pass/NSLExplodeSubmodArrayPass.cpp` per FR-016 — replace array-form `nsl.submodule` with N independent ops; rewrite cross-IR port references (turns T084 GREEN)
+- [X] T095 [P] [US4] Implement `NSLExplodeSubmodArrayPass::runOnOperation` body in `lib/Lower/Pass/NSLExplodeSubmodArrayPass.cpp` per FR-016 — replace array-form `nsl.submodule` with N independent ops; rewrite cross-IR port references (turns T084 GREEN) — *delivered offload-2026-04-30 Commit 1; collect-then-mutate phase pattern (snapshot-into-`SmallVector` to avoid walk-invalidation on erase). Cross-IR port-reference rewrite hook documented inline as empty no-op — at M5's frozen 79-op surface NO op carries an operand-side ref to a specific submodule-port slot; the seam is preserved for M6 (`hw.instance` lowering).*
 - [ ] T096 [US4] Implement `NSLCheckSemanticsPass::runOnOperation` body in `lib/Lower/Pass/NSLCheckSemanticsPass.cpp` — regex scan over `mlir::StringAttr` values per `residue-detection.contract.md` §1 + §2 (turns T085–T087, T093 GREEN)
 - [ ] T097 [US4] Extend `NSLCheckSemanticsPass` body with the six sensitive-`Sn` re-check helpers per `pass-pipeline.contract.md` §3 (S6, S10, S15, S16, S20, S25 — diagnostic strings frozen) (turns T088–T091 GREEN)
 - [ ] T098 [US4] Verify `clean_baseline.mlir` passes with zero diagnostics (T092 GREEN)
