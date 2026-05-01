@@ -18,6 +18,8 @@
 #include "nsl/AST/BareFinishStmt.h"
 #include "nsl/AST/BinaryExpr.h"
 #include "nsl/AST/CompilationUnit.h"
+#include "nsl/AST/ConcatExpr.h"
+#include "nsl/AST/ConditionalExpr.h"
 #include "nsl/AST/ControlCallStmt.h"
 #include "nsl/AST/DelayTaskStmt.h"
 #include "nsl/AST/Expr.h"
@@ -33,6 +35,7 @@
 #include "nsl/AST/RegDecl.h"
 #include "nsl/AST/SeqBlock.h"
 #include "nsl/AST/SignExtendExpr.h"
+#include "nsl/AST/SliceExpr.h"
 #include "nsl/AST/StateDefn.h"
 #include "nsl/AST/Stmt.h"
 #include "nsl/AST/SystemTaskStmt.h"
@@ -654,8 +657,82 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr) {
     return nsl::dialect::ZeroExtendOp::create(builder_, loc, result_ty, sub_val)
         .getResult();
   }
-  // Other expression-position kinds (Conditional/Slice/Concat/Repeat
-  // /FieldAccess/Call/IncDec/StructCast/SystemVar) — T055.
+  if (expr->kind() == ast::ConditionalExpr::kKind) {
+    // FR-007 row "ConditionalExpr → nsl.mux". Per S14 the else
+    // branch is mandatory in expression position; the parser
+    // enforces that, so both `thenE` and `elseE` are non-null on
+    // any Sema-clean input (FR-010). nsl.mux carries
+    // SameOperandsAndResultType for the then/else operands; we
+    // pick `thenE`'s lowered type as the result type.
+    const auto *cond = static_cast<const ast::ConditionalExpr *>(expr);
+    auto cond_val = lowerExpr(cond->cond());
+    auto then_val = lowerExpr(cond->thenE());
+    auto else_val = lowerExpr(cond->elseE());
+    if (!cond_val || !then_val || !else_val) {
+      return {};
+    }
+    auto loc = builder_.getUnknownLoc();
+    return nsl::dialect::MuxOp::create(builder_, loc, then_val.getType(),
+                                        cond_val, then_val, else_val)
+        .getResult();
+  }
+  if (expr->kind() == ast::SliceExpr::kKind) {
+    // FR-007 row "SliceExpr → nsl.extract". Per S15 the indices
+    // are compile-time constants (Sema's domain); at the AST level
+    // they are LiteralExpr Decimals. Single-index form
+    // (`v[i]`) has `lo == nullptr` (per SliceExpr.h doc) — that
+    // collapses to `lowBit = i`, `width = 1`.
+    const auto *sl = static_cast<const ast::SliceExpr *>(expr);
+    auto sub_val = lowerExpr(sl->sub());
+    if (!sub_val) {
+      return {};
+    }
+    int64_t hi = resolveDecimalLiteral(sl->hi());
+    int64_t lo = sl->lo() ? resolveDecimalLiteral(sl->lo()) : hi;
+    if (hi < lo) {
+      return {};
+    }
+    int64_t low_bit = lo;
+    unsigned width = static_cast<unsigned>(hi - lo + 1);
+    auto loc = builder_.getUnknownLoc();
+    auto result_ty = nsl::dialect::BitsType::get(&ctx_, width);
+    return nsl::dialect::ExtractOp::create(builder_, loc, result_ty, sub_val,
+                                            static_cast<uint64_t>(low_bit))
+        .getResult();
+  }
+  if (expr->kind() == ast::ConcatExpr::kKind) {
+    // FR-007 row "ConcatExpr → nsl.concat". Operand order is the
+    // NSL source's left-to-right MSB-first convention (per S18 +
+    // §11 line 698 — the CIRCT `comb.concat` convention as well).
+    // Result width is the sum of operand widths read off each
+    // operand's `BitsType`.
+    const auto *cc = static_cast<const ast::ConcatExpr *>(expr);
+    llvm::SmallVector<mlir::Value, 4> part_vals;
+    part_vals.reserve(cc->parts().size());
+    unsigned total_width = 0;
+    for (const auto &p : cc->parts()) {
+      auto v = lowerExpr(p.get());
+      if (!v) {
+        return {};
+      }
+      auto bits_ty = mlir::dyn_cast<nsl::dialect::BitsType>(v.getType());
+      if (!bits_ty) {
+        return {};
+      }
+      total_width += bits_ty.getWidth();
+      part_vals.push_back(v);
+    }
+    if (part_vals.empty()) {
+      return {};
+    }
+    auto loc = builder_.getUnknownLoc();
+    auto result_ty = nsl::dialect::BitsType::get(&ctx_, total_width);
+    return nsl::dialect::ConcatOp::create(builder_, loc, result_ty,
+                                           mlir::ValueRange(part_vals))
+        .getResult();
+  }
+  // Other expression-position kinds (Repeat/FieldAccess/Call/IncDec/
+  // StructCast/SystemVar) — T055.
   return {};
 }
 
@@ -691,6 +768,18 @@ void ASTToMLIR::visit(const ast::SignExtendExpr &node) {
 }
 
 void ASTToMLIR::visit(const ast::ZeroExtendExpr &node) {
+  (void)lowerExpr(&node);
+}
+
+void ASTToMLIR::visit(const ast::ConditionalExpr &node) {
+  (void)lowerExpr(&node);
+}
+
+void ASTToMLIR::visit(const ast::SliceExpr &node) {
+  (void)lowerExpr(&node);
+}
+
+void ASTToMLIR::visit(const ast::ConcatExpr &node) {
   (void)lowerExpr(&node);
 }
 
@@ -799,10 +888,7 @@ STUB(IfStmt)
 STUB(StructuralGenerate)
 
 STUB(SystemVarExpr)
-STUB(ConditionalExpr)
-STUB(ConcatExpr)
 STUB(RepeatExpr)
-STUB(SliceExpr)
 STUB(FieldAccessExpr)
 STUB(CallExpr)
 STUB(StructCastExpr)

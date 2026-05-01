@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/expr/sliceexpr_emit_mlir.nsl — US1 fixture covering
+// `ast::SliceExpr` per FR-006 / FR-007 row "SliceExpr → nsl.extract".
+// Phase B Commit 3.
+//
+// Per S15 the slice indices are compile-time-evaluable Decimal
+// literals at the AST layer (M3 Sema's S15 check is upstream of
+// M5). At the IR layer, `nsl.extract` carries `lowBit:I64Attr` and
+// derives the slice width from the result type; verifier asserts
+// `lowBit + width <= operand_width`.
+//
+// Two shapes covered:
+//   - range form `a[5:3]` → 3-bit slice, lowBit=3
+//   - single-bit form `a[2]` (lo == nullptr in the AST → collapses
+//     to `lowBit=2`, width=1; SliceExpr.h doc).
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  wire a[8];
+  wire mid[3];
+  wire bit2[1];
+  {
+    mid = a[5:3];
+    bit2 = a[2];
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.parallel
+// CHECK-DAG: nsl.extract %{{.*}}, 3 : !nsl.bits<8> -> !nsl.bits<3>
+// CHECK-DAG: nsl.extract %{{.*}}, 2 : !nsl.bits<8> -> !nsl.bits<1>

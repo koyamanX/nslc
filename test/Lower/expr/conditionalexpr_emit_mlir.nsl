@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/expr/conditionalexpr_emit_mlir.nsl — US1 fixture
+// covering `ast::ConditionalExpr` per FR-006 / FR-007 row
+// "ConditionalExpr → nsl.mux". Phase B Commit 3.
+//
+// Per S14, the else branch is mandatory in expression position; the
+// parser enforces that, so a Sema-clean input always produces a
+// non-null `elseE`. Result type is the then/else operand type
+// (`SameOperandsAndResultType` on the then/else side; `cond` is
+// `!nsl.bits<1>`).
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  wire c[1];
+  wire a[8];
+  wire b[8];
+  wire r[8];
+  {
+    r = if (c) a else b;
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.parallel
+// CHECK: nsl.mux %{{.*}}, %{{.*}}, %{{.*}} : !nsl.bits<1>, !nsl.bits<8>, !nsl.bits<8> -> !nsl.bits<8>
+// CHECK: nsl.transfer %{{.*}}, %{{.*}} : !nsl.bits<8>
