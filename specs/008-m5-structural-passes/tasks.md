@@ -31,9 +31,9 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 
 **Purpose**: Ensure dev-container builds cleanly + register the new lit-test directory hierarchy.
 
-- [ ] T001 Verify dev-container build is green on master HEAD via `sg docker -c "docker run --rm -v $PWD:/workspace -w /workspace ghcr.io/koyamanx/nsl-nslc:dev bash -c 'cmake -G Ninja -B build-asan -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON && ninja -C build-asan check-nsl'"` — record the baseline pass count for regression-comparison post-M5
-- [ ] T002 [P] Create `test/Lower/` subdirectory tree per [`data-model.md`](./data-model.md) §7 (`decl/`, `module/`, `action/`, `stmt/`, `expr/`, `marker/`, `passes/{nsl-resolve-params,nsl-expand-generate,nsl-expand-variables,nsl-explode-submod-array,nsl-inline-internal-func,nsl-check-semantics}/`, `m3_corpus/`, `determinism/`)
-- [ ] T003 [P] Amend `test/Lower/lit.cfg.py` to register the new test directory hierarchy + ensure `nslc` and `nsl-opt` are on the lit `PATH` for these tests
+- [X] T001 Verify dev-container build is green on master HEAD via `sg docker -c "docker run --rm -v $PWD:/workspace -w /workspace ghcr.io/koyamanx/nsl-nslc:dev bash -c 'cmake -G Ninja -B build-asan -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON && ninja -C build-asan check-nsl'"` — record the baseline pass count for regression-comparison post-M5
+- [X] T002 [P] Create `test/Lower/` subdirectory tree per [`data-model.md`](./data-model.md) §7 (`decl/`, `module/`, `action/`, `stmt/`, `expr/`, `marker/`, `passes/{nsl-resolve-params,nsl-expand-generate,nsl-expand-variables,nsl-explode-submod-array,nsl-inline-internal-func,nsl-check-semantics}/`, `m3_corpus/`, `determinism/`)
+- [X] T003 [P] Amend `test/Lower/lit.cfg.py` to register the new test directory hierarchy + ensure `nslc` and `nsl-opt` are on the lit `PATH` for these tests
 
 ---
 
@@ -43,25 +43,25 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 
 **⚠️ CRITICAL**: No user-story work begins until this phase is complete.
 
-- [ ] T004 Author `include/nsl/Lower/Lower.h` with the 8-symbol public surface frozen by [`contracts/lower-api.contract.md`](./contracts/lower-api.contract.md) §2 — declarations only, no bodies
-- [ ] T005 [P] Author `lib/Lower/ASTToMLIR.h` with the `ASTToMLIR` class declaration per [`data-model.md`](./data-model.md) §1 (private internal header)
-- [ ] T006 [P] Author `lib/Lower/Pass/Common/DiagnosticBridge.h` + `DiagnosticBridge.cpp` per [`data-model.md`](./data-model.md) §6 (RAII `mlir::ScopedDiagnosticHandler` → `basic::DiagnosticEngine` translation)
-- [ ] T007 [P] Author `lib/Lower/Pass/NSLResolveParamsPass.cpp` as a NO-OP slot (registers under `-nsl-resolve-params`, walks input, returns `mlir::success()`) — body lands in T069
-- [ ] T008 [P] Author `lib/Lower/Pass/NSLExpandGeneratePass.cpp` as a NO-OP slot (registers under `-nsl-expand-generate`) — body lands in T070
-- [ ] T009 [P] Author `lib/Lower/Pass/NSLExpandVariablesPass.cpp` as a NO-OP slot (registers under `-nsl-expand-variables`) — body lands in T081
-- [ ] T010 [P] Author `lib/Lower/Pass/NSLExplodeSubmodArrayPass.cpp` as a NO-OP slot (registers under `-nsl-explode-submod-array`) — body lands in T095
-- [ ] T011 [P] Author `lib/Lower/Pass/NSLInlineInternalFuncPass.cpp` as a NO-OP slot (registers under `-nsl-inline-internal-func`) — STAYS no-op at M5 per Q3 → Option B
-- [ ] T012 [P] Author `lib/Lower/Pass/NSLCheckSemanticsPass.cpp` as a NO-OP slot (registers under `-nsl-check-semantics`) — body lands in T096
-- [ ] T013 Wire `registerNSLLowerPasses()` in `lib/Lower/Lower.cpp` (or umbrella source) calling `mlir::registerPass(create<X>Pass)` for each of the six (depends on T007–T012)
-- [ ] T014 Amend `lib/Lower/CMakeLists.txt` source list to include the new `.cpp` files from T005–T012 (preserve `DEPENDS` and `LINK_LIBS` per [`contracts/lower-api.contract.md`](./contracts/lower-api.contract.md) §5)
-- [ ] T015 Author `lib/Lower/ASTToMLIR.cpp` with the visitor class skeleton — constructor, public `lower(...)` entry point, an empty `mlir::ModuleOp` builder + walk-stub that visits nothing (FR-005 single-pass shape locked in; FR-006 visitors land in US1 phase) (depends on T005)
-- [ ] T016 Replace `lib/Driver/LowerToNSL.cpp` M4-stub body with the real body per [`data-model.md`](./data-model.md) §4 (constructs `DiagnosticBridge`, calls `nsl::lower::astToMLIR(...)`, returns `OwningOpRef`) (depends on T006, T015)
-- [ ] T017 Replace `lib/Driver/RunNSLPasses.cpp` M4-stub body with the real body per [`data-model.md`](./data-model.md) §4 (constructs `DiagnosticBridge`, builds `mlir::PassManager`, adds the six passes in FR-012 order, calls `pm.run(module)`) (depends on T006, T013)
+- [X] T004 Author `include/nsl/Lower/Lower.h` with the 8-symbol public surface frozen by [`contracts/lower-api.contract.md`](./contracts/lower-api.contract.md) §2 — declarations only, no bodies
+- [X] T005 [P] Author `lib/Lower/ASTToMLIR.h` with the `ASTToMLIR` class declaration per [`data-model.md`](./data-model.md) §1 (private internal header)
+- [X] T006 [P] Author `lib/Lower/Pass/Common/DiagnosticBridge.h` + `DiagnosticBridge.cpp` per [`data-model.md`](./data-model.md) §6 (RAII `mlir::ScopedDiagnosticHandler` → `basic::DiagnosticEngine` translation)
+- [X] T007 [P] Author `lib/Lower/Pass/NSLResolveParamsPass.cpp` as a NO-OP slot (registers under `-nsl-resolve-params`, walks input, returns `mlir::success()`) — body lands in T069
+- [X] T008 [P] Author `lib/Lower/Pass/NSLExpandGeneratePass.cpp` as a NO-OP slot (registers under `-nsl-expand-generate`) — body lands in T070
+- [X] T009 [P] Author `lib/Lower/Pass/NSLExpandVariablesPass.cpp` as a NO-OP slot (registers under `-nsl-expand-variables`) — body lands in T081
+- [X] T010 [P] Author `lib/Lower/Pass/NSLExplodeSubmodArrayPass.cpp` as a NO-OP slot (registers under `-nsl-explode-submod-array`) — body lands in T095
+- [X] T011 [P] Author `lib/Lower/Pass/NSLInlineInternalFuncPass.cpp` as a NO-OP slot (registers under `-nsl-inline-internal-func`) — STAYS no-op at M5 per Q3 → Option B
+- [X] T012 [P] Author `lib/Lower/Pass/NSLCheckSemanticsPass.cpp` as a NO-OP slot (registers under `-nsl-check-semantics`) — body lands in T096
+- [X] T013 Wire `registerNSLLowerPasses()` in `lib/Lower/Lower.cpp` (or umbrella source) calling `mlir::registerPass(create<X>Pass)` for each of the six (depends on T007–T012)
+- [X] T014 Amend `lib/Lower/CMakeLists.txt` source list to include the new `.cpp` files from T005–T012 (preserve `DEPENDS` and `LINK_LIBS` per [`contracts/lower-api.contract.md`](./contracts/lower-api.contract.md) §5)
+- [X] T015 Author `lib/Lower/ASTToMLIR.cpp` with the visitor class skeleton — constructor, public `lower(...)` entry point, an empty `mlir::ModuleOp` builder + walk-stub that visits nothing (FR-005 single-pass shape locked in; FR-006 visitors land in US1 phase) (depends on T005)
+- [X] T016 Replace `lib/Driver/LowerToNSL.cpp` M4-stub body with the real body per [`data-model.md`](./data-model.md) §4 (constructs `DiagnosticBridge`, calls `nsl::lower::astToMLIR(...)`, returns `OwningOpRef`) (depends on T006, T015)
+- [X] T017 Replace `lib/Driver/RunNSLPasses.cpp` M4-stub body with the real body per [`data-model.md`](./data-model.md) §4 (constructs `DiagnosticBridge`, builds `mlir::PassManager`, adds the six passes in FR-012 order, calls `pm.run(module)`) (depends on T006, T013)
 - [ ] T018 Add `Compilation::emitNSLMLIR(mlir::ModuleOp)` private method in `lib/Driver/Compilation.cpp` — calls `module.print(os)` with default `mlir::OpPrintingFlags()` per [`contracts/driver-emit-mlir.contract.md`](./contracts/driver-emit-mlir.contract.md) §2
 - [ ] T019 Wire the `EmitKind::NSLMLIR` arm in `Compilation::run()` per [`data-model.md`](./data-model.md) §4 (calls `lowerToNSL` → check non-null → `runNSLPasses` → check success → `emitNSLMLIR`) (depends on T016, T017, T018)
-- [ ] T020 Amend `lib/Driver/CMakeLists.txt` to add `nsl-lower` as a link dependency
-- [ ] T021 Amend `tools/nsl-opt/main.cpp` to call `nsl::lower::registerNSLLowerPasses()` after the existing `nsl::dialect::registerNSLDialect()` line (per [`research.md`](./research.md) §7)
-- [ ] T022 Amend `tools/nsl-opt/CMakeLists.txt` to add `nsl-lower` as a link dependency
+- [X] T020 Amend `lib/Driver/CMakeLists.txt` to add `nsl-lower` as a link dependency
+- [X] T021 Amend `tools/nsl-opt/main.cpp` to call `nsl::lower::registerNSLLowerPasses()` after the existing `nsl::dialect::registerNSLDialect()` line (per [`research.md`](./research.md) §7)
+- [X] T022 Amend `tools/nsl-opt/CMakeLists.txt` to add `nsl-lower` as a link dependency
 - [ ] T023 [P] Amend `tools/nslc/main.cpp` `--help` text to include `-emit=<kind>` line per [`contracts/driver-emit-mlir.contract.md`](./contracts/driver-emit-mlir.contract.md) §7 (`mlir, hw (M6+), verilog (M7+)`)
 
 **Checkpoint**: After T023, the dev-container build produces a working `nslc` and `nsl-opt`; `nslc -emit=mlir input.nsl` runs the full pipeline (six no-op passes) and prints an empty `mlir::ModuleOp{}`. `nsl-opt --help` lists all six pass flags. The foundation is ready; user-story implementation can now begin.

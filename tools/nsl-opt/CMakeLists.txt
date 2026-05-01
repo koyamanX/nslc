@@ -28,6 +28,8 @@ add_executable(nsl-opt main.cpp)
 target_link_libraries(nsl-opt
   PRIVATE
     nsl-dialect
+    nsl-lower      # M5: structural-expansion passes registered via
+                   # `nsl::lower::registerNSLLowerPasses()`.
     MLIRIR
     MLIRSupport
     MLIROptLib
