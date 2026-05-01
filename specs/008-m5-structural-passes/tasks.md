@@ -87,7 +87,7 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 - [X] T030 [P] [US1] Author `test/Lower/action/parallelblock_emit_mlir.nsl` covering `ast::ParallelBlock`
 - [ ] T031 [P] [US1] Author `test/Lower/action/altblock_emit_mlir.nsl` covering `ast::AltBlock`
 - [ ] T032 [P] [US1] Author `test/Lower/action/anyblock_emit_mlir.nsl` covering `ast::AnyBlock`
-- [ ] T033 [P] [US1] Author `test/Lower/action/seqblock_emit_mlir.nsl` covering `ast::SeqBlock`
+- [X] T033 [P] [US1] Author `test/Lower/action/seqblock_emit_mlir.nsl` covering `ast::SeqBlock`
 - [ ] T034 [P] [US1] Author `test/Lower/action/whileblock_emit_mlir.nsl` covering `ast::WhileBlock`
 - [ ] T035 [P] [US1] Author `test/Lower/action/forblock_enum_emit_mlir.nsl` + `forblock_cstyle_emit_mlir.nsl` covering both `ast::ForBlock` shapes
 - [ ] T036 [P] [US1] Author `test/Lower/action/ifstmt_emit_mlir.nsl` covering `ast::IfStmt`

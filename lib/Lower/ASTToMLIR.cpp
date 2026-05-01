@@ -28,6 +28,7 @@
 #include "nsl/AST/ParallelBlock.h"
 #include "nsl/AST/ProcDefn.h"
 #include "nsl/AST/RegDecl.h"
+#include "nsl/AST/SeqBlock.h"
 #include "nsl/AST/StateDefn.h"
 #include "nsl/AST/Stmt.h"
 #include "nsl/AST/SystemTaskStmt.h"
@@ -374,6 +375,26 @@ void ASTToMLIR::visit(const ast::BareFinishStmt & /*node*/) {
   (void)nsl::dialect::FinishOp::create(builder_, loc);
 }
 
+void ASTToMLIR::visit(const ast::SeqBlock &node) {
+  // FR-006 row "SeqBlock → nsl.seq { ... }". `nsl.seq` carries
+  // `HasParent<"FuncOp">` (per NSLOps.td §2.4); the input AST is
+  // Sema-clean per FR-010 so the parent invariant holds at every
+  // reachable insertion point. Body items recursion mirrors
+  // ParallelBlock; expression-Value plumbing for items lands in
+  // T055.
+  auto loc = builder_.getUnknownLoc();
+  auto seq_op = nsl::dialect::SeqOp::create(builder_, loc);
+  auto &body_block = seq_op.getBody().emplaceBlock();
+  mlir::OpBuilder::InsertionGuard guard(builder_);
+  builder_.setInsertionPointToStart(&body_block);
+  for (const auto &decl : node.decls()) {
+    decl->accept(*this);
+  }
+  for (const auto &item : node.items()) {
+    item->accept(*this);
+  }
+}
+
 void ASTToMLIR::visit(const ast::ParallelBlock &node) {
   // FR-006 row "ParallelBlock → nsl.parallel { ... }". `nsl.parallel`
   // carries no `HasParent` constraint, so it can appear at module
@@ -426,7 +447,6 @@ STUB(LabeledStmt)
 STUB(GotoStmt)
 STUB(AltBlock)
 STUB(AnyBlock)
-STUB(SeqBlock)
 STUB(WhileBlock)
 STUB(ForBlock)
 STUB(IfStmt)
