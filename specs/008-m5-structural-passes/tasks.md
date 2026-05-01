@@ -57,12 +57,12 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 - [X] T015 Author `lib/Lower/ASTToMLIR.cpp` with the visitor class skeleton — constructor, public `lower(...)` entry point, an empty `mlir::ModuleOp` builder + walk-stub that visits nothing (FR-005 single-pass shape locked in; FR-006 visitors land in US1 phase) (depends on T005)
 - [X] T016 Replace `lib/Driver/LowerToNSL.cpp` M4-stub body with the real body per [`data-model.md`](./data-model.md) §4 (constructs `DiagnosticBridge`, calls `nsl::lower::astToMLIR(...)`, returns `OwningOpRef`) (depends on T006, T015)
 - [X] T017 Replace `lib/Driver/RunNSLPasses.cpp` M4-stub body with the real body per [`data-model.md`](./data-model.md) §4 (constructs `DiagnosticBridge`, builds `mlir::PassManager`, adds the six passes in FR-012 order, calls `pm.run(module)`) (depends on T006, T013)
-- [ ] T018 Add `Compilation::emitNSLMLIR(mlir::ModuleOp)` private method in `lib/Driver/Compilation.cpp` — calls `module.print(os)` with default `mlir::OpPrintingFlags()` per [`contracts/driver-emit-mlir.contract.md`](./contracts/driver-emit-mlir.contract.md) §2
-- [ ] T019 Wire the `EmitKind::NSLMLIR` arm in `Compilation::run()` per [`data-model.md`](./data-model.md) §4 (calls `lowerToNSL` → check non-null → `runNSLPasses` → check success → `emitNSLMLIR`) (depends on T016, T017, T018)
+- [X] T018 Add `Compilation::emitNSLMLIR(mlir::ModuleOp)` private method in `lib/Driver/Compilation.cpp` — calls `module.print(os)` with default `mlir::OpPrintingFlags()` per [`contracts/driver-emit-mlir.contract.md`](./contracts/driver-emit-mlir.contract.md) §2
+- [X] T019 Wire the `EmitKind::NSLMLIR` arm in `Compilation::run()` per [`data-model.md`](./data-model.md) §4 (calls `lowerToNSL` → check non-null → `runNSLPasses` → check success → `emitNSLMLIR`) (depends on T016, T017, T018)
 - [X] T020 Amend `lib/Driver/CMakeLists.txt` to add `nsl-lower` as a link dependency
 - [X] T021 Amend `tools/nsl-opt/main.cpp` to call `nsl::lower::registerNSLLowerPasses()` after the existing `nsl::dialect::registerNSLDialect()` line (per [`research.md`](./research.md) §7)
 - [X] T022 Amend `tools/nsl-opt/CMakeLists.txt` to add `nsl-lower` as a link dependency
-- [ ] T023 [P] Amend `tools/nslc/main.cpp` `--help` text to include `-emit=<kind>` line per [`contracts/driver-emit-mlir.contract.md`](./contracts/driver-emit-mlir.contract.md) §7 (`mlir, hw (M6+), verilog (M7+)`)
+- [X] T023 [P] Amend `tools/nslc/main.cpp` `--help` text to include `-emit=<kind>` line per [`contracts/driver-emit-mlir.contract.md`](./contracts/driver-emit-mlir.contract.md) §7 (`mlir, hw (M6+), verilog (M7+)`)
 
 **Checkpoint**: After T023, the dev-container build produces a working `nslc` and `nsl-opt`; `nslc -emit=mlir input.nsl` runs the full pipeline (six no-op passes) and prints an empty `mlir::ModuleOp{}`. `nsl-opt --help` lists all six pass flags. The foundation is ready; user-story implementation can now begin.
 

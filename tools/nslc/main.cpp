@@ -4,6 +4,7 @@
 // ≤62 lines + per-`-emit=*` glue). Real work lives in nsl-driver.
 
 #include "nsl/Driver/EmitAST.h"
+#include "nsl/Driver/EmitMLIR.h"
 #include "nsl/Driver/EmitTokens.h"
 #include "nsl/Driver/Version.h"
 
@@ -15,7 +16,13 @@
 namespace {
 constexpr const char *kUsage =
     "usage: nslc [--version] [-I <dir>]... [-D NAME=value]... "
-    "[--diagnostic-format=text|json] -emit=<stage> <input>\n";
+    "[--diagnostic-format=text|json] -emit=<stage> <input>\n"
+    "  -emit=<stage>   Stop after stage. Stages:\n"
+    "                    tokens   M1 lex output\n"
+    "                    ast      M2/M3 AST snapshot\n"
+    "                    mlir     M5 nsl::* MLIR (post-structural-expansion)\n"
+    "                    hw       (M6+) — not yet implemented\n"
+    "                    verilog  (M7+) — not yet implemented\n";
 bool starts(const char *s, const char *p) {
   return std::strncmp(s, p, std::strlen(p)) == 0;
 }
@@ -61,6 +68,15 @@ int main(int argc, char **argv) {
   }
   if (stage == "ast") {
     return nsl::driver::emitAST(input, opts, llvm::outs(), llvm::errs());
+  }
+  if (stage == "mlir") {
+    return nsl::driver::emitMLIR(input, opts, llvm::outs(), llvm::errs());
+  }
+  if (stage == "hw" || stage == "verilog") {
+    llvm::errs() << "error: '-emit=" << stage
+                 << "' is not yet implemented (planned for "
+                 << (stage == "hw" ? "M6" : "M7") << ")\n";
+    return 2;
   }
   llvm::errs() << "unknown emit stage: " << stage << "\n" << kUsage;
   return 2;
