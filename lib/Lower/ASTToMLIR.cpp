@@ -15,6 +15,8 @@
 
 #include "ASTToMLIR.h"
 
+#include <algorithm>
+
 #include "nsl/AST/BareFinishStmt.h"
 #include "nsl/AST/BinaryExpr.h"
 #include "nsl/AST/CompilationUnit.h"
@@ -23,6 +25,7 @@
 #include "nsl/AST/ControlCallStmt.h"
 #include "nsl/AST/DelayTaskStmt.h"
 #include "nsl/AST/Expr.h"
+#include "nsl/AST/FieldAccessExpr.h"
 #include "nsl/AST/FirstStateDecl.h"
 #include "nsl/AST/FuncDefn.h"
 #include "nsl/AST/IdentifierExpr.h"
@@ -38,6 +41,9 @@
 #include "nsl/AST/SliceExpr.h"
 #include "nsl/AST/StateDefn.h"
 #include "nsl/AST/Stmt.h"
+#include "nsl/AST/StructCastExpr.h"
+#include "nsl/AST/StructDecl.h"
+#include "nsl/AST/StructInstDecl.h"
 #include "nsl/AST/SystemTaskStmt.h"
 #include "nsl/AST/TransferStmt.h"
 #include "nsl/AST/UnaryExpr.h"
@@ -51,6 +57,7 @@
 
 #include "mlir/IR/Block.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 
 namespace nsl::lower {
@@ -731,8 +738,125 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr) {
                                            mlir::ValueRange(part_vals))
         .getResult();
   }
-  // Other expression-position kinds (Repeat/FieldAccess/Call/IncDec/
-  // StructCast/SystemVar) — T055.
+  if (expr->kind() == ast::StructCastExpr::kKind) {
+    // FR-007 row "StructCastExpr → nsl.struct_cast + nsl.field chain".
+    // The NSL grammar (`lang.ebnf §11`) requires at least one
+    // `.member` after `(T)(x)` (parser enforces this at
+    // `lib/Parse/ParseExpr.cpp:222-235`), so `memberPath()` is never
+    // empty on a Sema-clean input (FR-010).
+    //
+    // Lowering shape (per data-model + Q3 → Option A on M4 cast strict
+    // type-equality): emit a single `nsl.struct_cast %sub : !nsl.bits<W>
+    // to !nsl.struct<@T>` then chain `nsl.field` per memberPath
+    // element. Each `nsl.field` walks one level into the struct;
+    // nested struct-typed fields are exercised by the M5 expansion
+    // pass downstream — this Phase B increment ships only the
+    // single-level shape covered by the smoke fixture.
+    const auto *sc = static_cast<const ast::StructCastExpr *>(expr);
+    auto sub_val = lowerExpr(sc->sub());
+    if (!sub_val) {
+      return {};
+    }
+    if (sc->memberPath().empty()) {
+      // Defensive: parser guarantees ≥1, but the cast op alone with
+      // no field access would still lower legally — emit just the
+      // struct_cast in that case.
+      auto loc = builder_.getUnknownLoc();
+      auto sym_ref = mlir::SymbolRefAttr::get(
+          builder_.getStringAttr(sc->typeName()));
+      auto struct_ty = nsl::dialect::StructType::get(&ctx_, sym_ref);
+      return nsl::dialect::StructCastOp::create(builder_, loc, struct_ty,
+                                                 sub_val)
+          .getResult();
+    }
+    // Look up the struct in the transitional name-keyed catalog.
+    auto struct_it = structTable_.find(sc->typeName());
+    if (struct_it == structTable_.end()) {
+      // No matching `nsl.struct` declared yet — Sema-clean inputs
+      // would have flagged the missing type upstream (FR-010);
+      // soft-fail per the offload decision.
+      return {};
+    }
+    auto loc = builder_.getUnknownLoc();
+    auto sym_ref = mlir::SymbolRefAttr::get(
+        builder_.getStringAttr(sc->typeName()));
+    auto struct_ty = nsl::dialect::StructType::get(&ctx_, sym_ref);
+    mlir::Value cur = nsl::dialect::StructCastOp::create(
+                          builder_, loc, struct_ty, sub_val)
+                          .getResult();
+    // Chain `nsl.field` per memberPath segment. Phase B handles only
+    // the single-level case; chained struct-typed fields would
+    // require recursing into the field's type's structTable_ entry.
+    const auto *cur_fields = &struct_it->second;
+    for (const ast::Identifier &member : sc->memberPath()) {
+      // Linear scan is fine: structs are typically tiny (≤ 8 fields).
+      auto field_it = std::find_if(
+          cur_fields->begin(), cur_fields->end(),
+          [&](const StructField &f) { return f.name == member; });
+      if (field_it == cur_fields->end()) {
+        return {}; // Sema-clean inputs wouldn't reach here.
+      }
+      auto idx = static_cast<uint64_t>(field_it - cur_fields->begin());
+      mlir::Type field_ty = field_it->type;
+      cur = nsl::dialect::FieldOp::create(builder_, loc, field_ty, cur, idx)
+                .getResult();
+      // Walk into a nested struct if the field's type is itself a
+      // struct (so the next memberPath element resolves correctly).
+      if (auto next_struct = mlir::dyn_cast<nsl::dialect::StructType>(field_ty)) {
+        auto nested_it = structTable_.find(
+            next_struct.getName().getRootReference().getValue());
+        if (nested_it == structTable_.end()) {
+          return {};
+        }
+        cur_fields = &nested_it->second;
+      }
+    }
+    return cur;
+  }
+  if (expr->kind() == ast::FieldAccessExpr::kKind) {
+    // FR-007 row "FieldAccessExpr → nsl.field". The `obj` Expr must
+    // resolve to an `mlir::Value` of `!nsl.struct<@T>` type — the
+    // sole shape Phase B exercises here is `<inst>.field` where
+    // `inst` is an `ast::StructInstDecl`-emitted `nsl.reg`/`nsl.wire`
+    // of struct type, registered in `nameTable_`. Submodule-port
+    // access (`cpu_t inst; inst.port`) shares the same AST node but
+    // resolves to a non-struct Value (or no Value at all in the
+    // Phase B implementation); soft-fail per FR-010 — the M5
+    // structural-expansion pass plus M3 Sema type-resolution will
+    // disambiguate downstream.
+    const auto *fa = static_cast<const ast::FieldAccessExpr *>(expr);
+    auto obj_val = lowerExpr(fa->obj());
+    if (!obj_val) {
+      return {};
+    }
+    auto struct_ty =
+        mlir::dyn_cast<nsl::dialect::StructType>(obj_val.getType());
+    if (!struct_ty) {
+      // Non-struct `.field` access (likely a submodule port) —
+      // outside Phase B scope.
+      return {};
+    }
+    llvm::StringRef struct_name =
+        struct_ty.getName().getRootReference().getValue();
+    auto struct_it = structTable_.find(struct_name);
+    if (struct_it == structTable_.end()) {
+      return {};
+    }
+    const auto &fields = struct_it->second;
+    auto field_it = std::find_if(
+        fields.begin(), fields.end(),
+        [&](const StructField &f) { return f.name == fa->field(); });
+    if (field_it == fields.end()) {
+      return {};
+    }
+    auto idx = static_cast<uint64_t>(field_it - fields.begin());
+    mlir::Type field_ty = field_it->type;
+    auto loc = builder_.getUnknownLoc();
+    return nsl::dialect::FieldOp::create(builder_, loc, field_ty, obj_val, idx)
+        .getResult();
+  }
+  // Other expression-position kinds (Repeat/Call/IncDec/SystemVar) —
+  // T055.
   return {};
 }
 
@@ -781,6 +905,85 @@ void ASTToMLIR::visit(const ast::SliceExpr &node) {
 
 void ASTToMLIR::visit(const ast::ConcatExpr &node) {
   (void)lowerExpr(&node);
+}
+
+void ASTToMLIR::visit(const ast::StructCastExpr &node) {
+  (void)lowerExpr(&node);
+}
+
+void ASTToMLIR::visit(const ast::FieldAccessExpr &node) {
+  (void)lowerExpr(&node);
+}
+
+// ---------- Struct-related decl visitors ----------
+
+void ASTToMLIR::visit(const ast::StructDecl &node) {
+  // FR-006 row "StructDecl → nsl.struct @<name> { nsl.field_decl ... }".
+  // Per post-merge M4-amendment 2026-05-02 (#3) the parent of
+  // `nsl.struct` is `ParentOneOf<["::mlir::ModuleOp", "ModuleOp"]>`,
+  // so emit at the current insertion point — top-level placement
+  // (sibling of `nsl.module` under the builtin ModuleOp) and nested
+  // placement inside `nsl.module` are both legal. Field types come
+  // from each member's width expression (`resolveWidth` — Phase 3
+  // covers Decimal-literal widths only; richer width resolution is
+  // T055 follow-up). Struct-typed fields are deferred to a future
+  // increment (the Phase B smoke fixtures use bits-only fields).
+  auto loc = builder_.getUnknownLoc();
+  auto struct_op = nsl::dialect::StructOp::create(
+      builder_, loc, builder_.getStringAttr(node.name()));
+  auto &body_block = struct_op.getBody().emplaceBlock();
+
+  // Populate the transitional name-keyed catalog as we emit each
+  // `nsl.field_decl`. Iteration order = source-declaration order =
+  // MSB-first per S18 (`lang.ebnf:889`).
+  llvm::SmallVector<StructField, 4> fields;
+  fields.reserve(node.members().size());
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder_);
+    builder_.setInsertionPointToStart(&body_block);
+    for (const auto &member : node.members()) {
+      auto field_ty =
+          nsl::dialect::BitsType::get(&ctx_, resolveWidth(member.width.get()));
+      (void)nsl::dialect::FieldDeclOp::create(
+          builder_, loc, builder_.getStringAttr(member.name),
+          mlir::TypeAttr::get(field_ty));
+      fields.push_back({member.name, field_ty});
+    }
+  }
+  structTable_[node.name()] = std::move(fields);
+}
+
+void ASTToMLIR::visit(const ast::StructInstDecl &node) {
+  // FR-006 row "StructInstDecl → nsl.reg \"name\" : !nsl.struct<@T>"
+  // (Reg form) or "nsl.wire \"name\" : !nsl.struct<@T>" (Wire form).
+  // Phase B ships scalar instances only; array form (`arraySize`) and
+  // initializer form (`init`) are deferred to a follow-up. The struct
+  // type is referenced symbolically via `!nsl.struct<@TypeName>` —
+  // MLIR's SymbolTable resolution walks to the enclosing
+  // `mlir::ModuleOp` and finds the sibling `nsl.struct` decl
+  // (top-level or nested both supported per amendment #3).
+  auto loc = builder_.getUnknownLoc();
+  auto sym_ref =
+      mlir::SymbolRefAttr::get(builder_.getStringAttr(node.typeName()));
+  auto struct_ty = nsl::dialect::StructType::get(&ctx_, sym_ref);
+
+  if (node.storageKind() == ast::StructInstDecl::StorageKind::Reg) {
+    // `nsl.reg` accepts `!nsl.struct<@T>` per FR-013 + the existing
+    // round-trip fixture `test/Dialect/Types/struct_roundtrip.mlir`.
+    // No init attribute at Phase B (struct-init lowering is a
+    // follow-up).
+    auto reg_op = nsl::dialect::RegOp::create(
+        builder_, loc, struct_ty,
+        builder_.getStringAttr(node.instanceName()),
+        /*init=*/mlir::IntegerAttr{});
+    nameTable_[node.instanceName()] = reg_op.getResult();
+    return;
+  }
+  // Wire form. NOTE: `nsl.wire` carries `NSL_AnyBits` on its result,
+  // so a struct-typed wire would be rejected by the dialect verifier
+  // (per FR-013 row "wires never carry !nsl.struct<@T>"). Emit nothing
+  // — the Phase B smoke fixture exercises the Reg form only.
+  // Sema-clean inputs at M3 will flag this case upstream (S-rule TBD).
 }
 
 // ---------- Statement-position visitors (cont'd) ----------
@@ -863,7 +1066,6 @@ void ASTToMLIR::visit(const ast::ControlCallStmt &node) {
 #define STUB(EnumName)                                                         \
   void ASTToMLIR::visit(const ast::EnumName & /*node*/) {}
 
-STUB(StructDecl)
 STUB(TopLevelParamDecl)
 STUB(DeclareBlock)
 STUB(PortDecl)
@@ -873,7 +1075,6 @@ STUB(FuncSelfDecl)
 STUB(ProcNameDecl)
 STUB(StateNameDecl)
 STUB(SubmoduleDecl)
-STUB(StructInstDecl)
 
 STUB(IncDecStmt)
 STUB(ReturnStmt)
@@ -889,9 +1090,7 @@ STUB(StructuralGenerate)
 
 STUB(SystemVarExpr)
 STUB(RepeatExpr)
-STUB(FieldAccessExpr)
 STUB(CallExpr)
-STUB(StructCastExpr)
 STUB(IncDecExpr)
 
 #undef STUB

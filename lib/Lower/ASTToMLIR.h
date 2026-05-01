@@ -15,11 +15,14 @@
 
 #include "nsl/AST/ASTVisitor.h"
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/OwningOpRef.h"
+#include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
 
 namespace nsl::ast {
@@ -98,6 +101,31 @@ private:
   // Ordering rule (Constitution Principle V — determinism): this map
   // is for LOOKUP only; never iterate it for emission ordering.
   llvm::StringMap<mlir::Value> nameTable_;
+
+  /// One field of an emitted `nsl.struct` — the field's NSL-spec name
+  /// + its emitted `mlir::Type`. The type is recorded so
+  /// `lowerExpr(FieldAccessExpr)` and `lowerExpr(StructCastExpr)` can
+  /// pass the exact same `mlir::Type` instance to `nsl.field`'s
+  /// `result` operand — `FieldOp::verify()` requires pointer-equal
+  /// type match against the corresponding `nsl.field_decl`'s
+  /// `fieldType` attribute (per `lib/Dialect/NSL/IR/NSLOps.cpp:861`).
+  struct StructField {
+    llvm::StringRef name;
+    mlir::Type type;
+  };
+
+  /// TRANSITIONAL (option (d) per offload 2026-05-01): name-string-
+  /// keyed struct catalog while M3 Sema is stub-only. Maps struct
+  /// name → ordered field list (in source-declaration order, which
+  /// is also MSB-first per S18 — `lang.ebnf:889`). Populated by
+  /// `visit(StructDecl)`. Replace with `sema::TypeSystem::structFor`
+  /// once M3 lands.
+  ///
+  /// Ordering rule (Constitution Principle V — determinism): this
+  /// map is for LOOKUP only; never iterate the outer map for
+  /// emission ordering. The inner `SmallVector` IS iterated, but
+  /// only by index — that's deterministic.
+  llvm::StringMap<llvm::SmallVector<StructField, 4>> structTable_;
 };
 
 } // namespace nsl::lower

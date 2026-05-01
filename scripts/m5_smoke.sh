@@ -26,7 +26,9 @@ for f in test/Lower/module/empty_module_emit_mlir.nsl \
          test/Lower/expr/unaryexpr_emit_mlir.nsl \
          test/Lower/expr/conditionalexpr_emit_mlir.nsl \
          test/Lower/expr/sliceexpr_emit_mlir.nsl \
-         test/Lower/expr/concatexpr_emit_mlir.nsl; do
+         test/Lower/expr/concatexpr_emit_mlir.nsl \
+         test/Lower/expr/structcastexpr_emit_mlir.nsl \
+         test/Lower/expr/fieldaccessexpr_emit_mlir.nsl; do
   echo "=== $f ==="
   build-noasan/bin/nslc -emit=mlir "$f" > /tmp/a.mlir 2>&1 || { echo "  nslc FAIL"; continue; }
   build-noasan/bin/nsl-opt /tmp/a.mlir > /tmp/b.mlir 2>&1 || { echo "  nsl-opt FAIL: $(cat /tmp/b.mlir)"; continue; }
