@@ -21,6 +21,7 @@
 #include "nsl/AST/LiteralExpr.h"
 #include "nsl/AST/MemDecl.h"
 #include "nsl/AST/ModuleBlock.h"
+#include "nsl/AST/ParallelBlock.h"
 #include "nsl/AST/ProcDefn.h"
 #include "nsl/AST/RegDecl.h"
 #include "nsl/AST/WireDecl.h"
@@ -111,12 +112,16 @@ void ASTToMLIR::visit(const ast::ModuleBlock &node) {
   for (const auto &decl : node.internals()) {
     decl->accept(*this);
   }
-  // Recurse into funcs and procs. Top-level actions arrive in T053.
+  // Recurse into funcs and procs.
   for (const auto &func : node.funcs()) {
     func->accept(*this);
   }
   for (const auto &proc : node.procs()) {
     proc->accept(*this);
+  }
+  // Recurse into top-level actions (T030+).
+  for (const auto &action : node.actions()) {
+    action->accept(*this);
   }
 }
 
@@ -182,6 +187,28 @@ void ASTToMLIR::visit(const ast::MemDecl &node) {
                                     builder_.getStringAttr(node.name()));
 }
 
+void ASTToMLIR::visit(const ast::ParallelBlock &node) {
+  // FR-006 row "ParallelBlock → nsl.parallel { ... }". `nsl.parallel`
+  // carries no `HasParent` constraint, so it can appear at module
+  // scope or nested inside any action-region. Phase 3 emits the
+  // shell with an empty body region; child action recursion lands
+  // alongside the other action-block visitors as Stmt-position
+  // ops mature (T037+ TransferStmt etc.).
+  auto loc = builder_.getUnknownLoc();
+  auto par_op = nsl::dialect::ParallelOp::create(builder_, loc);
+  auto &body_block = par_op.getBody().emplaceBlock();
+  mlir::OpBuilder::InsertionGuard guard(builder_);
+  builder_.setInsertionPointToStart(&body_block);
+  // Recurse into internal-decls first, then action items, mirroring
+  // the AST's split between `decls()` and `items()`.
+  for (const auto &decl : node.decls()) {
+    decl->accept(*this);
+  }
+  for (const auto &item : node.items()) {
+    item->accept(*this);
+  }
+}
+
 // ---------- No-op stubs for the remaining 52 AST node kinds ----------
 //
 // As US1 sub-tasks fill in real visit() bodies, the corresponding
@@ -216,7 +243,6 @@ STUB(LabeledStmt)
 STUB(GotoStmt)
 STUB(InitBlockStmt)
 STUB(DelayTaskStmt)
-STUB(ParallelBlock)
 STUB(AltBlock)
 STUB(AnyBlock)
 STUB(SeqBlock)

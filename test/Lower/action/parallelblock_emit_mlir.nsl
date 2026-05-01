@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/action/parallelblock_emit_mlir.nsl — US1 fixture
+// covering `ast::ParallelBlock` at top-level module scope. Per
+// FR-006 lowering table row "ParallelBlock → nsl.parallel { ... }".
+// `nsl.parallel` carries no `HasParent` constraint so an empty
+// top-level `par { }` is the simplest verifier-clean shape we can
+// emit at Phase 3 (US1).
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  {
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK-NEXT: nsl.parallel
