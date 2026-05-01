@@ -27,6 +27,7 @@ include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/EnumAttr.td"
 include "mlir/IR/OpBase.td"
 include "mlir/IR/SymbolInterfaces.td"
+include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 include "NSLDialect.td"
@@ -235,6 +236,107 @@ def NSL_ConstantOp : NSL_Op<"constant", [Pure, ConstantLike]> {
   let results = (outs NSL_AnyBits:$result);
   let assemblyFormat = "$value `:` type($result) attr-dict";
   let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// 2.2ter Expression-binary ops (Phase A cluster 1+3+4 of post-merge
+//        M4-amendment 2026-05-02 — option (B) on FR-007 vs design §10).
+//
+// Expression-position AST nodes (`BinaryExpr`, `UnaryExpr`,
+// `ConditionalExpr`, `SliceExpr`, `ConcatExpr`) per spec FR-007 must
+// lower to `mlir::Value` at M5. Design §10's M6 mapping table lists the
+// stock-CIRCT target for each op (`comb.<x>` / `hwarith.<x>`). M4's
+// expression-op surface is the seam between FR-007's M5 obligation and
+// design §10's M6 mapping; Phase A enumerates the structural shape per
+// EBNF §11. CIRCT-side conversion code lands at M6 (Principle III
+// firewall: M4 dialect is the seam, NOT CIRCT).
+//
+// This first cluster covers the trait-covered binary ops:
+//   - arith: `nsl.add`, `nsl.sub`, `nsl.mul`           (EBNF §11 line 622, 624)
+//   - bitwise: `nsl.and`, `nsl.or`, `nsl.xor`           (§11 lines 610–614)
+//   - shift: `nsl.shl`, `nsl.shr`                       (§11 line 620)
+//
+// All eight share the same trait set: `Pure` (no side-effects),
+// `SameOperandsAndResultType` (operand widths must match the result
+// width, and per-bit element types are identical), and where applicable
+// `Commutative`. The trait machinery covers every structural invariant;
+// no hand-written verifier body is required.
+//===----------------------------------------------------------------------===//
+
+class NSL_BinaryArithOp<string mnemonic, list<Trait> extraTraits = []>
+    : NSL_Op<mnemonic, !listconcat(
+        [Pure, SameOperandsAndResultType], extraTraits)> {
+  let arguments = (ins NSL_AnyBits:$lhs, NSL_AnyBits:$rhs);
+  let results = (outs NSL_AnyBits:$result);
+  let assemblyFormat = "$lhs `,` $rhs `:` type($result) attr-dict";
+}
+
+def NSL_AddOp : NSL_BinaryArithOp<"add", [Commutative]> {
+  let summary = "Bit-vector addition (NSL `+`).";
+  let description = [{
+    `nsl.add %a, %b : !nsl.bits<N>` — unsigned addition modulo 2^N (per
+    NSL's value-neutral grammar; signed semantics, when needed at M6,
+    are surfaced via the `nsl.sign_extend` op chain). Lowers to
+    `comb.add` at M6 per design §10.
+  }];
+}
+
+def NSL_SubOp : NSL_BinaryArithOp<"sub"> {
+  let summary = "Bit-vector subtraction (NSL `-` binary).";
+  let description = [{
+    `nsl.sub %a, %b : !nsl.bits<N>`. Lowers to `comb.sub` at M6.
+  }];
+}
+
+def NSL_MulOp : NSL_BinaryArithOp<"mul", [Commutative]> {
+  let summary = "Bit-vector multiplication (NSL `*`).";
+  let description = [{
+    `nsl.mul %a, %b : !nsl.bits<N>` — unsigned multiplication, low N
+    bits of the 2N-bit product. Lowers to `comb.mul` at M6.
+  }];
+}
+
+def NSL_AndOp : NSL_BinaryArithOp<"and", [Commutative]> {
+  let summary = "Bitwise AND (NSL `&` binary form per N2).";
+  let description = [{
+    `nsl.and %a, %b : !nsl.bits<N>`. Disambiguated from the `&` reduction
+    unary form (`nsl.reduce_and`) by parser-side N2 (already resolved at
+    AST level). Lowers to `comb.and` at M6.
+  }];
+}
+
+def NSL_OrOp : NSL_BinaryArithOp<"or", [Commutative]> {
+  let summary = "Bitwise OR (NSL `|` binary form per N2).";
+  let description = [{
+    `nsl.or %a, %b : !nsl.bits<N>`. Lowers to `comb.or` at M6.
+  }];
+}
+
+def NSL_XorOp : NSL_BinaryArithOp<"xor", [Commutative]> {
+  let summary = "Bitwise XOR (NSL `^` binary form per N2).";
+  let description = [{
+    `nsl.xor %a, %b : !nsl.bits<N>`. Lowers to `comb.xor` at M6.
+  }];
+}
+
+def NSL_ShlOp : NSL_BinaryArithOp<"shl"> {
+  let summary = "Left shift (NSL `<<`).";
+  let description = [{
+    `nsl.shl %a, %b : !nsl.bits<N>` — `%a` shifted left by `%b` bits;
+    high bits discarded, low bits zero-filled. Lowers to `comb.shl` at
+    M6.
+  }];
+}
+
+def NSL_ShrOp : NSL_BinaryArithOp<"shr"> {
+  let summary = "Logical right shift (NSL `>>`).";
+  let description = [{
+    `nsl.shr %a, %b : !nsl.bits<N>` — `%a` shifted right by `%b` bits;
+    low bits discarded, high bits zero-filled. NSL's grammar (§11 line
+    620) lists only `<<` and `>>`; signed-arithmetic right shift is not
+    in §11 and is deferred to a future amendment if surfaced. Lowers to
+    `comb.shru` at M6 (the unsigned/logical variant in CIRCT `comb`).
+  }];
 }
 
 //===----------------------------------------------------------------------===//
