@@ -206,3 +206,27 @@ freeze count (48 public types/functions). A future PR adding any
 public symbol to `Lower.h` MUST update this number AND justify the
 addition against Constitution Principle II's single-public-header
 rule.
+
+### 6.1 US1 ship status
+
+**US1 (`nslc -emit=mlir` produces verified `nsl.*` IR for every AST
+shape) ships on branch `008-m5-structural-passes` with the
+T057+T058+T059 close-out commit** — see
+[`tasks.md`](../tasks.md) for the task scorecard and
+`git log --grep="US1 ships clean"` for the close-out commit hash.
+Final scorecard at close-out:
+
+- 471/471 `check-nslc` lit tests PASS.
+- 32/32 `scripts/m5_smoke.sh` round-trip-clean fixtures PASS.
+- `scripts/audit_lower_fixtures.sh` exits 0: 37 concrete `visit()`
+  overrides covered (29 via fixture, 8 via allow-list); 17 STUB
+  no-op slots ignored; 32 fixtures inventoried under `test/Lower/`.
+- Audit hooked into `scripts/ci.sh static-checks` step 5
+  (CI-blocking on missing-fixture per FR-027 + Principle IX).
+
+US2/US3/US4 (the structural-expansion passes) and US5 (the
+determinism CI gate) remain. Their pass-bodies are still NO-OP
+slots from Phase 2 (T007–T012); the headline `-emit=mlir` pipeline
+runs them as no-ops, which is sound because every M3-Sema-clean
+fixture in scope for US1 has zero `generate` / `variable` /
+`%IDENT%` / `param_int` / array-submod content.

@@ -176,6 +176,22 @@ stage_static_checks() {
     log "  (skipping dialect-coverage check: scripts/check_dialect_coverage.py not yet present)"
   fi
 
+  # 5. M5 lower-fixture coverage guard (M5 spec FR-027 + SC-001).
+  # For every concrete `visit()` override on `ASTToMLIR` in
+  # `lib/Lower/ASTToMLIR.cpp`, assert a paired fixture exists under
+  # `test/Lower/`. Goes live with US1 close-out (T057 + T058); the
+  # script self-locates the repo root + carries an in-script ALLOWLIST
+  # for visitors that intentionally have no dedicated fixture (e.g.,
+  # expression-position lowerExpr delegators). Missing-fixture cases
+  # without an allow-list entry MUST fail CI per Principle IX.
+  if [[ -x "${REPO_ROOT}/scripts/audit_lower_fixtures.sh" ]]; then
+    log "  bash scripts/audit_lower_fixtures.sh"
+    bash "${REPO_ROOT}/scripts/audit_lower_fixtures.sh" \
+      || rc=$?
+  else
+    log "  (skipping lower-fixture audit: scripts/audit_lower_fixtures.sh not yet present)"
+  fi
+
   return "${rc}"
 }
 
