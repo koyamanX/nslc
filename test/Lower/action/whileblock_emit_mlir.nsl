@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/action/whileblock_emit_mlir.nsl — US1 fixture covering
+// `ast::WhileBlock`. Per FR-006 lowering table row "WhileBlock →
+// nsl.while %cond { ... }" (design §7 line 908). `nsl.while` requires
+// a transitive `nsl.seq` ancestor (Q2 Option B in the M4 verifier
+// per `lib/Dialect/NSL/IR/NSLOps.cpp:563`), so the source-level
+// container must be `func ... { seq { while (cond) { ... } } }` —
+// matching the M4 round-trip fixture
+// `test/Dialect/action-block/while_roundtrip.mlir`.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  func_self loop;
+  wire c[1];
+  wire a[8];
+  wire b[8];
+  func loop {
+    seq {
+      while (c) {
+        a = b;
+      }
+    }
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.wire "c" : !nsl.bits<1>
+// CHECK: nsl.func @loop
+// CHECK: nsl.seq
+// CHECK: nsl.while %{{.*}} : !nsl.bits<1>
+// CHECK: nsl.transfer %{{.*}}, %{{.*}} : !nsl.bits<8>

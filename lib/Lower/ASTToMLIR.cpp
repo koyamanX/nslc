@@ -48,6 +48,7 @@
 #include "nsl/AST/SystemTaskStmt.h"
 #include "nsl/AST/TransferStmt.h"
 #include "nsl/AST/UnaryExpr.h"
+#include "nsl/AST/WhileBlock.h"
 #include "nsl/AST/WireDecl.h"
 #include "nsl/AST/ZeroExtendExpr.h"
 
@@ -1091,6 +1092,26 @@ void ASTToMLIR::visit(const ast::IfStmt &node) {
   // structural slot remains a single empty block.
 }
 
+void ASTToMLIR::visit(const ast::WhileBlock &node) {
+  // FR-006 row "WhileBlock → nsl.while %cond { ... }" (design §7
+  // line 908). Per Q2 Option B `nsl.while` requires a transitive
+  // `nsl.seq` ancestor (verifier in `NSLOps.cpp:563`); the M3
+  // grammar's `S8` constraint (while/for must live inside `seq`)
+  // ensures Sema-clean inputs always supply that ancestor.
+  auto cond_val = lowerExpr(node.cond());
+  if (!cond_val) {
+    return;
+  }
+  auto loc = builder_.getUnknownLoc();
+  auto while_op = nsl::dialect::WhileOp::create(builder_, loc, cond_val);
+  auto &body_block = while_op.getBody().emplaceBlock();
+  mlir::OpBuilder::InsertionGuard guard(builder_);
+  builder_.setInsertionPointToStart(&body_block);
+  for (const auto &item : node.items()) {
+    item->accept(*this);
+  }
+}
+
 // ---------- No-op stubs for the remaining 52 AST node kinds ----------
 //
 // As US1 sub-tasks fill in real visit() bodies, the corresponding
@@ -1117,7 +1138,6 @@ STUB(LabeledStmt)
 STUB(GotoStmt)
 STUB(AltBlock)
 STUB(AnyBlock)
-STUB(WhileBlock)
 STUB(ForBlock)
 STUB(StructuralGenerate)
 
