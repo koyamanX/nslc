@@ -33,6 +33,7 @@
 #include "nsl/Dialect/NSL/IR/NSLDialect.h"
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -138,12 +139,123 @@ public:
       diagCount += scanOpAttrsForResidue(op);
     });
 
-    // Step 2 — sensitive-Sn re-checks. Helper-stub for T097.
-    // (No-op at Commit 2; lands at Commit 3 for S15/S16/S25.)
+    // Step 2 — sensitive-Sn re-checks per `pass-pipeline.contract.md`
+    // §3. Three of the six rows have meaningful structural-only
+    // re-checks at M5 (S10, S16, S25); the other three (S6, S15,
+    // S20) are documented stubs — see comments below + the XFAIL'd
+    // fixtures `test/Lower/passes/nsl-check-semantics/s{6,15,20}_*.mlir`.
+    diagCount += checkS10LoopVarResidue(module);
+    diagCount += checkS16PureNsl(module);
+    diagCount += checkS25ReplicatedCollision(module);
+
+    // **S6 — use-before-def** (DEFERRED at M5): requires SSA
+    // operand-traversal across regions. MLIR's SSA verifier already
+    // catches the most pathological forms; a meaningful re-check
+    // needs cross-replica name-tracking + canonical-version
+    // resolution which exceeds the slot-6 budget. Helper body lands
+    // when an M5+ amendment adds the operand-traversal infra.
+    //
+    // **S15 — bit-slice non-const** (VACUOUS at M5): `nsl.slice`
+    // carries `I64Attr` lo/hi indices, not operand-side SSA values.
+    // The "non-constant after slot 1" condition is unreachable on
+    // pure-NSL inputs. Helper body lands when an op variant whose
+    // index is operand-side `Value` is added.
+    //
+    // **S20 — submod-array iface** (POST-M6): interface-modifier
+    // bindings are an M6 surface; the structural shape that would
+    // trigger this re-check is unrepresentable at M5. Helper body
+    // lands when M6 adds `nsl.submod_iface_bind` (or the eventual
+    // op).
 
     if (diagCount > 0) {
       signalPassFailure();
     }
+  }
+
+private:
+  /// **S10 re-check**: a `nsl.structural_generate` op surviving to
+  /// slot 6 means slot 2 (expand-generate) was skipped or buggy.
+  /// FROZEN diagnostic per §3 row S10.
+  unsigned checkS10LoopVarResidue(mlir::ModuleOp module) {
+    unsigned count = 0;
+    module.walk([&](nsl::dialect::StructuralGenerateOp gen) {
+      llvm::StringRef loopVar =
+          gen.getLoopVar().has_value() ? *gen.getLoopVar() : llvm::StringRef{};
+      gen.emitError() << "'generate' loop variable '%" << loopVar
+                      << "%' not eliminated by structural expansion";
+      ++count;
+    });
+    return count;
+  }
+
+  /// **S16 re-check**: a `nsl.param_int` / `nsl.param_str` op
+  /// surviving in a pure-NSL module is meaningful only for V/V/SC
+  /// submodules per S16. At M5 ALL submodules are pure-NSL, so any
+  /// surviving param op qualifies. FROZEN diagnostic per §3 row S16.
+  ///
+  /// (When M7 introduces V/V/SC submodule lowering, this helper
+  /// MUST be amended to walk the submodule list and skip the diag
+  /// if any submodule's template resolves to a non-NSL kind.)
+  unsigned checkS16PureNsl(mlir::ModuleOp module) {
+    unsigned count = 0;
+    // Source-order walk via `getOps<>()` — deterministic.
+    for (auto p : module.getOps<nsl::dialect::ParamIntOp>()) {
+      p.emitError() << "parameter '@" << p.getSymName()
+                    << "' meaningful only for V/V/SC submodules";
+      ++count;
+    }
+    for (auto p : module.getOps<nsl::dialect::ParamStrOp>()) {
+      p.emitError() << "parameter '@" << p.getSymName()
+                    << "' meaningful only for V/V/SC submodules";
+      ++count;
+    }
+    return count;
+  }
+
+  /// **S25 re-check**: two declaration-bearing ops with the same
+  /// `name` `StringAttr` value in the same scope. Post-expand-
+  /// generate, an unrolled body's per-iteration name-substitution
+  /// (`%i%` → `0`/`1`/...) MUST uniquify each replica; if a body
+  /// declares an unsubstituted name (e.g., `reg buf_const`), the
+  /// replicas collide.
+  ///
+  /// Scope: the immediate `nsl.module` body (the only scope the
+  /// post-pipeline shape produces collisions in at M5). Decl ops
+  /// considered: `nsl.reg`, `nsl.wire`, `nsl.variable`, `nsl.mem`
+  /// (each carries a `name` `StringAttr`). FROZEN diagnostic per
+  /// §3 row S25.
+  unsigned checkS25ReplicatedCollision(mlir::ModuleOp module) {
+    unsigned count = 0;
+    module.walk([&](nsl::dialect::ModuleOp nslMod) {
+      // Track names seen in source-order in this module's body.
+      // `StringMap` lookup is by-key (StringRef), insertion order
+      // doesn't affect emission since we only emit on the SECOND
+      // hit and the walk is source-ordered.
+      llvm::StringMap<mlir::Operation *> seen;
+      for (mlir::Operation &op : nslMod.getBody().front()) {
+        // Each declaration-bearing storage op carries a `name`
+        // StringAttr at attribute slot "name" (`nsl.reg`,
+        // `nsl.wire`, `nsl.variable`, `nsl.mem`).
+        if (!mlir::isa<nsl::dialect::RegOp, nsl::dialect::WireOp,
+                       nsl::dialect::VariableOp, nsl::dialect::MemOp>(op)) {
+          continue;
+        }
+        auto nameAttr = op.getAttrOfType<mlir::StringAttr>("name");
+        if (!nameAttr) {
+          continue;
+        }
+        auto [it, inserted] = seen.try_emplace(nameAttr.getValue(), &op);
+        if (!inserted) {
+          // Second occurrence — emit diag on the COLLIDING op (not
+          // the first).
+          op.emitError()
+              << "duplicate declaration '" << nameAttr.getValue()
+              << "' in replicated 'generate' body";
+          ++count;
+        }
+      }
+    });
+    return count;
   }
 };
 
