@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/action/forblock_cstyle_emit_mlir.nsl — US1 fixture
+// covering `ast::ForBlock` C-style form (`for (init; cond; step)
+// { ... }`). Per FR-006 lowering table row "ForBlock (C-style form)
+// → nsl.for %init, %cond, %step { ... }" (design §7 line 909).
+// `nsl.for` requires a transitive `nsl.seq` ancestor (Q2 Option B,
+// verifier `NSLOps.cpp:570`).
+//
+// Phase 3 maps the AST-level init/step Stmts to opaque wire Values
+// (the loop-variable target identifier resolved through
+// `nameTable_`); side-effect emission of init/step transfers lands
+// in a follow-up. This matches the M4 round-trip fixture
+// `test/Dialect/action-block/for_roundtrip.mlir` shape — opaque
+// `%init`/`%step` Values supplied to the marker op.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  func_self loop;
+  reg i[8];
+  wire c[1];
+  wire a[8];
+  wire b[8];
+  func loop {
+    seq {
+      for (i := i; c; i++) {
+        a = b;
+      }
+    }
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.reg "i" : !nsl.bits<8>
+// CHECK: nsl.wire "c" : !nsl.bits<1>
+// CHECK: nsl.func @loop
+// CHECK: nsl.seq
+// CHECK: nsl.for %{{.*}}, %{{.*}}, %{{.*}} : !nsl.bits<8>, !nsl.bits<1>, !nsl.bits<8>
+// CHECK: nsl.transfer %{{.*}}, %{{.*}} : !nsl.bits<8>

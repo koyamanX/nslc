@@ -27,9 +27,11 @@
 #include "nsl/AST/Expr.h"
 #include "nsl/AST/FieldAccessExpr.h"
 #include "nsl/AST/FirstStateDecl.h"
+#include "nsl/AST/ForBlock.h"
 #include "nsl/AST/FuncDefn.h"
 #include "nsl/AST/IdentifierExpr.h"
 #include "nsl/AST/IfStmt.h"
+#include "nsl/AST/IncDecStmt.h"
 #include "nsl/AST/InitBlockStmt.h"
 #include "nsl/AST/LiteralExpr.h"
 #include "nsl/AST/MemDecl.h"
@@ -1112,6 +1114,73 @@ void ASTToMLIR::visit(const ast::WhileBlock &node) {
   }
 }
 
+void ASTToMLIR::visit(const ast::ForBlock &node) {
+  // FR-006 row "ForBlock (C-style form) → nsl.for %init, %cond,
+  // %step { ... }" (design §7 line 909). Per Q2 Option B `nsl.for`
+  // requires a transitive `nsl.seq` ancestor (verifier in
+  // `NSLOps.cpp:570`); per S8 Sema-clean inputs supply that
+  // ancestor.
+  //
+  // Phase 3 scope (offload 2026-04-30): C-form ONLY — init/cond/step
+  // all present. The init/step Stmts' carried target identifier is
+  // resolved through `nameTable_` to produce the `%init`/`%step`
+  // operand Values (matching the M4 round-trip fixture
+  // `test/Dialect/action-block/for_roundtrip.mlir` shape — opaque
+  // wire Values supplied to the marker op).
+  //
+  // ENUM-FORM (offload 2026-04-30 escalation): the spec
+  // (`spec.md:419`) maps `for (i = 0..N) { ... }` to a 2-operand
+  // `nsl.for %init, %end { ... }`, but the M4 op surface (frozen at
+  // 77, per offload constraint) defines `nsl.for` with **three**
+  // operands (`init, cond, step`). No clean mapping at Phase 3 — the
+  // enum form falls through to soft-fail. Resolution is either an
+  // M4 op-surface amendment (out of scope) or a Sema-injected
+  // synthetic step (M3 territory). Tracked in the offload report.
+  const ast::ForForm &form = node.form();
+  if (!form.init || !form.cond || !form.step) {
+    // Enum form (step == nullptr) or malformed — soft-fail per
+    // FR-010. Sema-clean inputs at M3 will eventually disambiguate.
+    return;
+  }
+  // Resolve the init Stmt's loop-variable target. Init is either a
+  // `TransferStmt` (`id := expr`, parser line 798) or a
+  // `ParallelBlock` (compound init, parser line 779). Phase 3 only
+  // handles the simple TransferStmt shape; compound init is
+  // soft-fail.
+  const ast::Expr *init_target = nullptr;
+  if (form.init->kind() == ast::TransferStmt::kKind) {
+    init_target = static_cast<const ast::TransferStmt *>(form.init.get())->lhs();
+  }
+  // Resolve the step Stmt's loop-variable target. Step is either an
+  // `IncDecStmt` (`id++`/`++id`/...) or a `TransferStmt` (`id :=
+  // expr`).
+  const ast::Expr *step_target = nullptr;
+  if (form.step->kind() == ast::TransferStmt::kKind) {
+    step_target = static_cast<const ast::TransferStmt *>(form.step.get())->lhs();
+  } else if (form.step->kind() == ast::IncDecStmt::kKind) {
+    step_target =
+        static_cast<const ast::IncDecStmt *>(form.step.get())->target();
+  }
+  if (!init_target || !step_target) {
+    return;
+  }
+  auto init_val = lowerExpr(init_target);
+  auto cond_val = lowerExpr(form.cond.get());
+  auto step_val = lowerExpr(step_target);
+  if (!init_val || !cond_val || !step_val) {
+    return;
+  }
+  auto loc = builder_.getUnknownLoc();
+  auto for_op = nsl::dialect::ForOp::create(builder_, loc, init_val, cond_val,
+                                             step_val);
+  auto &body_block = for_op.getBody().emplaceBlock();
+  mlir::OpBuilder::InsertionGuard guard(builder_);
+  builder_.setInsertionPointToStart(&body_block);
+  for (const auto &item : node.items()) {
+    item->accept(*this);
+  }
+}
+
 // ---------- No-op stubs for the remaining 52 AST node kinds ----------
 //
 // As US1 sub-tasks fill in real visit() bodies, the corresponding
@@ -1138,7 +1207,6 @@ STUB(LabeledStmt)
 STUB(GotoStmt)
 STUB(AltBlock)
 STUB(AnyBlock)
-STUB(ForBlock)
 STUB(StructuralGenerate)
 
 STUB(SystemVarExpr)
