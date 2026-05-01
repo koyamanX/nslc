@@ -572,6 +572,55 @@ def NSL_ZeroExtendOp : NSL_ExtendOp<"zero_extend"> {
 }
 
 //===----------------------------------------------------------------------===//
+// 2.2mux Conditional-expression + concat ops (Phase A cluster 7a of
+//        post-merge M4-amendment 2026-05-02 — option (B)).
+//
+// `nsl.mux` (NSL `if (c) e1 else e2` per EBNF §11 lines 601–604;
+//   spec S14 mandates the else-branch in conditional expressions, so
+//   both branches are required at M4-verify time).
+//
+// `nsl.concat` (NSL `{a, b, ...}` per §11 line 698; result width is
+//   the sum of operand widths).
+//===----------------------------------------------------------------------===//
+
+def NSL_MuxOp : NSL_Op<"mux", [Pure]> {
+  let summary = "Conditional-expression mux (NSL `if (c) a else b`).";
+  let description = [{
+    `nsl.mux %cond, %a, %b : !nsl.bits<N>` — selects `%a` if `%cond` is
+    1, else `%b`. `%cond` is `!nsl.bits<1>`; `%a`, `%b`, and the result
+    share type `!nsl.bits<N>` (or `!nsl.struct<@T>`). S14 mandates the
+    else-branch in expressions; both `then` and `else` operands are
+    required at M4. Lowers to `comb.mux` at M6.
+  }];
+  let arguments = (ins
+    NSL_AnyBits:$cond,
+    NSL_BitsOrStruct:$thenValue,
+    NSL_BitsOrStruct:$elseValue);
+  let results = (outs NSL_BitsOrStruct:$result);
+  let assemblyFormat = [{
+    $cond `,` $thenValue `,` $elseValue `:`
+    type($cond) `,` type($thenValue) `,` type($elseValue) `->` type($result) attr-dict
+  }];
+  let hasVerifier = 1;
+}
+
+def NSL_ConcatOp : NSL_Op<"concat", [Pure]> {
+  let summary = "Bit-vector concatenation (NSL `{a, b, ...}` per §11 line 698).";
+  let description = [{
+    `nsl.concat %a, %b, %c : (!nsl.bits<W1>, !nsl.bits<W2>, !nsl.bits<W3>) -> !nsl.bits<W>`
+    where `W = W1 + W2 + W3`. Operands are listed in NSL source order
+    (left-to-right MSB-first per S18 packing convention). At least one
+    operand is required. Lowers to `comb.concat` (variadic) at M6.
+  }];
+  let arguments = (ins Variadic<NSL_AnyBits>:$operands);
+  let results = (outs NSL_AnyBits:$result);
+  let assemblyFormat = [{
+    $operands `:` `(` type($operands) `)` `->` type($result) attr-dict
+  }];
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
 // 2.3 Control-terminal ops (3): nsl.func_in, nsl.func_out, nsl.func_self
 //===----------------------------------------------------------------------===//
 

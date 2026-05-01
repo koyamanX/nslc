@@ -55,6 +55,8 @@
     { "name": "nsl.reduce_or",             "category": "expr",             "invariants": ["result-type-bits1"] },
     { "name": "nsl.reduce_xor",            "category": "expr",             "invariants": ["result-type-bits1"] },
     { "name": "nsl.sign_extend",           "category": "expr",             "invariants": ["result-width-ge-operand-width"] },
-    { "name": "nsl.zero_extend",           "category": "expr",             "invariants": ["result-width-ge-operand-width"] }
+    { "name": "nsl.zero_extend",           "category": "expr",             "invariants": ["result-width-ge-operand-width"] },
+    { "name": "nsl.mux",                   "category": "expr",             "invariants": ["cond-width-1", "then-else-result-types-match"] },
+    { "name": "nsl.concat",                "category": "expr",             "invariants": ["nonempty-operands", "result-width-eq-sum-operand-widths"] }
   ]
 }

@@ -444,6 +444,56 @@ mlir::LogicalResult ZeroExtendOp::verify() {
                                      getResult().getType(), "zero_extend");
 }
 
+// Cluster 7a — mux + concat.
+mlir::LogicalResult MuxOp::verify() {
+  // (1) cond must be `!nsl.bits<1>`.
+  auto condBits = mlir::dyn_cast<BitsType>(getCond().getType());
+  if (!condBits || condBits.getWidth() != 1) {
+    return emitOpError() << "condition must be '!nsl.bits<1>', got "
+                         << getCond().getType();
+  }
+  // (2) thenValue, elseValue, result share type (the NSL_BitsOrStruct
+  //     constraint admits both `!nsl.bits<N>` and `!nsl.struct<@T>`,
+  //     but mux requires all three to match exactly).
+  if (getThenValue().getType() != getElseValue().getType()) {
+    return emitOpError() << "then/else operand type mismatch: "
+                         << getThenValue().getType() << " vs "
+                         << getElseValue().getType();
+  }
+  if (getResult().getType() != getThenValue().getType()) {
+    return emitOpError() << "result type " << getResult().getType()
+                         << " does not match then/else operand type "
+                         << getThenValue().getType();
+  }
+  return mlir::success();
+}
+
+mlir::LogicalResult ConcatOp::verify() {
+  // (1) at least one operand.
+  if (getOperands().empty()) {
+    return emitOpError() << "must have at least one operand";
+  }
+  // (2) result width == sum of operand widths.
+  auto resultBits = mlir::dyn_cast<BitsType>(getResult().getType());
+  if (!resultBits) {
+    // NSL_AnyBits constraint already enforces this; defensive return.
+    return mlir::success();
+  }
+  unsigned sum = 0;
+  for (mlir::Value operand : getOperands()) {
+    auto opBits = mlir::dyn_cast<BitsType>(operand.getType());
+    if (!opBits) {
+      return mlir::success();
+    }
+    sum += opBits.getWidth();
+  }
+  if (sum != resultBits.getWidth()) {
+    return emitOpError() << "result width " << resultBits.getWidth()
+                         << " does not equal sum of operand widths " << sum;
+  }
+  return mlir::success();
+}
+
 // ===========================================================================
 // 2.4 Action-block verifiers
 // ===========================================================================
