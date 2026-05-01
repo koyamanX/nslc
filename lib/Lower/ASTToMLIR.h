@@ -22,6 +22,7 @@
 
 namespace nsl::ast {
 class CompilationUnit;
+class Stmt;
 } // namespace nsl::ast
 
 namespace nsl::sema {
@@ -56,6 +57,15 @@ public:
 #undef NSL_NODE_KIND
 
 private:
+  /// Lower an action-body `Stmt` into the current insertion point's
+  /// block. If `body` is a top-level `ast::ParallelBlock`, its
+  /// `decls()` + `items()` are recursed directly (no wrapping
+  /// `nsl.parallel` is emitted) — matching the M4 dialect's
+  /// flattened proc/state/func body shape (see
+  /// `test/Dialect/atomic/finish_roundtrip.mlir`). Any other Stmt
+  /// kind dispatches normally via `accept(*this)`.
+  void lowerActionBody(const ast::Stmt *body);
+
   mlir::MLIRContext &ctx_;
   const sema::SemaResult &sr_;
   mlir::OpBuilder builder_;

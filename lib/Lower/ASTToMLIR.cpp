@@ -17,6 +17,7 @@
 
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/Expr.h"
+#include "nsl/AST/FirstStateDecl.h"
 #include "nsl/AST/FuncDefn.h"
 #include "nsl/AST/LiteralExpr.h"
 #include "nsl/AST/MemDecl.h"
@@ -24,6 +25,8 @@
 #include "nsl/AST/ParallelBlock.h"
 #include "nsl/AST/ProcDefn.h"
 #include "nsl/AST/RegDecl.h"
+#include "nsl/AST/StateDefn.h"
+#include "nsl/AST/Stmt.h"
 #include "nsl/AST/WireDecl.h"
 
 #include "llvm/ADT/StringRef.h"
@@ -125,6 +128,33 @@ void ASTToMLIR::visit(const ast::ModuleBlock &node) {
   }
 }
 
+/// Lower an action-body Stmt directly into the current insertion-
+/// point's block, "flattening" a top-level `ast::ParallelBlock` so
+/// its children land as direct siblings of the parent op's body
+/// (matching the M4 dialect's `nsl.proc` / `nsl.state` body shape
+/// in `test/Dialect/atomic/finish_roundtrip.mlir`). For any other
+/// Stmt kind, dispatch normally.
+void ASTToMLIR::lowerActionBody(const ast::Stmt *body) {
+  if (!body) {
+    return;
+  }
+  if (body->kind() != ast::ParallelBlock::kKind) {
+    body->accept(*this);
+    return;
+  }
+  // Flatten: visit decls + items at the current insertion point,
+  // skipping the wrapping `nsl.parallel`. Items reaching here are
+  // semantically the body's parallel children — they belong directly
+  // inside the parent op's region.
+  const auto &pb = static_cast<const ast::ParallelBlock &>(*body);
+  for (const auto &decl : pb.decls()) {
+    decl->accept(*this);
+  }
+  for (const auto &item : pb.items()) {
+    item->accept(*this);
+  }
+}
+
 void ASTToMLIR::visit(const ast::FuncDefn &node) {
   // FR-006 row "FuncDefn → nsl.func @<name> { ... }". Per Q5 →
   // Option A', the `sym_name` is a literal dotted form when the
@@ -141,19 +171,50 @@ void ASTToMLIR::visit(const ast::FuncDefn &node) {
   os.flush();
   auto func_op = nsl::dialect::FuncOp::create(
       builder_, loc, builder_.getStringAttr(flat_name));
-  func_op.getBody().emplaceBlock();
+  auto &body_block = func_op.getBody().emplaceBlock();
+  mlir::OpBuilder::InsertionGuard guard(builder_);
+  builder_.setInsertionPointToStart(&body_block);
+  lowerActionBody(node.body());
 }
 
 void ASTToMLIR::visit(const ast::ProcDefn &node) {
-  // FR-006 row "ProcDefn → nsl.proc @p { ... }". Body Stmt
-  // recursion arrives in T052 (state-defn / first-state / goto
-  // visitors). At Phase 3 we emit just the proc shell with an
-  // empty entry block; the M4 verifier accepts SingleBlock +
-  // NoTerminator on an empty block.
+  // FR-006 row "ProcDefn → nsl.proc @p { ... }". Body recursion via
+  // `lowerActionBody`: the proc body's outer-most ParallelBlock is
+  // flattened so child decls (state_name, first_state, state) land
+  // directly inside `nsl.proc`'s region — matching the M4 dialect
+  // round-trip fixtures (`test/Dialect/atomic/finish_roundtrip.mlir`).
   auto loc = builder_.getUnknownLoc();
   auto proc_op = nsl::dialect::ProcOp::create(
       builder_, loc, builder_.getStringAttr(node.name()));
-  proc_op.getBody().emplaceBlock();
+  auto &body_block = proc_op.getBody().emplaceBlock();
+  mlir::OpBuilder::InsertionGuard guard(builder_);
+  builder_.setInsertionPointToStart(&body_block);
+  lowerActionBody(node.body());
+}
+
+void ASTToMLIR::visit(const ast::StateDefn &node) {
+  // FR-006 row "StateDefn → nsl.state @s { ... }". Body recursion
+  // via lowerActionBody: the state body's outer-most ParallelBlock
+  // is flattened so atomic actions (`nsl.transfer`, `nsl.finish`,
+  // ...) land directly inside `nsl.state`'s region. Phase 3 ships
+  // the shell; transfers/finishes/system-tasks light up alongside
+  // their statement-position visitors (T039+).
+  auto loc = builder_.getUnknownLoc();
+  auto state_op = nsl::dialect::StateOp::create(
+      builder_, loc, builder_.getStringAttr(node.name()));
+  auto &body_block = state_op.getBody().emplaceBlock();
+  mlir::OpBuilder::InsertionGuard guard(builder_);
+  builder_.setInsertionPointToStart(&body_block);
+  lowerActionBody(node.body());
+}
+
+void ASTToMLIR::visit(const ast::FirstStateDecl &node) {
+  // FR-006 row "FirstStateDecl → nsl.first_state @s". Single
+  // attribute-only op; no region.
+  auto loc = builder_.getUnknownLoc();
+  auto target = mlir::FlatSymbolRefAttr::get(
+      builder_.getStringAttr(node.target()));
+  (void)nsl::dialect::FirstStateOp::create(builder_, loc, target);
 }
 
 void ASTToMLIR::visit(const ast::RegDecl &node) {
@@ -227,10 +288,8 @@ STUB(IntegerDecl)
 STUB(FuncSelfDecl)
 STUB(ProcNameDecl)
 STUB(StateNameDecl)
-STUB(FirstStateDecl)
 STUB(SubmoduleDecl)
 STUB(StructInstDecl)
-STUB(StateDefn)
 
 STUB(TransferStmt)
 STUB(IncDecStmt)

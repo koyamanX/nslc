@@ -9,6 +9,7 @@ for f in test/Lower/module/empty_module_emit_mlir.nsl \
          test/Lower/decl/memdecl_emit_mlir.nsl \
          test/Lower/decl/procdefn_emit_mlir.nsl \
          test/Lower/decl/funcdefn_emit_mlir.nsl \
+         test/Lower/decl/firststate_emit_mlir.nsl \
          test/Lower/action/parallelblock_emit_mlir.nsl; do
   echo "=== $f ==="
   build-noasan/bin/nslc -emit=mlir "$f" > /tmp/a.mlir 2>&1 || { echo "  nslc FAIL"; continue; }
