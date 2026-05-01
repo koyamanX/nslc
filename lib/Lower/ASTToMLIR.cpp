@@ -32,11 +32,14 @@
 #include "nsl/AST/ProcDefn.h"
 #include "nsl/AST/RegDecl.h"
 #include "nsl/AST/SeqBlock.h"
+#include "nsl/AST/SignExtendExpr.h"
 #include "nsl/AST/StateDefn.h"
 #include "nsl/AST/Stmt.h"
 #include "nsl/AST/SystemTaskStmt.h"
 #include "nsl/AST/TransferStmt.h"
+#include "nsl/AST/UnaryExpr.h"
 #include "nsl/AST/WireDecl.h"
+#include "nsl/AST/ZeroExtendExpr.h"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
@@ -574,9 +577,85 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr) {
     }
     return {};
   }
-  // Other expression-position kinds (Unary/Conditional/Slice/
-  // Concat/Repeat/SignExtend/ZeroExtend/FieldAccess/Call/IncDec/
-  // StructCast/SystemVar) — T055.
+  if (expr->kind() == ast::UnaryExpr::kKind) {
+    // FR-007 row "UnaryExpr → nsl.<op>". Two op-trait classes:
+    //   (a) `SameOperandsAndResultType` — `Neg`, `BitNot`. Result
+    //       type inferred; `create(loc, sub)`.
+    //   (b) Width-1 result (`Pure` only): `LogicalNot` (operand
+    //       must be width-1), reductions `ReduceAnd/Or/Xor` (operand
+    //       any width). create signature is `create(loc, resultType,
+    //       sub)`.
+    // Unary `Plus` is a no-op identity (no `nsl.plus` op exists at
+    // M4 by design — see NSLOps.td §2.2quinque header) — return the
+    // sub Value directly.
+    // Negated reductions (`~&`/`~|`/`~^`) are not surfaced as a
+    // dedicated UnaryExpr::Op enumerator at the AST layer; they
+    // would parse as a `BitNot` of a reduction expression, which
+    // decomposes naturally through the visitor.
+    const auto *un = static_cast<const ast::UnaryExpr *>(expr);
+    auto sub_val = lowerExpr(un->sub());
+    if (!sub_val) {
+      return {};
+    }
+    auto loc = builder_.getUnknownLoc();
+    auto bits1_ty = nsl::dialect::BitsType::get(&ctx_, /*width=*/1);
+    using UO = ast::UnaryExpr::Op;
+    switch (un->op()) {
+    case UO::Plus:
+      return sub_val; // identity
+    case UO::Neg:
+      return nsl::dialect::NegOp::create(builder_, loc, sub_val).getResult();
+    case UO::BitNot:
+      return nsl::dialect::NotOp::create(builder_, loc, sub_val).getResult();
+    case UO::LogicalNot:
+      return nsl::dialect::LnotOp::create(builder_, loc, bits1_ty, sub_val)
+          .getResult();
+    case UO::ReduceAnd:
+      return nsl::dialect::ReduceAndOp::create(builder_, loc, bits1_ty,
+                                                sub_val)
+          .getResult();
+    case UO::ReduceOr:
+      return nsl::dialect::ReduceOrOp::create(builder_, loc, bits1_ty,
+                                               sub_val)
+          .getResult();
+    case UO::ReduceXor:
+      return nsl::dialect::ReduceXorOp::create(builder_, loc, bits1_ty,
+                                                sub_val)
+          .getResult();
+    }
+    return {};
+  }
+  if (expr->kind() == ast::SignExtendExpr::kKind) {
+    // FR-007 row "SignExtendExpr → nsl.sign_extend". Width is read
+    // from the prefix Decimal literal (S15 spec: width is a
+    // compile-time constant); operand width comes from the sub
+    // expression's result type.
+    const auto *sx = static_cast<const ast::SignExtendExpr *>(expr);
+    auto sub_val = lowerExpr(sx->sub());
+    if (!sub_val) {
+      return {};
+    }
+    auto loc = builder_.getUnknownLoc();
+    auto result_ty =
+        nsl::dialect::BitsType::get(&ctx_, resolveWidth(sx->width()));
+    return nsl::dialect::SignExtendOp::create(builder_, loc, result_ty, sub_val)
+        .getResult();
+  }
+  if (expr->kind() == ast::ZeroExtendExpr::kKind) {
+    // FR-007 row "ZeroExtendExpr → nsl.zero_extend".
+    const auto *zx = static_cast<const ast::ZeroExtendExpr *>(expr);
+    auto sub_val = lowerExpr(zx->sub());
+    if (!sub_val) {
+      return {};
+    }
+    auto loc = builder_.getUnknownLoc();
+    auto result_ty =
+        nsl::dialect::BitsType::get(&ctx_, resolveWidth(zx->width()));
+    return nsl::dialect::ZeroExtendOp::create(builder_, loc, result_ty, sub_val)
+        .getResult();
+  }
+  // Other expression-position kinds (Conditional/Slice/Concat/Repeat
+  // /FieldAccess/Call/IncDec/StructCast/SystemVar) — T055.
   return {};
 }
 
@@ -600,6 +679,18 @@ void ASTToMLIR::visit(const ast::BinaryExpr &node) {
   // Visitor entry-point form (cf. `visit(LiteralExpr)`). The actual
   // dispatch into the per-operator `nsl.<op>` lowering is in
   // `lowerExpr` — callers wanting an `mlir::Value` route through it.
+  (void)lowerExpr(&node);
+}
+
+void ASTToMLIR::visit(const ast::UnaryExpr &node) {
+  (void)lowerExpr(&node);
+}
+
+void ASTToMLIR::visit(const ast::SignExtendExpr &node) {
+  (void)lowerExpr(&node);
+}
+
+void ASTToMLIR::visit(const ast::ZeroExtendExpr &node) {
   (void)lowerExpr(&node);
 }
 
@@ -708,12 +799,9 @@ STUB(IfStmt)
 STUB(StructuralGenerate)
 
 STUB(SystemVarExpr)
-STUB(UnaryExpr)
 STUB(ConditionalExpr)
 STUB(ConcatExpr)
 STUB(RepeatExpr)
-STUB(SignExtendExpr)
-STUB(ZeroExtendExpr)
 STUB(SliceExpr)
 STUB(FieldAccessExpr)
 STUB(CallExpr)

@@ -96,7 +96,7 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 - [X] T039 [P] [US1] Author `test/Lower/stmt/barefinishstmt_emit_mlir.nsl` covering `ast::BareFinishStmt`
 - [X] T040 [P] [US1] Author `test/Lower/stmt/systemtaskstmt_{display,finish,init,delay}_emit_mlir.nsl` covering each of the four `ast::SystemTaskStmt` flavours
 - [X] T041 [P] [US1] Author `test/Lower/expr/binaryexpr_emit_mlir.nsl` covering arithmetic + bit + comparison `ast::BinaryExpr` operators
-- [ ] T042 [P] [US1] Author `test/Lower/expr/{unary,literal,identifier,conditional,slice,concat}_emit_mlir.nsl` covering the remaining expression-position `ast::*Expr` kinds
+- [ ] T042 [P] [US1] Author `test/Lower/expr/{unary,literal,identifier,conditional,slice,concat}_emit_mlir.nsl` covering the remaining expression-position `ast::*Expr` kinds (PARTIAL: `unary` shipped Phase B Commit 2 — also covers `SignExtendExpr` + `ZeroExtendExpr`; `literal` + `identifier` covered indirectly via `transferstmt_*` + `regdecl_init`)
 - [ ] T043 [P] [US1] Author `test/Lower/expr/structcastexpr_emit_mlir.nsl` covering `ast::StructCastExpr` → `nsl.struct_cast` + `nsl.field` chain
 - [ ] T044 [P] [US1] Author `test/Lower/expr/fieldaccessexpr_emit_mlir.nsl` covering `ast::FieldAccessExpr`
 - [ ] T045 [P] [US1] Author `test/Lower/marker/fire_probe_emit_mlir.nsl` covering control-name-as-1-bit-value (S27) → `nsl.fire_probe`

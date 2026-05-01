@@ -22,7 +22,8 @@ for f in test/Lower/module/empty_module_emit_mlir.nsl \
          test/Lower/stmt/systemtaskstmt_display_emit_mlir.nsl \
          test/Lower/stmt/systemtaskstmt_init_emit_mlir.nsl \
          test/Lower/stmt/systemtaskstmt_delay_emit_mlir.nsl \
-         test/Lower/expr/binaryexpr_emit_mlir.nsl; do
+         test/Lower/expr/binaryexpr_emit_mlir.nsl \
+         test/Lower/expr/unaryexpr_emit_mlir.nsl; do
   echo "=== $f ==="
   build-noasan/bin/nslc -emit=mlir "$f" > /tmp/a.mlir 2>&1 || { echo "  nslc FAIL"; continue; }
   build-noasan/bin/nsl-opt /tmp/a.mlir > /tmp/b.mlir 2>&1 || { echo "  nsl-opt FAIL: $(cat /tmp/b.mlir)"; continue; }
