@@ -327,6 +327,71 @@ mlir::LogicalResult ConstantOp::verify() {
 }
 
 // ===========================================================================
+// 2.2quater Expression-comparison + logical verifiers (post-merge
+//           M4-amendment 2026-05-02 cluster 2)
+// ===========================================================================
+//
+// Comparison + logical ops produce `!nsl.bits<1>` regardless of operand
+// width. The `SameTypeOperands` trait ensures `lhs` and `lhs` share a
+// type; this verifier covers the orthogonal "result is `!nsl.bits<1>`"
+// invariant. Logical-AND / -OR additionally require operand width = 1
+// (per the op descriptions); we surface that as part of the same
+// hand-written body to keep the diagnostic shape uniform.
+
+namespace {
+mlir::LogicalResult verifyResultIsBits1(mlir::Operation *op,
+                                        mlir::Type resultTy) {
+  auto bitsTy = mlir::dyn_cast<BitsType>(resultTy);
+  if (!bitsTy || bitsTy.getWidth() != 1) {
+    return op->emitOpError()
+           << "result type must be '!nsl.bits<1>', got " << resultTy;
+  }
+  return mlir::success();
+}
+
+mlir::LogicalResult verifyLogicalOpOperandsWidth1(mlir::Operation *op,
+                                                  mlir::Type lhsTy) {
+  auto bitsTy = mlir::dyn_cast<BitsType>(lhsTy);
+  if (!bitsTy || bitsTy.getWidth() != 1) {
+    return op->emitOpError()
+           << "logical-op operands must be '!nsl.bits<1>', got " << lhsTy;
+  }
+  return mlir::success();
+}
+} // namespace
+
+mlir::LogicalResult EqOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+mlir::LogicalResult NeOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+mlir::LogicalResult LtOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+mlir::LogicalResult LeOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+mlir::LogicalResult GtOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+mlir::LogicalResult GeOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+mlir::LogicalResult LandOp::verify() {
+  if (mlir::failed(verifyResultIsBits1(*this, getResult().getType()))) {
+    return mlir::failure();
+  }
+  return verifyLogicalOpOperandsWidth1(*this, getLhs().getType());
+}
+mlir::LogicalResult LorOp::verify() {
+  if (mlir::failed(verifyResultIsBits1(*this, getResult().getType()))) {
+    return mlir::failure();
+  }
+  return verifyLogicalOpOperandsWidth1(*this, getLhs().getType());
+}
+
+// ===========================================================================
 // 2.4 Action-block verifiers
 // ===========================================================================
 

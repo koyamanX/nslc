@@ -340,6 +340,107 @@ def NSL_ShrOp : NSL_BinaryArithOp<"shr"> {
 }
 
 //===----------------------------------------------------------------------===//
+// 2.2quater Expression-comparison + logical ops (Phase A cluster 2 of
+//           post-merge M4-amendment 2026-05-02 — option (B)).
+//
+// Result type is `!nsl.bits<1>` regardless of operand widths. Operands
+// share types per `SameTypeOperands` (NOT `SameOperandsAndResultType`,
+// since the result width 1 differs from operand width N). A hand-
+// written verifier body asserts the result type is `!nsl.bits<1>`.
+//
+// Comparisons are unsigned (`comb.icmp ult/ule/ugt/uge`) — NSL's
+// grammar (§11 line 618) is value-neutral and the spec carries no
+// signed-comparison primitive at this layer; signed semantics would
+// surface via `nsl.sign_extend` chains in a future amendment if
+// required.
+//
+// Logical AND / OR (NSL `&&` / `||` per §11 lines 606–608) are listed
+// here because they share the result-type-1 + same-operand-type shape.
+// Per N2 they are syntactically distinct from bitwise `&` / `|` (which
+// produce result-width-equal-to-operand-width); the AST layer
+// disambiguates.
+//===----------------------------------------------------------------------===//
+
+class NSL_BinaryCmpOp<string mnemonic, list<Trait> extraTraits = []>
+    : NSL_Op<mnemonic, !listconcat([Pure, SameTypeOperands], extraTraits)> {
+  let arguments = (ins NSL_AnyBits:$lhs, NSL_AnyBits:$rhs);
+  let results = (outs NSL_AnyBits:$result);
+  let assemblyFormat = [{
+    $lhs `,` $rhs `:` type($lhs) `->` type($result) attr-dict
+  }];
+  let hasVerifier = 1;
+}
+
+def NSL_EqOp : NSL_BinaryCmpOp<"eq", [Commutative]> {
+  let summary = "Equality comparison (NSL `==`).";
+  let description = [{
+    `nsl.eq %a, %b : !nsl.bits<N> -> !nsl.bits<1>` — unsigned equality.
+    Lowers to `comb.icmp eq` at M6.
+  }];
+}
+
+def NSL_NeOp : NSL_BinaryCmpOp<"ne", [Commutative]> {
+  let summary = "Inequality comparison (NSL `!=`).";
+  let description = [{
+    `nsl.ne %a, %b : !nsl.bits<N> -> !nsl.bits<1>`. Lowers to
+    `comb.icmp ne` at M6.
+  }];
+}
+
+def NSL_LtOp : NSL_BinaryCmpOp<"lt"> {
+  let summary = "Unsigned less-than comparison (NSL `<`).";
+  let description = [{
+    `nsl.lt %a, %b : !nsl.bits<N> -> !nsl.bits<1>`. Lowers to
+    `comb.icmp ult` at M6.
+  }];
+}
+
+def NSL_LeOp : NSL_BinaryCmpOp<"le"> {
+  let summary = "Unsigned less-than-or-equal comparison (NSL `<=`).";
+  let description = [{
+    `nsl.le %a, %b : !nsl.bits<N> -> !nsl.bits<1>`. Lowers to
+    `comb.icmp ule` at M6.
+  }];
+}
+
+def NSL_GtOp : NSL_BinaryCmpOp<"gt"> {
+  let summary = "Unsigned greater-than comparison (NSL `>`).";
+  let description = [{
+    `nsl.gt %a, %b : !nsl.bits<N> -> !nsl.bits<1>`. Lowers to
+    `comb.icmp ugt` at M6.
+  }];
+}
+
+def NSL_GeOp : NSL_BinaryCmpOp<"ge"> {
+  let summary = "Unsigned greater-than-or-equal comparison (NSL `>=`).";
+  let description = [{
+    `nsl.ge %a, %b : !nsl.bits<N> -> !nsl.bits<1>`. Lowers to
+    `comb.icmp uge` at M6.
+  }];
+}
+
+def NSL_LandOp : NSL_BinaryCmpOp<"land", [Commutative]> {
+  let summary = "Logical AND (NSL `&&`).";
+  let description = [{
+    `nsl.land %a, %b : !nsl.bits<1> -> !nsl.bits<1>` — both operands are
+    boolean (per NSL semantics, only `!nsl.bits<1>` is meaningful as a
+    logical operand; M3 Sema enforces this at the source level). The
+    op accepts any `!nsl.bits<N>` operand pair to match the parent
+    grammar's value-neutrality, and the verifier asserts both are
+    width-1 (delegating wider-operand rejection to Sema). Lowers to
+    `comb.and` (on width-1 operands) at M6.
+  }];
+}
+
+def NSL_LorOp : NSL_BinaryCmpOp<"lor", [Commutative]> {
+  let summary = "Logical OR (NSL `||`).";
+  let description = [{
+    `nsl.lor %a, %b : !nsl.bits<1> -> !nsl.bits<1>`. Same shape as
+    `nsl.land`. Lowers to `comb.or` (on width-1 operands) at M6.
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // 2.3 Control-terminal ops (3): nsl.func_in, nsl.func_out, nsl.func_self
 //===----------------------------------------------------------------------===//
 

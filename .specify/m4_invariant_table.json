@@ -41,6 +41,14 @@
     { "name": "nsl.struct_cast",           "category": "marker",           "invariants": ["bits-struct-width-equal"] },
     { "name": "nsl.field",                 "category": "marker",           "invariants": ["index-in-range", "result-type-matches-field-decl"] },
     { "name": "nsl.field_decl",            "category": "marker",           "invariants": ["parent-nsl-struct", "sym-name-required", "field-type-bits-or-struct"] },
-    { "name": "nsl.structural_generate",   "category": "expansion-only",   "invariants": ["one-region", "loop-bound-attr-shape"] }
+    { "name": "nsl.structural_generate",   "category": "expansion-only",   "invariants": ["one-region", "loop-bound-attr-shape"] },
+    { "name": "nsl.eq",                    "category": "expr",             "invariants": ["result-type-bits1"] },
+    { "name": "nsl.ne",                    "category": "expr",             "invariants": ["result-type-bits1"] },
+    { "name": "nsl.lt",                    "category": "expr",             "invariants": ["result-type-bits1"] },
+    { "name": "nsl.le",                    "category": "expr",             "invariants": ["result-type-bits1"] },
+    { "name": "nsl.gt",                    "category": "expr",             "invariants": ["result-type-bits1"] },
+    { "name": "nsl.ge",                    "category": "expr",             "invariants": ["result-type-bits1"] },
+    { "name": "nsl.land",                  "category": "expr",             "invariants": ["result-type-bits1", "operand-width-1"] },
+    { "name": "nsl.lor",                   "category": "expr",             "invariants": ["result-type-bits1", "operand-width-1"] }
   ]
 }
