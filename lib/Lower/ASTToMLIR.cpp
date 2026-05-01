@@ -17,12 +17,16 @@
 
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/Expr.h"
+#include "nsl/AST/FuncDefn.h"
 #include "nsl/AST/LiteralExpr.h"
 #include "nsl/AST/MemDecl.h"
 #include "nsl/AST/ModuleBlock.h"
 #include "nsl/AST/ProcDefn.h"
 #include "nsl/AST/RegDecl.h"
 #include "nsl/AST/WireDecl.h"
+
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/raw_ostream.h"
 #include "nsl/Dialect/NSL/IR/NSLDialect.h"
 #include "nsl/Sema/Sema.h"
 
@@ -107,11 +111,32 @@ void ASTToMLIR::visit(const ast::ModuleBlock &node) {
   for (const auto &decl : node.internals()) {
     decl->accept(*this);
   }
-  // Recurse into procs at the same insertion point. Funcs and
-  // top-level actions arrive in later US1 sub-tasks (T051, T053).
+  // Recurse into funcs and procs. Top-level actions arrive in T053.
+  for (const auto &func : node.funcs()) {
+    func->accept(*this);
+  }
   for (const auto &proc : node.procs()) {
     proc->accept(*this);
   }
+}
+
+void ASTToMLIR::visit(const ast::FuncDefn &node) {
+  // FR-006 row "FuncDefn → nsl.func @<name> { ... }". Per Q5 →
+  // Option A', the `sym_name` is a literal dotted form when the
+  // ScopedName has multiple parts (e.g., `inst.method`).
+  auto loc = builder_.getUnknownLoc();
+  std::string flat_name;
+  llvm::raw_string_ostream os(flat_name);
+  for (size_t i = 0; i < node.name().parts.size(); ++i) {
+    if (i > 0) {
+      os << '.';
+    }
+    os << node.name().parts[i];
+  }
+  os.flush();
+  auto func_op = nsl::dialect::FuncOp::create(
+      builder_, loc, builder_.getStringAttr(flat_name));
+  func_op.getBody().emplaceBlock();
 }
 
 void ASTToMLIR::visit(const ast::ProcDefn &node) {
@@ -178,7 +203,6 @@ STUB(StateNameDecl)
 STUB(FirstStateDecl)
 STUB(SubmoduleDecl)
 STUB(StructInstDecl)
-STUB(FuncDefn)
 STUB(StateDefn)
 
 STUB(TransferStmt)

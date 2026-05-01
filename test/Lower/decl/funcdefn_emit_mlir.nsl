@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/decl/funcdefn_emit_mlir.nsl — US1 fixture covering
+// `ast::FuncDefn`. Per FR-006 lowering table row "FuncDefn → nsl.func
+// @<name> { ... }". The body Stmt's recursion is deferred to T051;
+// at Phase 3 the func shell verifies clean against M4's
+// SingleBlock + NoTerminator constraints.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  func_self reset;
+  func reset { }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.func @reset

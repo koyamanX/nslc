@@ -82,7 +82,7 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 - [X] T025 [P] [US1] Author `test/Lower/decl/regdecl_emit_mlir.nsl` covering `ast::RegDecl` (the quickstart-prescribed first failing fixture)
 - [X] T026 [P] [US1] Author `test/Lower/decl/wiredecl_emit_mlir.nsl` covering `ast::WireDecl`
 - [X] T027 [P] [US1] Author `test/Lower/decl/memdecl_emit_mlir.nsl` covering `ast::MemDecl`
-- [ ] T028 [P] [US1] Author `test/Lower/decl/funcdefn_emit_mlir.nsl` covering `ast::FuncDefn`
+- [X] T028 [P] [US1] Author `test/Lower/decl/funcdefn_emit_mlir.nsl` covering `ast::FuncDefn`
 - [X] T029 [P] [US1] Author `test/Lower/decl/procdefn_emit_mlir.nsl` covering `ast::ProcDefn` + `ast::StateDefn` + `ast::FirstStateDecl` per US1 acceptance scenario 2
 - [ ] T030 [P] [US1] Author `test/Lower/action/parallelblock_emit_mlir.nsl` covering `ast::ParallelBlock`
 - [ ] T031 [P] [US1] Author `test/Lower/action/altblock_emit_mlir.nsl` covering `ast::AltBlock`
