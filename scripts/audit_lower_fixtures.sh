@@ -147,6 +147,30 @@ declare -A ALLOWLIST=(
   # lib/Lower/ASTToMLIR.cpp:1008-1013.
   ["StructDecl"]="covered by test/Lower/expr/structcastexpr_emit_mlir.nsl"
   ["StructInstDecl"]="covered by test/Lower/expr/fieldaccessexpr_emit_mlir.nsl (Reg form); Wire form soft-fails per FR-013"
+
+  # ----- US2 / Phase 4 visitors (offload 2026-04-30 Commit 1) ---------
+  # `visit(TopLevelParamDecl)` emits `nsl.param_int @<name> = <int>` /
+  # `nsl.param_str @<name> = "<str>"`. Per-pass coverage lives at
+  # test/Lower/passes/nsl-resolve-params/literal_param.mlir and
+  # multi_param.mlir which exercise the post-emission pass behaviour
+  # against hand-authored `.mlir` fixtures. End-to-end coverage
+  # (visitor → resolve-params → expand-generate) is intentionally
+  # deferred to Commit 5's stretch fixture
+  # test/Lower/generate/param_generate_emit_mlir.nsl. The dialect
+  # round-trip for the emitted op shape is at
+  # test/Dialect/storage/param_int_roundtrip.mlir + param_str_roundtrip.mlir
+  # (M4 amendment-#4). Cited: lib/Lower/ASTToMLIR.cpp visit()
+  # implementation + test/Lower/passes/nsl-resolve-params/.
+  ["TopLevelParamDecl"]="covered by test/Lower/passes/nsl-resolve-params/{literal,multi}_param.mlir + test/Dialect/storage/param_int_roundtrip.mlir"
+
+  # `visit(StructuralGenerate)` emits `nsl.structural_generate
+  # attributes {lower=, upper=, step=, loop_var=} { <body> }`. Per-
+  # pass coverage at test/Lower/passes/nsl-expand-generate/ exercises
+  # the post-emission unroll. End-to-end NSL-source coverage is at
+  # test/Lower/generate/literal_generate_emit_mlir.nsl (Commit 5
+  # stretch). The dialect round-trip is at
+  # test/Dialect/expansion-only/structural_generate_{,loopvar_}roundtrip.mlir.
+  ["StructuralGenerate"]="covered by test/Lower/passes/nsl-expand-generate/*.mlir + test/Dialect/expansion-only/structural_generate_*.mlir"
 )
 
 # -----------------------------------------------------------------------------

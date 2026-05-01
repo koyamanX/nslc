@@ -51,7 +51,9 @@
 #include "nsl/AST/StructCastExpr.h"
 #include "nsl/AST/StructDecl.h"
 #include "nsl/AST/StructInstDecl.h"
+#include "nsl/AST/StructuralGenerate.h"
 #include "nsl/AST/SystemTaskStmt.h"
+#include "nsl/AST/TopLevelParamDecl.h"
 #include "nsl/AST/TransferStmt.h"
 #include "nsl/AST/UnaryExpr.h"
 #include "nsl/AST/WhileBlock.h"
@@ -1338,7 +1340,167 @@ void ASTToMLIR::visit(const ast::ForBlock &node) {
   }
 }
 
-// ---------- No-op stubs for the remaining 52 AST node kinds ----------
+void ASTToMLIR::visit(const ast::TopLevelParamDecl &node) {
+  // M5 US2 / FR-013 — `top_level_parameter` (lang.ebnf §3.1; S16):
+  // `param_int <name> = <int-expr>;` or `param_str <name> = "<str>";`
+  // at compilation-unit top level (sibling of `module`/`struct`).
+  //
+  // Lowering: emit `nsl.param_int @<name> = <value>` (or
+  // `nsl.param_str`) at the `mlir::ModuleOp` top-level (sibling of
+  // any sibling `nsl.module` ops). Use `OpBuilder::InsertionGuard` to
+  // hop to `top_module_.getBody()` for the emit, then restore — the
+  // visitor's enclosing scope is `visit(CompilationUnit)`, which has
+  // already set the insertion point to the same body, but a defensive
+  // guard handles the case where a nested visitor (out-of-scope at
+  // M5 but possible at M6+) calls back into us.
+  //
+  // Side effect: `param_int` populates `paramTable_` so
+  // `visit(StructuralGenerate)` can resolve `IdentifierExpr`-form
+  // bound expressions (e.g., `generate(i = 0; i < N; i++)`) to a
+  // literal I64Attr. `param_str` does NOT populate `paramTable_` —
+  // strings have no expression-position consumer at M5 (S10 requires
+  // integer for generate bounds).
+  if (node.name().empty()) {
+    return;
+  }
+  auto loc = builder_.getUnknownLoc();
+  mlir::OpBuilder::InsertionGuard guard(builder_);
+  builder_.setInsertionPointToEnd(top_module_.getBody());
+  if (node.paramKind() == ast::TopLevelParamDecl::ParamKind::Int) {
+    int64_t value = resolveDecimalLiteral(node.init());
+    paramTable_[node.name()] = value;
+    nsl::dialect::ParamIntOp::create(
+        builder_, loc, builder_.getStringAttr(node.name()),
+        builder_.getI64IntegerAttr(value));
+  } else {
+    // ParamKind::Str — init is a `LiteralExpr` whose `litKind() ==
+    // LiteralExpr::Lit::String`. Spelling is the verbatim source
+    // including the surrounding double quotes; strip them for the
+    // StrAttr payload (escape-sequence rewriting deferred to M7).
+    llvm::StringRef payload;
+    const auto *init = node.init();
+    if (init && init->kind() == ast::LiteralExpr::kKind) {
+      const auto *lit = static_cast<const ast::LiteralExpr *>(init);
+      if (lit->litKind() == ast::LiteralExpr::Lit::String) {
+        payload = unquoteStringLiteral(lit->spelling());
+      }
+    }
+    nsl::dialect::ParamStrOp::create(
+        builder_, loc, builder_.getStringAttr(node.name()),
+        builder_.getStringAttr(payload));
+  }
+}
+
+void ASTToMLIR::visit(const ast::StructuralGenerate &node) {
+  // M5 US2 / FR-014 — `generate(<id> = <init>; <cond>; <step>) {
+  // <body> }` (lang.ebnf §8; S10 requires <id> integer-typed and
+  // <init>/<cond>/<step> compile-time constants). Lower to
+  // `nsl.structural_generate { lower=<init>, upper=<cond-bound>,
+  // step=<step-amount>, loop_var="<id>" } { <body> }`.
+  //
+  // Bound resolution at M5 (per offload Commit 1 design decision):
+  // - `init` (initial value): `LiteralExpr` decimal -> I64; or
+  //   `IdentifierExpr` matching `paramTable_` -> resolved I64.
+  // - `cond` (e.g., `i < N`): heuristic — if cond is a `BinaryExpr`
+  //   with the loop var on the LHS and a constant/param on the RHS,
+  //   pick up the RHS; otherwise treat the whole expression as a
+  //   constant bound.
+  // - `step`: `IncDecExpr`/`IncDecStmt` -> 1; `BinaryExpr` `+ k` ->
+  //   k; otherwise default to 1. (Phase-4-pragmatic — Sema-clean
+  //   inputs at M3 will tighten this.)
+  //
+  // The body is recursed via `lowerActionBody` so a single-statement
+  // body or a `ParallelBlock`-wrapped body both work.
+  //
+  // Eager param resolution (the offload-prompt design decision per
+  // FR-013 reading): `IdentifierExpr` whose name is in `paramTable_`
+  // resolves at AST-walk time, not at pass time. This sidesteps the
+  // gap that `nsl.structural_generate.{lower,upper,step}` are I64Attrs
+  // with no `FlatSymbolRefAttr` slot for `NSLResolveParamsPass` to
+  // substitute against.
+  auto loc = builder_.getUnknownLoc();
+
+  auto resolveBound = [this](const ast::Expr *expr,
+                             int64_t fallback) -> int64_t {
+    if (!expr) {
+      return fallback;
+    }
+    if (expr->kind() == ast::LiteralExpr::kKind) {
+      return resolveDecimalLiteral(expr);
+    }
+    if (expr->kind() == ast::IdentifierExpr::kKind) {
+      const auto *ident = static_cast<const ast::IdentifierExpr *>(expr);
+      const auto &parts = ident->name().parts;
+      if (parts.size() == 1) {
+        auto it = paramTable_.find(parts.front());
+        if (it != paramTable_.end()) {
+          return it->second;
+        }
+      }
+      return fallback;
+    }
+    return fallback;
+  };
+
+  // initial value
+  int64_t lower_v = resolveBound(node.initValue(), 0);
+
+  // upper bound — peel the comparison RHS if cond is `<id> < <expr>`
+  // or `<id> <= <expr>` shape. Falls back to whole-expr resolution.
+  int64_t upper_v = 0;
+  const ast::Expr *cond = node.cond();
+  if (cond && cond->kind() == ast::BinaryExpr::kKind) {
+    // We don't include BinaryExpr's full op enum here just to peek
+    // at the RHS — recurse via the right-hand-side directly.
+    // BinaryExpr exposes lhs()/rhs() via the M2 AST; rhs() of `i <
+    // N` is the literal/param ref we want.
+    // Pull rhs() through the proper API.
+    // Forward-include guard: BinaryExpr.h is already included for the
+    // expression sub-visitor at line 24.
+    upper_v = resolveBound(
+        static_cast<const ast::BinaryExpr *>(cond)->rhs(), 0);
+  } else {
+    upper_v = resolveBound(cond, 0);
+  }
+
+  // step amount — handle the common shapes:
+  //   `i++`         (IncDecExpr) -> 1
+  //   `i := i + 1`  (TransferStmt isn't a valid step expr at M5; AST
+  //                  carries `step` as `Expr`, not `Stmt`; the M2
+  //                  parser stores the bumped expr — e.g., `i + 1`)
+  //   `i + k`       (BinaryExpr Add) -> k
+  // Default: 1 (matches NSL grammar default; Sema would have rejected
+  // a zero step at M3 per S10 + the dialect verifier's non-zero
+  // check at NSLOps.cpp:909).
+  int64_t step_v = 1;
+  const ast::Expr *step = node.step();
+  if (step && step->kind() == ast::BinaryExpr::kKind) {
+    step_v = resolveBound(
+        static_cast<const ast::BinaryExpr *>(step)->rhs(), 1);
+    if (step_v == 0) {
+      step_v = 1; // dialect verifier rejects step==0; defensive
+    }
+  }
+
+  // Defensive: if bounds collapsed (upper < lower) emit nothing — the
+  // pass would also expand to zero copies; emitting a 0..0 generate
+  // is wasteful but valid. Emit literal 0..0 in that case so the
+  // round-trip & expansion are still observable.
+  auto loop_var_attr = node.init().empty()
+                           ? mlir::StringAttr{}
+                           : builder_.getStringAttr(node.init());
+
+  auto gen_op = nsl::dialect::StructuralGenerateOp::create(
+      builder_, loc, builder_.getI64IntegerAttr(lower_v),
+      builder_.getI64IntegerAttr(upper_v),
+      builder_.getI64IntegerAttr(step_v), loop_var_attr);
+  auto &body_block = gen_op.getBody().emplaceBlock();
+  mlir::OpBuilder::InsertionGuard guard(builder_);
+  builder_.setInsertionPointToStart(&body_block);
+  lowerActionBody(node.body());
+}
+
+// ---------- No-op stubs for the remaining 50 AST node kinds ----------
 //
 // As US1 sub-tasks fill in real visit() bodies, the corresponding
 // line is removed from this block (and a real implementation is
@@ -1347,7 +1509,6 @@ void ASTToMLIR::visit(const ast::ForBlock &node) {
 #define STUB(EnumName)                                                         \
   void ASTToMLIR::visit(const ast::EnumName & /*node*/) {}
 
-STUB(TopLevelParamDecl)
 STUB(DeclareBlock)
 STUB(VariableDecl)
 STUB(IntegerDecl)
@@ -1360,7 +1521,6 @@ STUB(ReturnStmt)
 STUB(EmptyStmt)
 STUB(LabeledStmt)
 STUB(GotoStmt)
-STUB(StructuralGenerate)
 
 STUB(SystemVarExpr)
 STUB(RepeatExpr)

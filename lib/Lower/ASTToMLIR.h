@@ -145,6 +145,30 @@ private:
   /// StateName identifiers reach `lowerExpr` and soft-fail per
   /// FR-010.
   llvm::StringSet<> controlTable_;
+
+  /// TRANSITIONAL (offload 2026-04-30 Commit 1 / T071): name-keyed
+  /// catalog of `nsl.param_int`-style top-level integer parameters
+  /// emitted by `visit(TopLevelParamDecl)`. Consumed by
+  /// `visit(StructuralGenerate)` so a `generate(i = 0; i < N; ...)`
+  /// whose `cond` is an `IdentifierExpr` referencing a param resolves
+  /// to a literal I64Attr `upper` bound at MLIR-emit time. This is
+  /// the eager-resolve seam — at M5's frozen dialect surface no
+  /// `nsl::*` op carries a `FlatSymbolRefAttr` slot pointing at a
+  /// param symbol (`nsl.structural_generate.{lower,upper,step}` are
+  /// I64Attrs), so deferred resolution via `NSLResolveParamsPass` has
+  /// no operand-side substitution target. The pass remains a
+  /// registered slot that walks defensively over `FlatSymbolRefAttr`
+  /// uses but does nothing on pure-NSL inputs at M5. M7 (Verilog
+  /// emission) will consume `nsl.param_int` ops directly when
+  /// generating `param_int` instance arguments to `nsl.submodule`.
+  ///
+  /// String params are NOT tracked here because at M5 they have no
+  /// expression-position consumer — only `param_int` is referenceable
+  /// in a `generate` bound (S10 requires integer).
+  ///
+  /// Ordering rule (Constitution Principle V — determinism): this
+  /// map is for LOOKUP only; never iterate it for emission ordering.
+  llvm::StringMap<int64_t> paramTable_;
 };
 
 } // namespace nsl::lower
