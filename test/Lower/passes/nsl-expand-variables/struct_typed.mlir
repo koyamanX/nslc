@@ -33,6 +33,11 @@
 //
 // US2 T066/T067 set the precedent for this deferral pattern.
 
+nsl.struct @T {
+  nsl.field_decl "a" : !nsl.bits<8>
+  nsl.field_decl "b" : !nsl.bits<8>
+}
+
 nsl.module @StructTyped {
   // Intent: a struct-typed variable would be authored as
   //
@@ -48,8 +53,10 @@ nsl.module @StructTyped {
   // field sees one transfer, the .b field sees one transfer;
   // reads of s materialize via field-level wires."
   //
-  // Pre-XFAIL placeholder — the line below is what would fail to
-  // parse against current M4 verifier.
-  %s = nsl.variable "s" : !nsl.bits<16>
+  // The line below is what an end-to-end author WOULD write — the
+  // current M4 verifier rejects struct-typed variables (FR-013 +
+  // NSLOps.td:280 NSL_AnyBits constraint), so this fixture fails
+  // at parse-verify time.
+  %s = nsl.variable "s" : !nsl.struct<@T>
   // CHECK-NOT: nsl.variable
 }
