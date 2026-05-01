@@ -15,13 +15,16 @@
 
 #include "nsl/AST/ASTVisitor.h"
 
+#include "llvm/ADT/StringMap.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/OwningOpRef.h"
+#include "mlir/IR/Value.h"
 
 namespace nsl::ast {
 class CompilationUnit;
+class Expr;
 class Stmt;
 } // namespace nsl::ast
 
@@ -66,6 +69,17 @@ private:
   /// kind dispatches normally via `accept(*this)`.
   void lowerActionBody(const ast::Stmt *body);
 
+  /// Lower an expression-position `ast::Expr` to an `mlir::Value`,
+  /// emitting any necessary expression-tree ops at the current
+  /// insertion point. Returns a null `mlir::Value` on unresolved /
+  /// unsupported shapes (Phase 3 quietly soft-fails per FR-010 — Sema
+  /// would have caught the bad shape upstream, so this only fires on
+  /// future-feature gaps). Phase 3 lowers `LiteralExpr` (Decimal) and
+  /// `IdentifierExpr` (via `nameTable_`); richer expression coverage
+  /// (BinaryExpr / UnaryExpr / Conditional / Slice / Concat / etc.)
+  /// lands incrementally per T055.
+  mlir::Value lowerExpr(const ast::Expr *expr);
+
   mlir::MLIRContext &ctx_;
   const sema::SemaResult &sr_;
   mlir::OpBuilder builder_;
@@ -73,6 +87,17 @@ private:
   /// entry to `visit(CompilationUnit)`; child `nsl.module` ops are
   /// inserted into its body.
   mlir::ModuleOp top_module_;
+
+  // TRANSITIONAL (option (d) per offload 2026-05-01): name-string-
+  // keyed scope dictionary while M3 Sema is stub-only. Replace with
+  // `llvm::DenseMap<const sema::Symbol *, mlir::Value> valueMap_`
+  // once M3 lands and `IdentifierExpr::resolvedSym()` is available
+  // per Q4 → Option A. See research.md §15 (M4 amendment) + the
+  // four-way decision recorded in commit ceea300's body.
+  //
+  // Ordering rule (Constitution Principle V — determinism): this map
+  // is for LOOKUP only; never iterate it for emission ordering.
+  llvm::StringMap<mlir::Value> nameTable_;
 };
 
 } // namespace nsl::lower

@@ -21,6 +21,7 @@
 #include "nsl/AST/Expr.h"
 #include "nsl/AST/FirstStateDecl.h"
 #include "nsl/AST/FuncDefn.h"
+#include "nsl/AST/IdentifierExpr.h"
 #include "nsl/AST/InitBlockStmt.h"
 #include "nsl/AST/LiteralExpr.h"
 #include "nsl/AST/MemDecl.h"
@@ -32,6 +33,7 @@
 #include "nsl/AST/StateDefn.h"
 #include "nsl/AST/Stmt.h"
 #include "nsl/AST/SystemTaskStmt.h"
+#include "nsl/AST/TransferStmt.h"
 #include "nsl/AST/WireDecl.h"
 
 #include "llvm/ADT/StringRef.h"
@@ -277,16 +279,21 @@ void ASTToMLIR::visit(const ast::RegDecl &node) {
           ast::LiteralExpr::Lit::Decimal) {
     init_attr = builder_.getI64IntegerAttr(resolveDecimalLiteral(init));
   }
-  (void)nsl::dialect::RegOp::create(
+  auto reg_op = nsl::dialect::RegOp::create(
       builder_, loc, bits_ty, builder_.getStringAttr(node.name()), init_attr);
+  // Register the SSA result under the AST identifier so transfer-
+  // statement RHS / LHS identifier resolution can locate this storage
+  // (transitional name-table — see header comment).
+  nameTable_[node.name()] = reg_op.getResult();
 }
 
 void ASTToMLIR::visit(const ast::WireDecl &node) {
   // FR-006 row "WireDecl → nsl.wire "n" : !nsl.bits<W>".
   auto loc = builder_.getUnknownLoc();
   auto bits_ty = nsl::dialect::BitsType::get(&ctx_, resolveWidth(node.width()));
-  (void)nsl::dialect::WireOp::create(builder_, loc, bits_ty,
-                                     builder_.getStringAttr(node.name()));
+  auto wire_op = nsl::dialect::WireOp::create(
+      builder_, loc, bits_ty, builder_.getStringAttr(node.name()));
+  nameTable_[node.name()] = wire_op.getResult();
 }
 
 void ASTToMLIR::visit(const ast::MemDecl &node) {
@@ -296,8 +303,9 @@ void ASTToMLIR::visit(const ast::MemDecl &node) {
       nsl::dialect::BitsType::get(&ctx_, resolveWidth(node.width()));
   auto mem_ty =
       nsl::dialect::MemType::get(&ctx_, resolveWidth(node.depth()), element_ty);
-  (void)nsl::dialect::MemOp::create(builder_, loc, mem_ty,
-                                    builder_.getStringAttr(node.name()));
+  auto mem_op = nsl::dialect::MemOp::create(builder_, loc, mem_ty,
+                                            builder_.getStringAttr(node.name()));
+  nameTable_[node.name()] = mem_op.getResult();
 }
 
 void ASTToMLIR::visit(const ast::InitBlockStmt &node) {
@@ -426,6 +434,104 @@ void ASTToMLIR::visit(const ast::ParallelBlock &node) {
   }
 }
 
+// ---------- Expression sub-visitor (lowerExpr) ----------
+//
+// Phase 3 minimum-viable surface to unblock `nsl.transfer` lowering:
+// `LiteralExpr` (Decimal, default 1-bit width per FR-007) plus
+// `IdentifierExpr` (lookup in the transitional `nameTable_`). Richer
+// expression coverage (Binary / Unary / Conditional / Slice / Concat
+// / FieldAccess / SignExtend / ZeroExtend / Repeat / Call / IncDec /
+// StructCast / SystemVar) lands incrementally in T055.
+
+mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr) {
+  if (!expr) {
+    return {};
+  }
+  if (expr->kind() == ast::LiteralExpr::kKind) {
+    const auto *lit = static_cast<const ast::LiteralExpr *>(expr);
+    if (lit->litKind() != ast::LiteralExpr::Lit::Decimal) {
+      // Hex / Binary / Octal / String literals reach here at Phase 3
+      // with no expression-position lowering yet (T055 follow-up).
+      return {};
+    }
+    auto loc = builder_.getUnknownLoc();
+    // Phase 3 width policy: literals at the expression-tree surface
+    // default to 1-bit. Width promotion / inference is the
+    // expression-sub-visitor's job in T055; for now downstream
+    // SameTypeOperands ops will fail-loudly if the LHS width
+    // disagrees, which is the expected behaviour at this surface.
+    auto bits_ty = nsl::dialect::BitsType::get(&ctx_, /*width=*/1);
+    auto attr = builder_.getI64IntegerAttr(resolveDecimalLiteral(expr));
+    auto const_op =
+        nsl::dialect::ConstantOp::create(builder_, loc, bits_ty, attr);
+    return const_op.getResult();
+  }
+  if (expr->kind() == ast::IdentifierExpr::kKind) {
+    const auto *ident = static_cast<const ast::IdentifierExpr *>(expr);
+    // Multi-part dotted names (`inst.field`) reach Sema at M3; at
+    // Phase 3 we resolve only single-part identifiers via the local
+    // `nameTable_` (Phase 5 / M3-Sema landing flips this to the
+    // canonical `Symbol*` lookup path per Q4 → Option A).
+    if (ident->name().parts.size() != 1) {
+      return {};
+    }
+    auto it = nameTable_.find(ident->name().parts.front());
+    if (it == nameTable_.end()) {
+      // Unresolved identifier — Sema-clean inputs (FR-010) would have
+      // already flagged this; soft-fail per the offload decision.
+      return {};
+    }
+    return it->getValue();
+  }
+  // Other expression-position kinds (Binary/Unary/Conditional/Slice/
+  // Concat/Repeat/SignExtend/ZeroExtend/FieldAccess/Call/IncDec/
+  // StructCast/SystemVar) — T055.
+  return {};
+}
+
+void ASTToMLIR::visit(const ast::LiteralExpr &node) {
+  // Visitor entry-point form. Most expression-position lowering goes
+  // through `lowerExpr`, but this override exists to satisfy the
+  // ASTVisitor pure-virtual contract; it produces no IR at the
+  // current insertion point (literals are pure values, not
+  // statements). Callers that need an `mlir::Value` invoke
+  // `lowerExpr(&node)` instead.
+  (void)lowerExpr(&node);
+}
+
+void ASTToMLIR::visit(const ast::IdentifierExpr &node) {
+  // Visitor entry-point form (cf. `visit(LiteralExpr)`). Pure value
+  // — no IR emitted at the current insertion point.
+  (void)lowerExpr(&node);
+}
+
+// ---------- Statement-position visitors (cont'd) ----------
+
+void ASTToMLIR::visit(const ast::TransferStmt &node) {
+  // FR-006 rows "TransferStmt × `=` → nsl.transfer" and "TransferStmt
+  // × `:=` → nsl.clocked_transfer". Both ops carry `SameTypeOperands`
+  // (TableGen NSL_TransferOp / NSL_ClockedTransferOp), so the LHS
+  // and RHS Values must agree on `!nsl.bits<N>` width — this is
+  // load-bearing for round-trip cleanliness. Phase 3 inputs are
+  // Sema-clean per FR-010, so the AST-level S15 width-agreement
+  // invariant has already been established upstream.
+  auto lhs_val = lowerExpr(node.lhs());
+  auto rhs_val = lowerExpr(node.rhs());
+  if (!lhs_val || !rhs_val) {
+    // Soft-fail per FR-010 — Sema would have caught unresolved
+    // references. Emit nothing rather than a malformed op.
+    return;
+  }
+  auto loc = builder_.getUnknownLoc();
+  if (node.op() == ast::TransferStmt::Op::RegColonEq) {
+    (void)nsl::dialect::ClockedTransferOp::create(builder_, loc, lhs_val,
+                                                  rhs_val);
+    return;
+  }
+  // Op::WireEq — `=`.
+  (void)nsl::dialect::TransferOp::create(builder_, loc, lhs_val, rhs_val);
+}
+
 // ---------- No-op stubs for the remaining 52 AST node kinds ----------
 //
 // As US1 sub-tasks fill in real visit() bodies, the corresponding
@@ -447,7 +553,6 @@ STUB(StateNameDecl)
 STUB(SubmoduleDecl)
 STUB(StructInstDecl)
 
-STUB(TransferStmt)
 STUB(IncDecStmt)
 STUB(ControlCallStmt)
 STUB(ReturnStmt)
@@ -461,8 +566,6 @@ STUB(ForBlock)
 STUB(IfStmt)
 STUB(StructuralGenerate)
 
-STUB(LiteralExpr)
-STUB(IdentifierExpr)
 STUB(SystemVarExpr)
 STUB(UnaryExpr)
 STUB(BinaryExpr)
