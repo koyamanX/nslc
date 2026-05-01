@@ -28,6 +28,7 @@
 #include "nsl/AST/RegDecl.h"
 #include "nsl/AST/StateDefn.h"
 #include "nsl/AST/Stmt.h"
+#include "nsl/AST/SystemTaskStmt.h"
 #include "nsl/AST/WireDecl.h"
 
 #include "llvm/ADT/StringRef.h"
@@ -50,6 +51,21 @@ namespace {
 /// (param refs, compile-time constants, hex/binary, etc.) default
 /// to 1; richer width resolution lands when the corresponding
 /// expression visitors land.
+/// Strip the surrounding double quotes from a `LiteralExpr::String`
+/// spelling. The lexer preserves the verbatim source text (per
+/// `LiteralExpr.h` line 35), so a `"done"` source token shows up
+/// here as the 6-character string `"done"` — caller wants the
+/// 4-character interior. Escape-sequence rewriting (e.g., `\n`) is
+/// out of scope at Phase 3; the M3 corpus exercises only literal
+/// content.
+llvm::StringRef unquoteStringLiteral(llvm::StringRef spelling) {
+  if (spelling.size() >= 2 && spelling.front() == '"' &&
+      spelling.back() == '"') {
+    return spelling.substr(1, spelling.size() - 2);
+  }
+  return spelling;
+}
+
 unsigned resolveWidth(const ast::Expr *width_expr) {
   if (!width_expr) {
     return 1; // omitted width → 1-bit per lang.ebnf default
@@ -249,6 +265,51 @@ void ASTToMLIR::visit(const ast::MemDecl &node) {
                                     builder_.getStringAttr(node.name()));
 }
 
+void ASTToMLIR::visit(const ast::SystemTaskStmt &node) {
+  // FR-006 row "SystemTaskStmt × {_display, _finish, _init, _delay}
+  // → nsl.sim_display / nsl.sim_finish / nsl.sim_init / nsl.sim_delay".
+  // Note: `_init` and `_delay` reach the AST as separate node kinds
+  // (`InitBlockStmt`, `DelayTaskStmt`) per `ParseStmt.cpp:1156-1161`,
+  // so this visitor handles only `_display` and `_finish` (plus
+  // anything else that lands as a `SystemTaskStmt`).
+  //
+  // At Phase 3 (US1) — variadic operand expressions are NOT yet
+  // lowered (T055 ships the expression sub-visitor). The two
+  // forms we handle here both consume a single literal-string
+  // first argument (the format string for `_display`, the reason
+  // for `_finish`) and emit no operands.
+  auto loc = builder_.getUnknownLoc();
+  llvm::StringRef name = node.name();
+  llvm::StringRef literal_arg;
+  if (!node.args().empty() &&
+      node.args().front()->kind() == ast::LiteralExpr::kKind) {
+    const auto *lit =
+        static_cast<const ast::LiteralExpr *>(node.args().front().get());
+    if (lit->litKind() == ast::LiteralExpr::Lit::String) {
+      literal_arg = unquoteStringLiteral(lit->spelling());
+    }
+  }
+  if (name == "_finish") {
+    (void)nsl::dialect::SimFinishOp::create(
+        builder_, loc, builder_.getStringAttr(literal_arg));
+    return;
+  }
+  if (name == "_display") {
+    // `nsl.sim_display` carries `format:StrAttr` plus zero-or-more
+    // variadic operand args. At Phase 3, only the format string is
+    // lowered (variadic operands need expression-Value plumbing
+    // landing in T055).
+    (void)nsl::dialect::SimDisplayOp::create(
+        builder_, loc, builder_.getStringAttr(literal_arg),
+        /*args=*/mlir::ValueRange{});
+    return;
+  }
+  // Other SystemTaskStmt names (e.g., `_readmemh`) reach here at
+  // Phase 3 with no MLIR counterpart yet. Drop on the floor — Phase
+  // 3 only exercises the `_finish` / `_display` flavours; richer
+  // task lowering lands in a follow-up.
+}
+
 void ASTToMLIR::visit(const ast::BareFinishStmt & /*node*/) {
   // FR-006 row "BareFinishStmt → nsl.finish". `nsl.finish` carries
   // no operands and has a transitive-parent verifier (per Q2
@@ -305,7 +366,6 @@ STUB(StructInstDecl)
 STUB(TransferStmt)
 STUB(IncDecStmt)
 STUB(ControlCallStmt)
-STUB(SystemTaskStmt)
 STUB(ReturnStmt)
 STUB(EmptyStmt)
 STUB(LabeledStmt)

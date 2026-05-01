@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/stmt/systemtaskstmt_finish_emit_mlir.nsl — US1 fixture
+// covering `ast::SystemTaskStmt` (`_finish` flavour). Per FR-006
+// row "SystemTaskStmt × {_finish, ...} → nsl.sim_finish / ...".
+// `_finish` requires the enclosing module to carry the
+// `simulation` modifier per S17; the declare-block is the
+// minimum-shape preamble that satisfies Sema. `nsl.sim_finish`
+// requires `HasParent<"ModuleOp">` so the call appears at module
+// scope (not inside an `_init` block).
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+declare M simulation { }
+module M {
+  _finish("done");
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.sim_finish "done"
