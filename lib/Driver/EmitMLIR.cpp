@@ -217,6 +217,11 @@ int emitMLIR(llvm::StringRef input_path, const EmitTokensOptions &opts,
   }
 
   os << buf;
+  // MLIR's default printer doesn't add a trailing newline; nsl-opt's
+  // text writer does. Mirror nsl-opt so `nslc -emit=mlir foo.nsl |
+  // nsl-opt -` is a fixed point per US1 acceptance scenario 6 +
+  // contracts/driver-emit-mlir.contract.md §6.
+  os << "\n";
   if (diag.numWarnings() > 0) {
     diag.renderAll(err, opts.diagnostic_json ? DiagnosticEngine::Format::JSON
                                              : DiagnosticEngine::Format::Text);

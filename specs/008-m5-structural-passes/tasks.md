@@ -79,9 +79,9 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 > **NOTE**: Author these fixtures FIRST. Each MUST fail against the post-Phase-2 tree (because the relevant `visit()` override produces an empty placeholder) before its implementation task begins.
 
 - [X] T024 [P] [US1] Author `test/Lower/module/module_emit_mlir.nsl` (+ FileCheck lines) covering `ast::ModuleBlock` + `ast::DeclareBlock` per [`spec.md`](./spec.md) US1 acceptance scenario 1
-- [ ] T025 [P] [US1] Author `test/Lower/decl/regdecl_emit_mlir.nsl` covering `ast::RegDecl` (the quickstart-prescribed first failing fixture)
-- [ ] T026 [P] [US1] Author `test/Lower/decl/wiredecl_emit_mlir.nsl` covering `ast::WireDecl`
-- [ ] T027 [P] [US1] Author `test/Lower/decl/memdecl_emit_mlir.nsl` covering `ast::MemDecl`
+- [X] T025 [P] [US1] Author `test/Lower/decl/regdecl_emit_mlir.nsl` covering `ast::RegDecl` (the quickstart-prescribed first failing fixture)
+- [X] T026 [P] [US1] Author `test/Lower/decl/wiredecl_emit_mlir.nsl` covering `ast::WireDecl`
+- [X] T027 [P] [US1] Author `test/Lower/decl/memdecl_emit_mlir.nsl` covering `ast::MemDecl`
 - [ ] T028 [P] [US1] Author `test/Lower/decl/funcdefn_emit_mlir.nsl` covering `ast::FuncDefn`
 - [ ] T029 [P] [US1] Author `test/Lower/decl/procdefn_emit_mlir.nsl` covering `ast::ProcDefn` + `ast::StateDefn` + `ast::FirstStateDecl` per US1 acceptance scenario 2
 - [ ] T030 [P] [US1] Author `test/Lower/action/parallelblock_emit_mlir.nsl` covering `ast::ParallelBlock`
@@ -105,9 +105,9 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 ### Implementation for User Story 1
 
 - [X] T047 [P] [US1] Implement `ASTToMLIR::visit(const ast::ModuleBlock&)` + `visit(const ast::DeclareBlock&)` in `lib/Lower/ASTToMLIR.cpp` per [`spec.md`](./spec.md) FR-006 lowering table — produces `nsl.module` with port list (turns T024 GREEN)
-- [ ] T048 [P] [US1] Implement `ASTToMLIR::visit(const ast::RegDecl&)` (turns T025 GREEN)
-- [ ] T049 [P] [US1] Implement `ASTToMLIR::visit(const ast::WireDecl&)` (turns T026 GREEN)
-- [ ] T050 [P] [US1] Implement `ASTToMLIR::visit(const ast::MemDecl&)` (turns T027 GREEN)
+- [X] T048 [P] [US1] Implement `ASTToMLIR::visit(const ast::RegDecl&)` (turns T025 GREEN)
+- [X] T049 [P] [US1] Implement `ASTToMLIR::visit(const ast::WireDecl&)` (turns T026 GREEN)
+- [X] T050 [P] [US1] Implement `ASTToMLIR::visit(const ast::MemDecl&)` (turns T027 GREEN)
 - [ ] T051 [P] [US1] Implement `ASTToMLIR::visit(const ast::FuncDefn&)` (turns T028 GREEN)
 - [ ] T052 [P] [US1] Implement `ASTToMLIR::visit(const ast::ProcDefn&)` + `visit(const ast::StateDefn&)` + `visit(const ast::FirstStateDecl&)` per US1 acceptance scenario 2 (turns T029 GREEN)
 - [ ] T053 [P] [US1] Implement action-block visitors (`ParallelBlock`, `AltBlock`, `AnyBlock`, `SeqBlock`, `WhileBlock`, `ForBlock` × 2 forms, `IfStmt`) (turns T030–T036 GREEN)

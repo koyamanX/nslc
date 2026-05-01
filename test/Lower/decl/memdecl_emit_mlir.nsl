@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/decl/memdecl_emit_mlir.nsl — US1 fixture covering
+// `ast::MemDecl`. Per FR-006 lowering table row
+// "MemDecl → nsl.mem ...".
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  mem ram[256][8];
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.mem "ram" : !nsl.mem<[256 x !nsl.bits<8>]>
