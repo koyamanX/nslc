@@ -43,6 +43,34 @@ header carve-out for `nsl-ast` and `nsl-sema`).
 | `nsl::dialect::VariableOp` | class | (TableGen) |
 | `nsl::dialect::MemOp` | class | (TableGen) |
 | `nsl::dialect::ConstantOp` | class | (TableGen, post-merge amendment 2026-05-01) |
+| `nsl::dialect::AddOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 1) |
+| `nsl::dialect::SubOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 1) |
+| `nsl::dialect::MulOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 1) |
+| `nsl::dialect::AndOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 3) |
+| `nsl::dialect::OrOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 3) |
+| `nsl::dialect::XorOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 3) |
+| `nsl::dialect::ShlOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 4) |
+| `nsl::dialect::ShrOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 4) |
+| `nsl::dialect::EqOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 2) |
+| `nsl::dialect::NeOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 2) |
+| `nsl::dialect::LtOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 2) |
+| `nsl::dialect::LeOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 2) |
+| `nsl::dialect::GtOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 2) |
+| `nsl::dialect::GeOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 2) |
+| `nsl::dialect::LandOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 2) |
+| `nsl::dialect::LorOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 2) |
+| `nsl::dialect::NotOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 5) |
+| `nsl::dialect::NegOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 5) |
+| `nsl::dialect::LnotOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 5) |
+| `nsl::dialect::ReduceAndOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 5) |
+| `nsl::dialect::ReduceOrOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 5) |
+| `nsl::dialect::ReduceXorOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 5) |
+| `nsl::dialect::SignExtendOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 6) |
+| `nsl::dialect::ZeroExtendOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 6) |
+| `nsl::dialect::MuxOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 7a) |
+| `nsl::dialect::ConcatOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 7a) |
+| `nsl::dialect::ExtractOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 7b) |
+| `nsl::dialect::RepeatOp` | class | (TableGen, post-merge amendment 2026-05-02 cluster 7b) |
 | `nsl::dialect::FuncInOp` | class | (TableGen) |
 | `nsl::dialect::FuncOutOp` | class | (TableGen) |
 | `nsl::dialect::FuncSelfOp` | class | (TableGen) |
@@ -83,12 +111,14 @@ header carve-out for `nsl-ast` and `nsl-sema`).
 | `nsl::dialect::MemType` | class | TableGen `def NSL_MemType` |
 | `nsl::dialect::registerNSLDialect` | function | hand-written |
 
-That's 42 op classes + 2 auto-generated terminators + 3 type
-classes + the dialect class + the registration function = **49
+That's 70 op classes + 2 auto-generated terminators + 3 type
+classes + the dialect class + the registration function = **77
 public types/functions** (post-Q6: `nsl.field_decl` added; post-merge
-amendment 2026-05-01: `nsl.constant` added — see note below).
+amendment 2026-05-01: `nsl.constant` added; post-merge amendment
+2026-05-02 (Phase A): the 28-op expression surface added — see notes
+below).
 
-> **Post-merge amendment 2026-05-01.** `nsl.constant` (a Pure +
+> **Post-merge amendment 2026-05-01 (#1).** `nsl.constant` (a Pure +
 > ConstantLike value-producer of `!nsl.bits<N>`) was added after M4
 > merged because M5 expression-lowering surfaced a gap: every
 > `LiteralExpr` lowering needs an `mlir::Value` of `!nsl.bits<N>` to
@@ -102,6 +132,34 @@ amendment 2026-05-01: `nsl.constant` added — see note below).
 > `test/Dialect/storage/constant_roundtrip.mlir`; verifier-reject
 > fixture is `test/Dialect/storage/constant_invalid_overflow.mlir`.
 > SC-012's "next op" baseline updates from "42nd op" to "43rd op".
+
+> **Post-merge amendment 2026-05-02 (#2).** The 28-op expression
+> surface (`nsl.add`, `nsl.sub`, `nsl.mul`, `nsl.and`, `nsl.or`,
+> `nsl.xor`, `nsl.shl`, `nsl.shr`, `nsl.eq`, `nsl.ne`, `nsl.lt`,
+> `nsl.le`, `nsl.gt`, `nsl.ge`, `nsl.land`, `nsl.lor`, `nsl.not`,
+> `nsl.neg`, `nsl.lnot`, `nsl.reduce_and`, `nsl.reduce_or`,
+> `nsl.reduce_xor`, `nsl.sign_extend`, `nsl.zero_extend`, `nsl.mux`,
+> `nsl.concat`, `nsl.extract`, `nsl.repeat`) was added after M4
+> merged because M5 expression-lowering surfaced a structural gap
+> between FR-007 (M5 spec; mandates `BinaryExpr` / `UnaryExpr` /
+> `ConditionalExpr` / `SliceExpr` / `ConcatExpr` lower to
+> `mlir::Value`) and design §10 (whose mapping table assumes the
+> per-op CIRCT target lands at M6). The user authorised the four-way
+> decision option (B) — "amend M4 to add the expression-op surface"
+> — over (A) implement FR-007 by emitting CIRCT `comb.*` directly
+> from M5 (violates Principle III: M5 must lower to the `nsl`
+> dialect, not skip ahead to CIRCT), (C) defer FR-007 / cross-
+> dialect sleight-of-hand (semantically opaque IR), (D) downgrade
+> FR-007 to a stub (postpones the M5→M6 cut and breaks Principle
+> VIII test sequencing). This grows the freeze surface from 49 →
+> 77. Round-trip + invalid fixtures live under `test/Dialect/expr/`
+> (28 round-trip fixtures + 16 invalid fixtures for the ops with
+> non-trait-covered invariants — the eight Pure +
+> SameOperandsAndResultType ops in clusters 1+3+4 are trait-covered
+> so they have no `_invalid_*.mlir` files). SC-012's "next op"
+> baseline updates from "43rd op" to "71st op". CIRCT-side conversion
+> code does NOT land at M4 — design §10 documents the M6 mapping
+> per-op (Principle III: M4 dialect is the seam, NOT CIRCT).
 
 ## 3. Registration entry-point contract
 
@@ -170,10 +228,11 @@ public:
 
 Once M4 is merged, the following are FROZEN:
 
-1. **Op-class set**: 42 ops + 2 auto-generated terminators (post-merge
-   amendment 2026-05-01: `nsl.constant` is the 42nd). Adding a 43rd is
-   an M4 amendment + design §7 update (per SC-012). Removing or
-   renaming an op is a MAJOR version change.
+1. **Op-class set**: 70 ops + 2 auto-generated terminators (post-merge
+   amendment 2026-05-01: `nsl.constant` is the 42nd; post-merge
+   amendment 2026-05-02 Phase A: the 28-op expression surface adds the
+   43rd–70th). Adding a 71st is an M4 amendment + design §7 update
+   (per SC-012). Removing or renaming an op is a MAJOR version change.
 2. **Op-class trait set per op**: per the data-model.md table.
    Adding a trait is a minor amendment; removing one (especially
    `Symbol` or `SymbolTable`) is MAJOR (consumers rely on the

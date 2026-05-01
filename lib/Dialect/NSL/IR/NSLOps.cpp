@@ -494,6 +494,49 @@ mlir::LogicalResult ConcatOp::verify() {
   return mlir::success();
 }
 
+// Cluster 7b — extract + repeat.
+mlir::LogicalResult ExtractOp::verify() {
+  auto operandBits = mlir::dyn_cast<BitsType>(getOperand().getType());
+  auto resultBits = mlir::dyn_cast<BitsType>(getResult().getType());
+  if (!operandBits || !resultBits) {
+    return mlir::success();
+  }
+  int64_t lowBit = getLowBit();
+  if (lowBit < 0) {
+    return emitOpError() << "'lowBit' attribute must be non-negative, got "
+                         << lowBit;
+  }
+  uint64_t low = static_cast<uint64_t>(lowBit);
+  uint64_t resWidth = resultBits.getWidth();
+  uint64_t opWidth = operandBits.getWidth();
+  if (low + resWidth > opWidth) {
+    return emitOpError() << "extract slice [lowBit=" << low
+                         << ", width=" << resWidth
+                         << "] exceeds operand width " << opWidth;
+  }
+  return mlir::success();
+}
+
+mlir::LogicalResult RepeatOp::verify() {
+  auto operandBits = mlir::dyn_cast<BitsType>(getOperand().getType());
+  auto resultBits = mlir::dyn_cast<BitsType>(getResult().getType());
+  if (!operandBits || !resultBits) {
+    return mlir::success();
+  }
+  int64_t count = getCount();
+  if (count < 1) {
+    return emitOpError() << "'count' attribute must be ≥ 1, got " << count;
+  }
+  uint64_t expected = static_cast<uint64_t>(count) * operandBits.getWidth();
+  if (expected != resultBits.getWidth()) {
+    return emitOpError() << "result width " << resultBits.getWidth()
+                         << " does not equal count×operand-width "
+                         << expected << " (count=" << count
+                         << ", operand-width=" << operandBits.getWidth() << ")";
+  }
+  return mlir::success();
+}
+
 // ===========================================================================
 // 2.4 Action-block verifiers
 // ===========================================================================

@@ -901,6 +901,57 @@ nsl.mem "name" [256 x i8]
 nsl.constant 0   : !nsl.bits<8>
 nsl.constant 255 : !nsl.bits<8>
 
+# Expression-position ops (post-merge M4-amendment 2026-05-02 #2;
+# see contracts/dialect-api.contract.md §2 post-merge note #2 for the
+# full four-way-decision rationale)
+#
+# Binary arithmetic (Pure + SameOperandsAndResultType + Commutative
+# where applicable) — EBNF §11 lines 622, 624, 610–614, 620:
+nsl.add %a, %b : !nsl.bits<N>            # NSL + (Commutative)
+nsl.sub %a, %b : !nsl.bits<N>            # NSL -
+nsl.mul %a, %b : !nsl.bits<N>            # NSL * (Commutative)
+nsl.and %a, %b : !nsl.bits<N>            # NSL & (Commutative; binary, per N2)
+nsl.or  %a, %b : !nsl.bits<N>            # NSL | (Commutative; binary, per N2)
+nsl.xor %a, %b : !nsl.bits<N>            # NSL ^ (Commutative; binary, per N2)
+nsl.shl %a, %b : !nsl.bits<N>            # NSL <<
+nsl.shr %a, %b : !nsl.bits<N>            # NSL >> (logical / unsigned)
+
+# Comparison (Pure + SameTypeOperands; result `!nsl.bits<1>` per
+# hand-verifier; EBNF §11 lines 616, 618):
+nsl.eq %a, %b : !nsl.bits<N> -> !nsl.bits<1>   # NSL == (Commutative)
+nsl.ne %a, %b : !nsl.bits<N> -> !nsl.bits<1>   # NSL != (Commutative)
+nsl.lt %a, %b : !nsl.bits<N> -> !nsl.bits<1>   # NSL <
+nsl.le %a, %b : !nsl.bits<N> -> !nsl.bits<1>   # NSL <=
+nsl.gt %a, %b : !nsl.bits<N> -> !nsl.bits<1>   # NSL >
+nsl.ge %a, %b : !nsl.bits<N> -> !nsl.bits<1>   # NSL >=
+
+# Logical AND / OR (operand AND result `!nsl.bits<1>`; §11 lines 606–608):
+nsl.land %a, %b : !nsl.bits<1> -> !nsl.bits<1> # NSL && (Commutative)
+nsl.lor  %a, %b : !nsl.bits<1> -> !nsl.bits<1> # NSL || (Commutative)
+
+# Unary (Pure + SameOperandsAndResultType for trait-covered ops):
+nsl.not %a : !nsl.bits<N>                # NSL ~ (bitwise NOT)
+nsl.neg %a : !nsl.bits<N>                # NSL unary - (two's complement)
+
+# Unary reductions + logical NOT (Pure; result `!nsl.bits<1>`):
+nsl.lnot       %a : !nsl.bits<1> -> !nsl.bits<1>     # NSL !
+nsl.reduce_and %a : !nsl.bits<N> -> !nsl.bits<1>     # NSL &-prefix
+nsl.reduce_or  %a : !nsl.bits<N> -> !nsl.bits<1>     # NSL |-prefix
+nsl.reduce_xor %a : !nsl.bits<N> -> !nsl.bits<1>     # NSL ^-prefix (parity)
+
+# Width-changing extends (Pure; verifier asserts result-width ≥
+# operand-width; EBNF §11 lines 702–705):
+nsl.sign_extend %a : !nsl.bits<M> to !nsl.bits<N>    # NSL N#expr
+nsl.zero_extend %a : !nsl.bits<M> to !nsl.bits<N>    # NSL N'(expr)
+
+# Conditional + concat + slice + repeat (cluster 7a/7b):
+nsl.mux %c, %a, %b : !nsl.bits<1>, !nsl.bits<N>, !nsl.bits<N> -> !nsl.bits<N>
+                                                     # NSL `if (c) a else b` (S14 mandates else)
+nsl.concat %a, %b, %c : (!nsl.bits<W1>, !nsl.bits<W2>, !nsl.bits<W3>) -> !nsl.bits<W>
+                                                     # NSL `{a, b, c}` (W = W1+W2+W3)
+nsl.extract %v, K : !nsl.bits<W> -> !nsl.bits<R>     # NSL `v[K+R-1:K]` (S15 const idx)
+nsl.repeat  %a, N : !nsl.bits<W> -> !nsl.bits<N*W>   # NSL N{a}
+
 # Control terminals  (each parameterized by dummy args + optional return)
 nsl.func_in "do"(%a, %b) : !nsl.bits<8>
 nsl.func_out "done"(%r)
@@ -1128,6 +1179,34 @@ The main lowering into CIRCT core dialects is done by a conversion pass (`NSLToC
 | `nsl.call` to `func_in` | direct combinational path + 1-bit valid signal |
 | `nsl.call` to `proc_name` | `fsm.transition` to the target proc's initial state |
 | `nsl.sim_display` et al. | `sv.fwrite`, `sv.finish`, etc., guarded by an `sv.ifdef "SIMULATION"` |
+| `nsl.add` (post-merge M4-amendment 2026-05-02 #2) | `comb.add` |
+| `nsl.sub` (M4-amendment #2) | `comb.sub` |
+| `nsl.mul` (M4-amendment #2) | `comb.mul` |
+| `nsl.and` (M4-amendment #2) | `comb.and` |
+| `nsl.or` (M4-amendment #2) | `comb.or` |
+| `nsl.xor` (M4-amendment #2) | `comb.xor` |
+| `nsl.shl` (M4-amendment #2) | `comb.shl` |
+| `nsl.shr` (M4-amendment #2) | `comb.shru` (logical / unsigned right shift) |
+| `nsl.eq` (M4-amendment #2) | `comb.icmp eq` |
+| `nsl.ne` (M4-amendment #2) | `comb.icmp ne` |
+| `nsl.lt` (M4-amendment #2) | `comb.icmp ult` |
+| `nsl.le` (M4-amendment #2) | `comb.icmp ule` |
+| `nsl.gt` (M4-amendment #2) | `comb.icmp ugt` |
+| `nsl.ge` (M4-amendment #2) | `comb.icmp uge` |
+| `nsl.land` (M4-amendment #2) | `comb.and` (on width-1 operands) |
+| `nsl.lor` (M4-amendment #2) | `comb.or` (on width-1 operands) |
+| `nsl.not` (M4-amendment #2) | `comb.xor %a, all-ones` |
+| `nsl.neg` (M4-amendment #2) | `comb.sub 0, %a` |
+| `nsl.lnot` (M4-amendment #2) | `comb.icmp eq %a, 0` |
+| `nsl.reduce_and` (M4-amendment #2) | `comb.icmp eq %a, all-ones` |
+| `nsl.reduce_or` (M4-amendment #2) | `comb.icmp ne %a, 0` |
+| `nsl.reduce_xor` (M4-amendment #2) | `comb.parity` |
+| `nsl.sign_extend` (M4-amendment #2) | `comb.concat (replicate MSB, operand)` (or `hwarith.cast` when CIRCT lands it) |
+| `nsl.zero_extend` (M4-amendment #2) | `comb.concat (zeros, operand)` |
+| `nsl.mux` (M4-amendment #2) | `comb.mux` |
+| `nsl.concat` (M4-amendment #2) | `comb.concat` (variadic) |
+| `nsl.extract` (M4-amendment #2) | `comb.extract` (`lowBit` IntegerAttr + result-type-derived width) |
+| `nsl.repeat` (M4-amendment #2) | `comb.replicate` (or N-fold `comb.concat`) |
 
 After this pass the module is entirely in CIRCT's `hw`/`comb`/`seq`/`fsm`/`sv` dialects. From here, the pipeline invokes stock CIRCT passes:
 

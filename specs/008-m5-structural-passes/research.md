@@ -635,6 +635,97 @@ about why M4's freeze surface grew between merge and M5 completion.
 
 ---
 
+## 16. M4-amendment 2026-05-02 (#2): expression-op surface unblocks FR-007
+
+**Decision**: Amend M4 (a second time) to add the 28-op expression
+surface — `nsl.add`, `nsl.sub`, `nsl.mul`, `nsl.and`, `nsl.or`,
+`nsl.xor`, `nsl.shl`, `nsl.shr`, `nsl.eq`, `nsl.ne`, `nsl.lt`,
+`nsl.le`, `nsl.gt`, `nsl.ge`, `nsl.land`, `nsl.lor`, `nsl.not`,
+`nsl.neg`, `nsl.lnot`, `nsl.reduce_and`, `nsl.reduce_or`,
+`nsl.reduce_xor`, `nsl.sign_extend`, `nsl.zero_extend`, `nsl.mux`,
+`nsl.concat`, `nsl.extract`, `nsl.repeat` — so M5's `lowerExpr` /
+`visit(BinaryExpr)` etc. honor FR-007 verbatim ("BinaryExpr / UnaryExpr
+/ ConditionalExpr / SliceExpr / ConcatExpr lower to `mlir::Value`")
+without violating Principle III's architectural seam.
+
+**Why this is in the M5 research file** (rather than only M4): the gap
+was surfaced *during* M5 implementation when work began on
+`visit(BinaryExpr)` and there was no `nsl.*` op for the visitor to
+construct. Recording the four-way decision history here keeps M5's
+implementation history honest about the *second* freeze-surface growth.
+
+**Options considered**:
+
+- *(A) Skip the dialect, lower `BinaryExpr` directly to CIRCT `comb.*`*
+  — Rejected. Violates Principle III: M5 lowers AST → `nsl` dialect;
+  M6 handles the `nsl` → CIRCT conversion. Skipping the seam erodes
+  the architectural separation that the entire compiler is built on.
+- *(B) Amend M4 to add the full expression-op surface* — **CHOSEN.**
+  Six commits, one per cluster (clusters 1+3+4 fused, 2, 5, 6, 7a, 7b).
+  Each commit lands TableGen records + (where invariants aren't
+  trait-covered) hand-written verifier bodies + round-trip fixtures
+  + (where applicable) verifier-reject fixtures. The final commit
+  bundles the contract / spec / design doc amendments.
+- *(C) Defer FR-007 to M6 with cross-dialect placeholder ops at M5* —
+  Rejected. Cross-dialect IR shape is opaque; every consumer (M5 lint,
+  M6 lowering, M7 driver) defensively type-checks; the structural
+  guarantee that "the IR speaks one dialect at a time per pass" is
+  lost.
+- *(D) Downgrade FR-007 to "stub-only"* — Rejected. Postpones the
+  M5→M6 cut and breaks the Principle VIII test sequencing (FileCheck
+  fixtures need the real IR shape, not stubs).
+
+**Cost paid by this amendment**:
+
+- `lib/Dialect/NSL/IR/NSLOps.td` — 28 new `def NSL_*Op` records
+  (~250 LOC of TableGen, factored via three helper classes:
+  `NSL_BinaryArithOp`, `NSL_BinaryCmpOp`, `NSL_UnaryArithOp`,
+  `NSL_UnaryReduceOp`, `NSL_ExtendOp`).
+- `lib/Dialect/NSL/IR/NSLOps.cpp` — ~150 LOC of hand-written verifier
+  bodies for the 16 ops with non-trait-covered invariants. Three
+  helper functions factored at namespace scope: `verifyResultIsBits1`,
+  `verifyLogicalOpOperandsWidth1`, `verifyExtendWidthsMonotonic`.
+- 28 round-trip fixtures + 16 invalid fixtures under
+  `test/Dialect/expr/` (new directory mirroring `test/Dialect/storage/`).
+- `.specify/m4_invariant_table.json` — 20 new entries for the ops
+  with declared invariants (the 8 trait-covered ops in clusters 1+3+4
+  are excluded; their trait-machinery rejection is observed via the
+  upstream `SameOperandsAndResultType` machinery).
+- `specs/007-m4-mlir-dialect/contracts/dialect-api.contract.md` §2 +
+  §6 — count bump 49 → 77 + post-merge note #2.
+- `specs/007-m4-mlir-dialect/spec.md` — Clarifications session
+  2026-05-02 entry recording the four-way decision.
+- `specs/008-m5-structural-passes/spec.md` Assumptions — count bump
+  49 → 77 with cross-reference to this section.
+- `docs/design/nsl_compiler_design.md` §7 — per-op rows for the new
+  M4 ops (with EBNF §11 cross-references).
+- `docs/design/nsl_compiler_design.md` §10 — per-op CIRCT mapping
+  rows (`comb.add`, `comb.icmp ult`, `comb.mux`, etc.).
+
+**Constraints honoured**:
+
+- No RTTI: every verifier uses `mlir::dyn_cast<BitsType>` (CRTP type-id).
+- Determinism: no pointer-keyed iteration; verifiers read only interned
+  widths and I64Attr values.
+- Round-trip: every new fixture is a fixed point under
+  `nsl-opt %s | nsl-opt -`.
+- Principle III firewall: design §10 documents the M6 mapping but
+  M4 ships ZERO CIRCT-conversion code. The M4 dialect is the seam.
+- Phase A scope (this set of commits) lands op surface only. Phase B
+  (consume the new ops in `lowerExpr` / `visit(BinaryExpr)` / etc.)
+  is a separate offload.
+
+**Cross-references**:
+
+- M4 spec: `specs/007-m4-mlir-dialect/spec.md` Clarifications
+  session 2026-05-02.
+- M4 contract: `specs/007-m4-mlir-dialect/contracts/
+  dialect-api.contract.md` §2 post-merge note #2 + §6 (count).
+- Design: `docs/design/nsl_compiler_design.md` §7 op summary +
+  §10 mapping table.
+
+---
+
 ## Cross-references
 
 - Spec: [`spec.md`](./spec.md) (FR-001 … FR-031, SC-001 … SC-012)
@@ -646,8 +737,10 @@ about why M4's freeze surface grew between merge and M5 completion.
 - M3 Sema contract: [`specs/006-m3-sema/contracts/sema-api.contract.md`](../006-m3-sema/contracts/sema-api.contract.md)
   (Invariant 7 — symbol-table iteration order)
 - M4 dialect contract: [`specs/007-m4-mlir-dialect/contracts/dialect-api.contract.md`](../007-m4-mlir-dialect/contracts/dialect-api.contract.md)
-  (49 frozen public types; the post-merge amendment 2026-05-01 grew it
-  from 48 to 49 by adding `nsl.constant` — see §15 below)
+  (77 frozen public types; the post-merge amendment 2026-05-01 grew it
+  from 48 to 49 by adding `nsl.constant` — see §15 below; the post-
+  merge amendment 2026-05-02 grew it from 49 to 77 by adding the 28-op
+  expression surface — see §16)
 - M1 preprocessor contract: M1 frozen surface for `%IDENT%` forwarding behaviour (Q1 alternative A reasoning)
 - Quickstart: [`quickstart.md`](./quickstart.md) (developer onboarding)
 - Data model: [`data-model.md`](./data-model.md) (entity catalog)

@@ -621,6 +621,56 @@ def NSL_ConcatOp : NSL_Op<"concat", [Pure]> {
 }
 
 //===----------------------------------------------------------------------===//
+// 2.2slice Slice + repeat ops (Phase A cluster 7b of post-merge
+//          M4-amendment 2026-05-02 — option (B)).
+//
+// `nsl.extract` (NSL `v[hi:lo]` slice + `v[i]` single-bit per EBNF
+//   §11 lines 639–640; spec S15 mandates compile-time-constant
+//   indices). Per-MLIR convention: `lowBit: I64Attr`; result width is
+//   derived from the result type; verifier asserts
+//   `lowBit + result_width <= operand_width`.
+//
+// `nsl.repeat` (NSL `N{a}` per EBNF §11 line 700; spec S15-style
+//   compile-time `N`).
+//===----------------------------------------------------------------------===//
+
+def NSL_ExtractOp : NSL_Op<"extract", [Pure]> {
+  let summary = "Bit-slice extraction (NSL `v[hi:lo]` / `v[i]`).";
+  let description = [{
+    `nsl.extract %v {lowBit = N : i64} : !nsl.bits<W> -> !nsl.bits<R>`
+    extracts the R-bit slice `[N+R-1:N]` from the W-bit operand. Per S15
+    the source NSL indices are compile-time constants; at the IR level
+    `lowBit` is an `I64Attr` and the slice width is derived from the
+    result type. Verifier asserts `lowBit + R <= W`. Lowers to
+    `comb.extract` at M6 (CIRCT's `comb.extract` matches this shape:
+    `lowBit` IntegerAttr + result-type-derived width).
+  }];
+  let arguments = (ins NSL_AnyBits:$operand, I64Attr:$lowBit);
+  let results = (outs NSL_AnyBits:$result);
+  let assemblyFormat = [{
+    $operand `,` $lowBit `:` type($operand) `->` type($result) attr-dict
+  }];
+  let hasVerifier = 1;
+}
+
+def NSL_RepeatOp : NSL_Op<"repeat", [Pure]> {
+  let summary = "Bit-vector repeat (NSL `N{a}` per §11 line 700).";
+  let description = [{
+    `nsl.repeat %a {count = N : i64} : !nsl.bits<W> -> !nsl.bits<R>` —
+    the operand is repeated `N` times left-to-right; result width
+    `R = N * W` (with `N >= 1`). Per S15 `N` is a compile-time
+    constant; here it's an `I64Attr`. Lowers to `comb.replicate`
+    (or an N-fold `comb.concat` chain) at M6.
+  }];
+  let arguments = (ins NSL_AnyBits:$operand, I64Attr:$count);
+  let results = (outs NSL_AnyBits:$result);
+  let assemblyFormat = [{
+    $operand `,` $count `:` type($operand) `->` type($result) attr-dict
+  }];
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
 // 2.3 Control-terminal ops (3): nsl.func_in, nsl.func_out, nsl.func_self
 //===----------------------------------------------------------------------===//
 
