@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/variables/struct_variable_emit_mlir.nsl — US3 end-to-
+// end fixture (T079). Marked XFAIL below; deferral mirrors
+// `test/Lower/passes/nsl-expand-variables/struct_typed.mlir`.
+//
+// **DEFERRED**. The intended source pattern is:
+//
+//   struct T { a: 8; b: 8; }
+//   module M {
+//     T variable s;        // <-- struct-typed variable
+//     ...
+//   }
+//
+// Three blockers compound here:
+//
+//  1. Per `lang.ebnf §6` `internal_declaration`, the `variable`
+//     keyword takes a bare identifier + optional `[width]`; there
+//     is no parser path for `<TypeRef> variable s;`. The grammar
+//     accepts struct-typed `reg`/`wire` (`StructInstDecl`) but not
+//     struct-typed `variable`. A grammar amendment + parser path
+//     are prerequisites.
+//
+//  2. M4's `nsl.variable` op constrains the result type to
+//     `NSL_AnyBits` (NSLOps.td:280; FR-013). The verifier rejects
+//     `!nsl.struct<@T>` outright. A fifth M4 amendment relaxing the
+//     constraint OR an AST-time per-field decomposition (preferred
+//     option; see `struct_typed.mlir`'s deferral banner) is
+//     required.
+//
+//  3. The expand-variables pass would need per-field handling
+//     (clone the chain per field; merge field-level versions on
+//     whole-struct read sites). The M4 surface lacks a struct-pack
+//     op; only `nsl.struct_cast` (Q3 Option A) goes the bits→struct
+//     direction. A field-pack op or composition via `nsl.field` +
+//     `nsl.concat` + `nsl.struct_cast` would close the surface.
+//
+// Per the US2 T066/T067 + `struct_typed.mlir` precedent, this is a
+// documented amendment-class blocker. Module-scope scalar variables
+// (T078) are the substantive deliverable for US3 ship.
+//
+// XFAIL: *
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+struct T {
+  a: 8;
+  b: 8;
+}
+
+module M {
+  T variable s;     // CHECK: nsl.variable
+  s.a = 0;
+  s.b = 0;
+}
+
+// CHECK-NOT: nsl.variable

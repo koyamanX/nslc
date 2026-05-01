@@ -56,6 +56,7 @@
 #include "nsl/AST/TopLevelParamDecl.h"
 #include "nsl/AST/TransferStmt.h"
 #include "nsl/AST/UnaryExpr.h"
+#include "nsl/AST/VariableDecl.h"
 #include "nsl/AST/WhileBlock.h"
 #include "nsl/AST/WireDecl.h"
 #include "nsl/AST/ZeroExtendExpr.h"
@@ -319,6 +320,25 @@ void ASTToMLIR::visit(const ast::WireDecl &node) {
   auto wire_op = nsl::dialect::WireOp::create(
       builder_, loc, bits_ty, builder_.getStringAttr(node.name()));
   nameTable_[node.name()] = wire_op.getResult();
+}
+
+void ASTToMLIR::visit(const ast::VariableDecl &node) {
+  // FR-006 row "VariableDecl → nsl.variable "n" : !nsl.bits<W>".
+  // The `nsl.variable` op is a marker consumed by
+  // `NSLExpandVariablesPass` (slot 3 / T081); fully eliminated
+  // post-pipeline per FR-015. M4's verifier constrains the result
+  // type to `NSL_AnyBits` (struct-typed variables are deferred —
+  // see test/Lower/passes/nsl-expand-variables/struct_typed.mlir
+  // XFAIL banner). The nameTable_ entry resolves IdentifierExpr
+  // reads of this variable; on the LHS of a TransferStmt, it also
+  // resolves to this same Value (the `dst` operand). The expand-
+  // variables pass then walks all uses post-visit and remaps to
+  // the per-version wire chain.
+  auto loc = builder_.getUnknownLoc();
+  auto bits_ty = nsl::dialect::BitsType::get(&ctx_, resolveWidth(node.width()));
+  auto var_op = nsl::dialect::VariableOp::create(
+      builder_, loc, bits_ty, builder_.getStringAttr(node.name()));
+  nameTable_[node.name()] = var_op.getResult();
 }
 
 void ASTToMLIR::visit(const ast::MemDecl &node) {
@@ -1510,7 +1530,6 @@ void ASTToMLIR::visit(const ast::StructuralGenerate &node) {
   void ASTToMLIR::visit(const ast::EnumName & /*node*/) {}
 
 STUB(DeclareBlock)
-STUB(VariableDecl)
 STUB(IntegerDecl)
 STUB(ProcNameDecl)
 STUB(StateNameDecl)

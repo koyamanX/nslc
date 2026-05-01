@@ -171,6 +171,20 @@ declare -A ALLOWLIST=(
   # stretch). The dialect round-trip is at
   # test/Dialect/expansion-only/structural_generate_{,loopvar_}roundtrip.mlir.
   ["StructuralGenerate"]="covered by test/Lower/passes/nsl-expand-generate/*.mlir + test/Dialect/expansion-only/structural_generate_*.mlir"
+
+  # ----- US3 / Phase 5 visitors (offload 2026-04-30 Commit 3) ---------
+  # `visit(VariableDecl)` emits `nsl.variable "n" : !nsl.bits<W>` (the
+  # marker op consumed by NSLExpandVariablesPass). Per-pass coverage
+  # lives at test/Lower/passes/nsl-expand-variables/{scalar_single,
+  # scalar_chain_of_3, partial_assignment_S12}.mlir which exercise the
+  # post-emission wire-chain transformation. End-to-end NSL-source
+  # coverage (visitor → expand-variables) deferred — relies on the
+  # `internal_declaration` parser path emitting VariableDecl which
+  # has its own M3-corpus exercise. The dialect round-trip for the
+  # emitted op shape is at test/Dialect/storage/variable_roundtrip.mlir
+  # (M4-frozen op surface). Cited: lib/Lower/ASTToMLIR.cpp visit()
+  # implementation + test/Lower/passes/nsl-expand-variables/.
+  ["VariableDecl"]="covered by test/Lower/passes/nsl-expand-variables/*.mlir + test/Dialect/storage/variable_roundtrip.mlir"
 )
 
 # -----------------------------------------------------------------------------
