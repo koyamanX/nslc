@@ -15,6 +15,8 @@ for f in test/Lower/module/empty_module_emit_mlir.nsl \
          test/Lower/action/seqblock_emit_mlir.nsl \
          test/Lower/stmt/transferstmt_eq_emit_mlir.nsl \
          test/Lower/stmt/transferstmt_coloneq_emit_mlir.nsl \
+         test/Lower/stmt/controlcallstmt_emit_mlir.nsl \
+         test/Lower/stmt/controlcallstmt_dotted_emit_mlir.nsl \
          test/Lower/stmt/barefinishstmt_emit_mlir.nsl \
          test/Lower/stmt/systemtaskstmt_finish_emit_mlir.nsl \
          test/Lower/stmt/systemtaskstmt_display_emit_mlir.nsl \

@@ -17,6 +17,7 @@
 
 #include "nsl/AST/BareFinishStmt.h"
 #include "nsl/AST/CompilationUnit.h"
+#include "nsl/AST/ControlCallStmt.h"
 #include "nsl/AST/DelayTaskStmt.h"
 #include "nsl/AST/Expr.h"
 #include "nsl/AST/FirstStateDecl.h"
@@ -532,6 +533,50 @@ void ASTToMLIR::visit(const ast::TransferStmt &node) {
   (void)nsl::dialect::TransferOp::create(builder_, loc, lhs_val, rhs_val);
 }
 
+void ASTToMLIR::visit(const ast::ControlCallStmt &node) {
+  // FR-006 row "ControlCallStmt → nsl.call @target(args...)". The
+  // ScopedName lowers per Q5 Option A' as a literal-dotted
+  // `FlatSymbolRefAttr` (e.g., `inst.start` → `@inst.start`); no
+  // name mangling. The callee may not have been visited yet — Q4
+  // Option A defers symbol-resolution to MLIR's SymbolTable, so
+  // the FlatSymbolRefAttr is correct even if the target op lands
+  // later in the walk.
+  //
+  // Phase 3 expression-sub-visitor coverage is partial (LiteralExpr
+  // Decimal + IdentifierExpr single-part only). Args that fail to
+  // lower (`!val`) soft-fail per FR-010 — Sema-clean inputs would
+  // already have rejected the bad arg shape. Result types: Phase 3
+  // emits no results (the M3 corpus exercises void control-calls);
+  // returning calls land alongside CallExpr (T055).
+  auto loc = builder_.getUnknownLoc();
+  std::string flat_name;
+  llvm::raw_string_ostream os(flat_name);
+  for (size_t i = 0; i < node.target().parts.size(); ++i) {
+    if (i > 0) {
+      os << '.';
+    }
+    os << node.target().parts[i];
+  }
+  os.flush();
+  auto callee = mlir::FlatSymbolRefAttr::get(builder_.getStringAttr(flat_name));
+  llvm::SmallVector<mlir::Value, 4> arg_vals;
+  arg_vals.reserve(node.args().size());
+  for (const auto &arg : node.args()) {
+    auto v = lowerExpr(arg.get());
+    if (!v) {
+      // Soft-fail: any arg we cannot lower (Phase 3 expression
+      // surface gap) bails the whole call. Sema would have caught
+      // unresolved refs upstream; this only fires on future-feature
+      // gaps.
+      return;
+    }
+    arg_vals.push_back(v);
+  }
+  (void)nsl::dialect::CallOp::create(builder_, loc,
+                                     /*results=*/mlir::TypeRange{}, callee,
+                                     mlir::ValueRange(arg_vals));
+}
+
 // ---------- No-op stubs for the remaining 52 AST node kinds ----------
 //
 // As US1 sub-tasks fill in real visit() bodies, the corresponding
@@ -554,7 +599,6 @@ STUB(SubmoduleDecl)
 STUB(StructInstDecl)
 
 STUB(IncDecStmt)
-STUB(ControlCallStmt)
 STUB(ReturnStmt)
 STUB(EmptyStmt)
 STUB(LabeledStmt)

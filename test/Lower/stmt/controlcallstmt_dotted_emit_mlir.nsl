@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/stmt/controlcallstmt_dotted_emit_mlir.nsl — US1 fixture
+// covering `ast::ControlCallStmt` with a multi-part `ScopedName`
+// (per parser-note N6 — proc-instance method access form
+// `inst.method`). Per Q5 Option A' the dotted form lowers to a
+// literal-dotted `FlatSymbolRefAttr` — i.e., `@inst.method` — with
+// no special name mangling. Mirrors the dotted-call line in
+// `test/Dialect/atomic/call_roundtrip.mlir`.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  {
+    inst.start();
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.parallel
+// CHECK-NEXT: nsl.call @inst.start() : () -> ()

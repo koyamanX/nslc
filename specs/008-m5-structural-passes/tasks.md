@@ -92,7 +92,7 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 - [ ] T035 [P] [US1] Author `test/Lower/action/forblock_enum_emit_mlir.nsl` + `forblock_cstyle_emit_mlir.nsl` covering both `ast::ForBlock` shapes
 - [ ] T036 [P] [US1] Author `test/Lower/action/ifstmt_emit_mlir.nsl` covering `ast::IfStmt`
 - [X] T037 [P] [US1] Author `test/Lower/stmt/transferstmt_eq_emit_mlir.nsl` + `transferstmt_coloneq_emit_mlir.nsl` covering both `ast::TransferStmt` modes
-- [ ] T038 [P] [US1] Author `test/Lower/stmt/controlcallstmt_emit_mlir.nsl` covering `ast::ControlCallStmt`
+- [X] T038 [P] [US1] Author `test/Lower/stmt/controlcallstmt_emit_mlir.nsl` covering `ast::ControlCallStmt`
 - [X] T039 [P] [US1] Author `test/Lower/stmt/barefinishstmt_emit_mlir.nsl` covering `ast::BareFinishStmt`
 - [X] T040 [P] [US1] Author `test/Lower/stmt/systemtaskstmt_{display,finish,init,delay}_emit_mlir.nsl` covering each of the four `ast::SystemTaskStmt` flavours
 - [ ] T041 [P] [US1] Author `test/Lower/expr/binaryexpr_emit_mlir.nsl` covering arithmetic + bit + comparison `ast::BinaryExpr` operators

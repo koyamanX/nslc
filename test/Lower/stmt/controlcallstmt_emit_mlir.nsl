@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/stmt/controlcallstmt_emit_mlir.nsl — US1 fixture
+// covering `ast::ControlCallStmt`. Per FR-006 lowering table row
+// "ControlCallStmt → nsl.call @target(args...)".
+//
+// Per /speckit-clarify Q4 → Option A (lazy SymbolTable resolution),
+// the callee `@target` symbol need not have been visited yet at the
+// time the `nsl.call` is emitted — verification only requires that
+// `nsl.module`'s SymbolTable can resolve it after the full lowering
+// walk completes. Phase 3 fixture exercises the no-arg, no-result
+// shape (richer arg lowering rides on the expression sub-visitor —
+// T055).
+//
+// The `proc_name target;` declaration satisfies M3 Sema's name-
+// resolution check on the single-part bare-identifier control-call
+// (cf. `lib/Sema/ResolutionPass.cpp` line 1116) — that lookup is
+// independent of the symbol-table-driven verification at the MLIR
+// layer.
+//
+// Container: top-level `nsl.parallel` at module scope (no HasParent
+// constraint on either `nsl.parallel` or `nsl.call`), matching the
+// other Phase 3 stmt-position fixtures (cf.
+// `transferstmt_eq_emit_mlir.nsl`).
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  proc_name target;
+  {
+    target();
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.parallel
+// CHECK-NEXT: nsl.call @target() : () -> ()
