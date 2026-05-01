@@ -15,6 +15,7 @@
 
 #include "ASTToMLIR.h"
 
+#include "nsl/AST/BareFinishStmt.h"
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/Expr.h"
 #include "nsl/AST/FirstStateDecl.h"
@@ -248,6 +249,16 @@ void ASTToMLIR::visit(const ast::MemDecl &node) {
                                     builder_.getStringAttr(node.name()));
 }
 
+void ASTToMLIR::visit(const ast::BareFinishStmt & /*node*/) {
+  // FR-006 row "BareFinishStmt → nsl.finish". `nsl.finish` carries
+  // no operands and has a transitive-parent verifier (per Q2
+  // Option B) requiring an ancestor `nsl.proc` — the input AST is
+  // Sema-clean per FR-010 so that ancestor invariant holds by
+  // construction at every reachable insertion point.
+  auto loc = builder_.getUnknownLoc();
+  (void)nsl::dialect::FinishOp::create(builder_, loc);
+}
+
 void ASTToMLIR::visit(const ast::ParallelBlock &node) {
   // FR-006 row "ParallelBlock → nsl.parallel { ... }". `nsl.parallel`
   // carries no `HasParent` constraint, so it can appear at module
@@ -294,7 +305,6 @@ STUB(StructInstDecl)
 STUB(TransferStmt)
 STUB(IncDecStmt)
 STUB(ControlCallStmt)
-STUB(BareFinishStmt)
 STUB(SystemTaskStmt)
 STUB(ReturnStmt)
 STUB(EmptyStmt)

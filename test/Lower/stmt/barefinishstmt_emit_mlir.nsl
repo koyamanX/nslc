@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/stmt/barefinishstmt_emit_mlir.nsl — US1 fixture
+// covering `ast::BareFinishStmt`. Per FR-006 row "BareFinishStmt
+// → nsl.finish". `nsl.finish`'s transitive-parent rule (per Q2
+// Option B) requires `nsl.proc` somewhere up the ancestor chain;
+// the simplest container is a state inside a proc — matching
+// `test/Dialect/atomic/finish_roundtrip.mlir`.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  proc_name p;
+  proc p {
+    state_name s0;
+    state s0 {
+      finish;
+    }
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.proc @p
+// CHECK: nsl.state @s0
+// CHECK-NEXT: nsl.finish
