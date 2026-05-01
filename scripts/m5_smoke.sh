@@ -16,6 +16,8 @@ for f in test/Lower/module/empty_module_emit_mlir.nsl \
          test/Lower/action/ifstmt_emit_mlir.nsl \
          test/Lower/action/whileblock_emit_mlir.nsl \
          test/Lower/action/forblock_cstyle_emit_mlir.nsl \
+         test/Lower/action/altblock_emit_mlir.nsl \
+         test/Lower/action/anyblock_emit_mlir.nsl \
          test/Lower/stmt/transferstmt_eq_emit_mlir.nsl \
          test/Lower/stmt/transferstmt_coloneq_emit_mlir.nsl \
          test/Lower/stmt/controlcallstmt_emit_mlir.nsl \

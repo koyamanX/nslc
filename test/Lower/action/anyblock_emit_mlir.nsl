@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/action/anyblock_emit_mlir.nsl — US1 fixture covering
+// `ast::AnyBlock`. Per FR-006 lowering table row "AnyBlock →
+// nsl.any { nsl.case ... }" (design §7 line 904). Identical shape
+// to `AltBlock`, distinct op kind. Per S13 the alt-vs-any
+// distinction is constructive (M3 introspection observable); the
+// dialect verifier does NOT enforce alt-vs-any — both parent ops
+// accept the same `nsl.case`/`nsl.default` children.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  wire c1[1];
+  wire c2[1];
+  wire a[8];
+  wire b[8];
+  {
+    any {
+      c1: a = b;
+      c2: a = b;
+      else: a = b;
+    }
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.parallel
+// CHECK: nsl.any
+// CHECK: nsl.case %{{.*}} : !nsl.bits<1>
+// CHECK: nsl.transfer %{{.*}}, %{{.*}} : !nsl.bits<8>
+// CHECK: nsl.case %{{.*}} : !nsl.bits<1>
+// CHECK: nsl.transfer %{{.*}}, %{{.*}} : !nsl.bits<8>
+// CHECK: nsl.default
+// CHECK: nsl.transfer %{{.*}}, %{{.*}} : !nsl.bits<8>

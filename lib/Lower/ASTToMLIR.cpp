@@ -17,6 +17,8 @@
 
 #include <algorithm>
 
+#include "nsl/AST/AltBlock.h"
+#include "nsl/AST/AnyBlock.h"
 #include "nsl/AST/BareFinishStmt.h"
 #include "nsl/AST/BinaryExpr.h"
 #include "nsl/AST/CompilationUnit.h"
@@ -1063,6 +1065,80 @@ void ASTToMLIR::visit(const ast::ControlCallStmt &node) {
 
 // ---------- Action-block stmt-position visitors ----------
 
+// Shared body for `visit(AltBlock)` / `visit(AnyBlock)` — both AST
+// nodes have identical shape (`vector<CondCase>` + nullable
+// elseCase). Caller has already created the parent (`nsl.alt` /
+// `nsl.any`) and placed the builder's insertion point at the start
+// of the parent's body block. Each `nsl.case` is a child op of the
+// parent — both ops carry `ParentOneOf<["AltOp", "AnyOp"]>`
+// (NSLOps.td §2.5).
+//
+// We declare this as a regular member-function-like inlinable lambda
+// inside each visitor body to avoid pollution of the header / member
+// surface; visitor-private state (`lowerExpr`, `lowerActionBody`)
+// remains directly in scope.
+
+void ASTToMLIR::visit(const ast::AltBlock &node) {
+  // FR-006 row "AltBlock → nsl.alt { nsl.case ... nsl.default ... }"
+  // (design §7 line 903). `nsl.alt` carries no `HasParent`
+  // constraint; per S13 it's constructive (priority vs parallel) and
+  // the dialect verifier does NOT distinguish alt-vs-any semantics —
+  // the introspection observable lives in M3.
+  auto loc = builder_.getUnknownLoc();
+  auto alt_op = nsl::dialect::AltOp::create(builder_, loc);
+  auto &body_block = alt_op.getBody().emplaceBlock();
+  mlir::OpBuilder::InsertionGuard guard(builder_);
+  builder_.setInsertionPointToStart(&body_block);
+  for (const auto &arm : node.cases()) {
+    auto cond_val = lowerExpr(arm.cond.get());
+    if (!cond_val) {
+      continue;
+    }
+    auto case_op = nsl::dialect::CaseOp::create(builder_, loc, cond_val);
+    auto &case_body = case_op.getBody().emplaceBlock();
+    mlir::OpBuilder::InsertionGuard caseGuard(builder_);
+    builder_.setInsertionPointToStart(&case_body);
+    lowerActionBody(arm.body.get());
+  }
+  if (node.elseCase()) {
+    auto default_op = nsl::dialect::DefaultOp::create(builder_, loc);
+    auto &default_body = default_op.getBody().emplaceBlock();
+    mlir::OpBuilder::InsertionGuard defaultGuard(builder_);
+    builder_.setInsertionPointToStart(&default_body);
+    lowerActionBody(node.elseCase());
+  }
+}
+
+void ASTToMLIR::visit(const ast::AnyBlock &node) {
+  // FR-006 row "AnyBlock → nsl.any { nsl.case ... }" (design §7
+  // line 904). Identical shape to `AltBlock`, distinct op kind.
+  // Children = `nsl.case` and `nsl.default` (same as alt — the
+  // `ParentOneOf` constraint accepts both parents).
+  auto loc = builder_.getUnknownLoc();
+  auto any_op = nsl::dialect::AnyOp::create(builder_, loc);
+  auto &body_block = any_op.getBody().emplaceBlock();
+  mlir::OpBuilder::InsertionGuard guard(builder_);
+  builder_.setInsertionPointToStart(&body_block);
+  for (const auto &arm : node.cases()) {
+    auto cond_val = lowerExpr(arm.cond.get());
+    if (!cond_val) {
+      continue;
+    }
+    auto case_op = nsl::dialect::CaseOp::create(builder_, loc, cond_val);
+    auto &case_body = case_op.getBody().emplaceBlock();
+    mlir::OpBuilder::InsertionGuard caseGuard(builder_);
+    builder_.setInsertionPointToStart(&case_body);
+    lowerActionBody(arm.body.get());
+  }
+  if (node.elseCase()) {
+    auto default_op = nsl::dialect::DefaultOp::create(builder_, loc);
+    auto &default_body = default_op.getBody().emplaceBlock();
+    mlir::OpBuilder::InsertionGuard defaultGuard(builder_);
+    builder_.setInsertionPointToStart(&default_body);
+    lowerActionBody(node.elseCase());
+  }
+}
+
 void ASTToMLIR::visit(const ast::IfStmt &node) {
   // FR-006 row "IfStmt → nsl.if %cond { ... } else { ... }" (design
   // §7 line 905). `nsl.if` has two `SizedRegion<1>`s; both are
@@ -1205,8 +1281,6 @@ STUB(ReturnStmt)
 STUB(EmptyStmt)
 STUB(LabeledStmt)
 STUB(GotoStmt)
-STUB(AltBlock)
-STUB(AnyBlock)
 STUB(StructuralGenerate)
 
 STUB(SystemVarExpr)
