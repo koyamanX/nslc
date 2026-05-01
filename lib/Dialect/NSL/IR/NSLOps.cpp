@@ -409,6 +409,41 @@ mlir::LogicalResult ReduceXorOp::verify() {
   return verifyResultIsBits1(*this, getResult().getType());
 }
 
+// Cluster 6 — sign-extend / zero-extend. Both: result-width ≥ operand-
+// width (per the op-class description); equal widths are admissible
+// (degenerate identity — M5 lowering may emit them and downstream
+// canonicalization can fold).
+namespace {
+mlir::LogicalResult verifyExtendWidthsMonotonic(mlir::Operation *op,
+                                                mlir::Type operandTy,
+                                                mlir::Type resultTy,
+                                                llvm::StringRef name) {
+  auto fromBits = mlir::dyn_cast<BitsType>(operandTy);
+  auto toBits = mlir::dyn_cast<BitsType>(resultTy);
+  if (!fromBits || !toBits) {
+    // The `NSL_AnyBits` constraint already rejected this at parse-
+    // verify time; defensive return.
+    return mlir::success();
+  }
+  if (toBits.getWidth() < fromBits.getWidth()) {
+    return op->emitOpError() << name
+                             << " result width " << toBits.getWidth()
+                             << " is smaller than operand width "
+                             << fromBits.getWidth();
+  }
+  return mlir::success();
+}
+} // namespace
+
+mlir::LogicalResult SignExtendOp::verify() {
+  return verifyExtendWidthsMonotonic(*this, getOperand().getType(),
+                                     getResult().getType(), "sign_extend");
+}
+mlir::LogicalResult ZeroExtendOp::verify() {
+  return verifyExtendWidthsMonotonic(*this, getOperand().getType(),
+                                     getResult().getType(), "zero_extend");
+}
+
 // ===========================================================================
 // 2.4 Action-block verifiers
 // ===========================================================================

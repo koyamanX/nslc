@@ -532,6 +532,46 @@ def NSL_ReduceXorOp : NSL_UnaryReduceOp<"reduce_xor"> {
 }
 
 //===----------------------------------------------------------------------===//
+// 2.2sext Expression-extend ops (Phase A cluster 6 of post-merge
+//         M4-amendment 2026-05-02 — option (B)).
+//
+// Width-changing extends per EBNF §11 lines 702–705:
+//   - sign-extend `N#expr` / `N#(expr)`  → `nsl.sign_extend`
+//   - zero-extend `N'(expr)`             → `nsl.zero_extend`
+// Both: operand is `!nsl.bits<M>`, result is `!nsl.bits<N>` with N ≥ M.
+// Hand-written verifier asserts result-width ≥ operand-width.
+//===----------------------------------------------------------------------===//
+
+class NSL_ExtendOp<string mnemonic> : NSL_Op<mnemonic, [Pure]> {
+  let arguments = (ins NSL_AnyBits:$operand);
+  let results = (outs NSL_AnyBits:$result);
+  let assemblyFormat = [{
+    $operand `:` type($operand) `to` type($result) attr-dict
+  }];
+  let hasVerifier = 1;
+}
+
+def NSL_SignExtendOp : NSL_ExtendOp<"sign_extend"> {
+  let summary = "Sign-extend (NSL `N#expr` per §11 lines 702–703).";
+  let description = [{
+    `nsl.sign_extend %a : !nsl.bits<M> to !nsl.bits<N>` — sign-extend
+    the M-bit operand to N bits (N ≥ M); the high (N-M) bits are filled
+    with the operand's MSB. Lowers via CIRCT's standard sign-extend
+    pattern at M6 (`comb.concat` of `comb.replicate` + operand, or the
+    forthcoming `hwarith.cast` pattern when applicable).
+  }];
+}
+
+def NSL_ZeroExtendOp : NSL_ExtendOp<"zero_extend"> {
+  let summary = "Zero-extend (NSL `N'(expr)` per §11 line 705).";
+  let description = [{
+    `nsl.zero_extend %a : !nsl.bits<M> to !nsl.bits<N>` — zero-extend
+    the M-bit operand to N bits (N ≥ M); the high (N-M) bits are zero.
+    Lowers to `comb.concat` of an all-zeros constant + operand at M6.
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // 2.3 Control-terminal ops (3): nsl.func_in, nsl.func_out, nsl.func_self
 //===----------------------------------------------------------------------===//
 
