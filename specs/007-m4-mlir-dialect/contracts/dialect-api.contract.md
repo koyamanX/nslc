@@ -42,6 +42,7 @@ header carve-out for `nsl-ast` and `nsl-sema`).
 | `nsl::dialect::WireOp` | class | (TableGen) |
 | `nsl::dialect::VariableOp` | class | (TableGen) |
 | `nsl::dialect::MemOp` | class | (TableGen) |
+| `nsl::dialect::ConstantOp` | class | (TableGen, post-merge amendment 2026-05-01) |
 | `nsl::dialect::FuncInOp` | class | (TableGen) |
 | `nsl::dialect::FuncOutOp` | class | (TableGen) |
 | `nsl::dialect::FuncSelfOp` | class | (TableGen) |
@@ -82,9 +83,25 @@ header carve-out for `nsl-ast` and `nsl-sema`).
 | `nsl::dialect::MemType` | class | TableGen `def NSL_MemType` |
 | `nsl::dialect::registerNSLDialect` | function | hand-written |
 
-That's 41 op classes + 2 auto-generated terminators + 3 type
-classes + the dialect class + the registration function = **48
-public types/functions** (post-Q6: `nsl.field_decl` added).
+That's 42 op classes + 2 auto-generated terminators + 3 type
+classes + the dialect class + the registration function = **49
+public types/functions** (post-Q6: `nsl.field_decl` added; post-merge
+amendment 2026-05-01: `nsl.constant` added — see note below).
+
+> **Post-merge amendment 2026-05-01.** `nsl.constant` (a Pure +
+> ConstantLike value-producer of `!nsl.bits<N>`) was added after M4
+> merged because M5 expression-lowering surfaced a gap: every
+> `LiteralExpr` lowering needs an `mlir::Value` of `!nsl.bits<N>` to
+> feed `nsl.transfer`'s `SameTypeOperands`-constrained `$src`, and
+> `hw.constant` (`iN`) cannot satisfy that constraint. The user
+> authorised the four-way decision option (a) — "amend M4 to add the
+> missing primitive" — over the alternatives (b) inline `hw.constant`
+> with a custom-cast helper, (c) widen `nsl.transfer` to admit
+> cross-dialect operands, (d) defer the M5 expression-lowering pivot.
+> This grows the freeze surface from 48 → 49. Round-trip fixture is
+> `test/Dialect/storage/constant_roundtrip.mlir`; verifier-reject
+> fixture is `test/Dialect/storage/constant_invalid_overflow.mlir`.
+> SC-012's "next op" baseline updates from "42nd op" to "43rd op".
 
 ## 3. Registration entry-point contract
 
@@ -153,9 +170,10 @@ public:
 
 Once M4 is merged, the following are FROZEN:
 
-1. **Op-class set**: 41 ops + 2 auto-generated terminators. Adding
-   a 42nd is an M4 amendment + design §7 update (per SC-012).
-   Removing or renaming an op is a MAJOR version change.
+1. **Op-class set**: 42 ops + 2 auto-generated terminators (post-merge
+   amendment 2026-05-01: `nsl.constant` is the 42nd). Adding a 43rd is
+   an M4 amendment + design §7 update (per SC-012). Removing or
+   renaming an op is a MAJOR version change.
 2. **Op-class trait set per op**: per the data-model.md table.
    Adding a trait is a minor amendment; removing one (especially
    `Symbol` or `SymbolTable`) is MAJOR (consumers rely on the

@@ -894,6 +894,13 @@ nsl.wire "name" : !nsl.bits<8>
 nsl.variable "name" : !nsl.bits<8>
 nsl.mem "name" [256 x i8]
 
+# Bit-vector constant (Pure + ConstantLike value-producer)
+# Post-merge M4-amendment 2026-05-01: closes M5's expression-lowering gap
+# (every LiteralExpr lowering needs an mlir::Value of !nsl.bits<N> to
+# feed nsl.transfer's SameTypeOperands-constrained $src).
+nsl.constant 0   : !nsl.bits<8>
+nsl.constant 255 : !nsl.bits<8>
+
 # Control terminals  (each parameterized by dummy args + optional return)
 nsl.func_in "do"(%a, %b) : !nsl.bits<8>
 nsl.func_out "done"(%r)

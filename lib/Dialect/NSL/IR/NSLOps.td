@@ -27,6 +27,7 @@ include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/EnumAttr.td"
 include "mlir/IR/OpBase.td"
 include "mlir/IR/SymbolInterfaces.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
 
 include "NSLDialect.td"
 include "NSLTypes.td"
@@ -205,6 +206,34 @@ def NSL_MemOp : NSL_Op<"mem", [HasParent<"ModuleOp">]> {
   let arguments = (ins StrAttr:$name);
   let results = (outs NSL_AnyMem:$result);
   let assemblyFormat = "$name `:` type($result) attr-dict";
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// 2.2bis Constant op (1): nsl.constant
+//===----------------------------------------------------------------------===//
+//
+// Post-merge M4-amendment 2026-05-01 (per /speckit-clarify four-way
+// decision, option (a)). M5 expression-lowering surfaced the gap: every
+// `LiteralExpr` lowering needs an `mlir::Value` producer of `!nsl.bits<N>`
+// to feed `nsl.transfer`'s `SameTypeOperands`-constrained `$src`, and
+// `hw.constant` (i<N>) can't satisfy that constraint. This op closes the
+// gap; widths > 64 bits are deferred to a future amendment.
+
+def NSL_ConstantOp : NSL_Op<"constant", [Pure, ConstantLike]> {
+  let summary = "An NSL bit-vector constant.";
+  let description = [{
+    `nsl.constant <value> : !nsl.bits<N>` materialises an integer literal
+    as an `mlir::Value` of `!nsl.bits<N>`, suitable to feed operands
+    carrying `NSL_BitsOrStruct` constraints (e.g., `nsl.transfer`'s
+    `$src`). The `value` attribute is an `I64Attr`; widths > 64 bits are
+    deferred to a future amendment. Verifier checks that `value` fits in
+    the result type's width (`value < (1 << width)` for `width < 64`;
+    any I64 value is admissible at exactly `width == 64`).
+  }];
+  let arguments = (ins I64Attr:$value);
+  let results = (outs NSL_AnyBits:$result);
+  let assemblyFormat = "$value `:` type($result) attr-dict";
   let hasVerifier = 1;
 }
 

@@ -560,6 +560,81 @@ the visitor entry-point + pass-construction free functions through
 
 ---
 
+## 15. M4-amendment 2026-05-01: `nsl.constant` unblocks expression-lowering
+
+**Decision**: Amend M4 to add `nsl.constant` (Pure + ConstantLike,
+`I64Attr:$value`, `NSL_AnyBits:$result`) so M5 expression-lowering
+has a value-producer of `!nsl.bits<N>` for every `LiteralExpr`.
+
+**Why this is in the M5 research file** (rather than only M4): the
+gap was surfaced *during* M5 implementation when the
+`visit(LiteralExpr)` / `visit(TransferStmt)` pivot stalled with no
+producer for the `mlir::Value` operand of `nsl.transfer`. The user
+authorised the amendment via a four-way decision; recording the
+options + rationale here keeps M5's implementation history honest
+about why M4's freeze surface grew between merge and M5 completion.
+
+**Options considered**:
+
+- *(a) Amend M4 to add `nsl.constant`* — **CHOSEN.** One new op record
+  + one verifier body + two fixtures. Closes the gap structurally;
+  preserves `nsl.transfer`'s `SameTypeOperands` strict-type invariant
+  (which Q3 Option A established as the architectural seam between
+  the dialect and CIRCT). Freeze surface 48 → 49.
+- *(b) Inline `hw.constant` + `unrealized_conversion_cast` helper at
+  every literal site* — Rejected. Permanent dialect-bridge wart; every
+  literal becomes two ops + a cross-dialect cast; printed IR loses
+  one-to-one correspondence with NSL source; the M5 visitor's "every
+  AST node maps to one `nsl::*` op" rule (FR-027 enumeration) breaks.
+- *(c) Relax `nsl.transfer`'s `SameTypeOperands` constraint to admit
+  cross-dialect operands* — Rejected. Erodes Q3 Option A's strict-type
+  invariant and forces every downstream consumer (M5 lint, M6 lowering,
+  M7 driver) to defensively check operand-type-pair shapes the dialect
+  used to guarantee. Net cost is much larger than (a).
+- *(d) Defer M5 expression-lowering until M6* — Rejected. Blocks the
+  entire `LiteralExpr` / `BinaryExpr` / `UnaryExpr` lowering path
+  until M6 lands `hw` activation; defeats the purpose of having an
+  `nsl` IR layer that's structurally faithful to NSL source.
+
+**Cost paid by this amendment**:
+
+- `lib/Dialect/NSL/IR/NSLOps.td` — one new `def NSL_ConstantOp` (~15
+  lines TableGen + the `mlir/Interfaces/SideEffectInterfaces.td`
+  include for `Pure`).
+- `lib/Dialect/NSL/IR/NSLOps.cpp` — one new `ConstantOp::verify()`
+  body (~30 lines, width-fits check on the `I64Attr` value).
+- `test/Dialect/storage/constant_roundtrip.mlir` + `test/Dialect/
+  storage/constant_invalid_overflow.mlir` — two new fixtures.
+- `specs/007-m4-mlir-dialect/contracts/dialect-api.contract.md` §2 +
+  §6 — count bump 48 → 49 + post-merge note.
+- `specs/007-m4-mlir-dialect/spec.md` Clarifications — new session
+  2026-05-01 entry recording the four-way decision.
+- `docs/design/nsl_compiler_design.md` §7 — op-summary entry for
+  `nsl.constant`.
+
+**Constraints honoured**:
+
+- No RTTI: verifier uses `mlir::cast<BitsType>` (CRTP-based MLIR
+  type-id machinery, NOT `dynamic_cast`).
+- Determinism: no pointer-keyed iteration; the verifier reads
+  `getValue()` (an `int64_t`) and a fixed type-width.
+- Round-trip: `nsl-opt foo.mlir | nsl-opt -` is a fixed point on the
+  new round-trip fixture (verified locally).
+- Widths > 64 are deferred — the `value` attr is `I64Attr`. A future
+  amendment (when M5 surfaces wide-literal needs) will widen this to
+  `APIntAttr` or similar; that is a separate decision.
+
+**Cross-references**:
+
+- M4 spec: `specs/007-m4-mlir-dialect/spec.md` Clarifications
+  session 2026-05-01.
+- M4 contract: `specs/007-m4-mlir-dialect/contracts/
+  dialect-api.contract.md` §2 (post-merge note) + §6 (op-class
+  count).
+- Design: `docs/design/nsl_compiler_design.md` §7 op summary.
+
+---
+
 ## Cross-references
 
 - Spec: [`spec.md`](./spec.md) (FR-001 … FR-031, SC-001 … SC-012)
@@ -571,7 +646,8 @@ the visitor entry-point + pass-construction free functions through
 - M3 Sema contract: [`specs/006-m3-sema/contracts/sema-api.contract.md`](../006-m3-sema/contracts/sema-api.contract.md)
   (Invariant 7 — symbol-table iteration order)
 - M4 dialect contract: [`specs/007-m4-mlir-dialect/contracts/dialect-api.contract.md`](../007-m4-mlir-dialect/contracts/dialect-api.contract.md)
-  (48 frozen public types; M5 does NOT amend)
+  (49 frozen public types; the post-merge amendment 2026-05-01 grew it
+  from 48 to 49 by adding `nsl.constant` — see §15 below)
 - M1 preprocessor contract: M1 frozen surface for `%IDENT%` forwarding behaviour (Q1 alternative A reasoning)
 - Quickstart: [`quickstart.md`](./quickstart.md) (developer onboarding)
 - Data model: [`data-model.md`](./data-model.md) (entity catalog)

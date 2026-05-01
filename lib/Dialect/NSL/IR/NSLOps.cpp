@@ -294,6 +294,39 @@ mlir::LogicalResult MemOp::verify() {
 }
 
 // ===========================================================================
+// 2.2bis Constant verifier (post-merge M4-amendment 2026-05-01)
+// ===========================================================================
+
+mlir::LogicalResult ConstantOp::verify() {
+  // Per the post-merge amendment: `value` (an I64) must fit in the result
+  // bits-type's width. We use unsigned-domain comparison — the I64Attr is
+  // semantically the bit-pattern of an N-bit unsigned integer, so a value
+  // of `(1 << N) - 1` is the largest legal pattern at width `N`.
+  auto bitsTy = mlir::cast<BitsType>(getResult().getType());
+  unsigned width = bitsTy.getWidth();
+  uint64_t raw = static_cast<uint64_t>(getValue());
+  if (width == 0) {
+    if (raw != 0) {
+      return emitOpError() << "value " << raw
+                           << " does not fit in '!nsl.bits<0>' "
+                              "(zero-width type admits only the value 0)";
+    }
+    return mlir::success();
+  }
+  if (width >= 64) {
+    // At width == 64, every I64 bit-pattern is admissible. Widths >64
+    // are deferred to a future amendment (the value attr is I64Attr).
+    return mlir::success();
+  }
+  uint64_t mask = (uint64_t{1} << width) - 1;
+  if (raw & ~mask) {
+    return emitOpError() << "value " << raw
+                         << " does not fit in '!nsl.bits<" << width << ">'";
+  }
+  return mlir::success();
+}
+
+// ===========================================================================
 // 2.4 Action-block verifiers
 // ===========================================================================
 
