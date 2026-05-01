@@ -57,7 +57,7 @@ vs hand-written body per Q2 Option B).
 | Op | Record | Traits | Verifier style |
 |---|---|---|---|
 | `nsl.module` | `NSL_ModuleOp` | `Symbol`, `SymbolTable`, `SingleBlockImplicitTerminator<"ModuleTerminatorOp">`, `HasParent<"::mlir::ModuleOp">` | TableGen-trait + hand-written (`sym_name` presence; struct-field non-circularity for nested `nsl.struct` siblings) |
-| `nsl.struct` | `NSL_StructOp` | `Symbol`, `HasParent<"::mlir::ModuleOp">` | TableGen-trait + hand-written (`sym_name` presence; field-list non-circular) |
+| `nsl.struct` | `NSL_StructOp` | `Symbol`, `NoTerminator`, `SingleBlock`, `ParentOneOf<["::mlir::ModuleOp", "ModuleOp"]>` (post-merge amendment 2026-05-02 #3 — was `HasParent<"ModuleOp">`; relaxed so top-level structs sibling-of-`nsl.module` are legal per NSL grammar lang.ebnf §1) | TableGen-trait + hand-written (`sym_name` presence; field-list non-circular via `getNearestSymbolTable`) |
 | `nsl.submodule` | `NSL_SubmoduleOp` | `Symbol`, `HasParent<"NSL_ModuleOp">` | TableGen-trait only (`Symbol` machinery resolves the template ref) |
 | `nsl.connect` | `NSL_ConnectOp` | `HasParent<"NSL_ModuleOp">` | TableGen-trait + hand-written (operand-type match) |
 

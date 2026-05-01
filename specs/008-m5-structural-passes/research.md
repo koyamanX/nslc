@@ -726,6 +726,106 @@ implementation history honest about the *second* freeze-surface growth.
 
 ---
 
+## 17. M4-amendment 2026-05-02 (#3): top-level `nsl.struct` unblocks T043 + T044
+
+**Decision**: Amend M4 (a third time) to **relax** the `nsl.struct`
+parent trait from `HasParent<"ModuleOp">` to
+`ParentOneOf<["::mlir::ModuleOp", "ModuleOp"]>` so a top-level
+`nsl.struct` (sibling of `nsl.module` under the builtin
+`mlir::ModuleOp`) is legal. This closes the structural-issue trilogy
+that began with `nsl.constant` (#1) and continued with the 28-op
+expression surface (#2): all three were gaps surfaced by M5 lowering
+work, and all three are minimal additive amendments to the M4 op
+surface.
+
+**Why this is in the M5 research file** (rather than only M4): the
+gap was surfaced during M5 implementation when T043 / T044
+(`StructCastExpr` / `FieldAccessExpr` lowering) reached the AST→nsl
+seam and discovered NSL grammar's top-level struct shape had no
+legal MLIR placement. Recording the three-way decision here keeps
+the implementation history honest about the *third* M4 amendment.
+
+**Three-way decision** (user-authorised option (ii)):
+
+- *(i) Keep the strict parent + synthesise a wrapping `nsl.module` for
+  every top-level struct in the AST→nsl seam* — Rejected. Clutters
+  every printed IR with synthetic modules that don't correspond to
+  any source-level construct; forces M6 lowering to detect-and-discard
+  them; violates the "structurally faithful" lowering principle
+  established by Q1 Option A (M4 verifier scope is structural-only;
+  the AST→nsl seam should mirror NSL grammar shape).
+- *(ii) Relax the parent trait* — **CHOSEN.** Single TableGen-trait
+  edit. Existing module-scoped struct fixtures continue to verify
+  and round-trip (the amendment is purely additive). No new ops
+  introduced; freeze surface stays at **77**. NSL grammar's
+  `CompilationUnit::items()` places `struct S { ... }` at top level
+  (sibling of `module B { ... }`) — the relaxed trait mirrors this
+  exactly.
+- *(iii) Move structs into a per-module child slot* — Rejected.
+  Contradicts NSL grammar: `lang.ebnf §1` puts `struct` at the same
+  level as `module`. Forcing structs into a per-module child would
+  require every cross-module struct reference to use a multi-segment
+  `SymbolRef` (e.g., `@HostMod::@MyRec`), which the M4 dialect's
+  current type system (`!nsl.struct<@T>` is a `FlatSymbolRefAttr`)
+  cannot express without a separate amendment to `NSLTypes.td`.
+
+**Verifier behaviour confirmation**: `StructOp::verify()`'s field-
+cycle check uses `mlir::SymbolTable::getNearestSymbolTable(*this)`,
+which walks to the nearest enclosing op implementing the
+`SymbolTable` trait. For the top-level placement, that op is the
+builtin `mlir::ModuleOp` (which implements `SymbolTable`). The
+existing `lookupSymbolIn(nearestSymTable, ...)` resolution logic
+finds the struct sibling there without modification. Sibling
+consumers (`StructCastOp::verify`, `FieldOp::verify`,
+`computeStructTotalWidth`, `lookupFieldDeclByIndex`) likewise pivot
+through `getNearestSymbolTable` and require no amendment. Confirmed
+end-to-end via `test/Dialect/Types/struct_toplevel_roundtrip.mlir`
+which round-trips a top-level struct that is referenced by a sibling
+`nsl.module` — the dialect verifier accepts the layout and the
+`!nsl.struct<@MyRec>` reference resolves.
+
+**Cost paid by this amendment**:
+
+- `lib/Dialect/NSL/IR/NSLOps.td` — single trait edit (one line
+  changed in `NSL_StructOp`'s trait list; the description block
+  grows by ~15 lines documenting the amendment).
+- `test/Dialect/Types/struct_toplevel_roundtrip.mlir` — new round-
+  trip fixture (~30 lines) demonstrating the previously-illegal
+  layout.
+- `specs/007-m4-mlir-dialect/contracts/dialect-api.contract.md` §2
+  — post-merge amendment #3 note appended; count stays at 77.
+- `specs/007-m4-mlir-dialect/spec.md` — Clarifications session
+  2026-05-02 amendment #3 entry recording the three-way decision.
+- `docs/design/nsl_compiler_design.md` §7 — `nsl.struct` op-summary
+  row updated to reflect the relaxed parent.
+- (No verifier-body edit; no new op records; no fixture retirements;
+  no smoke-script changes for Phase A. Phase B will add T043 / T044
+  fixtures + `structTable_` consumption — separate commit.)
+
+**Constraints honoured**:
+
+- No RTTI: trait machinery is TableGen-emitted; no `dyn_cast`-on-
+  Operation-pointer code introduced.
+- Determinism: trait check is a single immediate-parent test; no
+  ordering surface added.
+- Round-trip: the new top-level fixture is a fixed point under
+  `nsl-opt %s | nsl-opt -` (verified locally).
+- Principle III firewall: trait-only edit; M4 dialect remains the
+  seam.
+- Principle VII coupling: the spec / contract / design-doc updates
+  land in the same commit as the code edit.
+
+**Cross-references**:
+
+- M4 spec: `specs/007-m4-mlir-dialect/spec.md` Clarifications
+  session 2026-05-02 amendment #3.
+- M4 contract: `specs/007-m4-mlir-dialect/contracts/
+  dialect-api.contract.md` §2 post-merge note #3 (count unchanged).
+- Design: `docs/design/nsl_compiler_design.md` §7 op summary
+  (`nsl.struct` row).
+
+---
+
 ## Cross-references
 
 - Spec: [`spec.md`](./spec.md) (FR-001 … FR-031, SC-001 … SC-012)

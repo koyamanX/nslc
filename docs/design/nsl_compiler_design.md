@@ -885,6 +885,11 @@ We introduce a dedicated MLIR dialect called `nsl` that represents NSL at a leve
 # Module-level
 nsl.module @Name { ... }             # container for a module; inputs/outputs as ports
 nsl.struct @Name { field types }     # structural type declaration
+                                     # Post-merge M4-amendment 2026-05-02 #3:
+                                     # parent ∈ {::mlir::ModuleOp, ModuleOp}
+                                     # (was strict HasParent<"ModuleOp">). Top-
+                                     # level structs (sibling of nsl.module) are
+                                     # legal — matches NSL grammar (lang.ebnf §1).
 nsl.submodule @Inst : @Template
 nsl.connect %sub.port, %sig          # structural wiring
 

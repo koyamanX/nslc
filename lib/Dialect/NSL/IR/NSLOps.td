@@ -104,13 +104,29 @@ def NSL_ModuleOp : NSL_Op<"module", [
 
 def NSL_StructOp : NSL_Op<"struct", [
     Symbol, NoTerminator, SingleBlock,
-    HasParent<"ModuleOp">]> {
+    ParentOneOf<["::mlir::ModuleOp", "ModuleOp"]>]> {
   let summary = "A structural-type declaration (children are `nsl.field_decl` ops).";
   let description = [{
     `nsl.struct @S { nsl.field_decl "a" : !nsl.bits<4> ... }` declares
     a structural type. Per Q6 Option B, the struct-internal field
     declarations use `nsl.field_decl`; the access-marker form
     (`nsl.field`) is split off into the marker category.
+
+    Post-merge M4-amendment 2026-05-02 (#3): the parent constraint is
+    relaxed from `HasParent<"ModuleOp">` to
+    `ParentOneOf<["::mlir::ModuleOp", "ModuleOp"]>` so a top-level
+    `nsl.struct` (sibling of `nsl.module` under the builtin
+    `mlir::ModuleOp`) is legal. NSL grammar places `struct S { ... }`
+    at compilation-unit top level (sibling of `module B { ... }` per
+    `lang.ebnf §1`); the prior immediate-parent restriction forced
+    AST→nsl lowering to invent a synthetic enclosing `nsl.module` for
+    every top-level struct. Symbol resolution of `!nsl.struct<@T>`
+    references continues to use `mlir::SymbolTable::getNearestSymbolTable`,
+    which walks to the parent `mlir::ModuleOp` (a SymbolTable) and
+    finds the struct sibling there — no verifier-body amendment
+    required. See `specs/007-m4-mlir-dialect/contracts/dialect-api.contract.md`
+    §2 post-merge note #3 and `specs/008-m5-structural-passes/research.md`
+    §17 for the three-way decision rationale.
   }];
   let arguments = (ins SymbolNameAttr:$sym_name);
   let regions = (region SizedRegion<1>:$body);

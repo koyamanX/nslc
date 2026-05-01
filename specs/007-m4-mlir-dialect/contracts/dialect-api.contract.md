@@ -161,6 +161,46 @@ below).
 > code does NOT land at M4 — design §10 documents the M6 mapping
 > per-op (Principle III: M4 dialect is the seam, NOT CIRCT).
 
+> **Post-merge amendment 2026-05-02 (#3).** The `nsl.struct` parent
+> trait was relaxed from `HasParent<"ModuleOp">` to
+> `ParentOneOf<["::mlir::ModuleOp", "ModuleOp"]>` after M4 merged
+> because M5 lowering of `StructCastExpr` / `FieldAccessExpr` (T043 +
+> T044) surfaced a structural gap: NSL grammar places
+> `struct S { ... }` at compilation-unit top level (sibling of
+> `module B { ... }` per `lang.ebnf §1`), but the prior immediate-
+> parent restriction forced the AST→nsl seam to invent a synthetic
+> enclosing `nsl.module` for every top-level struct. The user
+> authorised the three-way decision option (ii) — "relax the parent
+> trait so top-level placement under `mlir::ModuleOp` is legal" —
+> over (i) keep the strict parent + synthesise a wrapping
+> `nsl.module` for every struct (clutters the IR; violates the
+> "structurally faithful" lowering principle established by Q1
+> Option A) and (iii) move structs into a per-module child slot
+> (contradicts NSL grammar; would force every cross-module struct
+> reference to use a multi-segment SymbolRef). This is **purely
+> additive** (existing module-scoped struct fixtures continue to
+> verify and round-trip); no new ops are introduced, so the freeze
+> surface stays at **77**. The per-op invariant row for `nsl.struct`
+> updates from `parent = ModuleOp` to
+> `parent ∈ {::mlir::ModuleOp, ModuleOp}` (data-model §2.1).
+> `StructOp::verify()` is unchanged: its field-cycle check uses
+> `mlir::SymbolTable::getNearestSymbolTable(*this)`, which already
+> resolves correctly when the struct is a sibling of `nsl.module`
+> under the builtin `mlir::ModuleOp` (which itself implements
+> `SymbolTable`). Sibling consumers (`StructCastOp::verify`,
+> `FieldOp::verify`) likewise use `getNearestSymbolTable` and
+> require no amendment. Round-trip fixture is
+> `test/Dialect/Types/struct_toplevel_roundtrip.mlir`; existing
+> module-scoped round-trip + invalid fixtures
+> (`test/Dialect/Types/struct_roundtrip.mlir`,
+> `test/Dialect/module-level/struct_roundtrip.mlir`,
+> `test/Dialect/module-level/struct_invalid_no_symname.mlir`,
+> `test/Dialect/module-level/struct_invalid_circular_field.mlir`)
+> remain valid and continue to PASS. SC-012's "next op" baseline is
+> unchanged ("71st op"). Cross-reference:
+> `specs/008-m5-structural-passes/research.md` §17 documents the
+> M5-side reasoning.
+
 ## 3. Registration entry-point contract
 
 Signature:
