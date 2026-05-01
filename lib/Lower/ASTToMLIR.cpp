@@ -29,6 +29,7 @@
 #include "nsl/AST/FirstStateDecl.h"
 #include "nsl/AST/FuncDefn.h"
 #include "nsl/AST/IdentifierExpr.h"
+#include "nsl/AST/IfStmt.h"
 #include "nsl/AST/InitBlockStmt.h"
 #include "nsl/AST/LiteralExpr.h"
 #include "nsl/AST/MemDecl.h"
@@ -1057,6 +1058,39 @@ void ASTToMLIR::visit(const ast::ControlCallStmt &node) {
                                      mlir::ValueRange(arg_vals));
 }
 
+// ---------- Action-block stmt-position visitors ----------
+
+void ASTToMLIR::visit(const ast::IfStmt &node) {
+  // FR-006 row "IfStmt → nsl.if %cond { ... } else { ... }" (design
+  // §7 line 905). `nsl.if` has two `SizedRegion<1>`s; both are
+  // structurally required by the M4 op definition even when the
+  // source `else` arm is omitted — we materialise an empty else
+  // block in that case, mirroring the round-trip fixture
+  // `test/Dialect/action-block/if_roundtrip.mlir` (`{ } else { }`).
+  auto cond_val = lowerExpr(node.cond());
+  if (!cond_val) {
+    // Soft-fail per FR-010 — Sema-clean inputs would have caught
+    // unresolved/unsupported cond expressions upstream.
+    return;
+  }
+  auto loc = builder_.getUnknownLoc();
+  auto if_op = nsl::dialect::IfOp::create(builder_, loc, cond_val);
+  auto &then_block = if_op.getThenRegion().emplaceBlock();
+  auto &else_block = if_op.getElseRegion().emplaceBlock();
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder_);
+    builder_.setInsertionPointToStart(&then_block);
+    lowerActionBody(node.thenBr());
+  }
+  if (node.elseBr()) {
+    mlir::OpBuilder::InsertionGuard guard(builder_);
+    builder_.setInsertionPointToStart(&else_block);
+    lowerActionBody(node.elseBr());
+  }
+  // Empty else region is intentional when AST elseBr is null; the
+  // structural slot remains a single empty block.
+}
+
 // ---------- No-op stubs for the remaining 52 AST node kinds ----------
 //
 // As US1 sub-tasks fill in real visit() bodies, the corresponding
@@ -1085,7 +1119,6 @@ STUB(AltBlock)
 STUB(AnyBlock)
 STUB(WhileBlock)
 STUB(ForBlock)
-STUB(IfStmt)
 STUB(StructuralGenerate)
 
 STUB(SystemVarExpr)
