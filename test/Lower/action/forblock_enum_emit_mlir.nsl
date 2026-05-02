@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/action/forblock_enum_emit_mlir.nsl — US1 fixture
+// covering `ast::ForBlock` enum form. Per NSL spec
+// `lang.ebnf §8`:
+//
+//   ENUM    :  for (init , end_value )         { … }
+//
+// The parser (ParseStmt.cpp:806-812) records the enum form by
+// leaving `ForForm{init, cond, step=nullptr}` (the comma
+// separator vs the C-style semicolon disambiguates).
+//
+// **Post-merge M4-amendment 2026-05-02 (#5)** widened
+// `nsl.for`'s `step` operand from mandatory to
+// `Variadic<NSL_BitsOrStruct>` (0 or 1). The visitor's enum-form
+// arm in `visit(ForBlock)` now lowers
+// `ForForm{init, cond, step=nullptr}` to the 2-operand op shape
+// `nsl.for %init, %end : !nsl.bits<N>, !nsl.bits<M>`. Pre-
+// amendment this fixture was tracked but unwritten because the
+// visitor soft-failed on the absence of `form.step`.
+//
+// The semantics follow the C-style fixture
+// (`forblock_cstyle_emit_mlir.nsl`): init's loop-variable
+// target identifier resolves through `nameTable_` to produce
+// `%init`; cond resolves likewise to produce `%end`.
+//
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  func_self loop;
+  reg i[8];
+  wire n[8];
+  wire a[8];
+  wire b[8];
+  func loop {
+    seq {
+      for (i := i, n) {
+        a = b;
+      }
+    }
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.reg "i" : !nsl.bits<8>
+// CHECK: nsl.wire "n" : !nsl.bits<8>
+// CHECK: nsl.func @loop
+// CHECK: nsl.seq
+// CHECK: nsl.for %{{.*}}, %{{.*}} : !nsl.bits<8>, !nsl.bits<8>
+// CHECK: nsl.transfer %{{.*}}, %{{.*}} : !nsl.bits<8>

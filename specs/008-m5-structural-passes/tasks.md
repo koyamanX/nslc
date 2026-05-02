@@ -89,7 +89,7 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 - [X] T032 [P] [US1] Author `test/Lower/action/anyblock_emit_mlir.nsl` covering `ast::AnyBlock`
 - [X] T033 [P] [US1] Author `test/Lower/action/seqblock_emit_mlir.nsl` covering `ast::SeqBlock`
 - [X] T034 [P] [US1] Author `test/Lower/action/whileblock_emit_mlir.nsl` covering `ast::WhileBlock`
-- [X] T035 [P] [US1] Author `test/Lower/action/forblock_enum_emit_mlir.nsl` + `forblock_cstyle_emit_mlir.nsl` covering both `ast::ForBlock` shapes (C-style only — enum form escalated; M4 `nsl.for` is 3-operand-only, spec.md:419 maps enum form to a 2-operand op that doesn't exist on the frozen-77 surface)
+- [X] T035 [P] [US1] Author `test/Lower/action/forblock_enum_emit_mlir.nsl` + `forblock_cstyle_emit_mlir.nsl` covering both `ast::ForBlock` shapes (C-style only — enum form escalated; M4 `nsl.for` is 3-operand-only, spec.md:419 maps enum form to a 2-operand op that doesn't exist on the frozen-77 surface) — *ENUM FORM CLOSED offload-2026-04-30 (M4 amendment #5 + M5 visitor consumption): amendment #5 widened `nsl.for`'s `step` to `Variadic<NSL_BitsOrStruct>` (commit `b46a7d1`); `visit(ForBlock)`'s enum-form arm now lowers `ForForm{init, cond, step=nullptr}` to the 2-operand op shape via `ValueRange{}` for `step`. End-to-end fixture `forblock_enum_emit_mlir.nsl` is GREEN.*
 - [X] T036 [P] [US1] Author `test/Lower/action/ifstmt_emit_mlir.nsl` covering `ast::IfStmt`
 - [X] T037 [P] [US1] Author `test/Lower/stmt/transferstmt_eq_emit_mlir.nsl` + `transferstmt_coloneq_emit_mlir.nsl` covering both `ast::TransferStmt` modes
 - [X] T038 [P] [US1] Author `test/Lower/stmt/controlcallstmt_emit_mlir.nsl` covering `ast::ControlCallStmt`

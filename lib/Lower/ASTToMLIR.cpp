@@ -1294,31 +1294,24 @@ void ASTToMLIR::visit(const ast::WhileBlock &node) {
 }
 
 void ASTToMLIR::visit(const ast::ForBlock &node) {
-  // FR-006 row "ForBlock (C-style form) → nsl.for %init, %cond,
-  // %step { ... }" (design §7 line 909). Per Q2 Option B `nsl.for`
-  // requires a transitive `nsl.seq` ancestor (verifier in
-  // `NSLOps.cpp:570`); per S8 Sema-clean inputs supply that
-  // ancestor.
+  // FR-006 row "ForBlock → nsl.for ..." (design §7 line 909). Per
+  // Q2 Option B `nsl.for` requires a transitive `nsl.seq` ancestor
+  // (verifier in `NSLOps.cpp:570`); per S8 Sema-clean inputs supply
+  // that ancestor.
   //
-  // Phase 3 scope (offload 2026-04-30): C-form ONLY — init/cond/step
-  // all present. The init/step Stmts' carried target identifier is
-  // resolved through `nameTable_` to produce the `%init`/`%step`
-  // operand Values (matching the M4 round-trip fixture
-  // `test/Dialect/action-block/for_roundtrip.mlir` shape — opaque
-  // wire Values supplied to the marker op).
-  //
-  // ENUM-FORM (offload 2026-04-30 escalation): the spec
-  // (`spec.md:419`) maps `for (i = 0..N) { ... }` to a 2-operand
-  // `nsl.for %init, %end { ... }`, but the M4 op surface (frozen at
-  // 77, per offload constraint) defines `nsl.for` with **three**
-  // operands (`init, cond, step`). No clean mapping at Phase 3 — the
-  // enum form falls through to soft-fail. Resolution is either an
-  // M4 op-surface amendment (out of scope) or a Sema-injected
-  // synthetic step (M3 territory). Tracked in the offload report.
+  // Two AST shapes per `lang.ebnf §8` (parser ParseStmt.cpp:763):
+  //   * **C-style 3-operand**: init+cond+step all present. Loop-
+  //     var Value comes from each Stmt's carried target identifier
+  //     (resolved via `nameTable_` to the wire/reg the source
+  //     declared). Emitted as `nsl.for %init, %cond, %step`.
+  //   * **Enum form 2-operand** (post-merge M4-amendment 2026-05-02
+  //     #5): `for (i = 0..N) { ... }` — the parser leaves
+  //     `form.step == nullptr`. The visitor lowers to the new
+  //     2-operand form `nsl.for %init, %end` (the variadic-step
+  //     widening landed in amendment #5).
   const ast::ForForm &form = node.form();
-  if (!form.init || !form.cond || !form.step) {
-    // Enum form (step == nullptr) or malformed — soft-fail per
-    // FR-010. Sema-clean inputs at M3 will eventually disambiguate.
+  if (!form.init || !form.cond) {
+    // Malformed — soft-fail per FR-010.
     return;
   }
   // Resolve the init Stmt's loop-variable target. Init is either a
@@ -1330,9 +1323,30 @@ void ASTToMLIR::visit(const ast::ForBlock &node) {
   if (form.init->kind() == ast::TransferStmt::kKind) {
     init_target = static_cast<const ast::TransferStmt *>(form.init.get())->lhs();
   }
-  // Resolve the step Stmt's loop-variable target. Step is either an
-  // `IncDecStmt` (`id++`/`++id`/...) or a `TransferStmt` (`id :=
-  // expr`).
+  if (!init_target) {
+    return;
+  }
+  auto init_val = lowerExpr(init_target);
+  auto cond_val = lowerExpr(form.cond.get());
+  if (!init_val || !cond_val) {
+    return;
+  }
+  auto loc = builder_.getUnknownLoc();
+  // Enum form: step is absent, emit 2-operand variant.
+  if (!form.step) {
+    auto for_op = nsl::dialect::ForOp::create(builder_, loc, init_val, cond_val,
+                                               /*step=*/mlir::ValueRange{});
+    auto &body_block = for_op.getBody().emplaceBlock();
+    mlir::OpBuilder::InsertionGuard guard(builder_);
+    builder_.setInsertionPointToStart(&body_block);
+    for (const auto &item : node.items()) {
+      item->accept(*this);
+    }
+    return;
+  }
+  // C-style form: resolve the step Stmt's loop-variable target.
+  // Step is either an `IncDecStmt` (`id++`/`++id`/...) or a
+  // `TransferStmt` (`id := expr`).
   const ast::Expr *step_target = nullptr;
   if (form.step->kind() == ast::TransferStmt::kKind) {
     step_target = static_cast<const ast::TransferStmt *>(form.step.get())->lhs();
@@ -1340,18 +1354,15 @@ void ASTToMLIR::visit(const ast::ForBlock &node) {
     step_target =
         static_cast<const ast::IncDecStmt *>(form.step.get())->target();
   }
-  if (!init_target || !step_target) {
+  if (!step_target) {
     return;
   }
-  auto init_val = lowerExpr(init_target);
-  auto cond_val = lowerExpr(form.cond.get());
   auto step_val = lowerExpr(step_target);
-  if (!init_val || !cond_val || !step_val) {
+  if (!step_val) {
     return;
   }
-  auto loc = builder_.getUnknownLoc();
   auto for_op = nsl::dialect::ForOp::create(builder_, loc, init_val, cond_val,
-                                             step_val);
+                                             /*step=*/mlir::ValueRange{step_val});
   auto &body_block = for_op.getBody().emplaceBlock();
   mlir::OpBuilder::InsertionGuard guard(builder_);
   builder_.setInsertionPointToStart(&body_block);
