@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-FROM nsl/llvm-mlir:dev
+# Parent image: see .docker/llvm-mlir/Dockerfile for the rationale.
+ARG PARENT_IMAGE=nsl/llvm-mlir:dev
+FROM ${PARENT_IMAGE}
 
 ARG DEBIAN_FRONTEND=noninteractive
 

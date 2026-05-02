@@ -103,20 +103,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # The .docker/llvm-mlir/Dockerfile uses `FROM nsl/base:dev` — a
-      # local-only tag. Pull the just-pushed nsl-base into a daemon
-      # tag matching that name so the FROM resolves.
-      - name: Pull and re-tag nsl-base
-        run: |
-          docker pull ${{ needs.base.outputs.image }}:dev
-          docker tag ${{ needs.base.outputs.image }}:dev nsl/base:dev
-
+      # buildx (docker-container driver) is isolated from the host
+      # docker daemon, so a `docker pull && docker tag` of nsl-base into
+      # a local-only `nsl/base:dev` tag is invisible to the build. Pass
+      # the fully-qualified ghcr.io name via PARENT_IMAGE so buildx
+      # pulls the parent layer directly from the registry. The
+      # Dockerfile's `ARG PARENT_IMAGE=nsl/base:dev` default keeps
+      # `scripts/docker-build.sh` (local) working unchanged.
       - name: Build and push llvm-mlir
         uses: docker/build-push-action@v6
         with:
           context: .docker/llvm-mlir
           push: true
           build-args: |
+            PARENT_IMAGE=${{ needs.base.outputs.image }}:dev
             LLVM_COMMIT=${{ steps.meta.outputs.llvm_commit }}
             LLVM_PARALLEL_LINK_JOBS=2
           tags: |
@@ -157,17 +157,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull and re-tag nsl-llvm-mlir
-        run: |
-          docker pull ${{ needs.llvm-mlir.outputs.image }}:dev
-          docker tag ${{ needs.llvm-mlir.outputs.image }}:dev nsl/llvm-mlir:dev
-
       - name: Build and push circt
         uses: docker/build-push-action@v6
         with:
           context: .docker/circt
           push: true
           build-args: |
+            PARENT_IMAGE=${{ needs.llvm-mlir.outputs.image }}:dev
             CIRCT_COMMIT=${{ steps.meta.outputs.circt_commit }}
             CIRCT_PARALLEL_LINK_JOBS=2
           tags: |
@@ -205,16 +201,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull and re-tag nsl-circt
-        run: |
-          docker pull ${{ needs.circt.outputs.image }}:dev
-          docker tag ${{ needs.circt.outputs.image }}:dev nsl/circt:dev
-
       - name: Build and push nslc
         uses: docker/build-push-action@v6
         with:
           context: .docker/nslc
           push: true
+          build-args: |
+            PARENT_IMAGE=${{ needs.circt.outputs.image }}:dev
           tags: |
             ${{ steps.meta.outputs.image }}:dev
             ${{ steps.meta.outputs.image }}:sha-${{ github.sha }}
