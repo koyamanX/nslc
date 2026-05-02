@@ -1,7 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // test/Lower/m3_corpus/s09/pass.test — M5 T106 / FR-030 / SC-003.
-// XFAIL'd at HEAD: visitor STUB — SeqStmt at module-scope; nsl.seq HasParent verifier rejects non-func parent (lang.ebnf §8 + S9)
+// Original XFAIL'd at HEAD on the `nsl.seq` parent constraint
+// (visitor STUB — `nsl.seq HasParent<"FuncOp">` rejected `seq` inside
+// `proc`). M4 amendment #6 (2026-04-30) relaxed that constraint, but
+// the s09 fixture surfaces a separate blocker: the `for (i := 0; i < 8; i++)`
+// loop materialises a literal `8` whose width follows the lowerExpr
+// 1-bit-default policy (`ASTToMLIR.cpp:629`), producing
+// `'nsl.constant' op value 8 does not fit in '!nsl.bits<1>'` at
+// verify time. This is an independent M5-side blocker on
+// expression-position width inference (T055 follow-up territory),
+// NOT a dialect-side amendment. XFAIL preserved with updated banner.
 //
 // XFAIL: *
 // RUN: %nslc -emit=mlir %S/../../../sema/s09/pass.nsl > %t.actual.mlir

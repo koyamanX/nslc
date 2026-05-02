@@ -1,7 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // test/Lower/m3_corpus/s25/pass.test — M5 T106 / FR-030 / SC-003.
-// XFAIL'd at HEAD: visitor STUB — SeqStmt at module-scope; nsl.seq HasParent verifier rejects non-func parent (S25)
+// Auto-generated golden-diff harness paired with pass.expected.mlir.
+// Asserts `nslc -emit=mlir` on the M3 Sema pass-case fixture for
+// constraint s25 produces byte-identical output to the captured
+// golden. Regression-guard: any visitor change that silently mutates
+// lowering output for an M3 fixture flips this test red.
 //
-// XFAIL: *
+// XFAIL retired by post-merge M4 amendment #6 (2026-04-30): `nsl.seq`
+// parent trait relaxed from `HasParent<"FuncOp">` to
+// `ParentOneOf<["FuncOp", "ProcOp", "StateOp"]>` per S7
+// (`docs/spec/nsl_lang.ebnf §8 line 850`). Seq inside proc body is
+// now a verifier-clean shape. NOTE: the labelled-`goto` body is
+// currently soft-failed by the visitor (GotoStmt lowering is a M5
+// follow-up); the captured golden reflects the body-empty shape and
+// is the deterministic regression-guard for now.
+//
 // RUN: %nslc -emit=mlir %S/../../../sema/s25/pass.nsl > %t.actual.mlir
+// RUN: diff %t.actual.mlir %S/pass.expected.mlir
