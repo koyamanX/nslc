@@ -954,6 +954,66 @@ amendment cluster commits during the original M4 phase.
 
 ---
 
+## 19. M5 T109 — SC-010 M4-baseline regression check (2026-04-30)
+
+**Trigger**: `tasks.md` T109 + `spec.md` SC-010 — `nslc -emit=tokens`
+and `nslc -emit=ast` outputs over the M3 Sema pass-case corpus
+(`test/sema/<sn>/pass.nsl`, 29 fixtures) MUST be byte-identical
+between the M4 baseline (commit `b0d21ad`, the M4 merge head) and
+the current M5 HEAD. SC-010 frames this as the cardinal regression-
+guard against accidental M4-frozen-stage churn during the M5
+amendment cycles.
+
+**Method**:
+
+1. Worktree the M4 merge head at `b0d21ad`:
+   ```
+   git worktree add $TMPDIR/m4-worktrees/baseline b0d21ad
+   ```
+
+2. Build M4 `nslc` with the same toolchain + flags
+   (`-DCMAKE_BUILD_TYPE=Release -DNSL_ENABLE_ASAN=OFF`) inside the
+   `ghcr.io/koyamanx/nsl-nslc:dev` container.
+
+3. For each `test/sema/<sn>/pass.nsl` (29 fixtures), capture
+   `nslc -emit=tokens` and `nslc -emit=ast` from BOTH the M4-baseline
+   `nslc` and the M5-HEAD `nslc`. `diff -q` each pair.
+
+**Result**: 0 token diffs + 0 AST diffs across 29 × 2 = 58 invocations.
+
+```
+M3 corpus: 29 fixtures
+  -emit=tokens diffs: 0
+  -emit=ast diffs: 0
+```
+
+**Interpretation**: SC-010 holds at HEAD. M5 introduced no
+behavioural change in `-emit=tokens` or `-emit=ast` over the M3
+corpus (consistent with the M4-FROZEN-AT-79 op-surface and the
+no-change-to-M3-Sema-output invariant). The four M4 amendments
+shipped on this branch (#1 `nsl.constant`, #2 expression op surface,
+#3 top-level `nsl.struct`, #4 bundled US2+US3) all preserve the
+upstream lex/parse/Sema printers byte-for-byte.
+
+**Re-run**: `bash scripts/_regression_check_m4.sh` (not committed —
+ad-hoc script captured in this offload). Future regressions can
+recreate the worktree + diff loop in CI as a manual check; SC-010
+does not require this to be on the per-PR critical path (the M3
+corpus extension landed in T106 covers the per-PR golden-diff
+guard).
+
+**Cross-references**:
+
+- Spec: `spec.md` SC-010.
+- Tasks: `tasks.md` T109.
+- M4 merge head: commit `b0d21ad`
+  ("Merge pull request #9 from koyamanX/007-m4-mlir-dialect").
+- Companion: §10 (M3 corpus extension) — T106 captures per-fixture
+  `-emit=mlir` goldens; T109 here covers `-emit=tokens` /
+  `-emit=ast` separately.
+
+---
+
 ## Cross-references
 
 - Spec: [`spec.md`](./spec.md) (FR-001 … FR-031, SC-001 … SC-012)
