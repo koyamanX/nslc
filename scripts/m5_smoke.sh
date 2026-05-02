@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Quick local smoke test: M5 round-trip on every Phase 3 US1 fixture.
-# Phase 3 helper; not committed long-term.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+# scripts/m5_smoke.sh — Quick local smoke test: M5 round-trip on
+# every Phase 3 US1 fixture. Phase 3 helper; not committed long-term.
 set -e
 cd /workspace
 for f in test/Lower/module/empty_module_emit_mlir.nsl \
