@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/m3_corpus/s28/pass.test — M5 T106 / FR-030 / SC-003.
+// XFAIL'd at HEAD: visitor STUB — state-name resolution in nsl.first_state target attr (S28)
+//
+// XFAIL: *
+// RUN: %nslc -emit=mlir %S/../../../sema/s28/pass.nsl > %t.actual.mlir

@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/m3_corpus/s18/pass.test — M5 T106 / FR-030 / SC-003.
+// Auto-generated golden-diff harness paired with pass.expected.mlir.
+// Asserts `nslc -emit=mlir` on the M3 Sema pass-case fixture for
+// constraint s18 produces byte-identical output to the captured
+// golden. Regression-guard: any visitor change that silently mutates
+// lowering output for an M3 fixture flips this test red.
+//
+// RUN: %nslc -emit=mlir %S/../../../sema/s18/pass.nsl > %t.actual.mlir
+// RUN: diff %t.actual.mlir %S/pass.expected.mlir

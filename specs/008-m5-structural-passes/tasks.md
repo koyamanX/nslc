@@ -242,7 +242,7 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 **Purpose**: Wrap up FR-030 (M3-corpus extension), FR-031 (spec ↔ design coupling), the `NSLInlineInternalFuncPass` no-op-slot fixture, and final regression-comparison against the M4 baseline (SC-010).
 
 - [X] T105 [P] Author `test/Lower/passes/nsl-inline-internal-func/noop_roundtrip.mlir` per Q3 → Option B (single trivial round-trip fixture asserting `input == output`)
-- [ ] T106 [P] Bulk-author `test/Lower/m3_corpus/s<NN>/<case>.expected.mlir` for all ~34 Sema-clean M3 pass-case fixtures via `nslc -emit=mlir test/sema/<sn>/<case>.nsl > test/Lower/m3_corpus/s<NN>/<case>.expected.mlir` then commit; CI runs `diff` on each in lit (per FR-030 + SC-003) — bulk fixture authoring; can be automated with a one-shot script
+- [X] T106 [P] Bulk-author `test/Lower/m3_corpus/s<NN>/<case>.expected.mlir` for all ~34 Sema-clean M3 pass-case fixtures via `nslc -emit=mlir test/sema/<sn>/<case>.nsl > test/Lower/m3_corpus/s<NN>/<case>.expected.mlir` then commit; CI runs `diff` on each in lit (per FR-030 + SC-003) — bulk fixture authoring; can be automated with a one-shot script
 - [X] T107 [P] Update [`CLAUDE.md`](../../CLAUDE.md) §1 — confirm every grammar row whose "Lower to dialect" column entry says "M5 (...)" is now delivered (no edits needed unless implementation surfaced a new row); per FR-031
 - [X] T108 [P] Update [`docs/CLAUDE.md`](../../docs/CLAUDE.md) §3 "Writing a structural-expansion pass" entry with current-PR commit hash if design §9 line ranges shifted; per FR-031
 - [ ] T109 Run `nslc -emit=tokens` and `nslc -emit=ast` on the full M3 corpus; `diff -q` outputs against an M4-baseline run; confirm zero changes (regression-guard per SC-010)

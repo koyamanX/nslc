@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/m3_corpus/s16/pass.test — M5 T106 / FR-030 / SC-003.
+// XFAIL'd at HEAD: S16 Sema constraint surfaces during lowering — pure-NSL with parameter-bind shape correctly errors per pass-pipeline.contract.md §3
+//
+// XFAIL: *
+// RUN: %nslc -emit=mlir %S/../../../sema/s16/pass.nsl > %t.actual.mlir

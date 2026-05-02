@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/m3_corpus/s07/pass.test — M5 T106 / FR-030 / SC-003.
+// XFAIL'd at HEAD: visitor STUB — SeqStmt at module-scope; nsl.seq HasParent verifier rejects non-func parent (lang.ebnf §8 + S7)
+//
+// XFAIL: *
+// RUN: %nslc -emit=mlir %S/../../../sema/s07/pass.nsl > %t.actual.mlir
