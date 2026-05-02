@@ -185,6 +185,21 @@ declare -A ALLOWLIST=(
   # (M4-frozen op surface). Cited: lib/Lower/ASTToMLIR.cpp visit()
   # implementation + test/Lower/passes/nsl-expand-variables/.
   ["VariableDecl"]="covered by test/Lower/passes/nsl-expand-variables/*.mlir + test/Dialect/storage/variable_roundtrip.mlir"
+  # ----- T045 follow-on visitors (offload 2026-04-30 Commit 4 / amendment #5)
+  # `visit(ProcNameDecl)` and `visit(StateNameDecl)` register the proc/state
+  # name in `controlTable_` (conditional on a matching ProcDefn / StateDefn
+  # body in the same module/proc) so that S27 references reach
+  # `lowerExpr(IdentifierExpr)`'s control-name fast-path and emit
+  # `nsl.fire_probe @<name>` markers. Neither visitor emits its own dialect
+  # op — the matching ProcDefn / StateDefn emits the body-bearing
+  # `nsl.proc` / `nsl.state` Symbol that the fire_probe verifier resolves
+  # to. End-to-end coverage at test/Lower/marker/fire_probe_proc_name_emit_mlir.nsl
+  # (proc_name flavour); state_name flavour exercised by dialect-side
+  # round-trip at test/Dialect/marker/fire_probe_state_target_roundtrip.mlir
+  # (the M5 visitor lowering path lights up when a Sema-clean NSL fixture
+  # with state_name + state defn + S27 use site materialises).
+  ["ProcNameDecl"]="covered by test/Lower/marker/fire_probe_proc_name_emit_mlir.nsl (ProcOp emission via visit(ProcDefn); fire_probe via visit(IdentifierExpr) + controlTable_)"
+  ["StateNameDecl"]="covered by test/Dialect/marker/fire_probe_state_target_roundtrip.mlir for the dialect surface; visitor-side S27 path lights up when an end-to-end fixture with state_name + state body + S27 use site arrives"
 )
 
 # -----------------------------------------------------------------------------

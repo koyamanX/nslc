@@ -29,6 +29,8 @@
 namespace nsl::ast {
 class CompilationUnit;
 class Expr;
+class ModuleBlock;
+class ProcDefn;
 class Stmt;
 } // namespace nsl::ast
 
@@ -132,19 +134,39 @@ private:
   /// catalog of control terminals whose `nsl.fire_probe @<name>`
   /// targets are valid per the M4 op verifier. Populated by
   /// `visit(PortDecl)` for `Direction::FuncIn` / `Direction::FuncOut`
-  /// and by `visit(FuncSelfDecl)`. Lookup-only; never iterated for
+  /// and by `visit(FuncSelfDecl)` (M4-valid subset since Phase 3),
+  /// AND post-merge M4-amendment 2026-05-02 (#5) by
+  /// `visit(ProcNameDecl)` / `visit(StateNameDecl)` for the
+  /// proc_name / state_name S27 tap targets (the dialect verifier
+  /// for `nsl.fire_probe` was extended to accept sibling
+  /// `nsl.proc` and (within an enclosing proc body) sibling
+  /// `nsl.state` symbols). Lookup-only; never iterated for
   /// emission ordering (Constitution Principle V).
   ///
   /// Note: NSL S27 (`lang.ebnf:965`) classifies a broader set as
   /// "control-terminal-tap" (`func_in`, `func_out`, `func_self`,
-  /// `proc_name`, `state_name`). The M4 `nsl.fire_probe` verifier
-  /// (`NSLOps.cpp:792-822`) accepts only the first three; ProcName /
-  /// StateName tap requires either an op-surface amendment (out of
-  /// scope at Phase 3) or an alternative marker (M3 territory). So
-  /// `controlTable_` tracks only the M4-valid subset; ProcName /
-  /// StateName identifiers reach `lowerExpr` and soft-fail per
-  /// FR-010.
+  /// `proc_name`, `state_name`). All five are now legal targets
+  /// post-amendment-#5; the table is the union of all five
+  /// surfaces. State_name is per-proc-scope per S11 — the table
+  /// is module-flat, which is conservative (collisions across
+  /// procs would be flagged as the same target; if S11's per-
+  /// proc scoping later surfaces as a sema issue, the table can
+  /// grow a per-proc dimension).
   llvm::StringSet<> controlTable_;
+
+  /// TRANSITIONAL (offload 2026-04-30 follow-on / T045): scoped
+  /// pointers to the AST `ModuleBlock` / `ProcDefn` whose visit is
+  /// currently in flight. Used by `visit(ProcNameDecl)` /
+  /// `visit(StateNameDecl)` to scan for matching `ProcDefn` /
+  /// `StateDefn` bodies BEFORE registering the name in
+  /// `controlTable_` — proc_name / state_name without a matching
+  /// body would emit a verifier-rejected fire_probe (per S27 +
+  /// post-merge M4-amendment 2026-05-02 #5; the `nsl.fire_probe`
+  /// verifier requires the target to resolve to a sibling Symbol).
+  /// Set on entry to `visit(ModuleBlock)` / `visit(ProcDefn)`,
+  /// restored on exit via local `RestoreOnExit` guard.
+  const ast::ModuleBlock *currentModule_ = nullptr;
+  const ast::ProcDefn *currentProc_ = nullptr;
 
   /// TRANSITIONAL (offload 2026-04-30 Commit 1 / T071): name-keyed
   /// catalog of `nsl.param_int`-style top-level integer parameters

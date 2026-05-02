@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/marker/fire_probe_proc_name_emit_mlir.nsl — US1
+// fixture extending S27 marker emission to the `proc_name`
+// flavour. Per FR-006 last row "Control-name used as 1-bit value
+// (per S27) → `nsl.fire_probe @name`" (design §8 line 1062 +
+// `lang.ebnf:965`).
+//
+// **Post-merge M4-amendment 2026-05-02 (#5)** widened
+// `nsl.fire_probe`'s legal target set to include sibling
+// `nsl.proc` (proc_name) Symbols at module scope (verifier
+// `NSLOps.cpp:FireProbeOp::verify`). The visitor's
+// `visit(ProcNameDecl)` (formerly STUB) now registers the proc
+// name in `controlTable_` so the canonical S27 use site
+// (`tap_wire = procName`) flows through `lowerExpr(IdentifierExpr)`'s
+// control-name fast-path and emits the `nsl.fire_probe @procName`
+// marker.
+//
+// **Source-order policy**: `visit(ProcNameDecl)` registers the
+// name in `controlTable_` only when a sibling `nsl.proc` Symbol
+// of the same name is already visible in the enclosing module
+// (i.e., the `proc <name> { ... }` body has been visited
+// earlier in source order). This conservative policy avoids
+// emitting a fire_probe whose target the dialect verifier
+// can't resolve; it keeps `test/sema/s27/pass.nsl` (a
+// proc_name without a matching body — an introspection-only
+// case) lowering to its captured M5 baseline.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  wire tap[1];
+  proc idle {
+  }
+  proc_name idle;
+  {
+    tap = idle;
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK-DAG: nsl.wire "tap" : !nsl.bits<1>
+// CHECK-DAG: nsl.proc @idle
+// CHECK: nsl.parallel
+// CHECK: nsl.fire_probe @idle

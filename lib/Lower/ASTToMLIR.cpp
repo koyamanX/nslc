@@ -42,11 +42,13 @@
 #include "nsl/AST/ParallelBlock.h"
 #include "nsl/AST/PortDecl.h"
 #include "nsl/AST/ProcDefn.h"
+#include "nsl/AST/ProcNameDecl.h"
 #include "nsl/AST/RegDecl.h"
 #include "nsl/AST/SeqBlock.h"
 #include "nsl/AST/SignExtendExpr.h"
 #include "nsl/AST/SliceExpr.h"
 #include "nsl/AST/StateDefn.h"
+#include "nsl/AST/StateNameDecl.h"
 #include "nsl/AST/Stmt.h"
 #include "nsl/AST/StructCastExpr.h"
 #include "nsl/AST/StructDecl.h"
@@ -178,6 +180,13 @@ void ASTToMLIR::visit(const ast::ModuleBlock &node) {
   // region must contain exactly one block.
   auto &body_block = module_op.getBody().emplaceBlock();
 
+  // Track the in-flight ModuleBlock so `visit(ProcNameDecl)` can
+  // AST-scan for a matching `ProcDefn` body before registering
+  // the name in `controlTable_` (per S27 + post-merge M4-amendment
+  // 2026-05-02 #5; see `controlTable_` doc-comment in ASTToMLIR.h).
+  const auto *prevModule = currentModule_;
+  currentModule_ = &node;
+
   // Recurse into body items at the new insertion point. Save/restore
   // the outer insertion point so subsequent items at the top level
   // continue to land in top_module_.getBody().
@@ -197,6 +206,7 @@ void ASTToMLIR::visit(const ast::ModuleBlock &node) {
   for (const auto &action : node.actions()) {
     action->accept(*this);
   }
+  currentModule_ = prevModule;
 }
 
 /// Lower an action-body Stmt directly into the current insertion-
@@ -258,9 +268,15 @@ void ASTToMLIR::visit(const ast::ProcDefn &node) {
   auto proc_op = nsl::dialect::ProcOp::create(
       builder_, loc, builder_.getStringAttr(node.name()));
   auto &body_block = proc_op.getBody().emplaceBlock();
+  // Track the in-flight ProcDefn so `visit(StateNameDecl)` can
+  // scan for a matching `StateDefn` body before registering each
+  // state name in `controlTable_` (per S11 per-proc scope + S27).
+  const auto *prevProc = currentProc_;
+  currentProc_ = &node;
   mlir::OpBuilder::InsertionGuard guard(builder_);
   builder_.setInsertionPointToStart(&body_block);
   lowerActionBody(node.body());
+  currentProc_ = prevProc;
 }
 
 void ASTToMLIR::visit(const ast::StateDefn &node) {
@@ -286,6 +302,115 @@ void ASTToMLIR::visit(const ast::FirstStateDecl &node) {
   auto target = mlir::FlatSymbolRefAttr::get(
       builder_.getStringAttr(node.target()));
   (void)nsl::dialect::FirstStateOp::create(builder_, loc, target);
+}
+
+/// Helper: scan the AST `ModuleBlock`'s `procs` bucket for a
+/// `ProcDefn` matching `name`. Used by `visit(ProcNameDecl)` to
+/// decide whether to register the name in `controlTable_` —
+/// forward-decl proc_name with no matching body would emit a
+/// verifier-rejected fire_probe (`ParseDecl.cpp:636-642` puts
+/// `proc <name> { ... }` definitions in the `procs` bucket per
+/// `ModuleBlock.h`).
+static bool moduleHasProcBody(const ast::ModuleBlock &mod,
+                              llvm::StringRef name) {
+  for (const auto &item : mod.procs()) {
+    if (!item) {
+      continue;
+    }
+    if (item->kind() == ast::ProcDefn::kKind) {
+      const auto *pd = static_cast<const ast::ProcDefn *>(item.get());
+      if (pd->name() == name) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/// Helper: scan a `ProcDefn`'s body for a `StateDefn` matching
+/// `name`. Per-proc symbol scope per S11. The proc body is an
+/// outermost `ParallelBlock` whose `decls()` bucket holds child
+/// `Decl`s including `StateDefn` (`ParallelBlock.h` splits items
+/// into stmts and decls).
+static bool procHasStateBody(const ast::ProcDefn &proc,
+                             llvm::StringRef name) {
+  const ast::Stmt *body = proc.body();
+  if (!body) {
+    return false;
+  }
+  if (body->kind() != ast::ParallelBlock::kKind) {
+    return false;
+  }
+  const auto *pb = static_cast<const ast::ParallelBlock *>(body);
+  for (const auto &decl : pb->decls()) {
+    if (!decl) {
+      continue;
+    }
+    if (decl->kind() == ast::StateDefn::kKind) {
+      const auto *sd = static_cast<const ast::StateDefn *>(decl.get());
+      if (sd->name() == name) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+void ASTToMLIR::visit(const ast::ProcNameDecl &node) {
+  // FR-006 row "ProcNameDecl" — the NSL `proc_name foo;` /
+  // `proc_name foo(...);` forward-declaration. Per S27 (post-
+  // merge M4-amendment 2026-05-02 #5), proc_name identifiers
+  // are 1-bit values resolved via `nsl.fire_probe @<name>`
+  // markers; the dialect verifier picks up sibling `nsl.proc`
+  // Symbols in the enclosing module.
+  //
+  // Visitor policy: register the name in `controlTable_` so
+  // `lowerExpr(IdentifierExpr)`'s control-name fast-path picks
+  // it up — but ONLY when the AST module also contains a
+  // matching `proc <name> { ... }` body. Sema-clean inputs
+  // typically pair each `proc_name` with a body; the
+  // S27-introspection-only case (`proc_name` without a
+  // matching body — `test/sema/s27/pass.nsl`) is the
+  // exception, and we conservatively suppress fire_probe
+  // emission there to keep the dialect verifier's
+  // sibling-Symbol invariant intact.
+  //
+  // Note on emission order: NSL parsing bucketizes module items
+  // (internals → funcs → procs); ProcNameDecl's visit fires
+  // BEFORE ProcDefn for its sibling proc body, so an MLIR-side
+  // SymbolTable lookup at this point would always miss. The
+  // AST-side scan via `moduleHasProcBody` is the robust check.
+  if (!currentModule_) {
+    return;
+  }
+  if (moduleHasProcBody(*currentModule_, node.name())) {
+    controlTable_.insert(node.name());
+  }
+}
+
+void ASTToMLIR::visit(const ast::StateNameDecl &node) {
+  // FR-006 row "StateNameDecl" — the NSL `state_name s1, s2, s3;`
+  // forward-declaration list (per `lang.ebnf §6` — one decl can
+  // carry many names). Per S27 + post-merge M4-amendment 2026-05-02
+  // (#5), state_name identifiers are 1-bit values (resolved to
+  // `nsl.fire_probe @<name>` markers; the verifier walks the
+  // enclosing `nsl.proc` for a sibling `nsl.state` Symbol).
+  //
+  // Same AST-side conservative policy as `visit(ProcNameDecl)`:
+  // register only when the enclosing AST `ProcDefn` has a
+  // matching `StateDefn` body. Per S11, state_name is per-proc-
+  // scoped — the table is module-flat, so we additionally
+  // verify the enclosing proc context. Forward-decl-only
+  // state_name lists (no matching state body) are not tap
+  // targets.
+  if (!currentProc_) {
+    return;
+  }
+  for (const ast::Identifier &id : node.names()) {
+    if (procHasStateBody(*currentProc_, id)) {
+      controlTable_.insert(id);
+    }
+  }
 }
 
 void ASTToMLIR::visit(const ast::RegDecl &node) {
@@ -522,16 +647,19 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr) {
     }
     llvm::StringRef leaf = ident->name().parts.front();
     // FR-006 last row: control-name used as 1-bit value (per S27) →
-    // emit `nsl.fire_probe @name` as a sibling marker. Per the
-    // offload note (Commit 5 / T045) M3-Sema-stub treats the M4-
-    // valid subset (`func_in`/`func_out`/`func_self`) as the only
-    // recognised control-terminal taps; ProcName/StateName fall
-    // through to soft-fail. fire_probe carries zero results
-    // (NSLOps.h.inc: `ZeroResults`) so the marker is the side-
-    // effect; the consuming op (`nsl.transfer`/...) sees a null
-    // Value and soft-fails per FR-010 — Phase 3 emits the marker
-    // and lets the consuming statement skip emission. Real value-
-    // synthesis lands at M6.
+    // emit `nsl.fire_probe @name` as a sibling marker. The full S27
+    // target set (`func_in`/`func_out`/`func_self`/`proc_name`/
+    // `state_name`) is recognised since post-merge M4-amendment
+    // 2026-05-02 (#5) — the dialect verifier
+    // (`FireProbeOp::verify`) was extended to also resolve
+    // sibling `nsl.proc` / `nsl.state` Symbols, and the visitor
+    // populates `controlTable_` from `visit(ProcNameDecl)` /
+    // `visit(StateNameDecl)` so all five spec entities flow
+    // through the same fast-path here. fire_probe carries zero
+    // results (NSLOps.h.inc: `ZeroResults`) so the marker is the
+    // side-effect; the consuming op (`nsl.transfer`/...) sees a
+    // null Value and soft-fails per FR-010. Real value-synthesis
+    // lands at M6.
     if (controlTable_.contains(leaf)) {
       auto loc = builder_.getUnknownLoc();
       auto target = mlir::FlatSymbolRefAttr::get(builder_.getStringAttr(leaf));
@@ -1542,8 +1670,6 @@ void ASTToMLIR::visit(const ast::StructuralGenerate &node) {
 
 STUB(DeclareBlock)
 STUB(IntegerDecl)
-STUB(ProcNameDecl)
-STUB(StateNameDecl)
 STUB(SubmoduleDecl)
 
 STUB(IncDecStmt)
