@@ -122,7 +122,9 @@ amendment 2026-05-02 (#4): `nsl.param_int` + `nsl.param_str` added;
 post-merge amendment 2026-05-02 (#5): no new ops (five trait /
 type-constraint relaxations only — see notes below);
 post-merge amendment 2026-04-30 (#6): no new ops (single trait
-relaxation on `nsl.seq` — see notes below).
+relaxation on `nsl.seq` — see notes below);
+post-merge amendment 2026-04-30 (#7): no new ops (single trait
+relaxation on `nsl.sim_finish` — see notes below).
 
 > **Post-merge amendment 2026-05-01 (#1).** `nsl.constant` (a Pure +
 > ConstantLike value-producer of `!nsl.bits<N>`) was added after M4
@@ -377,6 +379,56 @@ relaxation on `nsl.seq` — see notes below).
 > firewall: M4 dialect is the seam, NOT CIRCT). Cross-reference:
 > `specs/008-m5-structural-passes/research.md` §21 documents the
 > M5-side reasoning (5 M3-corpus fixtures unblocked).
+
+> **Post-merge amendment 2026-04-30 (#7).** Single trait
+> relaxation on `nsl.sim_finish`. Trait changes from
+> `HasParent<"ModuleOp">` to
+> `ParentOneOf<["ModuleOp", "SimInitOp"]>`. Surfaced during the
+> M5 example-suite close-out as the root cause behind the last 2
+> of the originally-9 failing examples (`examples/01_hello.nsl` +
+> `examples/20_simulation_tb.nsl`): both NSL sources use the
+> canonical S29 termination idiom `_init { ... _finish(); }`. NSL
+> spec **S29** (`lang.ebnf §10` line 1007) permits `_finish()`
+> calls inside the `_init { ... }` body — the prior trait was
+> therefore stricter than the grammar. Sibling sim-ops
+> (`nsl.sim_display`, `nsl.sim_delay`) already carried
+> `ParentOneOf<["ModuleOp", "SimInitOp"]>` from the Phase 3
+> baseline; this amendment finishes the family, leaving only
+> `nsl.sim_init` itself module-level (correctly — `_init` blocks
+> never nest). The user authorised four-way decision option (B) —
+> "amend M4 with the single trait relaxation" — over (A) emit
+> CIRCT-side helpers directly from M5 (violates Principle III),
+> (C) defer the 2 examples to M6 (semantically opaque IR; breaks
+> the M5→M6 cut), (D) downgrade `nsl.sim_finish` to a stub-only
+> op (postpones the cut and breaks Principle VIII test
+> sequencing). **Cost: zero new op records, zero new verifier
+> code** — single TableGen trait swap. Plus 1 new round-trip
+> fixture (`test/Dialect/system-task/sim_finish_in_sim_init_roundtrip.mlir`)
+> covering the `_init { _display; _delay; _finish; }` shape. The
+> pre-existing fixture
+> (`test/Dialect/system-task/sim_finish_roundtrip.mlir`,
+> immediate-parent `nsl.module` form) remains valid and continues
+> to PASS — the relaxation is strictly "accept more". The
+> pre-existing invalid fixture
+> (`test/Dialect/system-task/sim_finish_invalid_wrong_parent.mlir`,
+> placing `nsl.sim_finish` directly under the builtin
+> `mlir::ModuleOp`) likewise continues to fail-as-expected (the
+> builtin top-level `mlir::ModuleOp` is still not in the parent
+> set, so the trait diagnostic substring "expects parent op"
+> continues to fire). Same precedent as amendments #3, #5, and
+> #6: a "strictly accept more" trait relaxation, no semantic
+> change to what gets rejected. The per-op invariant row for
+> `nsl.sim_finish` updates from `parent = ModuleOp` to
+> `parent ∈ {ModuleOp, SimInitOp}` (data-model §2.9). Sibling
+> sim-ops already updated; no other rows change. Freeze surface
+> stays at **79** (no new op records); SC-012's "next op"
+> baseline is **unchanged** ("73rd op"). CIRCT-side conversion
+> code does NOT land at M4 — design §10 documents the M6
+> mapping per-op (Principle III firewall: M4 dialect is the
+> seam, NOT CIRCT). Cross-reference:
+> `specs/008-m5-structural-passes/research.md` §23 documents the
+> M5-side reasoning (2 example-suite fixtures unblocked, closing
+> the entire 20-example corpus to zero FAILs).
 
 ## 3. Registration entry-point contract
 

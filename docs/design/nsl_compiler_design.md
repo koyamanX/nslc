@@ -1013,10 +1013,15 @@ nsl.first_state @stName                                # inside a proc
 nsl.state @stName { ... nsl.goto @other ... }
 nsl.func @scopedName { ... }
 
-# System tasks
+# System tasks (per Phase 3 corpus + post-merge amendment #7).
+# `sim_display`, `sim_delay`, and `sim_finish` accept either an
+# enclosing `nsl.module` (top-level placement) OR a sibling
+# `nsl.sim_init` body (the `_init { _display; _delay; _finish; }`
+# idiom per S29 — `lang.ebnf §10` line 1007). `nsl.sim_init` is
+# module-level only (S29 forbids nesting).
 nsl.sim_display "fmt", %args
-nsl.sim_finish "fmt", %args
-nsl.sim_init { ... nsl.sim_delay 10 ... }
+nsl.sim_finish "reason"
+nsl.sim_init { ... nsl.sim_delay 10 ... nsl.sim_finish "done" ... }
 
 # Marker / lowering-helper ops (consolidated for §7)
 #   Introduced organically by §§8–10; mirrored here so §7 is the

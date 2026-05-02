@@ -131,7 +131,7 @@ vs hand-written body per Q2 Option B).
 | Op | Record | Traits | Verifier style |
 |---|---|---|---|
 | `nsl.sim_display` | `NSL_SimDisplayOp` | `HasParent<"NSL_ModuleOp">` | TableGen-trait only |
-| `nsl.sim_finish` | `NSL_SimFinishOp` | `HasParent<"NSL_ModuleOp">` | TableGen-trait only |
+| `nsl.sim_finish` | `NSL_SimFinishOp` | `ParentOneOf<["ModuleOp", "SimInitOp"]>` (post-merge amendment 2026-04-30 #7 — was `HasParent<"NSL_ModuleOp">`; relaxed so `_init { _finish(); }` per S29 is legal — `lang.ebnf §10` line 1007) | TableGen-trait only |
 | `nsl.sim_init` | `NSL_SimInitOp` | `HasParent<"NSL_ModuleOp">`, one region | TableGen-trait only |
 | `nsl.sim_delay` | `NSL_SimDelayOp` | int-literal cycles attr | TableGen-trait only |
 

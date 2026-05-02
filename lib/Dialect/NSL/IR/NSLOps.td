@@ -1083,8 +1083,12 @@ def NSL_GotoOp : NSL_Op<"goto"> {
 //
 // Phase 3 fixtures place `nsl.sim_display` / `nsl.sim_delay` either
 // directly in `nsl.module` OR inside a sibling `nsl.sim_init` body —
-// so those two ops accept either parent. `nsl.sim_init` /
-// `nsl.sim_finish` are module-level only per the fixture corpus.
+// so those two ops accept either parent. `nsl.sim_finish` likewise
+// accepts both parents per S29 (`_init { _finish(); }` is the
+// canonical NSL simulation-termination idiom; post-merge amendment
+// 2026-04-30 #7 widened the trait from `HasParent<"ModuleOp">` to
+// `ParentOneOf<["ModuleOp", "SimInitOp"]>`). `nsl.sim_init` itself
+// remains module-level only.
 
 def NSL_SimDisplayOp : NSL_Op<"sim_display",
     [ParentOneOf<["ModuleOp", "SimInitOp"]>]> {
@@ -1102,7 +1106,8 @@ def NSL_SimDisplayOp : NSL_Op<"sim_display",
   }];
 }
 
-def NSL_SimFinishOp : NSL_Op<"sim_finish", [HasParent<"ModuleOp">]> {
+def NSL_SimFinishOp : NSL_Op<"sim_finish",
+    [ParentOneOf<["ModuleOp", "SimInitOp"]>]> {
   let summary = "Sim-only finish task.";
   let arguments = (ins StrAttr:$reason);
   let assemblyFormat = "$reason attr-dict";

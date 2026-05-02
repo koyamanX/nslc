@@ -1263,6 +1263,101 @@ emits the DefaultOp regardless of cond-resolution.
 byte-identically across two consecutive `nslc -emit=mlir` runs
 (Constitution Principle V holds).
 
+## 23. M4-amendment 2026-04-30 (#7): single `nsl.sim_finish` parent-trait relaxation
+
+**Trigger**: M5 example-suite close-out triage of the 2 remaining
+failing examples (`examples/01_hello.nsl` + `examples/20_simulation_tb.nsl`)
+post-amendment-#6 + lowerExpr-typeHint fix. Both failures presented
+with the identical verifier diagnostic:
+
+```
+error: 'nsl.sim_finish' op expects parent op 'nsl.module'
+```
+
+The visitor `visit(InitBlockStmt)` correctly lowers the NSL
+`_init { ... _finish(); }` shape to `nsl.sim_init` carrying a body
+region containing a sibling sequence of `nsl.sim_display`,
+`nsl.sim_delay`, and `nsl.sim_finish`. The first two already carried
+`ParentOneOf<["ModuleOp", "SimInitOp"]>` from the Phase 3 baseline
+(the comment block at NSLOps.td:1080–1087 explicitly noted the
+sibling pattern); only `nsl.sim_finish` retained the stricter
+`HasParent<"ModuleOp">` form, so the verifier rejected the resulting
+IR before either example could complete.
+
+NSL spec **S29** (`lang.ebnf §10` line 1007) explicitly permits
+`_init { ... _finish(); }` at the top level of a simulation
+module — the canonical termination idiom every testbench in the
+example corpus uses. The prior trait was therefore stricter than the
+grammar.
+
+**Decision**: Option **(B)** — single trait relaxation
+`HasParent<"ModuleOp"> → ParentOneOf<["ModuleOp", "SimInitOp"]>`.
+Same precedent as amendments #3, #5, and #6: a strictly "accept more"
+trait relaxation that aligns the dialect's parent constraint with
+NSL grammar. Options (A) emit CIRCT-side helpers from M5, (C) defer
+the 2 examples to M6, (D) downgrade `nsl.sim_finish` to a stub-only
+op were rejected for the same reasons as the prior amendments.
+
+**Triage of sibling sim-ops**: `nsl.sim_display` and `nsl.sim_delay`
+already accept `SimInitOp` as parent — the relaxation is `nsl.sim_finish`-
+only. `nsl.sim_init` itself remains module-level only (correctly —
+NSL `_init` blocks never nest, so `SimInitOp` is not a candidate
+parent for `SimInitOp`).
+
+**Implementation footprint**:
+
+- `lib/Dialect/NSL/IR/NSLOps.td`: 1 op edited (`NSL_SimFinishOp`) —
+  single trait swap on the trait list. Header comment block at
+  NSLOps.td:1080–1087 updated to reflect the post-amendment family
+  shape ("only `nsl.sim_init` itself remains module-level"). **Zero
+  verifier code edits.**
+- `test/Dialect/system-task/`: 1 new round-trip fixture
+  (`sim_finish_in_sim_init_roundtrip.mlir`) covering the
+  `_init { _display; _delay; _finish; }` shape that appears in
+  every termination-bearing testbench in the example corpus.
+- `examples/01_hello.nsl` + `examples/20_simulation_tb.nsl`: no
+  source edits — both NSL files are already structurally correct
+  per S29; the dialect now accepts what the grammar permitted all
+  along.
+
+**Backward compatibility**: All pre-existing fixtures continue to
+PASS unchanged.
+
+- `test/Dialect/system-task/sim_finish_roundtrip.mlir` (immediate-
+  parent `nsl.module` form) — still parses; `ModuleOp` is still in
+  the parent set.
+- `test/Dialect/system-task/sim_finish_invalid_wrong_parent.mlir`
+  (placing `nsl.sim_finish` directly under the builtin
+  `mlir::ModuleOp`) — still rejected; `mlir::ModuleOp` is not in
+  the parent set, so the trait diagnostic substring "expects
+  parent op" continues to fire.
+
+**Verifier-reject preservation**: The relaxation does NOT change
+what's REJECTED. `nsl.sim_finish` directly under a
+`mlir::ModuleOp`, `nsl.proc`, `nsl.func`, etc. is still
+trait-rejected.
+
+**Determinism (Principle V)**: Print/parse round-trip is unchanged
+because no new attribute / operand encoding was added; the trait
+list is consulted only by the verifier, not the printer/parser.
+
+**Coverage gain**: 2 example-suite fixtures (`examples/01_hello.nsl`,
+`examples/20_simulation_tb.nsl`) flip to GREEN — the entire
+20-example NSL corpus now compiles cleanly via `nslc -emit=mlir`
+(0 FAILs across the loop). Lit count unchanged at 536 PASS + 8 XFAIL
+(the relaxation closes a runtime-driver-class regression, not a lit
+fixture).
+
+**Cross-references**:
+
+- Contract: `specs/007-m4-mlir-dialect/contracts/dialect-api.contract.md`
+  §2 post-merge amendment 2026-04-30 (#7).
+- Spec: `specs/007-m4-mlir-dialect/spec.md` Clarifications session
+  2026-04-30 (post-merge amendment #7).
+- Data model: `specs/007-m4-mlir-dialect/data-model.md` row for
+  `nsl.sim_finish`.
+- Grammar anchor: `docs/spec/nsl_lang.ebnf` §10 line 1007 (S29).
+
 ## Cross-references
 
 - Spec: [`spec.md`](./spec.md) (FR-001 … FR-031, SC-001 … SC-012)
