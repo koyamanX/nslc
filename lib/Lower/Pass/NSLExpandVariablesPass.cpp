@@ -32,15 +32,13 @@
 // order (it's allocation-order). Block-walk preserves byte-stable
 // output across builds.
 //
-// Scope policy: per the M4 op-surface freeze, `nsl.wire` requires
-// `HasParent<"ModuleOp">`; `nsl.variable` allows
-// `ParentOneOf<["ModuleOp", "FuncOp"]>`. The natural post-pass
-// replacement (a wire) is verifier-rejected inside a func body.
-// This pass therefore expands ONLY module-scope variables; func-
-// scope variables are documented as deferred (US2 T066/T067
-// precedent — `cross_scope.mlir` XFAIL) and left unchanged. A
-// future M4 amendment relaxing wire's parent constraint or
-// introducing a func-scope storage op will close that gap.
+// Scope policy: per the M4 op-surface freeze (post-merge amendment
+// 2026-05-02 #5), both `nsl.wire` and `nsl.variable` accept
+// `ParentOneOf<["ModuleOp", "FuncOp"]>` — the wire's parent
+// constraint was widened in amendment #5 specifically to unblock
+// this pass's func-scope expansion. The pass therefore expands
+// BOTH module-scope and func-scope variables. Per-version wires
+// share their scope with the variable they replace (no hoisting).
 //
 // Anchors:
 //   - `specs/008-m5-structural-passes/spec.md` FR-015, US3
@@ -82,16 +80,12 @@ bool isVariableWriteOp(mlir::Operation *op) {
 /// the per-version wire ordering and naming is byte-stable across
 /// builds.
 bool expandOne(nsl::dialect::VariableOp variable) {
-  // Scope guard: only module-scope variables get expanded. A
-  // func-scope variable's natural replacement (a wire) would be
-  // verifier-rejected (`nsl.wire` HasParent<"ModuleOp">). Per
-  // the deferral note in the file banner + cross_scope.mlir
-  // XFAIL, leave func-scope variables in place. (The post-
-  // pipeline check-semantics step will be the gate that catches
-  // any leftover `nsl.variable` ops as a residue-class diagnostic
-  // when those land at T096.)
+  // Scope guard: post-merge M4-amendment 2026-05-02 #5 widened
+  // `nsl.wire`'s parent trait to `ParentOneOf<["ModuleOp",
+  // "FuncOp"]>`, so per-version wires can sibling either parent.
+  // `nsl.variable` already accepted both. Reject anything else.
   mlir::Operation *parent = variable->getParentOp();
-  if (!mlir::isa<nsl::dialect::ModuleOp>(parent)) {
+  if (!mlir::isa<nsl::dialect::ModuleOp, nsl::dialect::FuncOp>(parent)) {
     return false;
   }
 
