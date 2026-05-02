@@ -67,6 +67,8 @@ add_nsl_library(nsl-dialect
     nsl-basic
   LINK_LIBS
     MLIRIR
+    MLIRInferTypeOpInterface
+    MLIRSideEffectInterfaces
     MLIRSupport)
 
 # `add_mlir_dialect` registers the `MLIRNSLOpsIncGen` aggregate
