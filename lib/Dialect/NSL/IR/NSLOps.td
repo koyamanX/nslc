@@ -881,8 +881,8 @@ def NSL_ParallelOp : NSL_Op<"parallel", [NoTerminator, SingleBlock]> {
 
 def NSL_SeqOp : NSL_Op<"seq", [
     NoTerminator, SingleBlock,
-    HasParent<"FuncOp">]> {
-  let summary = "One-region sequential-action block (parent = `nsl.func`).";
+    ParentOneOf<["FuncOp", "ProcOp", "StateOp"]>]> {
+  let summary = "One-region sequential-action block (parent = `nsl.func` / `nsl.proc` / `nsl.state` per amendment #6).";
   let regions = (region SizedRegion<1>:$body);
   let assemblyFormat = "attr-dict-with-keyword $body";
 }

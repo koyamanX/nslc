@@ -120,7 +120,9 @@ amendment 2026-05-01: `nsl.constant` added; post-merge amendment
 2026-05-02 (Phase A): the 28-op expression surface added; post-merge
 amendment 2026-05-02 (#4): `nsl.param_int` + `nsl.param_str` added;
 post-merge amendment 2026-05-02 (#5): no new ops (five trait /
-type-constraint relaxations only — see notes below).
+type-constraint relaxations only — see notes below);
+post-merge amendment 2026-04-30 (#6): no new ops (single trait
+relaxation on `nsl.seq` — see notes below).
 
 > **Post-merge amendment 2026-05-01 (#1).** `nsl.constant` (a Pure +
 > ConstantLike value-producer of `!nsl.bits<N>`) was added after M4
@@ -334,6 +336,47 @@ type-constraint relaxations only — see notes below).
 > at M4 — design §10 documents the M6 mapping per-op. Cross-
 > reference: `specs/008-m5-structural-passes/research.md` §20
 > documents the M5-side reasoning.
+
+> **Post-merge amendment 2026-04-30 (#6).** Single trait
+> relaxation on `nsl.seq`. Trait changes from
+> `HasParent<"FuncOp">` to
+> `ParentOneOf<["FuncOp", "ProcOp", "StateOp"]>`. Surfaced during
+> the M5 close-out as the root cause behind 5 XFAIL'd M3-corpus
+> fixtures (`test/Lower/m3_corpus/s{07,08,09,19,25}/pass.test`):
+> `visit(SeqBlock)` (`lib/Lower/ASTToMLIR.cpp:565`) IS fully
+> implemented, but for these fixtures the `seq` lands inside an
+> `nsl.proc` body (s07/s08/s09) or inside an `nsl.state` body
+> (s19/s25), and the prior strict `HasParent<"FuncOp">` rejected
+> both shapes. NSL spec **S7** (`lang.ebnf §8 line 850`)
+> explicitly permits `seq` inside a *function or procedure* body;
+> the prior trait was therefore stricter than the grammar. The
+> user authorised four-way decision option (B) — "amend M4 with
+> the single trait relaxation" — over (A) emit CIRCT-side
+> helpers directly from M5 (violates Principle III), (C) defer
+> the 5 fixtures to M6 (semantically opaque IR; breaks the M5→M6
+> cut), (D) downgrade `nsl.seq` to a stub-only op (postpones the
+> cut and breaks Principle VIII test sequencing). **Cost: zero
+> new op records, zero new verifier code** — single TableGen
+> trait swap. Plus 1 new round-trip fixture
+> (`test/Dialect/action-block/seq_in_proc_roundtrip.mlir`)
+> covering both the proc-direct and via-state placements. The
+> pre-existing fixture
+> (`test/Dialect/action-block/seq_roundtrip.mlir`, immediate-
+> parent `nsl.func` form) remains valid and continues to PASS —
+> the relaxation is strictly "accept more". The pre-existing
+> invalid fixture
+> (`test/Dialect/action-block/seq_invalid_wrong_parent.mlir`,
+> placing `nsl.seq` directly under `nsl.module`) likewise
+> continues to fail-as-expected (`nsl.module` is still not in
+> the parent set). Same precedent as amendments #3 and #5: a
+> "strictly accept more" trait relaxation, no semantic change to
+> what gets rejected. Freeze surface stays at **79** (no new op
+> records); SC-012's "next op" baseline is **unchanged** ("73rd
+> op"). CIRCT-side conversion code does NOT land at M4 —
+> design §10 documents the M6 mapping per-op (Principle III
+> firewall: M4 dialect is the seam, NOT CIRCT). Cross-reference:
+> `specs/008-m5-structural-passes/research.md` §21 documents the
+> M5-side reasoning (5 M3-corpus fixtures unblocked).
 
 ## 3. Registration entry-point contract
 

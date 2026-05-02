@@ -1163,7 +1163,7 @@ Every MLIR op created carries the AST node's `SourceRange` as an `mlir::Location
 | `FirstStateDecl` | `nsl.first_state @s` | attribute-like child of `nsl.proc` |
 | `AltBlock` | `nsl.alt { nsl.case %c1 { ... } ... }` | preserves priority ordering |
 | `AnyBlock` | `nsl.any { nsl.case %c1 { ... } ... }` | parallel semantics preserved |
-| `SeqBlock` | `nsl.seq { ... }` | only valid inside a `nsl.func` |
+| `SeqBlock` | `nsl.seq { ... }` | parent ∈ {`nsl.func`, `nsl.proc`, `nsl.state`} per S7 (post-merge amendment 2026-04-30 #6) |
 | `WhileBlock` | `nsl.while %c { ... }` | only valid inside a `nsl.seq` |
 | `ForBlock` (enum) | `nsl.for %init, %end { ... }` | compiler uses shape to pick form |
 | `ForBlock` (C-style) | `nsl.for %init, %cond, %step { ... }` | |

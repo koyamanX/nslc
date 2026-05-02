@@ -16,7 +16,7 @@
     { "name": "nsl.any",                   "category": "action-block",     "invariants": ["one-region", "at-least-one-case-or-default-child"] },
     { "name": "nsl.if",                    "category": "action-block",     "invariants": ["two-regions"] },
     { "name": "nsl.parallel",              "category": "action-block",     "invariants": ["one-region"] },
-    { "name": "nsl.seq",                   "category": "action-block",     "invariants": ["parent-nsl-func", "one-region"] },
+    { "name": "nsl.seq",                   "category": "action-block",     "invariants": ["parent-nsl-func-or-proc-or-state", "one-region"] },
     { "name": "nsl.while",                 "category": "action-block",     "invariants": ["transitive-parent-nsl-seq", "one-region"] },
     { "name": "nsl.for",                   "category": "action-block",     "invariants": ["transitive-parent-nsl-seq", "one-region", "loop-bound-attr-shape"] },
     { "name": "nsl.case",                  "category": "action-helper",    "invariants": ["parent-alt-or-any"] },

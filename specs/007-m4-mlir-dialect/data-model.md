@@ -88,7 +88,7 @@ vs hand-written body per Q2 Option B).
 | `nsl.any` | `NSL_AnyOp` | one region | hand-written (same as alt) |
 | `nsl.if` | `NSL_IfOp` | two regions | TableGen-trait only (region count is in TableGen) |
 | `nsl.parallel` | `NSL_ParallelOp` | one region | TableGen-trait only |
-| `nsl.seq` | `NSL_SeqOp` | one region, `HasParent<"NSL_FuncOp">` | TableGen-trait only |
+| `nsl.seq` | `NSL_SeqOp` | one region, `ParentOneOf<["FuncOp", "ProcOp", "StateOp"]>` (post-merge amendment 2026-04-30 #6 — relaxed from `HasParent<"NSL_FuncOp">` to admit S7 `seq inside proc body` placement and the via-`nsl.state` shape M3-corpus s19/s25 produces) | TableGen-trait only |
 | `nsl.while` | `NSL_WhileOp` | one region | hand-written (transitive parent = `NSL_SeqOp` per Q2 Option B) |
 | `nsl.for` | `NSL_ForOp` | one region | hand-written (transitive parent = `NSL_SeqOp`; loop-bound attr shape; post-merge amendment 2026-05-02 #5 — `step` is `Variadic<NSL_BitsOrStruct>` (0 or 1) so the NSL enum form `for (i = 0..N)` (2-operand) coexists with the C-style 3-operand form; verifier rejects ≥ 2 step operands) |
 
@@ -243,7 +243,7 @@ fixture existence without parsing Markdown. Schema:
       "invariants": ["parent-builtin-module", "sym-name-required"] },
     { "name": "nsl.seq",
       "category": "action-block",
-      "invariants": ["parent-func"] },
+      "invariants": ["parent-func-or-proc-or-state"] },
     ...
   ]
 }

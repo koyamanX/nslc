@@ -1112,6 +1112,72 @@ the same commit because the parse-verify gate cleared).
 
 ---
 
+## 21. M4-amendment 2026-04-30 (#6): single `nsl.seq` parent-trait relaxation
+
+**Trigger**: M5 close-out triage of 5 XFAIL'd M3-corpus fixtures
+(`test/Lower/m3_corpus/s{07,08,09,19,25}/pass.test`). Each fixture
+emits a Sema-clean AST in which a `SeqBlock` lives directly inside
+a `proc` body (S7 grammar shape) or inside a `state` body (S19/S25
+labelled-`goto` shape). The visitor `visit(SeqBlock)` at
+`lib/Lower/ASTToMLIR.cpp:565` is fully implemented and lowers each
+to `nsl.seq` correctly — but the M4 op carried
+`HasParent<"FuncOp">` (NSLOps.td:884), so the verifier rejected
+the resulting IR before the golden could be captured.
+
+**Decision**: Option **(B)** — single trait relaxation
+`HasParent<"FuncOp"> → ParentOneOf<["FuncOp", "ProcOp", "StateOp"]>`.
+Same precedent as amendments #3 and #5: a strictly "accept more"
+trait relaxation that aligns the dialect's parent constraint with
+NSL grammar (S7: `seq` permitted inside function or procedure
+body). Options (A) emit CIRCT-side helpers from M5, (C) defer the
+5 fixtures to M6, (D) downgrade `nsl.seq` to a stub-only op were
+rejected for the same reasons as the prior amendments.
+
+**Implementation footprint**:
+
+- `lib/Dialect/NSL/IR/NSLOps.td`: 1 op edited (SeqOp) — single
+  trait swap on the trait list. **Zero verifier code edits.**
+- `test/Dialect/action-block/`: 1 new round-trip fixture
+  (`seq_in_proc_roundtrip.mlir`) covering both the proc-direct
+  and via-state placements.
+- `test/Lower/m3_corpus/s{07,08,09,19,25}/pass.test`: XFAIL
+  markers removed; goldens regenerated; standard `nslc -emit=mlir`
+  + `diff` form restored.
+
+**Backward compatibility**: All pre-existing fixtures continue
+to PASS unchanged.
+
+- `test/Dialect/action-block/seq_roundtrip.mlir` (immediate-parent
+  `nsl.func` form) — still parses; `FuncOp` is still in the
+  parent set.
+- `test/Dialect/action-block/seq_invalid_wrong_parent.mlir` (`nsl.seq`
+  directly under `nsl.module`) — still rejected; `nsl.module` is
+  not in the parent set, so the diagnostic substring "expects
+  parent op" continues to fire.
+
+**Verifier-reject preservation**: The relaxation does NOT change
+what's REJECTED. `nsl.seq` directly under a `nsl.module`,
+`nsl.alt`, `nsl.parallel`, etc. is still trait-rejected.
+
+**Determinism (Principle V)**: Print/parse round-trip is unchanged
+because no new attribute / operand encoding was added; the trait
+list is consulted only by the verifier, not the printer/parser.
+
+**Coverage gain**: 5 M3-corpus XFAIL fixtures (s07/s08/s09/s19/s25)
+flip to GREEN; lit XFAIL count drops by 5 from 13 to 8.
+
+**Cross-references**:
+
+- Contract: `specs/007-m4-mlir-dialect/contracts/dialect-api.contract.md`
+  §2 post-merge amendment 2026-04-30 (#6).
+- Spec: `specs/007-m4-mlir-dialect/spec.md` Clarifications session
+  2026-04-30 (post-merge amendment #6).
+- Data model: `specs/007-m4-mlir-dialect/data-model.md` row for
+  `nsl.seq`.
+- Grammar anchor: `docs/spec/nsl_lang.ebnf` §8 line 850 (S7).
+
+---
+
 ## Cross-references
 
 - Spec: [`spec.md`](./spec.md) (FR-001 … FR-031, SC-001 … SC-012)

@@ -564,11 +564,12 @@ void ASTToMLIR::visit(const ast::BareFinishStmt & /*node*/) {
 
 void ASTToMLIR::visit(const ast::SeqBlock &node) {
   // FR-006 row "SeqBlock → nsl.seq { ... }". `nsl.seq` carries
-  // `HasParent<"FuncOp">` (per NSLOps.td §2.4); the input AST is
-  // Sema-clean per FR-010 so the parent invariant holds at every
-  // reachable insertion point. Body items recursion mirrors
-  // ParallelBlock; expression-Value plumbing for items lands in
-  // T055.
+  // `ParentOneOf<["FuncOp", "ProcOp", "StateOp"]>` (per NSLOps.td
+  // §2.4 post-merge amendment 2026-04-30 #6, aligning with S7
+  // grammar `lang.ebnf §8 line 850`); the input AST is Sema-clean
+  // per FR-010 so the parent invariant holds at every reachable
+  // insertion point. Body items recursion mirrors ParallelBlock;
+  // expression-Value plumbing for items lands in T055.
   auto loc = builder_.getUnknownLoc();
   auto seq_op = nsl::dialect::SeqOp::create(builder_, loc);
   auto &body_block = seq_op.getBody().emplaceBlock();
