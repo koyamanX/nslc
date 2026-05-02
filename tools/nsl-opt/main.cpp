@@ -17,12 +17,18 @@
 //   - `specs/007-m4-mlir-dialect/research.md` §6 — vanilla
 //     `MlirOptMain`-style binary (~50 lines).
 //
-// At M4 zero passes are registered (per FR-015); the
-// `--<pass-name>` flag space is empty beyond MLIR's built-in
-// canonicalize / cse / etc. passes. M5+ adds the structural-
-// expansion passes via `mlir::registerPass<>()`.
+// **M5 amendment** (per `specs/008-m5-structural-passes/research.md`
+// §7): the structural-expansion passes are registered via
+// `nsl::lower::registerNSLLowerPasses()` so `nsl-opt -<pass-flag>`
+// can drive them standalone. The six pass flags are:
+//   - `-nsl-resolve-params`        - `-nsl-explode-submod-array`
+//   - `-nsl-expand-generate`       - `-nsl-inline-internal-func`
+//   - `-nsl-expand-variables`      - `-nsl-check-semantics`
+// At M4 zero passes were registered; the `--<pass-name>` flag space
+// was empty beyond MLIR's built-in canonicalize / cse / etc. passes.
 
 #include "nsl/Dialect/NSL/IR/NSLDialect.h"
+#include "nsl/Lower/Lower.h"
 
 #include "circt/Dialect/Comb/CombDialect.h"
 #include "circt/Dialect/FSM/FSMDialect.h"
@@ -38,6 +44,10 @@ int main(int argc, char **argv) {
 
   // The `nsl` dialect itself (M4 deliverable).
   nsl::dialect::registerNSLDialect(registry);
+
+  // M5: register the six structural-expansion passes so they appear
+  // in `nsl-opt --help` and are invocable via `-nsl-<flag>`.
+  nsl::lower::registerNSLLowerPasses();
 
   // The five CIRCT dialects loaded by `Compilation` per design §11
   // lines 1146–1150. Pre-loading them in `nsl-opt` lets hand-

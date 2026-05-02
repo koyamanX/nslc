@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/stmt/systemtaskstmt_display_emit_mlir.nsl — US1 fixture
+// covering `ast::SystemTaskStmt` (`_display` flavour, no variadic
+// operands). Per FR-006 row "SystemTaskStmt × {_display, ...} →
+// nsl.sim_display / ...". Variadic-operand `_display(fmt, args...)`
+// lowering lands once expression-Value plumbing arrives (T055).
+// `nsl.sim_display` accepts `ParentOneOf<["ModuleOp", "SimInitOp"]>`
+// — module scope is fine here.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+declare M simulation { }
+module M {
+  _display("tick");
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.sim_display "tick"

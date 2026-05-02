@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/decl/procdefn_emit_mlir.nsl — US1 fixture covering
+// `ast::ProcDefn` plus `ast::StateDefn` body recursion (T052). Per
+// FR-006 rows "ProcDefn → nsl.proc @p { ... }" and "StateDefn →
+// nsl.state @s { ... }". The proc body's outer-most ParallelBlock
+// is flattened (per the M4 dialect's proc-body convention — see
+// `test/Dialect/atomic/finish_roundtrip.mlir` line 11–18); state
+// decls land directly inside `nsl.proc`.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  proc_name p;
+  proc p {
+    state_name s0;
+    state s0 { }
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.proc @p
+// CHECK-NEXT: nsl.state @s0

@@ -57,17 +57,19 @@ vs hand-written body per Q2 Option B).
 | Op | Record | Traits | Verifier style |
 |---|---|---|---|
 | `nsl.module` | `NSL_ModuleOp` | `Symbol`, `SymbolTable`, `SingleBlockImplicitTerminator<"ModuleTerminatorOp">`, `HasParent<"::mlir::ModuleOp">` | TableGen-trait + hand-written (`sym_name` presence; struct-field non-circularity for nested `nsl.struct` siblings) |
-| `nsl.struct` | `NSL_StructOp` | `Symbol`, `HasParent<"::mlir::ModuleOp">` | TableGen-trait + hand-written (`sym_name` presence; field-list non-circular) |
-| `nsl.submodule` | `NSL_SubmoduleOp` | `Symbol`, `HasParent<"NSL_ModuleOp">` | TableGen-trait only (`Symbol` machinery resolves the template ref) |
+| `nsl.struct` | `NSL_StructOp` | `Symbol`, `NoTerminator`, `SingleBlock`, `ParentOneOf<["::mlir::ModuleOp", "ModuleOp"]>` (post-merge amendment 2026-05-02 #3 — was `HasParent<"ModuleOp">`; relaxed so top-level structs sibling-of-`nsl.module` are legal per NSL grammar lang.ebnf §1) | TableGen-trait + hand-written (`sym_name` presence; field-list non-circular via `getNearestSymbolTable`) |
+| `nsl.submodule` | `NSL_SubmoduleOp` | `Symbol`, `HasParent<"NSL_ModuleOp">` | TableGen-trait only (`Symbol` machinery resolves the template ref). Post-merge amendment 2026-05-02 #4 adds `OptionalAttr<I64Attr>:$array_size` for the NSL `SUB[3] inst;` array form per FR-016; absent ⇔ singleton (existing fixtures unchanged). |
 | `nsl.connect` | `NSL_ConnectOp` | `HasParent<"NSL_ModuleOp">` | TableGen-trait + hand-written (operand-type match) |
+| `nsl.param_int` | `NSL_ParamIntOp` | `Symbol`, `HasParent<"::mlir::ModuleOp">` (post-merge amendment 2026-05-02 #4 — top-level S16 parameter, sibling of `nsl.module`) | TableGen-trait only (`Symbol` machinery handles `sym_name` presence) |
+| `nsl.param_str` | `NSL_ParamStrOp` | `Symbol`, `HasParent<"::mlir::ModuleOp">` (post-merge amendment 2026-05-02 #4 — top-level S16 parameter, sibling of `nsl.module`) | TableGen-trait only |
 
 ### 2.2 Storage (4 ops)
 
 | Op | Record | Traits | Verifier style |
 |---|---|---|---|
-| `nsl.reg` | `NSL_RegOp` | `HasParent<"NSL_ModuleOp"/"NSL_ProcOp">` (variadic) | TableGen-trait + hand-written (result type ∈ {bits, struct}) |
-| `nsl.wire` | `NSL_WireOp` | `HasParent<"NSL_ModuleOp">` | TableGen-trait + hand-written (result type = bits) |
-| `nsl.variable` | `NSL_VariableOp` | `HasParent<"NSL_ModuleOp"/"NSL_FuncOp">` (variadic) | TableGen-trait + hand-written (result type = bits) |
+| `nsl.reg` | `NSL_RegOp` | `ParentOneOf<["ModuleOp", "ProcOp", "StructuralGenerateOp"]>` (post-merge amendment 2026-05-02 #5 — adds `StructuralGenerateOp` for per-iteration regs in `generate` blocks) | TableGen-trait + hand-written (result type ∈ {bits, struct}) |
+| `nsl.wire` | `NSL_WireOp` | `ParentOneOf<["ModuleOp", "FuncOp"]>` (post-merge amendment 2026-05-02 #5 — was `HasParent<"ModuleOp">`; relaxed for func-scope variable expansion) | TableGen-trait + hand-written (result type = bits) |
+| `nsl.variable` | `NSL_VariableOp` | `ParentOneOf<["ModuleOp", "FuncOp"]>` (variadic) | TableGen-trait + hand-written (result type ∈ {bits, struct} — post-merge amendment 2026-05-02 #5; was bits-only) |
 | `nsl.mem` | `NSL_MemOp` | `HasParent<"NSL_ModuleOp">` | TableGen-trait + hand-written (result type = mem) |
 
 ### 2.3 Control terminal (3 ops)
@@ -86,9 +88,9 @@ vs hand-written body per Q2 Option B).
 | `nsl.any` | `NSL_AnyOp` | one region | hand-written (same as alt) |
 | `nsl.if` | `NSL_IfOp` | two regions | TableGen-trait only (region count is in TableGen) |
 | `nsl.parallel` | `NSL_ParallelOp` | one region | TableGen-trait only |
-| `nsl.seq` | `NSL_SeqOp` | one region, `HasParent<"NSL_FuncOp">` | TableGen-trait only |
+| `nsl.seq` | `NSL_SeqOp` | one region, `ParentOneOf<["FuncOp", "ProcOp", "StateOp"]>` (post-merge amendment 2026-04-30 #6 — relaxed from `HasParent<"NSL_FuncOp">` to admit S7 `seq inside proc body` placement and the via-`nsl.state` shape M3-corpus s19/s25 produces) | TableGen-trait only |
 | `nsl.while` | `NSL_WhileOp` | one region | hand-written (transitive parent = `NSL_SeqOp` per Q2 Option B) |
-| `nsl.for` | `NSL_ForOp` | one region | hand-written (transitive parent = `NSL_SeqOp`; loop-bound attr shape) |
+| `nsl.for` | `NSL_ForOp` | one region | hand-written (transitive parent = `NSL_SeqOp`; loop-bound attr shape; post-merge amendment 2026-05-02 #5 — `step` is `Variadic<NSL_BitsOrStruct>` (0 or 1) so the NSL enum form `for (i = 0..N)` (2-operand) coexists with the C-style 3-operand form; verifier rejects ≥ 2 step operands) |
 
 ### 2.5 Action helper (2 ops)
 
@@ -129,7 +131,7 @@ vs hand-written body per Q2 Option B).
 | Op | Record | Traits | Verifier style |
 |---|---|---|---|
 | `nsl.sim_display` | `NSL_SimDisplayOp` | `HasParent<"NSL_ModuleOp">` | TableGen-trait only |
-| `nsl.sim_finish` | `NSL_SimFinishOp` | `HasParent<"NSL_ModuleOp">` | TableGen-trait only |
+| `nsl.sim_finish` | `NSL_SimFinishOp` | `ParentOneOf<["ModuleOp", "SimInitOp"]>` (post-merge amendment 2026-04-30 #7 — was `HasParent<"NSL_ModuleOp">`; relaxed so `_init { _finish(); }` per S29 is legal — `lang.ebnf §10` line 1007) | TableGen-trait only |
 | `nsl.sim_init` | `NSL_SimInitOp` | `HasParent<"NSL_ModuleOp">`, one region | TableGen-trait only |
 | `nsl.sim_delay` | `NSL_SimDelayOp` | int-literal cycles attr | TableGen-trait only |
 
@@ -137,7 +139,7 @@ vs hand-written body per Q2 Option B).
 
 | Op | Record | Traits | Verifier style |
 |---|---|---|---|
-| `nsl.fire_probe` | `NSL_FireProbeOp` | `SymbolRefAttr` | TableGen-trait + hand-written (sym ref resolves to a sibling control-terminal) |
+| `nsl.fire_probe` | `NSL_FireProbeOp` | `SymbolRefAttr` | TableGen-trait + hand-written (sym ref resolves to one of: sibling control-terminal `nsl.func_in`/`nsl.func_out`/`nsl.func_self` (StrAttr-keyed) OR sibling Symbol-bearing `nsl.proc` (sym_name; module scope) OR sibling Symbol-bearing `nsl.state` inside enclosing `nsl.proc` (sym_name; per-proc scope) — post-merge amendment 2026-05-02 #5 added the proc/state legs per S27's full target list) |
 | `nsl.struct_cast` | `NSL_StructCastOp` | type-match operand/result | TableGen-trait + hand-written (operand bits-width = result struct totalWidth) |
 | `nsl.field` | `NSL_FieldOp` | int-attr field index | TableGen-trait + hand-written (field index in range; result type matches struct field) |
 | `nsl.field_decl` | `NSL_FieldDeclOp` | `Symbol`, `HasParent<"NSL_StructOp">`; `sym_name` StringAttr + width type | TableGen-trait only (per Q6 Option B — struct-internal field declaration role split off from `nsl.field`) |
@@ -146,7 +148,7 @@ vs hand-written body per Q2 Option B).
 
 | Op | Record | Traits | Verifier style |
 |---|---|---|---|
-| `nsl.structural_generate` | `NSL_StructuralGenerateOp` | one region, loop-bound attrs | TableGen-trait + hand-written (loop-bound attr shape) |
+| `nsl.structural_generate` | `NSL_StructuralGenerateOp` | one region, loop-bound attrs (`lower`/`upper`/`step` `I64Attr` required); post-merge amendment 2026-05-02 #4 adds `OptionalAttr<StrAttr>:$loop_var` carrying the loop variable name (e.g., `"i"` for `generate(i = 0..N)`) so M5's `NSLExpandGeneratePass` knows which `%IDENT%` macro residue to substitute. Absent ⇔ existing fixtures unchanged | TableGen-trait + hand-written (loop-bound attr shape) |
 
 ### 2.12 Auto-generated terminators
 
@@ -241,7 +243,7 @@ fixture existence without parsing Markdown. Schema:
       "invariants": ["parent-builtin-module", "sym-name-required"] },
     { "name": "nsl.seq",
       "category": "action-block",
-      "invariants": ["parent-func"] },
+      "invariants": ["parent-func-or-proc-or-state"] },
     ...
   ]
 }

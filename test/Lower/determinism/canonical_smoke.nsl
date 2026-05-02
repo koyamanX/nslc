@@ -1,0 +1,109 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/determinism/canonical_smoke.nsl — US5 / T100 (Phase 7).
+//
+// Single non-trivial fixture that exercises a representative cross-
+// section of M5 lowering surface (US1 + US2 + US3 + US4 features) so
+// the cross-host-path determinism check (`scripts/determinism_check.sh`)
+// has a non-trivial diff target. This is the canonical smoke per
+// FR-025 / FR-026 / SC-007 / SC-008 — a single artifact whose
+// byte-stable output across two distinct build paths is the
+// operational enforcement of Constitution Principle V at the M5
+// driver layer.
+//
+// Features exercised (US1+US2+US3+US4 cross-section):
+//
+//   US1 storage decls   : `reg q[8];`, `wire w[8];`, `mem ram[16][8];`
+//   US1 func + seq      : `func reset { seq { ... } }` — `nsl.func`
+//                         carrying `nsl.seq` with a body
+//                         (`nsl.transfer` inside)
+//   US1 proc + state    : `proc p { state s0 { finish; } }` —
+//                         `nsl.proc` carrying `nsl.state` with
+//                         `nsl.finish` (S17/_finish path)
+//   US1 binary expr     : `q := a + b;` — `nsl.add` value-position
+//                         feeding a `nsl.clocked_transfer`
+//   US3 variable (mod)  : `variable v[8]; v = a; w = v;` — module-
+//                         scope variable + chain-of-2 writes;
+//                         post-pipeline `nsl.variable` is replaced
+//                         by `nsl.wire "v"` (NSLExpandVariablesPass)
+//   US4 residue check   : zero `%IDENT%` residue in source; the
+//                         post-pipeline IR passes
+//                         `NSLCheckSemanticsPass` cleanly
+//
+// Intentionally excluded from this fixture:
+//
+//   - `generate` blocks: depend on the `%IDENT%` macro-splice path
+//     which the M1 preprocessor does not yet expand at lowering time;
+//     `test/Lower/passes/nsl-expand-generate/*.mlir` covers the post-
+//     emission unroll directly. Adding a `generate` here would push
+//     the cross-host-path determinism diff to NOT be the diff we
+//     care about (host-path leakage in MLIR text).
+//   - `goto`: `ast::GotoStmt` is a STUB visitor (per
+//     `lib/Lower/ASTToMLIR.cpp:1542`); a NSL-source `goto` produces
+//     no `nsl.goto` op until the visitor body lands at a later
+//     milestone.
+//   - func-scope `variable`: per US3 deferral (XFAIL on the
+//     `internal_declaration` parser path); module-scope is the
+//     supported form at M5.
+//
+// What this fixture is FOR (vs. NOT FOR):
+//
+//   FOR:  giving `scripts/determinism_check.sh` a multi-feature
+//         input whose diff across two build paths is byte-stable.
+//   NOT:  per-AST-node-kind FileCheck coverage — that lives in the
+//         per-feature fixtures under `test/Lower/{decl,stmt,expr,
+//         action,marker,variables}/`.
+//
+// RUN line: round-trip-clean (`nslc -emit=mlir | nsl-opt`) instead
+// of FileCheck. The CHECK-LABEL guarantees the module survives the
+// pipeline; finer-grained per-op checks would duplicate the per-
+// feature fixtures and add no determinism-related signal.
+
+// RUN: %nslc -emit=mlir %s | nsl-opt | %FileCheck %s
+
+declare M simulation { }
+module M {
+  // Storage decls (US1).
+  reg q[8];
+  wire a[8];
+  wire b[8];
+  wire w[8];
+  mem ram[16][8];
+
+  // Module-scope variable (US3) — chain-of-2 writes.
+  variable v[8];
+  v = a;
+  w = v;
+
+  // Module-scope par-block: clocked transfer with binary-expr RHS.
+  {
+    q := a + b;
+  }
+
+  // Func with seq body containing a transfer (US1).
+  func_self reset;
+  func reset {
+    seq {
+      a = b;
+    }
+  }
+
+  // Proc with state containing finish (US1).
+  proc_name p;
+  proc p {
+    state_name s0;
+    first_state s0;
+    state s0 {
+      finish;
+    }
+  }
+}
+
+// CHECK-LABEL: nsl.module @M
+// CHECK-DAG: nsl.reg "q" : !nsl.bits<8>
+// CHECK-DAG: nsl.wire "a" : !nsl.bits<8>
+// CHECK-DAG: nsl.wire "w" : !nsl.bits<8>
+// CHECK-DAG: nsl.mem "ram"
+// CHECK-DAG: nsl.func @reset
+// CHECK-DAG: nsl.proc @p
+// CHECK-NOT: nsl.variable

@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/stmt/transferstmt_eq_emit_mlir.nsl — US1 fixture
+// covering `ast::TransferStmt` with `Op::WireEq` (`=`). Per FR-006
+// lowering table row "TransferStmt × `=` → nsl.transfer".
+// Identifier-LHS / identifier-RHS path: both sides resolve through
+// the transitional `nameTable_` populated by the wire decls; the
+// resulting op carries `SameTypeOperands` (TableGen
+// NSL_TransferOp), satisfied here by both wires being `!nsl.bits<8>`.
+//
+// Container shape: a top-level par-block (`{ ... }` at module scope)
+// — `nsl.parallel` carries no `HasParent` constraint so this is the
+// simplest verifier-clean container that round-trips clean (cf.
+// `test/Dialect/atomic/transfer_roundtrip.mlir` precedent + the
+// existing `parallelblock_emit_mlir.nsl` fixture for the M-scope
+// par shape).
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  wire a[8];
+  wire b[8];
+  {
+    a = b;
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.wire "a" : !nsl.bits<8>
+// CHECK: nsl.wire "b" : !nsl.bits<8>
+// CHECK: nsl.parallel
+// CHECK-NEXT: nsl.transfer %{{.*}}, %{{.*}} : !nsl.bits<8>

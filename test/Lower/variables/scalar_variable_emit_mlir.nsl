@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/variables/scalar_variable_emit_mlir.nsl — US3 end-to-
+// end fixture (T078). Demonstrates:
+//
+//   (i) `visit(VariableDecl)` lowering `variable v[8];` to
+//       `nsl.variable "v" : !nsl.bits<8>` at the AST visit; AND
+//   (ii) the post-pipeline shape after `NSLExpandVariablesPass`
+//        runs (`nslc -emit=mlir` runs the full pipeline including
+//        the expand-variables pass).
+//
+// Per FR-015 + SC-005: post-pipeline IR contains zero
+// `nsl.variable` ops. The single write-then-read pattern below
+// matches US3 acceptance scenario 1 (`spec.md:281`) — the post-
+// pipeline IR has a single `nsl.wire "v"` whose result is the dst
+// of one transfer (`v = a`) and the src of another (`b = v`).
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  wire a[8];
+  wire b[8];
+  variable v[8];
+  v = a;
+  b = v;
+}
+
+// CHECK-LABEL: nsl.module @M
+// CHECK: nsl.wire "a" : !nsl.bits<8>
+// CHECK: nsl.wire "b" : !nsl.bits<8>
+// CHECK: %[[V:.*]] = nsl.wire "v" : !nsl.bits<8>
+// CHECK: nsl.transfer %[[V]], %{{.*}} : !nsl.bits<8>
+// CHECK: nsl.transfer %{{.*}}, %[[V]] : !nsl.bits<8>
+// CHECK-NOT: nsl.variable

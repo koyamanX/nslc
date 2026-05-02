@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/stmt/systemtaskstmt_init_emit_mlir.nsl — US1 fixture
+// covering `ast::InitBlockStmt`. Per FR-006 row "SystemTaskStmt ×
+// {..., _init, ...} → nsl.sim_init / ...". `_init { ... }` reaches
+// the AST as the dedicated `InitBlockStmt` node (per
+// ParseStmt.cpp:1156–1157), distinct from generic SystemTaskStmt.
+// `nsl.sim_init` requires `HasParent<"ModuleOp">` plus simulation
+// declare modifier (S29 enforces, M3 Sema validated).
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+declare M simulation { }
+module M {
+  _init { }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.sim_init

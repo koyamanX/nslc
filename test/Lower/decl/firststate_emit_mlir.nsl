@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/decl/firststate_emit_mlir.nsl — US1 fixture covering
+// `ast::FirstStateDecl` (paired with the T052 implementation that
+// lights up the visitor). Per FR-006 row "FirstStateDecl →
+// nsl.first_state @s". The decl appears INSIDE a `proc` body at
+// the NSL source level (`first_state` is a `proc_internal_decl`)
+// but flattens up to live as a direct child of `nsl.proc` in the
+// MLIR shape, matching `test/Dialect/atomic/finish_roundtrip.mlir`.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  proc_name p;
+  proc p {
+    state_name s0;
+    first_state s0;
+    state s0 { }
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.proc @p
+// CHECK-NEXT: nsl.first_state @s0
+// CHECK-NEXT: nsl.state @s0

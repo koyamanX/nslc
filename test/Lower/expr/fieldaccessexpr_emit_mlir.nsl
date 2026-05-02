@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/expr/fieldaccessexpr_emit_mlir.nsl — US1 fixture covering
+// `ast::FieldAccessExpr` per FR-006 / FR-007 row "FieldAccessExpr →
+// nsl.field". Phase B Commit 4 (T044).
+//
+// Shape: a struct-typed register `slot` (parsed by `lib/Parse/ParseDecl.cpp`
+// as an `ast::StructInstDecl` with `StorageKind = Reg`) is field-
+// accessed via `slot.a`. The dotted-postfix `slot.a` parses as
+// `FieldAccessExpr(IdentifierExpr(slot), "a")`. The visitor resolves
+// `slot` through `nameTable_` to a `!nsl.struct<@MyRec>`-typed Value
+// (the SSA result of the emitted `nsl.reg`), then emits
+// `nsl.field {index = 0} : !nsl.struct<@MyRec> -> !nsl.bits<8>`.
+//
+// Note: NSL's `cpu_t inst; inst.port` (submodule-port access) shares
+// the same AST node kind but resolves to a non-struct Value at this
+// layer; it is outside Phase B scope (the visitor soft-fails per
+// FR-010 and the M3-Sema-resolved type is the eventual disambiguator).
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+struct MyRec {
+  a[8];
+  b[24];
+};
+
+module M {
+  MyRec reg slot;
+  wire result[8];
+  {
+    result = slot.a;
+  }
+}
+
+// CHECK: nsl.struct @MyRec
+// CHECK-DAG: nsl.field_decl "a" : !nsl.bits<8>
+// CHECK-DAG: nsl.field_decl "b" : !nsl.bits<24>
+// CHECK: nsl.module @M
+// CHECK: nsl.reg "slot" : !nsl.struct<@MyRec>
+// CHECK: nsl.wire "result" : !nsl.bits<8>
+// CHECK: nsl.parallel
+// CHECK: nsl.field %{{.*}} {index = 0 : i64} : !nsl.struct<@MyRec> -> !nsl.bits<8>
+// CHECK: nsl.transfer %{{.*}}, %{{.*}} : !nsl.bits<8>

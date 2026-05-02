@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/expr/binaryexpr_emit_mlir.nsl — US1 fixture covering
+// `ast::BinaryExpr` per FR-006 / FR-007 row "BinaryExpr → nsl.<op>".
+// Phase B Commit 1 (offload 2026-04-30): exercises three of the
+// fifteen wired operators — one arithmetic (`+` → `nsl.add`), one
+// bitwise (`&` → `nsl.and`), one comparison (`==` → `nsl.eq`). The
+// remaining twelve (sub/mul/or/xor/shl/shr/ne/lt/le/gt/ge/land/lor)
+// share the same dispatch shape; covering three operand-type
+// patterns is enough to exercise both the
+// `SameOperandsAndResultType` and the `SameTypeOperands` (width-1
+// result) op classes, so adding more here is redundant per FR-006
+// per-AST-node-kind coverage policy.
+//
+// Container shape: top-level par-block (matches the existing
+// `transferstmt_eq_emit_mlir.nsl` shape — `nsl.parallel` carries no
+// `HasParent` so it round-trips clean at module scope).
+//
+// Width policy: all `wire` decls are 8-bit so the AST RHS values
+// resolve through `nameTable_` to `!nsl.bits<8>`, satisfying both
+// op classes' operand-type constraints. The `flag[1]` wire holds
+// the comparison result (`!nsl.bits<1>`).
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  wire a[8];
+  wire b[8];
+  wire sum[8];
+  wire mask[8];
+  wire flag[1];
+  {
+    sum = a + b;
+    mask = a & b;
+    flag = a == b;
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.wire "a" : !nsl.bits<8>
+// CHECK: nsl.wire "b" : !nsl.bits<8>
+// CHECK: nsl.wire "sum" : !nsl.bits<8>
+// CHECK: nsl.wire "mask" : !nsl.bits<8>
+// CHECK: nsl.wire "flag" : !nsl.bits<1>
+// CHECK: nsl.parallel
+// CHECK-DAG: nsl.add %{{.*}}, %{{.*}} : !nsl.bits<8>
+// CHECK-DAG: nsl.and %{{.*}}, %{{.*}} : !nsl.bits<8>
+// CHECK-DAG: nsl.eq %{{.*}}, %{{.*}} : !nsl.bits<8> -> !nsl.bits<1>
+// CHECK-DAG: nsl.transfer %{{.*}}, %{{.*}} : !nsl.bits<8>
+// CHECK-DAG: nsl.transfer %{{.*}}, %{{.*}} : !nsl.bits<1>

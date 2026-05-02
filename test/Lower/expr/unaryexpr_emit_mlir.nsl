@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/expr/unaryexpr_emit_mlir.nsl — US1 fixture covering
+// `ast::UnaryExpr` per FR-006 / FR-007 row "UnaryExpr → nsl.<op>".
+// Phase B Commit 2 (offload 2026-04-30): exercises four of the
+// six wired enumerators across the two op-trait classes:
+//   - SameOperandsAndResultType: `~` (BitNot) → `nsl.not`
+//   - SameOperandsAndResultType: `-` (Neg)    → `nsl.neg`
+//   - width-1-result reduction:  `&` (ReduceAnd) → `nsl.reduce_and`
+//   - width-1-result reduction:  `^` (ReduceXor) → `nsl.reduce_xor`
+// `LogicalNot` (`!`) and `ReduceOr` (`|`) share dispatch shape with
+// the listed reductions; `Plus` (`+x`) is the identity branch (no
+// op emitted) — covering them here is redundant per FR-006
+// per-AST-node-kind coverage policy.
+//
+// `SignExtendExpr` (`16#a` form per N5; result width from the
+// width-prefix Decimal literal) and `ZeroExtendExpr` (`16'(a)`
+// form) lower in the same commit because the offload bundles the
+// sign/zero-extend prefix forms with the unary table.
+//
+// Container shape: top-level par-block (matches the other
+// expression fixtures).
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  wire a[8];
+  wire bn[8];
+  wire ng[8];
+  wire fa[1];
+  wire fx[1];
+  wire qsx[16];
+  wire qzx[16];
+  {
+    bn = ~a;
+    ng = -a;
+    fa = &a;
+    fx = ^a;
+    qsx = 16#a;
+    qzx = 16'(a);
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.parallel
+// CHECK-DAG: nsl.not %{{.*}} : !nsl.bits<8>
+// CHECK-DAG: nsl.neg %{{.*}} : !nsl.bits<8>
+// CHECK-DAG: nsl.reduce_and %{{.*}} : !nsl.bits<8> -> !nsl.bits<1>
+// CHECK-DAG: nsl.reduce_xor %{{.*}} : !nsl.bits<8> -> !nsl.bits<1>
+// CHECK-DAG: nsl.sign_extend %{{.*}} : !nsl.bits<8> to !nsl.bits<16>
+// CHECK-DAG: nsl.zero_extend %{{.*}} : !nsl.bits<8> to !nsl.bits<16>

@@ -278,9 +278,15 @@ mlir::LogicalResult WireOp::verify() {
 }
 
 mlir::LogicalResult VariableOp::verify() {
-  if (!mlir::isa<BitsType>(getResult().getType())) {
-    return emitOpError() << "result type must be '!nsl.bits<N>', got "
-                         << getResult().getType();
+  // Post-merge M4-amendment 2026-05-02 (#5): result type is
+  // `!nsl.bits<N>` OR `!nsl.struct<@T>` (was bits-only).
+  // `NSLExpandVariablesPass` decomposes struct-typed variables
+  // per-field at M5.
+  mlir::Type t = getResult().getType();
+  if (!mlir::isa<BitsType>(t) && !mlir::isa<StructType>(t)) {
+    return emitOpError() << "result type must be '!nsl.bits<N>' or "
+                            "'!nsl.struct<@T>', got "
+                         << t;
   }
   return mlir::success();
 }
@@ -289,6 +295,250 @@ mlir::LogicalResult MemOp::verify() {
   if (!mlir::isa<MemType>(getResult().getType())) {
     return emitOpError() << "result type must be '!nsl.mem<[D x T]>', got "
                          << getResult().getType();
+  }
+  return mlir::success();
+}
+
+// ===========================================================================
+// 2.2bis Constant verifier (post-merge M4-amendment 2026-05-01)
+// ===========================================================================
+
+mlir::LogicalResult ConstantOp::verify() {
+  // Per the post-merge amendment: `value` (an I64) must fit in the result
+  // bits-type's width. We use unsigned-domain comparison — the I64Attr is
+  // semantically the bit-pattern of an N-bit unsigned integer, so a value
+  // of `(1 << N) - 1` is the largest legal pattern at width `N`.
+  auto bitsTy = mlir::cast<BitsType>(getResult().getType());
+  unsigned width = bitsTy.getWidth();
+  uint64_t raw = static_cast<uint64_t>(getValue());
+  if (width == 0) {
+    if (raw != 0) {
+      return emitOpError() << "value " << raw
+                           << " does not fit in '!nsl.bits<0>' "
+                              "(zero-width type admits only the value 0)";
+    }
+    return mlir::success();
+  }
+  if (width >= 64) {
+    // At width == 64, every I64 bit-pattern is admissible. Widths >64
+    // are deferred to a future amendment (the value attr is I64Attr).
+    return mlir::success();
+  }
+  uint64_t mask = (uint64_t{1} << width) - 1;
+  if (raw & ~mask) {
+    return emitOpError() << "value " << raw
+                         << " does not fit in '!nsl.bits<" << width << ">'";
+  }
+  return mlir::success();
+}
+
+// ===========================================================================
+// 2.2quater Expression-comparison + logical verifiers (post-merge
+//           M4-amendment 2026-05-02 cluster 2)
+// ===========================================================================
+//
+// Comparison + logical ops produce `!nsl.bits<1>` regardless of operand
+// width. The `SameTypeOperands` trait ensures `lhs` and `lhs` share a
+// type; this verifier covers the orthogonal "result is `!nsl.bits<1>`"
+// invariant. Logical-AND / -OR additionally require operand width = 1
+// (per the op descriptions); we surface that as part of the same
+// hand-written body to keep the diagnostic shape uniform.
+
+namespace {
+mlir::LogicalResult verifyResultIsBits1(mlir::Operation *op,
+                                        mlir::Type resultTy) {
+  auto bitsTy = mlir::dyn_cast<BitsType>(resultTy);
+  if (!bitsTy || bitsTy.getWidth() != 1) {
+    return op->emitOpError()
+           << "result type must be '!nsl.bits<1>', got " << resultTy;
+  }
+  return mlir::success();
+}
+
+mlir::LogicalResult verifyLogicalOpOperandsWidth1(mlir::Operation *op,
+                                                  mlir::Type lhsTy) {
+  auto bitsTy = mlir::dyn_cast<BitsType>(lhsTy);
+  if (!bitsTy || bitsTy.getWidth() != 1) {
+    return op->emitOpError()
+           << "logical-op operands must be '!nsl.bits<1>', got " << lhsTy;
+  }
+  return mlir::success();
+}
+} // namespace
+
+mlir::LogicalResult EqOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+mlir::LogicalResult NeOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+mlir::LogicalResult LtOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+mlir::LogicalResult LeOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+mlir::LogicalResult GtOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+mlir::LogicalResult GeOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+mlir::LogicalResult LandOp::verify() {
+  if (mlir::failed(verifyResultIsBits1(*this, getResult().getType()))) {
+    return mlir::failure();
+  }
+  return verifyLogicalOpOperandsWidth1(*this, getLhs().getType());
+}
+mlir::LogicalResult LorOp::verify() {
+  if (mlir::failed(verifyResultIsBits1(*this, getResult().getType()))) {
+    return mlir::failure();
+  }
+  return verifyLogicalOpOperandsWidth1(*this, getLhs().getType());
+}
+
+// Cluster 5 — unary reductions + logical-NOT. Trait-covered unary ops
+// (`nsl.not`, `nsl.neg`) have no hand-written body.
+mlir::LogicalResult LnotOp::verify() {
+  if (mlir::failed(verifyResultIsBits1(*this, getResult().getType()))) {
+    return mlir::failure();
+  }
+  return verifyLogicalOpOperandsWidth1(*this, getOperand().getType());
+}
+mlir::LogicalResult ReduceAndOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+mlir::LogicalResult ReduceOrOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+mlir::LogicalResult ReduceXorOp::verify() {
+  return verifyResultIsBits1(*this, getResult().getType());
+}
+
+// Cluster 6 — sign-extend / zero-extend. Both: result-width ≥ operand-
+// width (per the op-class description); equal widths are admissible
+// (degenerate identity — M5 lowering may emit them and downstream
+// canonicalization can fold).
+namespace {
+mlir::LogicalResult verifyExtendWidthsMonotonic(mlir::Operation *op,
+                                                mlir::Type operandTy,
+                                                mlir::Type resultTy,
+                                                llvm::StringRef name) {
+  auto fromBits = mlir::dyn_cast<BitsType>(operandTy);
+  auto toBits = mlir::dyn_cast<BitsType>(resultTy);
+  if (!fromBits || !toBits) {
+    // The `NSL_AnyBits` constraint already rejected this at parse-
+    // verify time; defensive return.
+    return mlir::success();
+  }
+  if (toBits.getWidth() < fromBits.getWidth()) {
+    return op->emitOpError() << name
+                             << " result width " << toBits.getWidth()
+                             << " is smaller than operand width "
+                             << fromBits.getWidth();
+  }
+  return mlir::success();
+}
+} // namespace
+
+mlir::LogicalResult SignExtendOp::verify() {
+  return verifyExtendWidthsMonotonic(*this, getOperand().getType(),
+                                     getResult().getType(), "sign_extend");
+}
+mlir::LogicalResult ZeroExtendOp::verify() {
+  return verifyExtendWidthsMonotonic(*this, getOperand().getType(),
+                                     getResult().getType(), "zero_extend");
+}
+
+// Cluster 7a — mux + concat.
+mlir::LogicalResult MuxOp::verify() {
+  // (1) cond must be `!nsl.bits<1>`.
+  auto condBits = mlir::dyn_cast<BitsType>(getCond().getType());
+  if (!condBits || condBits.getWidth() != 1) {
+    return emitOpError() << "condition must be '!nsl.bits<1>', got "
+                         << getCond().getType();
+  }
+  // (2) thenValue, elseValue, result share type (the NSL_BitsOrStruct
+  //     constraint admits both `!nsl.bits<N>` and `!nsl.struct<@T>`,
+  //     but mux requires all three to match exactly).
+  if (getThenValue().getType() != getElseValue().getType()) {
+    return emitOpError() << "then/else operand type mismatch: "
+                         << getThenValue().getType() << " vs "
+                         << getElseValue().getType();
+  }
+  if (getResult().getType() != getThenValue().getType()) {
+    return emitOpError() << "result type " << getResult().getType()
+                         << " does not match then/else operand type "
+                         << getThenValue().getType();
+  }
+  return mlir::success();
+}
+
+mlir::LogicalResult ConcatOp::verify() {
+  // (1) at least one operand.
+  if (getOperands().empty()) {
+    return emitOpError() << "must have at least one operand";
+  }
+  // (2) result width == sum of operand widths.
+  auto resultBits = mlir::dyn_cast<BitsType>(getResult().getType());
+  if (!resultBits) {
+    // NSL_AnyBits constraint already enforces this; defensive return.
+    return mlir::success();
+  }
+  unsigned sum = 0;
+  for (mlir::Value operand : getOperands()) {
+    auto opBits = mlir::dyn_cast<BitsType>(operand.getType());
+    if (!opBits) {
+      return mlir::success();
+    }
+    sum += opBits.getWidth();
+  }
+  if (sum != resultBits.getWidth()) {
+    return emitOpError() << "result width " << resultBits.getWidth()
+                         << " does not equal sum of operand widths " << sum;
+  }
+  return mlir::success();
+}
+
+// Cluster 7b — extract + repeat.
+mlir::LogicalResult ExtractOp::verify() {
+  auto operandBits = mlir::dyn_cast<BitsType>(getOperand().getType());
+  auto resultBits = mlir::dyn_cast<BitsType>(getResult().getType());
+  if (!operandBits || !resultBits) {
+    return mlir::success();
+  }
+  int64_t lowBit = getLowBit();
+  if (lowBit < 0) {
+    return emitOpError() << "'lowBit' attribute must be non-negative, got "
+                         << lowBit;
+  }
+  uint64_t low = static_cast<uint64_t>(lowBit);
+  uint64_t resWidth = resultBits.getWidth();
+  uint64_t opWidth = operandBits.getWidth();
+  if (low + resWidth > opWidth) {
+    return emitOpError() << "extract slice [lowBit=" << low
+                         << ", width=" << resWidth
+                         << "] exceeds operand width " << opWidth;
+  }
+  return mlir::success();
+}
+
+mlir::LogicalResult RepeatOp::verify() {
+  auto operandBits = mlir::dyn_cast<BitsType>(getOperand().getType());
+  auto resultBits = mlir::dyn_cast<BitsType>(getResult().getType());
+  if (!operandBits || !resultBits) {
+    return mlir::success();
+  }
+  int64_t count = getCount();
+  if (count < 1) {
+    return emitOpError() << "'count' attribute must be ≥ 1, got " << count;
+  }
+  uint64_t expected = static_cast<uint64_t>(count) * operandBits.getWidth();
+  if (expected != resultBits.getWidth()) {
+    return emitOpError() << "result width " << resultBits.getWidth()
+                         << " does not equal count×operand-width "
+                         << expected << " (count=" << count
+                         << ", operand-width=" << operandBits.getWidth() << ")";
   }
   return mlir::success();
 }
@@ -326,6 +576,15 @@ mlir::LogicalResult WhileOp::verify() {
 mlir::LogicalResult ForOp::verify() {
   if (!(*this)->getParentOfType<SeqOp>()) {
     return emitParentMismatch(*this, "seq");
+  }
+  // Post-merge M4-amendment 2026-05-02 (#5): `step` is `Variadic`,
+  // permitting either 0 (enum-form 2-operand) or 1 (C-style 3-operand)
+  // step values. Reject ≥ 2 step operands as ill-formed.
+  if (getStep().size() > 1) {
+    return emitOpError()
+           << "'step' may carry at most one operand (got " << getStep().size()
+           << "); use the 0-operand enum form (`nsl.for %init, %end`) or "
+              "the 1-operand C-style form (`nsl.for %init, %cond, %step`)";
   }
   // Loop-bound-attr shape: if a `loop_bound` attribute is present, it
   // MUST be an integer attribute (per the FR-013 row for `nsl.for`).
@@ -546,17 +805,33 @@ mlir::LogicalResult GotoOp::verify() {
 // ===========================================================================
 
 mlir::LogicalResult FireProbeOp::verify() {
-  // The `target` symbol ref MUST name a sibling `nsl.func_in` /
-  // `nsl.func_out` / `nsl.func_self`. Note: those control-terminal
-  // ops do NOT carry the `Symbol` trait at M4 (their identifying
-  // string lives in a `StrAttr` named `name`, not in `sym_name`).
-  // So we resolve manually: walk the enclosing `nsl.module`'s body
-  // and match on the `name` StrAttr of any sibling control terminal.
+  // The `target` symbol ref MUST name a sibling control-terminal
+  // (`nsl.func_in` / `nsl.func_out` / `nsl.func_self` — `name`
+  // StrAttr-keyed) OR a sibling Symbol-bearing procedure
+  // (`nsl.proc` / `nsl.state` — `sym_name` SymbolNameAttr-keyed),
+  // per S27 (constructive). Post-merge M4-amendment 2026-05-02 (#5)
+  // extends the legal target set from {func_in, func_out,
+  // func_self} to also include {proc_name (`nsl.proc`),
+  // state_name (`nsl.state`)} per S27's full target list.
+  //
+  // Lookup strategy: control terminals do NOT carry the `Symbol`
+  // trait at M4 (their identifying string lives in a `StrAttr`
+  // named `name`, not in `sym_name`), so we resolve manually by
+  // walking the enclosing `nsl.module`'s body and matching on
+  // the `name` StrAttr. `nsl.proc` IS a Symbol so its sibling
+  // lookup uses the standard `mlir::SymbolTable::lookupSymbolIn`
+  // path. `nsl.state` lives as a child of `nsl.proc` (NOT a
+  // sibling at module scope); fire_probe's S27-licit reference
+  // to a state requires the probe itself to be inside the
+  // owning proc body, so we additionally walk up through any
+  // enclosing `nsl.proc` to attempt a per-proc state-symbol
+  // lookup.
   auto moduleOp = (*this)->getParentOfType<ModuleOp>();
   if (!moduleOp) {
     return mlir::success();
   }
   llvm::StringRef target = getTarget();
+  // Walk #1: control terminals (StrAttr-keyed) at module scope.
   for (mlir::Operation &child : moduleOp.getBody().front()) {
     if (auto fin = mlir::dyn_cast<FuncInOp>(&child)) {
       if (fin.getName() == target) {
@@ -572,9 +847,33 @@ mlir::LogicalResult FireProbeOp::verify() {
       }
     }
   }
+  // Walk #2: Symbol-bearing `nsl.proc` at module scope (sibling).
+  // ModuleOp implements SymbolTable; lookupSymbolIn handles the
+  // sym_name-keyed match deterministically.
+  if (mlir::Operation *symOp = mlir::SymbolTable::lookupSymbolIn(
+          moduleOp.getOperation(),
+          mlir::StringAttr::get(getContext(), target))) {
+    if (mlir::isa<ProcOp>(symOp)) {
+      return mlir::success();
+    }
+  }
+  // Walk #3: Symbol-bearing `nsl.state` inside the enclosing
+  // `nsl.proc` (per-proc symbol scope; only reachable when the
+  // fire_probe itself is nested inside a proc body).
+  if (auto enclosingProc = (*this)->getParentOfType<ProcOp>()) {
+    if (mlir::Operation *symOp = mlir::SymbolTable::lookupSymbolIn(
+            enclosingProc.getOperation(),
+            mlir::StringAttr::get(getContext(), target))) {
+      if (mlir::isa<StateOp>(symOp)) {
+        return mlir::success();
+      }
+    }
+  }
   return emitOpError() << "'target' '" << target
                        << "' does not name a sibling 'nsl.func_in', "
-                          "'nsl.func_out', or 'nsl.func_self'";
+                          "'nsl.func_out', 'nsl.func_self', "
+                          "'nsl.proc', or (within an enclosing proc) "
+                          "'nsl.state'";
 }
 
 mlir::LogicalResult StructCastOp::verify() {

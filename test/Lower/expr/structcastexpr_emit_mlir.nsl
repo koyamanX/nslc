@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/expr/structcastexpr_emit_mlir.nsl — US1 fixture covering
+// `ast::StructCastExpr` per FR-006 / FR-007 row "StructCastExpr →
+// nsl.struct_cast + nsl.field chain". Phase B Commit 4 (T043).
+//
+// NSL grammar (`lang.ebnf §11`; parser at
+// `lib/Parse/ParseExpr.cpp:222-235`) requires at least one `.member`
+// after `(T)(x)` — `(MyRec)(raw)` alone is not a legal expression.
+// The cast lowers to a single `nsl.struct_cast` followed by a chain
+// of `nsl.field` ops, one per `memberPath` element. Phase B exercises
+// the single-level shape (one `.member` segment).
+//
+// Width discipline (per `StructCastOp::verify()` at
+// `lib/Dialect/NSL/IR/NSLOps.cpp:824-858`): the bits side's width
+// MUST equal the sum of the struct's field widths (here 8 + 24 = 32).
+//
+// Container: top-level `nsl.struct` (sibling of `nsl.module`, per
+// post-merge M4 amendment #3). The `(MyRec)(raw).a` access lowers
+// to `nsl.struct_cast` → `nsl.field {index = 0}` returning
+// `!nsl.bits<8>`. Per S18 (lang.ebnf:889) the first-declared field
+// occupies the MSB position; field index 0 = field "a".
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+struct MyRec {
+  a[8];
+  b[24];
+};
+
+module M {
+  wire raw[32];
+  wire result[8];
+  {
+    result = (MyRec)(raw).a;
+  }
+}
+
+// CHECK: nsl.struct @MyRec
+// CHECK-DAG: nsl.field_decl "a" : !nsl.bits<8>
+// CHECK-DAG: nsl.field_decl "b" : !nsl.bits<24>
+// CHECK: nsl.module @M
+// CHECK: nsl.wire "raw" : !nsl.bits<32>
+// CHECK: nsl.wire "result" : !nsl.bits<8>
+// CHECK: nsl.parallel
+// CHECK: nsl.struct_cast %{{.*}} : !nsl.bits<32> to !nsl.struct<@MyRec>
+// CHECK: nsl.field %{{.*}} {index = 0 : i64} : !nsl.struct<@MyRec> -> !nsl.bits<8>
+// CHECK: nsl.transfer %{{.*}}, %{{.*}} : !nsl.bits<8>

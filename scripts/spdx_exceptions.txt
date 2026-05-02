@@ -31,3 +31,34 @@
 # the JSON, but JSON formally has no recipe (data-model.md §entity 4).
 # -----------------------------------------------------------------------------
 .github/branch-protection.json
+
+# -----------------------------------------------------------------------------
+# M3-corpus golden artifacts (T106 / FR-030). Captured raw `nslc
+# -emit=mlir` stdout — adding an SPDX header would break the byte-
+# identical golden-diff invariant (the golden is the literal tool
+# output, not authored content). Each fixture's paired `pass.test`
+# file carries the SPDX header and IS checked. Exemption scope:
+# the .expected.mlir artifacts ONLY — listed explicitly per-Sn (the
+# spdx exceptions parser does not support glob patterns).
+# -----------------------------------------------------------------------------
+test/Lower/m3_corpus/s01/pass.expected.mlir
+test/Lower/m3_corpus/s02/pass.expected.mlir
+test/Lower/m3_corpus/s03/pass.expected.mlir
+test/Lower/m3_corpus/s04/pass.expected.mlir
+test/Lower/m3_corpus/s05/pass.expected.mlir
+test/Lower/m3_corpus/s06/pass.expected.mlir
+test/Lower/m3_corpus/s10/pass.expected.mlir
+test/Lower/m3_corpus/s11/pass.expected.mlir
+test/Lower/m3_corpus/s13/pass.expected.mlir
+test/Lower/m3_corpus/s14/pass.expected.mlir
+test/Lower/m3_corpus/s15/pass.expected.mlir
+test/Lower/m3_corpus/s17/pass.expected.mlir
+test/Lower/m3_corpus/s18/pass.expected.mlir
+test/Lower/m3_corpus/s20/pass.expected.mlir
+test/Lower/m3_corpus/s21/pass.expected.mlir
+test/Lower/m3_corpus/s22/pass.expected.mlir
+test/Lower/m3_corpus/s23/pass.expected.mlir
+test/Lower/m3_corpus/s24/pass.expected.mlir
+test/Lower/m3_corpus/s26/pass.expected.mlir
+test/Lower/m3_corpus/s27/pass.expected.mlir
+test/Lower/m3_corpus/s29/pass.expected.mlir

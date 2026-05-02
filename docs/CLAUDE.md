@@ -94,8 +94,9 @@ Rule of thumb: a typical task needs **2–4 sections totaling 200–600 lines**,
 - `design/nsl_compiler_design.md` lines **1099–1132** (§10 nsl → CIRCT lowering — your op needs a target)
 
 ### Writing a structural-expansion pass (generate-loop unroll, etc.)
-- `design/nsl_compiler_design.md` lines **1082–1095** (§9 pass list)
+- `design/nsl_compiler_design.md` lines **1163–1178** (§9 pass list)
 - `spec/nsl_lang.ebnf` — search for `generate` / structural-expansion clauses (§§ around 8)
+- M5 contract: `specs/008-m5-structural-passes/contracts/pass-pipeline.contract.md` §2 freezes the 6-slot pipeline (`nsl-resolve-params` → `nsl-expand-generate` → `nsl-expand-variables` → `nsl-explode-submod-array` → `nsl-inline-internal-func` (no-op slot per Q3 → Option B) → `nsl-check-semantics`)
 
 ### Implementing the LSP
 - `design/nsl_tooling_design.md` lines **105–292** (full LSP spec: features, scheduler, hover example)

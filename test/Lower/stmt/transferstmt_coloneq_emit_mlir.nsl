@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/stmt/transferstmt_coloneq_emit_mlir.nsl — US1 fixture
+// covering `ast::TransferStmt` with `Op::RegColonEq` (`:=`). Per
+// FR-006 lowering table row "TransferStmt × `:=` →
+// nsl.clocked_transfer". Identifier-LHS / identifier-RHS path: both
+// sides resolve through the transitional `nameTable_` populated by
+// the reg decls; the resulting op carries `SameTypeOperands`
+// (TableGen NSL_ClockedTransferOp), satisfied by both regs being
+// `!nsl.bits<8>`.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  reg q[8];
+  reg s[8];
+  {
+    q := s;
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.reg "q" : !nsl.bits<8>
+// CHECK: nsl.reg "s" : !nsl.bits<8>
+// CHECK: nsl.parallel
+// CHECK-NEXT: nsl.clocked_transfer %{{.*}}, %{{.*}} : !nsl.bits<8>

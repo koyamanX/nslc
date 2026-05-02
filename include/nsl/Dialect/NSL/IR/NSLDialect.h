@@ -44,6 +44,7 @@
 #include "mlir/IR/OperationSupport.h"
 #include "mlir/IR/RegionKindInterface.h"
 #include "mlir/IR/SymbolTable.h"
+#include "mlir/Interfaces/InferTypeOpInterface.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 
 // TableGen-generated dialect class declaration. Private build

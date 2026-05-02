@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/expr/concatexpr_emit_mlir.nsl — US1 fixture covering
+// `ast::ConcatExpr` per FR-006 / FR-007 row "ConcatExpr →
+// nsl.concat". Phase B Commit 3.
+//
+// Operand order is NSL's left-to-right MSB-first convention (per
+// S18 + §11 line 698). Result width is the sum of operand widths,
+// computed by inspecting each operand `mlir::Value`'s
+// `nsl::dialect::BitsType` width field.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  wire a[8];
+  wire b[8];
+  wire t[16];
+  {
+    t = {a, b};
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.parallel
+// CHECK: nsl.concat %{{.*}}, %{{.*}} : (!nsl.bits<8>, !nsl.bits<8>) -> !nsl.bits<16>
+// CHECK: nsl.transfer %{{.*}}, %{{.*}} : !nsl.bits<16>

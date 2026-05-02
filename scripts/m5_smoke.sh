@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+# scripts/m5_smoke.sh — Quick local smoke test: M5 round-trip on
+# every Phase 3 US1 fixture. Phase 3 helper; not committed long-term.
+set -e
+cd /workspace
+for f in test/Lower/module/empty_module_emit_mlir.nsl \
+         test/Lower/decl/regdecl_emit_mlir.nsl \
+         test/Lower/decl/regdecl_init_emit_mlir.nsl \
+         test/Lower/decl/wiredecl_emit_mlir.nsl \
+         test/Lower/decl/memdecl_emit_mlir.nsl \
+         test/Lower/decl/procdefn_emit_mlir.nsl \
+         test/Lower/decl/funcdefn_emit_mlir.nsl \
+         test/Lower/decl/firststate_emit_mlir.nsl \
+         test/Lower/action/parallelblock_emit_mlir.nsl \
+         test/Lower/action/seqblock_emit_mlir.nsl \
+         test/Lower/action/ifstmt_emit_mlir.nsl \
+         test/Lower/action/whileblock_emit_mlir.nsl \
+         test/Lower/action/forblock_cstyle_emit_mlir.nsl \
+         test/Lower/action/altblock_emit_mlir.nsl \
+         test/Lower/action/anyblock_emit_mlir.nsl \
+         test/Lower/stmt/transferstmt_eq_emit_mlir.nsl \
+         test/Lower/stmt/transferstmt_coloneq_emit_mlir.nsl \
+         test/Lower/stmt/controlcallstmt_emit_mlir.nsl \
+         test/Lower/stmt/controlcallstmt_dotted_emit_mlir.nsl \
+         test/Lower/stmt/barefinishstmt_emit_mlir.nsl \
+         test/Lower/stmt/systemtaskstmt_finish_emit_mlir.nsl \
+         test/Lower/stmt/systemtaskstmt_display_emit_mlir.nsl \
+         test/Lower/stmt/systemtaskstmt_init_emit_mlir.nsl \
+         test/Lower/stmt/systemtaskstmt_delay_emit_mlir.nsl \
+         test/Lower/expr/binaryexpr_emit_mlir.nsl \
+         test/Lower/expr/unaryexpr_emit_mlir.nsl \
+         test/Lower/expr/conditionalexpr_emit_mlir.nsl \
+         test/Lower/expr/sliceexpr_emit_mlir.nsl \
+         test/Lower/expr/concatexpr_emit_mlir.nsl \
+         test/Lower/expr/structcastexpr_emit_mlir.nsl \
+         test/Lower/expr/fieldaccessexpr_emit_mlir.nsl \
+         test/Lower/marker/fire_probe_emit_mlir.nsl \
+         test/Lower/variables/scalar_variable_emit_mlir.nsl \
+         test/sema/s01/pass.nsl \
+         test/sema/s06/pass.nsl \
+         test/sema/s14/pass.nsl \
+         test/sema/s22/pass.nsl; do
+  echo "=== $f ==="
+  build-noasan/bin/nslc -emit=mlir "$f" > /tmp/a.mlir 2>&1 || { echo "  nslc FAIL"; continue; }
+  build-noasan/bin/nsl-opt /tmp/a.mlir > /tmp/b.mlir 2>&1 || { echo "  nsl-opt FAIL: $(cat /tmp/b.mlir)"; continue; }
+  if diff -q /tmp/a.mlir /tmp/b.mlir > /dev/null; then
+    echo "  ROUND-TRIP PASS"
+  else
+    echo "  ROUND-TRIP DIFF:"
+    diff /tmp/a.mlir /tmp/b.mlir | head -10
+  fi
+done

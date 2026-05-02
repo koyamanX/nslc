@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/decl/wiredecl_emit_mlir.nsl — US1 fixture covering
+// `ast::WireDecl`. Per FR-006 lowering table row
+// "WireDecl → nsl.wire ...".
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  wire w[4];
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.wire "w" : !nsl.bits<4>

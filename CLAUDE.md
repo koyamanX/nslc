@@ -22,12 +22,15 @@ References to `lang.ebnf §X` are sections in
 `pp.ebnf §X` are sections in
 [`docs/spec/nsl_pp.ebnf`](./docs/spec/nsl_pp.ebnf).
 
-> **Status as of 2026-04-28**: M1 and M2 are delivered. The "M2"
-> column entries below (covering `lang.ebnf §§1–11` parse + AST +
-> N1/N2/N3/N5/N6/N7/N10/N11/N14 disambiguation + multi-error
-> recovery) are all green: `nslc -emit=ast` works end-to-end;
-> 169/169 ctest + 198/198 lit pass inside the dev container. M3
-> (Sema for `Sn` constraints) and beyond remain forward-looking.
+> **Status as of 2026-04-30**: M1, M2, M3, M4, and M5 (this branch,
+> pass-standalone) are delivered. The "M5 (...)" column entries
+> below — `%IDENT%` residue check (`NSLCheckSemanticsPass`),
+> `generate` unroll (`NSLExpandGeneratePass`), expression visitor
+> coverage, width / constant expressions (`NSLResolveParamsPass`) —
+> are all wired into the `Compilation::runNSLPasses` pipeline (slots
+> 1, 2, 6 of 6 per `008-m5-structural-passes/contracts/pass-pipeline.
+> contract.md` §2). 499/506 lit + 7 XFAIL pass inside the dev
+> container. M6 (lower-to-CIRCT) and beyond remain forward-looking.
 
 | Language area | Spec reference | Lex / parse / sema | Lower to dialect | Lower to CIRCT |
 |---|---|---|---|---|
@@ -154,22 +157,31 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `007-m4-mlir-dialect` — land the `nsl-dialect`
-(7) static library (TableGen + ODS-defined `nsl::*` MLIR ops + 3
-types + structural-invariant verifiers), build the operational
-`nsl-opt` developer/test binary, and wire `Compilation`'s
-dialect-load + `lowerToNSL` / `runNSLPasses` stub bodies (real
-bodies land at M5). Verifier scope: structural invariants only
-(per /speckit-clarify Q1 Option A — preserves the architectural
-seam from Sema); parent-op invariants split between TableGen
-`HasParent` (immediate) and hand-written ancestor-walk (transitive,
-per Q2 Option B). For technologies, project structure, op + type
-entity catalog, contracts, and quickstart, read the current plan:
-[`specs/007-m4-mlir-dialect/plan.md`](./specs/007-m4-mlir-dialect/plan.md).
+**Active feature**: `008-m5-structural-passes` — land `nsl-lower`
+part 1 (layer 8a): the AST → `nsl` MLIR dialect lowering visitor
+(`ASTToMLIR`, single-pass with `SymbolTable` lazy resolution per
+/speckit-clarify Q4 → Option A) plus the six-pass structural-
+expansion pipeline (`NSLResolveParamsPass` →
+`NSLExpandGeneratePass` → `NSLExpandVariablesPass` →
+`NSLExplodeSubmodArrayPass` → `NSLInlineInternalFuncPass` (no-op
+slot at M5 per Q3 → Option B) → `NSLCheckSemanticsPass`). Wires
+`Compilation::lowerToNSL` / `runNSLPasses` (M4-stub bodies → real
+bodies) and the new `nslc -emit=mlir` driver flag (default printer
+output per Q2 → Option A). `%IDENT%` residue detection is regex
+over `mlir::StringAttr` values (per Q1 → Option B); the
+`NSLCheckSemanticsPass` re-checks exactly six post-expansion-
+sensitive `Sn` (S6, S10, S15, S16, S20, S25 — list frozen by
+`contracts/residue-detection.contract.md` §3 + `pass-pipeline.contract.md`
+§3). Public umbrella header `Lower.h` exports 8 frozen symbols
+(visitor entry + 6 pass constructors + 1 registration helper);
+M4 dialect contract is unchanged. For technologies, project
+structure, entity catalog, contracts, and quickstart, read the
+current plan:
+[`specs/008-m5-structural-passes/plan.md`](./specs/008-m5-structural-passes/plan.md).
 Companion artifacts:
-[`spec.md`](./specs/007-m4-mlir-dialect/spec.md),
-[`research.md`](./specs/007-m4-mlir-dialect/research.md),
-[`data-model.md`](./specs/007-m4-mlir-dialect/data-model.md),
-[`contracts/`](./specs/007-m4-mlir-dialect/contracts/),
-[`quickstart.md`](./specs/007-m4-mlir-dialect/quickstart.md).
+[`spec.md`](./specs/008-m5-structural-passes/spec.md),
+[`research.md`](./specs/008-m5-structural-passes/research.md),
+[`data-model.md`](./specs/008-m5-structural-passes/data-model.md),
+[`contracts/`](./specs/008-m5-structural-passes/contracts/),
+[`quickstart.md`](./specs/008-m5-structural-passes/quickstart.md).
 <!-- SPECKIT END -->

@@ -885,14 +885,102 @@ We introduce a dedicated MLIR dialect called `nsl` that represents NSL at a leve
 # Module-level
 nsl.module @Name { ... }             # container for a module; inputs/outputs as ports
 nsl.struct @Name { field types }     # structural type declaration
+                                     # Post-merge M4-amendment 2026-05-02 #3:
+                                     # parent ∈ {::mlir::ModuleOp, ModuleOp}
+                                     # (was strict HasParent<"ModuleOp">). Top-
+                                     # level structs (sibling of nsl.module) are
+                                     # legal — matches NSL grammar (lang.ebnf §1).
 nsl.submodule @Inst : @Template
+                                     # Post-merge M4-amendment 2026-05-02 #4:
+                                     # adds OPTIONAL `array_size : I64Attr`
+                                     # — the printer emits `@Inst : @Template[N]`
+                                     # for the array form (NSL `SUB[3] inst;`);
+                                     # singleton form unchanged. M5's
+                                     # NSLExplodeSubmodArrayPass replicates each
+                                     # entry per FR-016.
 nsl.connect %sub.port, %sig          # structural wiring
 
+# Top-level integer / string parameters (per S16 + grammar §3.1)
+# Post-merge M4-amendment 2026-05-02 #4: closes the M5 US2 gap
+# (NSLResolveParamsPass slot 1 needs an IR target to consume).
+# Both Symbol-bearing; parent = mlir::ModuleOp (top-level placement).
+nsl.param_int @N      = 8            # Verilog/VHDL/SystemC submodule param_int
+nsl.param_str @WIDTH  = "8"          # Verilog/VHDL/SystemC submodule param_str
+
 # Terminal / register / memory
+# Post-merge M4-amendment 2026-05-02 (#5):
+#   * nsl.reg parent now ParentOneOf<["ModuleOp", "ProcOp",
+#     "StructuralGenerateOp"]> (was ProcOp/ModuleOp) so generate
+#     blocks may declare per-iteration registers in their bodies.
+#   * nsl.wire parent now ParentOneOf<["ModuleOp", "FuncOp"]>
+#     (was ModuleOp only) so NSLExpandVariablesPass can replace
+#     func-scope variables with sibling wires.
+#   * nsl.variable result type now NSL_BitsOrStruct (was bits-only)
+#     to admit struct-typed variables for the FR-015 per-field
+#     SSA-split chain.
 nsl.reg "name" : !nsl.bits<4> = 0    # carries init attribute
 nsl.wire "name" : !nsl.bits<8>
 nsl.variable "name" : !nsl.bits<8>
+nsl.variable "s" : !nsl.struct<@T>   # struct-typed (post-amendment #5)
 nsl.mem "name" [256 x i8]
+
+# Bit-vector constant (Pure + ConstantLike value-producer)
+# Post-merge M4-amendment 2026-05-01: closes M5's expression-lowering gap
+# (every LiteralExpr lowering needs an mlir::Value of !nsl.bits<N> to
+# feed nsl.transfer's SameTypeOperands-constrained $src).
+nsl.constant 0   : !nsl.bits<8>
+nsl.constant 255 : !nsl.bits<8>
+
+# Expression-position ops (post-merge M4-amendment 2026-05-02 #2;
+# see contracts/dialect-api.contract.md §2 post-merge note #2 for the
+# full four-way-decision rationale)
+#
+# Binary arithmetic (Pure + SameOperandsAndResultType + Commutative
+# where applicable) — EBNF §11 lines 622, 624, 610–614, 620:
+nsl.add %a, %b : !nsl.bits<N>            # NSL + (Commutative)
+nsl.sub %a, %b : !nsl.bits<N>            # NSL -
+nsl.mul %a, %b : !nsl.bits<N>            # NSL * (Commutative)
+nsl.and %a, %b : !nsl.bits<N>            # NSL & (Commutative; binary, per N2)
+nsl.or  %a, %b : !nsl.bits<N>            # NSL | (Commutative; binary, per N2)
+nsl.xor %a, %b : !nsl.bits<N>            # NSL ^ (Commutative; binary, per N2)
+nsl.shl %a, %b : !nsl.bits<N>            # NSL <<
+nsl.shr %a, %b : !nsl.bits<N>            # NSL >> (logical / unsigned)
+
+# Comparison (Pure + SameTypeOperands; result `!nsl.bits<1>` per
+# hand-verifier; EBNF §11 lines 616, 618):
+nsl.eq %a, %b : !nsl.bits<N> -> !nsl.bits<1>   # NSL == (Commutative)
+nsl.ne %a, %b : !nsl.bits<N> -> !nsl.bits<1>   # NSL != (Commutative)
+nsl.lt %a, %b : !nsl.bits<N> -> !nsl.bits<1>   # NSL <
+nsl.le %a, %b : !nsl.bits<N> -> !nsl.bits<1>   # NSL <=
+nsl.gt %a, %b : !nsl.bits<N> -> !nsl.bits<1>   # NSL >
+nsl.ge %a, %b : !nsl.bits<N> -> !nsl.bits<1>   # NSL >=
+
+# Logical AND / OR (operand AND result `!nsl.bits<1>`; §11 lines 606–608):
+nsl.land %a, %b : !nsl.bits<1> -> !nsl.bits<1> # NSL && (Commutative)
+nsl.lor  %a, %b : !nsl.bits<1> -> !nsl.bits<1> # NSL || (Commutative)
+
+# Unary (Pure + SameOperandsAndResultType for trait-covered ops):
+nsl.not %a : !nsl.bits<N>                # NSL ~ (bitwise NOT)
+nsl.neg %a : !nsl.bits<N>                # NSL unary - (two's complement)
+
+# Unary reductions + logical NOT (Pure; result `!nsl.bits<1>`):
+nsl.lnot       %a : !nsl.bits<1> -> !nsl.bits<1>     # NSL !
+nsl.reduce_and %a : !nsl.bits<N> -> !nsl.bits<1>     # NSL &-prefix
+nsl.reduce_or  %a : !nsl.bits<N> -> !nsl.bits<1>     # NSL |-prefix
+nsl.reduce_xor %a : !nsl.bits<N> -> !nsl.bits<1>     # NSL ^-prefix (parity)
+
+# Width-changing extends (Pure; verifier asserts result-width ≥
+# operand-width; EBNF §11 lines 702–705):
+nsl.sign_extend %a : !nsl.bits<M> to !nsl.bits<N>    # NSL N#expr
+nsl.zero_extend %a : !nsl.bits<M> to !nsl.bits<N>    # NSL N'(expr)
+
+# Conditional + concat + slice + repeat (cluster 7a/7b):
+nsl.mux %c, %a, %b : !nsl.bits<1>, !nsl.bits<N>, !nsl.bits<N> -> !nsl.bits<N>
+                                                     # NSL `if (c) a else b` (S14 mandates else)
+nsl.concat %a, %b, %c : (!nsl.bits<W1>, !nsl.bits<W2>, !nsl.bits<W3>) -> !nsl.bits<W>
+                                                     # NSL `{a, b, c}` (W = W1+W2+W3)
+nsl.extract %v, K : !nsl.bits<W> -> !nsl.bits<R>     # NSL `v[K+R-1:K]` (S15 const idx)
+nsl.repeat  %a, N : !nsl.bits<W> -> !nsl.bits<N*W>   # NSL N{a}
 
 # Control terminals  (each parameterized by dummy args + optional return)
 nsl.func_in "do"(%a, %b) : !nsl.bits<8>
@@ -906,7 +994,9 @@ nsl.if %cond { ... } else { ... }
 nsl.parallel { ... }
 nsl.seq { ... }
 nsl.while %cond { ... }
-nsl.for %init, %cond, %step { ... }
+nsl.for %init, %cond, %step { ... }     # 3-operand C-style form
+nsl.for %init, %end { ... }              # 2-operand enum form (post-amendment #5);
+                                          # NSL `for (i = 0..N) { ... }`. step Variadic 0|1.
 
 # Atomic actions
 nsl.transfer %dst, %src          : !nsl.bits<N>       # wire-style =
@@ -923,10 +1013,15 @@ nsl.first_state @stName                                # inside a proc
 nsl.state @stName { ... nsl.goto @other ... }
 nsl.func @scopedName { ... }
 
-# System tasks
+# System tasks (per Phase 3 corpus + post-merge amendment #7).
+# `sim_display`, `sim_delay`, and `sim_finish` accept either an
+# enclosing `nsl.module` (top-level placement) OR a sibling
+# `nsl.sim_init` body (the `_init { _display; _delay; _finish; }`
+# idiom per S29 — `lang.ebnf §10` line 1007). `nsl.sim_init` is
+# module-level only (S29 forbids nesting).
 nsl.sim_display "fmt", %args
-nsl.sim_finish "fmt", %args
-nsl.sim_init { ... nsl.sim_delay 10 ... }
+nsl.sim_finish "reason"
+nsl.sim_init { ... nsl.sim_delay 10 ... nsl.sim_finish "done" ... }
 
 # Marker / lowering-helper ops (consolidated for §7)
 #   Introduced organically by §§8–10; mirrored here so §7 is the
@@ -940,9 +1035,17 @@ nsl.case %cond { ... }                    # one branch inside nsl.alt / nsl.any
 nsl.default { ... }                       # default branch inside nsl.alt / nsl.any
 nsl.goto @target                          # state-scope (S25) or label-scope transfer
 nsl.fire_probe @ctrlName                  # control-terminal name used as 1-bit value (S27);
-                                          # marker lowered later to a 1-bit tap
+                                          # marker lowered later to a 1-bit tap.
+                                          # Post-amendment #5: target also accepts sibling
+                                          # nsl.proc (proc_name) at module scope, and
+                                          # sibling nsl.state (state_name) inside an
+                                          # enclosing nsl.proc body.
 nsl.structural_generate { ... }           # generate-loop carrier; unrolled by
                                           # NSLExpandGeneratePass (§9) before CIRCT lowering
+                                          # Post-merge M4-amendment 2026-05-02 #4: adds
+                                          # OPTIONAL `loop_var : StrAttr` carrying the
+                                          # loop variable name (e.g., "i") so the pass
+                                          # knows which %IDENT% residue to substitute.
 ```
 
 ### Why a dedicated dialect
@@ -1065,7 +1168,7 @@ Every MLIR op created carries the AST node's `SourceRange` as an `mlir::Location
 | `FirstStateDecl` | `nsl.first_state @s` | attribute-like child of `nsl.proc` |
 | `AltBlock` | `nsl.alt { nsl.case %c1 { ... } ... }` | preserves priority ordering |
 | `AnyBlock` | `nsl.any { nsl.case %c1 { ... } ... }` | parallel semantics preserved |
-| `SeqBlock` | `nsl.seq { ... }` | only valid inside a `nsl.func` |
+| `SeqBlock` | `nsl.seq { ... }` | parent ∈ {`nsl.func`, `nsl.proc`, `nsl.state`} per S7 (post-merge amendment 2026-04-30 #6) |
 | `WhileBlock` | `nsl.while %c { ... }` | only valid inside a `nsl.seq` |
 | `ForBlock` (enum) | `nsl.for %init, %end { ... }` | compiler uses shape to pick form |
 | `ForBlock` (C-style) | `nsl.for %init, %cond, %step { ... }` | |
@@ -1121,6 +1224,38 @@ The main lowering into CIRCT core dialects is done by a conversion pass (`NSLToC
 | `nsl.call` to `func_in` | direct combinational path + 1-bit valid signal |
 | `nsl.call` to `proc_name` | `fsm.transition` to the target proc's initial state |
 | `nsl.sim_display` et al. | `sv.fwrite`, `sv.finish`, etc., guarded by an `sv.ifdef "SIMULATION"` |
+| `nsl.add` (post-merge M4-amendment 2026-05-02 #2) | `comb.add` |
+| `nsl.sub` (M4-amendment #2) | `comb.sub` |
+| `nsl.mul` (M4-amendment #2) | `comb.mul` |
+| `nsl.and` (M4-amendment #2) | `comb.and` |
+| `nsl.or` (M4-amendment #2) | `comb.or` |
+| `nsl.xor` (M4-amendment #2) | `comb.xor` |
+| `nsl.shl` (M4-amendment #2) | `comb.shl` |
+| `nsl.shr` (M4-amendment #2) | `comb.shru` (logical / unsigned right shift) |
+| `nsl.eq` (M4-amendment #2) | `comb.icmp eq` |
+| `nsl.ne` (M4-amendment #2) | `comb.icmp ne` |
+| `nsl.lt` (M4-amendment #2) | `comb.icmp ult` |
+| `nsl.le` (M4-amendment #2) | `comb.icmp ule` |
+| `nsl.gt` (M4-amendment #2) | `comb.icmp ugt` |
+| `nsl.ge` (M4-amendment #2) | `comb.icmp uge` |
+| `nsl.land` (M4-amendment #2) | `comb.and` (on width-1 operands) |
+| `nsl.lor` (M4-amendment #2) | `comb.or` (on width-1 operands) |
+| `nsl.not` (M4-amendment #2) | `comb.xor %a, all-ones` |
+| `nsl.neg` (M4-amendment #2) | `comb.sub 0, %a` |
+| `nsl.lnot` (M4-amendment #2) | `comb.icmp eq %a, 0` |
+| `nsl.reduce_and` (M4-amendment #2) | `comb.icmp eq %a, all-ones` |
+| `nsl.reduce_or` (M4-amendment #2) | `comb.icmp ne %a, 0` |
+| `nsl.reduce_xor` (M4-amendment #2) | `comb.parity` |
+| `nsl.sign_extend` (M4-amendment #2) | `comb.concat (replicate MSB, operand)` (or `hwarith.cast` when CIRCT lands it) |
+| `nsl.zero_extend` (M4-amendment #2) | `comb.concat (zeros, operand)` |
+| `nsl.mux` (M4-amendment #2) | `comb.mux` |
+| `nsl.concat` (M4-amendment #2) | `comb.concat` (variadic) |
+| `nsl.extract` (M4-amendment #2) | `comb.extract` (`lowBit` IntegerAttr + result-type-derived width) |
+| `nsl.repeat` (M4-amendment #2) | `comb.replicate` (or N-fold `comb.concat`) |
+| `nsl.param_int` (M4-amendment #4) | `hw.instance` parameter wire on every consuming `hw.instance` (Verilog/VHDL/SystemC submodule param_int per S16) |
+| `nsl.param_str` (M4-amendment #4) | `hw.instance` parameter wire (string-typed) per S16 |
+| `nsl.submodule` (array form, M4-amendment #4) | per-element `hw.instance` (M5's `NSLExplodeSubmodArrayPass` replicates the singleton form before M6 lowering, so by the time `nsl→hw` runs the array form is gone) |
+| `nsl.structural_generate` (and its `loop_var` field, M4-amendment #4) | no CIRCT counterpart — fully eliminated by M5's `NSLExpandGeneratePass` before M6 lowering |
 
 After this pass the module is entirely in CIRCT's `hw`/`comb`/`seq`/`fsm`/`sv` dialects. From here, the pipeline invokes stock CIRCT passes:
 

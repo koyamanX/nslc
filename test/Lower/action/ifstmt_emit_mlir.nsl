@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/action/ifstmt_emit_mlir.nsl — US1 fixture covering
+// `ast::IfStmt`. Per FR-006 lowering table row "IfStmt → nsl.if %cond
+// { ... } else { ... }" (design §7 line 905). Two regions; the else
+// region is structurally required by `SizedRegion<1>` even when the
+// AST `IfStmt::elseBr` is null — the visitor materialises an empty
+// else block in that case, matching the M4 round-trip fixture
+// `test/Dialect/action-block/if_roundtrip.mlir` shape (`{ } else { }`).
+//
+// Container shape: top-level `par-block` (matches the existing
+// `binaryexpr_emit_mlir.nsl` shape — `nsl.parallel` carries no
+// `HasParent`, and `nsl.if` likewise has no `HasParent` constraint
+// per `lib/Dialect/NSL/IR/NSLOps.td §2.4`).
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  wire c[1];
+  wire a[8];
+  wire b[8];
+  {
+    if (c) {
+      a = b;
+    }
+    if (c) {
+      a = b;
+    } else {
+      a = b;
+    }
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.wire "c" : !nsl.bits<1>
+// CHECK: nsl.parallel
+// CHECK: nsl.if %{{.*}} : !nsl.bits<1>
+// CHECK: nsl.transfer %{{.*}}, %{{.*}} : !nsl.bits<8>
+// CHECK: } else {
+// CHECK: nsl.if %{{.*}} : !nsl.bits<1>
+// CHECK: nsl.transfer %{{.*}}, %{{.*}} : !nsl.bits<8>
+// CHECK: } else {
+// CHECK: nsl.transfer %{{.*}}, %{{.*}} : !nsl.bits<8>

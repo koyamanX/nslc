@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/action/seqblock_emit_mlir.nsl — US1 fixture covering
+// `ast::SeqBlock`. Per FR-006 row "SeqBlock → nsl.seq { ... }".
+// `nsl.seq` carries `HasParent<"FuncOp">` (per NSLOps.td §2.4),
+// so the seq body must live inside a `nsl.func`. Body items
+// recursion lands once expression-Value plumbing matures (T055);
+// this fixture exercises the empty-body shell.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+module M {
+  func reset {
+    seq { }
+  }
+}
+
+// CHECK: nsl.module @M
+// CHECK: nsl.func @reset
+// CHECK-NEXT: nsl.seq

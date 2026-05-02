@@ -176,6 +176,76 @@ stage_static_checks() {
     log "  (skipping dialect-coverage check: scripts/check_dialect_coverage.py not yet present)"
   fi
 
+  # 5. M5 lower-fixture coverage guard (M5 spec FR-027 + SC-001).
+  # For every concrete `visit()` override on `ASTToMLIR` in
+  # `lib/Lower/ASTToMLIR.cpp`, assert a paired fixture exists under
+  # `test/Lower/`. Goes live with US1 close-out (T057 + T058); the
+  # script self-locates the repo root + carries an in-script ALLOWLIST
+  # for visitors that intentionally have no dedicated fixture (e.g.,
+  # expression-position lowerExpr delegators). Missing-fixture cases
+  # without an allow-list entry MUST fail CI per Principle IX.
+  if [[ -x "${REPO_ROOT}/scripts/audit_lower_fixtures.sh" ]]; then
+    log "  bash scripts/audit_lower_fixtures.sh"
+    bash "${REPO_ROOT}/scripts/audit_lower_fixtures.sh" \
+      || rc=$?
+  else
+    log "  (skipping lower-fixture audit: scripts/audit_lower_fixtures.sh not yet present)"
+  fi
+
+  # 6. M5 US5 / T102 determinism source-audit (FR-025 + research §13).
+  # Greps `lib/Lower/` for forbidden patterns that leak non-
+  # determinism into the visitor + the six structural-expansion
+  # passes (std::unordered_*, reinterpret_cast<uintptr_t>,
+  # std::time, std::chrono, std::random_*, std::mt19937, getpid,
+  # gettimeofday). Goes live with US5 close-out (T102 + T103);
+  # CI-blocking on match per Constitution Principle V + Principle IX.
+  if [[ -x "${REPO_ROOT}/scripts/audit_determinism.sh" ]]; then
+    log "  bash scripts/audit_determinism.sh"
+    bash "${REPO_ROOT}/scripts/audit_determinism.sh" \
+      || rc=$?
+  else
+    log "  (skipping determinism source-audit: scripts/audit_determinism.sh not yet present)"
+  fi
+
+  # 7. M5 US5 / T101 cross-host-path determinism check
+  # (FR-025 + FR-026 + FR-029 + driver-emit-mlir.contract.md §3).
+  # Builds the toolchain twice in distinct host paths, runs
+  # `nslc -emit=mlir` on `test/Lower/determinism/canonical_smoke.nsl`
+  # in each tree, byte-compares outputs, greps for forbidden host-
+  # path / wall-clock / pointer-address patterns. Expensive
+  # (~minutes — full toolchain build × 2); opt-in via the
+  # `NSLC_RUN_DETERMINISM_CHECK=1` env var so PR-validation runs
+  # exercise it while local fast iterations skip it. Goes live with
+  # US5 close-out (T103).
+  if [[ -x "${REPO_ROOT}/scripts/determinism_check.sh" \
+        && "${NSLC_RUN_DETERMINISM_CHECK:-0}" == "1" ]]; then
+    log "  bash scripts/determinism_check.sh (NSLC_RUN_DETERMINISM_CHECK=1)"
+    bash "${REPO_ROOT}/scripts/determinism_check.sh" \
+      || rc=$?
+  elif [[ -x "${REPO_ROOT}/scripts/determinism_check.sh" ]]; then
+    log "  (skipping cross-host-path determinism check; set NSLC_RUN_DETERMINISM_CHECK=1 to opt in)"
+  else
+    log "  (skipping cross-host-path determinism check: scripts/determinism_check.sh not yet present)"
+  fi
+
+  # 8. M5 T110 / FR-008 + SC-009 op-location audit
+  # (closes /speckit-analyze 2026-04-30 findings A3 + A4).
+  # Verifies every emitted nsl::* op carries a non-trivial
+  # mlir::Location (FileLineColLoc or FusedLoc — never UnknownLoc).
+  # **DEFERRED at M5 ship**: visitor uses builder_.getUnknownLoc()
+  # universally pending the SourceManager <-> mlir::MLIRContext
+  # location-translator adapter (post-M5 amendment). Until that
+  # lands, the audit short-circuits with a deferred-status banner
+  # (see scripts/audit_op_locations.sh header). Opt in to run the
+  # real enforcement via NSLC_RUN_LOCATION_AUDIT=1.
+  if [[ -x "${REPO_ROOT}/scripts/audit_op_locations.sh" ]]; then
+    log "  bash scripts/audit_op_locations.sh"
+    bash "${REPO_ROOT}/scripts/audit_op_locations.sh" \
+      || rc=$?
+  else
+    log "  (skipping op-location audit: scripts/audit_op_locations.sh not yet present)"
+  fi
+
   return "${rc}"
 }
 

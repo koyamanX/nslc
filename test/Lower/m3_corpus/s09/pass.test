@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/m3_corpus/s09/pass.test — M5 T106 / FR-030 / SC-003.
+// Auto-generated golden-diff harness paired with pass.expected.mlir.
+// Asserts `nslc -emit=mlir` on the M3 Sema pass-case fixture for
+// constraint S09 (`for` loop variable must be a reg) produces byte-
+// identical output to the captured golden.
+//
+// Originally XFAIL'd because the visitor's `lowerExpr(LiteralExpr)`
+// defaulted unsized literals to `!nsl.bits<1>`, producing a verifier
+// error on `for (i := 0; i < 8; i++)` (`nsl.constant 8` doesn't fit
+// in `!nsl.bits<1>`). The lowerExpr `typeHint` plumbing introduced
+// in this fix-bug pass propagates the loop-var's type through the
+// comparison's RHS, so the literal `8` widens to `!nsl.bits<8>`.
+// Test re-enabled.
+//
+// RUN: %nslc -emit=mlir %S/../../../sema/s09/pass.nsl > %t.actual.mlir
+// RUN: diff %t.actual.mlir %S/pass.expected.mlir
