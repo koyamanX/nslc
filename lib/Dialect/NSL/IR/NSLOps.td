@@ -240,12 +240,21 @@ def NSL_ParamStrOp : NSL_Op<"param_str", [
 //===----------------------------------------------------------------------===//
 
 def NSL_RegOp : NSL_Op<"reg", [
-    ParentOneOf<["ModuleOp", "ProcOp"]>]> {
+    ParentOneOf<["ModuleOp", "ProcOp", "StructuralGenerateOp"]>]> {
   let summary = "An NSL register (clocked storage).";
   let description = [{
     `nsl.reg "name" : !nsl.bits<N> = init` (or `!nsl.struct<@T>`).
     The `init` attribute is the register's reset value; per FR-013
     the result type is one of `!nsl.bits<N>` or `!nsl.struct<@T>`.
+
+    Post-merge M4-amendment 2026-05-02 (#5): the parent constraint
+    is widened from `ParentOneOf<["ModuleOp", "ProcOp"]>` to also
+    admit `StructuralGenerateOp` so that `generate` blocks (per
+    NSL grammar `lang.ebnf §8`) may declare per-iteration registers
+    inside their bodies. M5's `NSLExpandGeneratePass` (slot 2)
+    consumes the `StructuralGenerateOp` and replicates the body
+    once per iteration; the resulting registers all reparent to the
+    enclosing `ModuleOp` after expansion.
   }];
   let arguments = (ins
     StrAttr:$name,
@@ -257,11 +266,21 @@ def NSL_RegOp : NSL_Op<"reg", [
   let hasVerifier = 1;
 }
 
-def NSL_WireOp : NSL_Op<"wire", [HasParent<"ModuleOp">]> {
+def NSL_WireOp : NSL_Op<"wire",
+    [ParentOneOf<["ModuleOp", "FuncOp"]>]> {
   let summary = "An NSL wire (combinational signal).";
   let description = [{
     `nsl.wire "name" : !nsl.bits<N>`. Per FR-013, wires never carry a
     `!nsl.struct<@T>` result type.
+
+    Post-merge M4-amendment 2026-05-02 (#5): the parent constraint
+    is widened from `HasParent<"ModuleOp">` to
+    `ParentOneOf<["ModuleOp", "FuncOp"]>` so that
+    `NSLExpandVariablesPass` (slot 3) can replace func-scope
+    `nsl.variable` ops with sibling `nsl.wire` ops without hoisting
+    them out of the enclosing `nsl.func`. The pass remains scope-
+    deterministic: per-version wires share their scope with the
+    variable they replace.
   }];
   let arguments = (ins StrAttr:$name);
   let results = (outs NSL_AnyBits:$result);
@@ -273,11 +292,14 @@ def NSL_VariableOp : NSL_Op<"variable", [
     ParentOneOf<["ModuleOp", "FuncOp"]>]> {
   let summary = "An NSL variable (local mutable scalar).";
   let description = [{
-    `nsl.variable "name" : !nsl.bits<N>`. Per FR-013, variables carry
-    `!nsl.bits<N>` only.
+    `nsl.variable "name" : !nsl.bits<N>` or `!nsl.struct<@T>`. Per
+    FR-013 + post-merge M4-amendment 2026-05-02 (#5), variables
+    carry either a bits-type or a struct-type result; struct-typed
+    variables enable the FR-015 per-field SSA-split chain in
+    `NSLExpandVariablesPass`.
   }];
   let arguments = (ins StrAttr:$name);
-  let results = (outs NSL_AnyBits:$result);
+  let results = (outs NSL_BitsOrStruct:$result);
   let assemblyFormat = "$name `:` type($result) attr-dict";
   let hasVerifier = 1;
 }
@@ -874,14 +896,29 @@ def NSL_WhileOp : NSL_Op<"while", [NoTerminator, SingleBlock]> {
 }
 
 def NSL_ForOp : NSL_Op<"for", [NoTerminator, SingleBlock]> {
-  let summary = "C-style three-operand for-loop (transitive parent = `nsl.seq`).";
+  let summary = "For-loop (transitive parent = `nsl.seq`); 2- or 3-operand.";
+  let description = [{
+    Two surface forms per NSL grammar `lang.ebnf §8`:
+      * **C-style 3-operand**: `nsl.for %init, %cond, %step { ... }`
+        materialises the canonical `(init; cond; step)` triplet.
+      * **Enum-form 2-operand** (post-merge M4-amendment 2026-05-02
+        #5): `nsl.for %init, %end { ... }` materialises the NSL
+        spec's `for (i = 0..N) { ... }` shape, where `step` is
+        implicit (`i++`). The `step` operand is `Variadic`; zero
+        operands is the enum form, exactly one operand is the
+        C-style form. (Two or more is rejected by the verifier.)
+
+    Either form requires a transitive `nsl.seq` ancestor (per Q2
+    Option B, hand-written ancestor walk in `ForOp::verify()`).
+    The body region is unchanged across forms.
+  }];
   let arguments = (ins
     NSL_BitsOrStruct:$init,
     NSL_AnyBits:$cond,
-    NSL_BitsOrStruct:$step);
+    Variadic<NSL_BitsOrStruct>:$step);
   let regions = (region SizedRegion<1>:$body);
   let assemblyFormat = [{
-    $init `,` $cond `,` $step `:` type($init) `,` type($cond) `,` type($step) attr-dict-with-keyword $body
+    $init `,` $cond ( `,` $step^ )? `:` type($init) `,` type($cond) ( `,` type($step)^ )? attr-dict-with-keyword $body
   }];
   let hasVerifier = 1;
 }

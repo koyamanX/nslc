@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-// XFAIL: *
 // RUN: nsl-opt -nsl-expand-variables %s | FileCheck %s
 //
 // M5 US3 / FR-015 — `NSLExpandVariablesPass` (slot 3). Acceptance
@@ -11,27 +10,16 @@
 //    the .b field sees one transfer; reads of s materialize via
 //    field-level wires)."
 //
-// **DEFERRED — M4 op-surface gap**. `nsl.variable`'s result type
-// is constrained to `NSL_AnyBits` only (NSLOps.td:280, FR-013) —
-// the dialect verifier rejects `!nsl.struct<@T>` outright at parse
-// time. The spec's "struct-SSA-split" path requires either:
-//   (a) a fifth M4 amendment relaxing `nsl.variable` to
-//       `NSL_BitsOrStruct` (would also require an M5 visitor that
-//       knows to decompose at the AST layer), OR
-//   (b) AST-time per-field decomposition: `variable s : @T;` with
-//       fields `a` and `b` lowers to two separate `nsl.variable`
-//       ops `s_a : !nsl.bits<Wa>` and `s_b : !nsl.bits<Wb>`. The
-//       pass then sees only scalars; option (b) is the documented
-//       implementer choice (smaller surface).
-//
-// Both options require visitor work (T082) plus the StructDecl /
-// field-table infrastructure that does not exist at M5 today. The
-// per-pass behavioural shape is deferred until that infrastructure
-// lands. Until then this fixture documents the intent and is
-// XFAIL (the IR does not even parse — `nsl.variable` rejects
-// !nsl.struct<@T>).
-//
-// US2 T066/T067 set the precedent for this deferral pattern.
+// **Post-merge M4-amendment 2026-05-02 (#5) status.** The dialect
+// now accepts `!nsl.struct<@T>` as a `nsl.variable` result type
+// (per the relaxed `NSL_BitsOrStruct` constraint). At THIS commit,
+// the pass's scalar-only walk still applies: a struct-typed
+// `nsl.variable` with no bit-level uses is erased as a no-op
+// expansion (no users → erase). Per-field decomposition (the
+// spec's full FR-015 obligation, Acceptance scenario 4) is
+// scheduled for a follow-up commit that introduces a struct-pack
+// op + a struct-aware visitor pre-pass; until that lands the
+// fixture documents the parse-clean post-amendment baseline.
 
 nsl.struct @T {
   nsl.field_decl "a" : !nsl.bits<8>
@@ -39,24 +27,10 @@ nsl.struct @T {
 }
 
 nsl.module @StructTyped {
-  // Intent: a struct-typed variable would be authored as
-  //
-  //   %s = nsl.variable "s" : !nsl.struct<@T>
-  //
-  // Per option (b) above, the visitor would instead emit:
-  //
-  //   %s_a = nsl.variable "s_a" : !nsl.bits<Wa>
-  //   %s_b = nsl.variable "s_b" : !nsl.bits<Wb>
-  //
-  // The pass then expands each scalar variable into its own
-  // wire-chain independently. That matches the spec's "the .a
-  // field sees one transfer, the .b field sees one transfer;
-  // reads of s materialize via field-level wires."
-  //
-  // The line below is what an end-to-end author WOULD write — the
-  // current M4 verifier rejects struct-typed variables (FR-013 +
-  // NSLOps.td:280 NSL_AnyBits constraint), so this fixture fails
-  // at parse-verify time.
+  // Post-amendment: `nsl.variable` with `!nsl.struct<@T>` parses
+  // and verifies. The pass's scalar walk currently treats this
+  // op as "no users → erase"; per-field decomposition is the
+  // follow-up commit's deliverable.
   %s = nsl.variable "s" : !nsl.struct<@T>
   // CHECK-NOT: nsl.variable
 }

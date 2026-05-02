@@ -278,9 +278,15 @@ mlir::LogicalResult WireOp::verify() {
 }
 
 mlir::LogicalResult VariableOp::verify() {
-  if (!mlir::isa<BitsType>(getResult().getType())) {
-    return emitOpError() << "result type must be '!nsl.bits<N>', got "
-                         << getResult().getType();
+  // Post-merge M4-amendment 2026-05-02 (#5): result type is
+  // `!nsl.bits<N>` OR `!nsl.struct<@T>` (was bits-only).
+  // `NSLExpandVariablesPass` decomposes struct-typed variables
+  // per-field at M5.
+  mlir::Type t = getResult().getType();
+  if (!mlir::isa<BitsType>(t) && !mlir::isa<StructType>(t)) {
+    return emitOpError() << "result type must be '!nsl.bits<N>' or "
+                            "'!nsl.struct<@T>', got "
+                         << t;
   }
   return mlir::success();
 }
@@ -571,6 +577,15 @@ mlir::LogicalResult ForOp::verify() {
   if (!(*this)->getParentOfType<SeqOp>()) {
     return emitParentMismatch(*this, "seq");
   }
+  // Post-merge M4-amendment 2026-05-02 (#5): `step` is `Variadic`,
+  // permitting either 0 (enum-form 2-operand) or 1 (C-style 3-operand)
+  // step values. Reject ≥ 2 step operands as ill-formed.
+  if (getStep().size() > 1) {
+    return emitOpError()
+           << "'step' may carry at most one operand (got " << getStep().size()
+           << "); use the 0-operand enum form (`nsl.for %init, %end`) or "
+              "the 1-operand C-style form (`nsl.for %init, %cond, %step`)";
+  }
   // Loop-bound-attr shape: if a `loop_bound` attribute is present, it
   // MUST be an integer attribute (per the FR-013 row for `nsl.for`).
   if (auto attr = (*this)->getAttr("loop_bound")) {
@@ -790,17 +805,33 @@ mlir::LogicalResult GotoOp::verify() {
 // ===========================================================================
 
 mlir::LogicalResult FireProbeOp::verify() {
-  // The `target` symbol ref MUST name a sibling `nsl.func_in` /
-  // `nsl.func_out` / `nsl.func_self`. Note: those control-terminal
-  // ops do NOT carry the `Symbol` trait at M4 (their identifying
-  // string lives in a `StrAttr` named `name`, not in `sym_name`).
-  // So we resolve manually: walk the enclosing `nsl.module`'s body
-  // and match on the `name` StrAttr of any sibling control terminal.
+  // The `target` symbol ref MUST name a sibling control-terminal
+  // (`nsl.func_in` / `nsl.func_out` / `nsl.func_self` — `name`
+  // StrAttr-keyed) OR a sibling Symbol-bearing procedure
+  // (`nsl.proc` / `nsl.state` — `sym_name` SymbolNameAttr-keyed),
+  // per S27 (constructive). Post-merge M4-amendment 2026-05-02 (#5)
+  // extends the legal target set from {func_in, func_out,
+  // func_self} to also include {proc_name (`nsl.proc`),
+  // state_name (`nsl.state`)} per S27's full target list.
+  //
+  // Lookup strategy: control terminals do NOT carry the `Symbol`
+  // trait at M4 (their identifying string lives in a `StrAttr`
+  // named `name`, not in `sym_name`), so we resolve manually by
+  // walking the enclosing `nsl.module`'s body and matching on
+  // the `name` StrAttr. `nsl.proc` IS a Symbol so its sibling
+  // lookup uses the standard `mlir::SymbolTable::lookupSymbolIn`
+  // path. `nsl.state` lives as a child of `nsl.proc` (NOT a
+  // sibling at module scope); fire_probe's S27-licit reference
+  // to a state requires the probe itself to be inside the
+  // owning proc body, so we additionally walk up through any
+  // enclosing `nsl.proc` to attempt a per-proc state-symbol
+  // lookup.
   auto moduleOp = (*this)->getParentOfType<ModuleOp>();
   if (!moduleOp) {
     return mlir::success();
   }
   llvm::StringRef target = getTarget();
+  // Walk #1: control terminals (StrAttr-keyed) at module scope.
   for (mlir::Operation &child : moduleOp.getBody().front()) {
     if (auto fin = mlir::dyn_cast<FuncInOp>(&child)) {
       if (fin.getName() == target) {
@@ -816,9 +847,33 @@ mlir::LogicalResult FireProbeOp::verify() {
       }
     }
   }
+  // Walk #2: Symbol-bearing `nsl.proc` at module scope (sibling).
+  // ModuleOp implements SymbolTable; lookupSymbolIn handles the
+  // sym_name-keyed match deterministically.
+  if (mlir::Operation *symOp = mlir::SymbolTable::lookupSymbolIn(
+          moduleOp.getOperation(),
+          mlir::StringAttr::get(getContext(), target))) {
+    if (mlir::isa<ProcOp>(symOp)) {
+      return mlir::success();
+    }
+  }
+  // Walk #3: Symbol-bearing `nsl.state` inside the enclosing
+  // `nsl.proc` (per-proc symbol scope; only reachable when the
+  // fire_probe itself is nested inside a proc body).
+  if (auto enclosingProc = (*this)->getParentOfType<ProcOp>()) {
+    if (mlir::Operation *symOp = mlir::SymbolTable::lookupSymbolIn(
+            enclosingProc.getOperation(),
+            mlir::StringAttr::get(getContext(), target))) {
+      if (mlir::isa<StateOp>(symOp)) {
+        return mlir::success();
+      }
+    }
+  }
   return emitOpError() << "'target' '" << target
                        << "' does not name a sibling 'nsl.func_in', "
-                          "'nsl.func_out', or 'nsl.func_self'";
+                          "'nsl.func_out', 'nsl.func_self', "
+                          "'nsl.proc', or (within an enclosing proc) "
+                          "'nsl.state'";
 }
 
 mlir::LogicalResult StructCastOp::verify() {

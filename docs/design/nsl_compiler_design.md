@@ -908,9 +908,20 @@ nsl.param_int @N      = 8            # Verilog/VHDL/SystemC submodule param_int
 nsl.param_str @WIDTH  = "8"          # Verilog/VHDL/SystemC submodule param_str
 
 # Terminal / register / memory
+# Post-merge M4-amendment 2026-05-02 (#5):
+#   * nsl.reg parent now ParentOneOf<["ModuleOp", "ProcOp",
+#     "StructuralGenerateOp"]> (was ProcOp/ModuleOp) so generate
+#     blocks may declare per-iteration registers in their bodies.
+#   * nsl.wire parent now ParentOneOf<["ModuleOp", "FuncOp"]>
+#     (was ModuleOp only) so NSLExpandVariablesPass can replace
+#     func-scope variables with sibling wires.
+#   * nsl.variable result type now NSL_BitsOrStruct (was bits-only)
+#     to admit struct-typed variables for the FR-015 per-field
+#     SSA-split chain.
 nsl.reg "name" : !nsl.bits<4> = 0    # carries init attribute
 nsl.wire "name" : !nsl.bits<8>
 nsl.variable "name" : !nsl.bits<8>
+nsl.variable "s" : !nsl.struct<@T>   # struct-typed (post-amendment #5)
 nsl.mem "name" [256 x i8]
 
 # Bit-vector constant (Pure + ConstantLike value-producer)
@@ -983,7 +994,9 @@ nsl.if %cond { ... } else { ... }
 nsl.parallel { ... }
 nsl.seq { ... }
 nsl.while %cond { ... }
-nsl.for %init, %cond, %step { ... }
+nsl.for %init, %cond, %step { ... }     # 3-operand C-style form
+nsl.for %init, %end { ... }              # 2-operand enum form (post-amendment #5);
+                                          # NSL `for (i = 0..N) { ... }`. step Variadic 0|1.
 
 # Atomic actions
 nsl.transfer %dst, %src          : !nsl.bits<N>       # wire-style =
@@ -1017,7 +1030,11 @@ nsl.case %cond { ... }                    # one branch inside nsl.alt / nsl.any
 nsl.default { ... }                       # default branch inside nsl.alt / nsl.any
 nsl.goto @target                          # state-scope (S25) or label-scope transfer
 nsl.fire_probe @ctrlName                  # control-terminal name used as 1-bit value (S27);
-                                          # marker lowered later to a 1-bit tap
+                                          # marker lowered later to a 1-bit tap.
+                                          # Post-amendment #5: target also accepts sibling
+                                          # nsl.proc (proc_name) at module scope, and
+                                          # sibling nsl.state (state_name) inside an
+                                          # enclosing nsl.proc body.
 nsl.structural_generate { ... }           # generate-loop carrier; unrolled by
                                           # NSLExpandGeneratePass (§9) before CIRCT lowering
                                           # Post-merge M4-amendment 2026-05-02 #4: adds

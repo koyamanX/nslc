@@ -1014,6 +1014,104 @@ guard).
 
 ---
 
+## 20. M4-amendment 2026-05-02 (#5): bundled five trait/type-constraint relaxations
+
+**Trigger**: M5 close-out of the offload-2026-04-30 deferred bundle
+(T035 ForBlock enum-form, T045 fire_probe proc/state targets, T066
++ T067 generate-with-reg body, T076 + T079 struct-typed variable,
+T077 cross-scope variable in func) re-surfaced five M4-side
+constraint mismatches, all left as deferred amendment-class blockers
+in the previous offloads. None of the five requires a new op record
+— each is a minimal "accept more" trait or type-constraint relax
+on an existing op record. Aggregated as **amendment #5** because
+the M5 consumption path is the same (the visitor + pass fan out
+needed all five widenings to land before any of the deferred
+fixtures could clear).
+
+**Decision**: Option **(B)** — bundle the five relaxations into a
+single M4 amendment (no new op records; freeze surface stays at
+79). Same precedent as amendments #1–#4: the principle (Principle
+III) requires that M5 lower AST → `nsl` dialect — the dialect
+must contain everything M5 produces, including struct-typed
+variables, func-scope wires, generate-body regs, 2-operand for
+ops, and proc/state fire_probe targets. Options (A) emit CIRCT-
+side helpers from M5, (C) defer the deferred items to M6 (opaque
+IR), (D) downgrade to stub-only ops were rejected for the same
+reasons as the prior amendments.
+
+**Five relaxations**:
+
+| # | Op | Change | M5 unblock |
+|---|---|---|---|
+| 1 | `nsl.for` | `step` operand: `NSL_BitsOrStruct` → `Variadic<NSL_BitsOrStruct>` (0 or 1) | T035 — ForBlock enum form |
+| 2 | `nsl.fire_probe` | Verifier accepts sibling `nsl.proc` (module scope) + sibling `nsl.state` (per-proc scope) | T045 — proc/state probe targets |
+| 3 | `nsl.reg` | Parent: `ParentOneOf<["ModuleOp", "ProcOp"]>` → adds `"StructuralGenerateOp"` | T066 + T067 — generate body regs |
+| 4 | `nsl.variable` | Result type: `NSL_AnyBits` → `NSL_BitsOrStruct` | T076 + T079 — struct-typed variable |
+| 5 | `nsl.wire` | Parent: `HasParent<"ModuleOp">` → `ParentOneOf<["ModuleOp", "FuncOp"]>` | T077 — cross-scope variable in func |
+
+**Implementation footprint**:
+
+- `lib/Dialect/NSL/IR/NSLOps.td`: 4 ops edited (RegOp, WireOp,
+  VariableOp, ForOp) — trait list / arg constraint changes only.
+- `lib/Dialect/NSL/IR/NSLOps.cpp`: 2 verifier bodies edited
+  (`VariableOp::verify` to accept struct types; `ForOp::verify`
+  to reject ≥ 2 step operands; `FireProbeOp::verify` extended
+  with sibling-`nsl.proc` and sibling-`nsl.state` lookups via
+  `mlir::SymbolTable::lookupSymbolIn`).
+- `test/Dialect/`: 6 new round-trip fixtures (one per relaxation
+  + the bonus state-target case under marker/).
+- `test/Lower/passes/nsl-expand-variables/struct_typed.mlir`:
+  XFAIL marker removed; banner updated to document the
+  parse-clean post-amendment baseline (per-field decomposition
+  is still a follow-up commit's deliverable).
+
+**Backward compatibility**: All pre-existing fixtures continue
+to PASS unchanged. Each relaxation is **strictly "accept more"**:
+
+- 3-operand `nsl.for` still parses (variadic step accepts
+  exactly-1).
+- `nsl.fire_probe @func_in_target` still resolves (walk #1 is
+  unchanged; the new walks are tried only after walk #1 misses).
+- `nsl.reg` inside `nsl.module` or `nsl.proc` still parses.
+- `nsl.variable : !nsl.bits<8>` still parses (the bits-side of
+  the union constraint is unchanged).
+- `nsl.wire` inside `nsl.module` still parses.
+
+**Verifier-reject preservation**: All pre-existing invalid
+fixtures continue to fail-as-expected. The relaxations don't
+change what's REJECTED:
+
+- `nsl.wire : !nsl.struct<@T>` is still rejected (wire's
+  result-type constraint unchanged at `NSL_AnyBits`).
+- `nsl.fire_probe @undefined_target` is still rejected (all
+  three walks miss).
+- `nsl.for` outside `nsl.seq` is still rejected (transitive-
+  parent walk unchanged).
+
+**Determinism (Principle V)**: Print/parse round-trip is
+unchanged because no new attribute / operand encoding was added.
+Verifier order in `FireProbeOp::verify` is fixed (walk #1 →
+SymbolTable lookup at module scope → SymbolTable lookup at
+enclosing proc scope), so the diagnostic ordering is
+deterministic.
+
+**Coverage gain**: lit suite grew 535 → 541 (+6 round-trip
+fixtures); 521 → 527 PASS + 14 XFAIL (the
+`nsl-expand-variables/struct_typed.mlir` XFAIL was retired in
+the same commit because the parse-verify gate cleared).
+
+**Cross-references**:
+
+- Contract: `specs/007-m4-mlir-dialect/contracts/dialect-api.contract.md`
+  §2 post-merge amendment 2026-05-02 (#5).
+- Spec: `specs/007-m4-mlir-dialect/spec.md` Clarifications session
+  2026-05-02 (post-merge amendment #5).
+- Data model: `specs/007-m4-mlir-dialect/data-model.md` rows for
+  `nsl.reg` / `nsl.wire` / `nsl.variable` / `nsl.for` /
+  `nsl.fire_probe`.
+
+---
+
 ## Cross-references
 
 - Spec: [`spec.md`](./spec.md) (FR-001 … FR-031, SC-001 … SC-012)

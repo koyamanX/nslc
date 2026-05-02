@@ -118,8 +118,9 @@ classes + the dialect class + the registration function = **79
 public types/functions** (post-Q6: `nsl.field_decl` added; post-merge
 amendment 2026-05-01: `nsl.constant` added; post-merge amendment
 2026-05-02 (Phase A): the 28-op expression surface added; post-merge
-amendment 2026-05-02 (#4): `nsl.param_int` + `nsl.param_str` added —
-see notes below).
+amendment 2026-05-02 (#4): `nsl.param_int` + `nsl.param_str` added;
+post-merge amendment 2026-05-02 (#5): no new ops (five trait /
+type-constraint relaxations only — see notes below).
 
 > **Post-merge amendment 2026-05-01 (#1).** `nsl.constant` (a Pure +
 > ConstantLike value-producer of `!nsl.bits<N>`) was added after M4
@@ -260,6 +261,79 @@ see notes below).
 > firewall: M4 dialect is the seam, NOT CIRCT). Cross-reference:
 > `specs/008-m5-structural-passes/research.md` §18 documents the
 > M5-side reasoning.
+
+> **Post-merge amendment 2026-05-02 (#5).** Bundled five
+> trait / type-constraint relaxations on existing op records,
+> all surfaced as deferred items in the offload-2026-04-30 close
+> (M5 US2 + US3 fixtures `T035`, `T045`, `T066`, `T067`, `T076`,
+> `T077`, `T079`). All five are minimal "accept more" relaxations
+> on existing op records — **no new op classes** introduced; the
+> freeze surface stays at **79**.
+>
+> 1. **`nsl.for` enum-form (2-operand).** `step` operand changes
+>    from `NSL_BitsOrStruct:$step` (mandatory) to
+>    `Variadic<NSL_BitsOrStruct>:$step` (0 or 1). Enables the NSL
+>    grammar `for (i = 0..N) { ... }` enum form (`lang.ebnf §8`).
+>    `ForOp::verify()` rejects ≥ 2 step operands. Existing
+>    3-operand fixtures round-trip unchanged.
+> 2. **`nsl.fire_probe` target-set extension.** `FireProbeOp::
+>    verify()` adds two additional sibling-lookup walks:
+>    Symbol-bearing `nsl.proc` at module scope (proc_name) AND
+>    Symbol-bearing `nsl.state` inside an enclosing `nsl.proc`
+>    (state_name). Per S27 (constructive), proc_name and
+>    state_name identifiers are 1-bit values too. The original
+>    `nsl.func_in`/`nsl.func_out`/`nsl.func_self` walk is
+>    preserved as walk #1 (StrAttr-keyed).
+> 3. **`nsl.reg` parent relax.** Trait changes from
+>    `ParentOneOf<["ModuleOp", "ProcOp"]>` to
+>    `ParentOneOf<["ModuleOp", "ProcOp", "StructuralGenerateOp"]>`
+>    so that `generate` blocks (per `lang.ebnf §8`) may declare
+>    per-iteration registers in their bodies. M5's
+>    `NSLExpandGeneratePass` (slot 2) replicates the body once per
+>    iteration; the resulting registers reparent to the enclosing
+>    `nsl.module` after expansion.
+> 4. **`nsl.variable` result-type relax.** Result type changes
+>    from `NSL_AnyBits` to `NSL_BitsOrStruct`, enabling the
+>    FR-015 per-field SSA-split chain in `NSLExpandVariablesPass`
+>    for struct-typed variables. `VariableOp::verify()` updates
+>    accordingly (now mirrors `RegOp::verify()`).
+> 5. **`nsl.wire` parent relax.** Trait changes from
+>    `HasParent<"ModuleOp">` to `ParentOneOf<["ModuleOp",
+>    "FuncOp"]>` so that `NSLExpandVariablesPass` (slot 3) may
+>    replace func-scope `nsl.variable` ops with sibling
+>    `nsl.wire` ops without hoisting.
+>
+> The user authorised four-way decision option (B) — "amend M4
+> with the bundled five relaxations" — over (A) emit CIRCT-side
+> helpers directly from M5 (violates Principle III), (C) defer
+> the deferred items to M6 (semantically opaque IR; breaks the
+> M5→M6 cut), (D) downgrade to stub-only ops (postpones the cut
+> and breaks Principle VIII test sequencing). Cost: **zero new op
+> records**, five existing-op edits, plus 6 new round-trip
+> fixtures (`test/Dialect/action-block/for_2operand_roundtrip.mlir`,
+> `test/Dialect/marker/fire_probe_proc_target_roundtrip.mlir`,
+> `test/Dialect/marker/fire_probe_state_target_roundtrip.mlir`,
+> `test/Dialect/expansion-only/structural_generate_with_reg_body_roundtrip.mlir`,
+> `test/Dialect/storage/variable_struct_typed_roundtrip.mlir`,
+> `test/Dialect/storage/wire_in_func_roundtrip.mlir`). The
+> pre-existing fixtures (`test/Dialect/action-block/for_roundtrip.mlir`,
+> `test/Dialect/marker/fire_probe_roundtrip.mlir`,
+> `test/Dialect/storage/{reg,wire,variable}_roundtrip.mlir`,
+> `test/Dialect/expansion-only/structural_generate_roundtrip.mlir`)
+> remain valid and continue to PASS — the relaxations are
+> strictly "accept more". The existing invalid fixtures
+> (`test/Dialect/storage/{reg,wire,variable}_invalid_*.mlir`,
+> `test/Dialect/marker/fire_probe_invalid_bad_target.mlir`,
+> `test/Dialect/action-block/for_invalid_*.mlir`) likewise
+> continue to fail-as-expected (the relaxations don't change
+> what's REJECTED — `wire` still rejects `!nsl.struct<@T>`,
+> `fire_probe` still rejects unresolved targets, `for` still
+> requires a `nsl.seq` ancestor). SC-012's "next op" baseline is
+> **unchanged** ("73rd op"); since no new op records were added
+> the count stays at 79. CIRCT-side conversion code does NOT land
+> at M4 — design §10 documents the M6 mapping per-op. Cross-
+> reference: `specs/008-m5-structural-passes/research.md` §20
+> documents the M5-side reasoning.
 
 ## 3. Registration entry-point contract
 
