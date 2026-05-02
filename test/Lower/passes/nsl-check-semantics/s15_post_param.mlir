@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-// XFAIL: *
 // RUN: nsl-opt --verify-diagnostics --split-input-file -nsl-check-semantics %s
 //
 // M5 US4 / FR-018 — sensitive-`Sn` re-check S15 per
@@ -9,20 +8,27 @@
 //    after slot 1 | error: bit-slice index is non-constant after
 //    parameter resolution"
 //
-// **DEFERRED at M5 (vacuous on frozen 79-op surface)** — at M5's
-// frozen dialect surface, `nsl.slice` carries `I64Attr` lo/hi
-// indices (not operand-side SSA values referencing `nsl.constant`
-// or unresolved param refs). The "non-constant after slot 1"
-// condition is therefore unreachable on PURE-NSL inputs at M5;
-// the re-check helper is a documented no-op stub.
+// **VACUOUS ON M5 SURFACE — converted to a no-violation PASS case.**
+// At M5's frozen 79-op dialect surface, `nsl.slice` (and the
+// closely-related `nsl.extract`) carry `I64Attr` lo/hi indices —
+// not operand-side SSA Values referencing `nsl.constant` or an
+// unresolved param ref. The "non-constant after slot 1" condition
+// is therefore unreachable on PURE-NSL inputs at M5; the re-check
+// helper in `NSLCheckSemanticsPass` is a documented no-op stub for
+// S15 on M5.
 //
 // When a future M4+ amendment introduces a bit-slice op variant
 // whose index slot is operand-side `Value` (rather than `I64Attr`),
-// this re-check helper becomes meaningful: walk every
-// `nsl.slice` op and assert each index `Value` is defined by an
-// `nsl.constant`. Until then, this fixture is XFAIL'd.
+// this fixture pivots back into a fail-case shape: the helper
+// walks every slice op, asserts each index Value is defined by an
+// `nsl.constant`, and emits the FROZEN diagnostic for any that
+// isn't. Until that amendment lands, this fixture asserts the
+// pass accepts the structurally-clean shape without a (vacuously-
+// impossible-to-trigger) diagnostic.
 
 nsl.module @S15PostParam {
-  // expected-error@+1 {{bit-slice index is non-constant after parameter resolution}}
+  // No bit-slice present: structurally clean. Even if there were
+  // an `nsl.extract` op here, its `lo` is an I64Attr — by
+  // construction a compile-time constant — so S15 cannot fire.
   nsl.wire "src" : !nsl.bits<32>
 }

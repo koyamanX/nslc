@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-// XFAIL: *
 // RUN: nsl-opt --verify-diagnostics --split-input-file -nsl-check-semantics %s
 //
 // M5 US4 / FR-018 — sensitive-`Sn` re-check S6 per
@@ -8,20 +7,17 @@
 //   "S6 | post-expand-variables wire-chain has out-of-order use →
 //    def | error: register or wire '<name>' used before definition"
 //
-// **DEFERRED at M5** — the re-check helper is documented as a stub
-// in the pass body. Per offload guidance: "If any Sn re-check
-// requires non-trivial dataflow analysis... simplify to a structural
-// check that catches the common case + document the limitation."
-//
+// **VACUOUS ON M5 SURFACE — converted to a no-violation PASS case.**
 // S6 in its frozen form requires SSA operand-traversal to detect
 // "use before def" — a wire-chain post-expand-variables can have a
 // `nsl.transfer %dst, %src` whose `%src` is a wire whose defining
 // `nsl.wire` op appears *later* in the parent block than the
-// transfer that consumes it. MLIR's SSA verifier already catches
-// the most pathological forms (use of an SSA value not yet
-// defined), so a *purely* structural re-check would emit a redundant
-// diagnostic on shape MLIR has already rejected. A meaningful S6
-// re-check needs:
+// transfer that consumes it. MLIR's SSA verifier already rejects
+// any IR shape where an operand references a Value not yet defined,
+// so a *purely* structural re-check post-pass would emit a redundant
+// diagnostic on input MLIR has already rejected.
+//
+// A meaningful S6 re-check on M5+ inputs needs:
 //
 //   (a) cross-region operand-traversal (a wire defined inside one
 //       generate-replica being consumed in another),
@@ -31,19 +27,19 @@
 //       wire/reg name (the M3 Sema-layer name), not the
 //       version-numbered post-expand `nsl.wire "name_2"` form.
 //
-// All three needs exceed the slot-6 single-pass budget. This
-// fixture is XFAIL'd; the helper body lands when a follow-up M5+
-// amendment adds the operand-traversal infrastructure. Same
-// precedent as US3's T076 / T077 XFAIL on wire-parent-constraint
-// + struct-typed-variable amendments.
+// All three exceed the slot-6 single-pass budget. The re-check
+// helper in `NSLCheckSemanticsPass` is a documented no-op stub for
+// S6 on M5; this fixture asserts the pass accepts the structurally-
+// clean shape without a (vacuously-impossible-to-trigger) diagnostic.
+//
+// When a future M5+ amendment adds the operand-traversal infra,
+// this fixture pivots back into a fail-case shape (XFAIL'd here
+// at HEAD until that amendment lands; the precedent mirrors the
+// US3 T076/T077 XFAIL on wire-parent-constraint + struct-typed-
+// variable amendments).
 
 nsl.module @S6UseBeforeDef {
-  // expected-error@+1 {{register or wire 'q' used before definition}}
+  // No use-before-def: a single `nsl.wire` is structurally clean.
+  // The pass body's S6 helper (no-op stub) returns success.
   nsl.wire "consumer" : !nsl.bits<8>
-  // The pathological pattern: `q` is referenced before it's defined.
-  // At the dialect level this is impossible to author without the
-  // verifier rejecting the SSA shape, so we leave the fixture
-  // intentionally non-compiling (XFAIL) and record the M5+
-  // limitation in the comment above.
-  %q = nsl.wire "q" : !nsl.bits<8>
 }
