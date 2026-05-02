@@ -14,23 +14,41 @@
 //
 //   for each `nsl.variable` op `%v "name" : !nsl.bits<N>`:
 //     let currentValue = %v
-//     for each Use of %v in source order (op-position-in-block):
-//       if Use is operand 0 of nsl.transfer / nsl.clocked_transfer:
-//         (this is a write `v = src` / `v := src`)
-//         build a fresh nsl.wire "name[_K]" : !nsl.bits<N> just
-//         before the transfer; let currentValue = wire.result;
-//         setOperand(0) of the transfer to wire.result.
-//       else:
-//         (this is a read of %v's current version)
-//         setOperand of this use to currentValue.
-//     erase the original nsl.variable op.
+//     walk the variable's enclosing region recursively in source
+//     order; for each Op visited (skipping the variable itself):
+//       for each operand-index of Op consuming %v:
+//         if Op is nsl.transfer / nsl.clocked_transfer AND the
+//         consuming operand index is 0 (the dst slot) AND the
+//         insertion site's parent is a valid wire-parent:
+//           (this is a whole-width write `v = src` / `v := src`)
+//           build a fresh nsl.wire "name[_K]" : !nsl.bits<N> just
+//           before the transfer; setOperand(0) to wire.result;
+//           let currentValue = wire.result.
+//         else:
+//           (read site OR partial-assignment LHS via nsl.extract,
+//            OR write inside a non-wire-parent region — leave the
+//            use pointing at the current version, which initially
+//            is the variable itself)
+//           setOperand of this use to currentValue.
+//     if the variable has zero remaining uses, erase it; otherwise
+//     leave it in place (residual partial-assignment etc.).
 //
-// Source-order determinism (Constitution Principle V): we collect
-// uses by walking the parent block in source order and matching
-// each op against its operands. We do NOT iterate `getUsers()`
-// directly because MLIR's use-list iteration order is not source-
-// order (it's allocation-order). Block-walk preserves byte-stable
-// output across builds.
+// Source-order determinism (Constitution Principle V): we walk the
+// region with `mlir::Region::walk` (PreOrder = source-order DFS).
+// We do NOT iterate `getUsers()` directly because MLIR's use-list
+// iteration order is allocation-order, not source-order. Region
+// walk preserves byte-stable output across builds.
+//
+// **Nested-region uses** (e.g., a module-scope variable consumed
+// inside `nsl.func`'s body — the s12 partial-assignment shape):
+// the walk descends into all nested regions of the variable's
+// enclosing region, so uses are discovered no matter how deep.
+// Wire-insertion only happens when the use's enclosing parent is
+// itself a valid wire-parent (`ModuleOp` or `FuncOp` per the M4
+// post-merge amendment #5); writes inside `nsl.proc` / `nsl.state`
+// fall through to the read-remap path (no wire created), which
+// keeps the IR well-formed at the cost of leaving a residual
+// `nsl.variable` op for later passes / next-milestone work.
 //
 // Scope policy: per the M4 op-surface freeze (post-merge amendment
 // 2026-05-02 #5), both `nsl.wire` and `nsl.variable` accept
@@ -95,33 +113,42 @@ bool expandOne(nsl::dialect::VariableOp variable) {
   mlir::MLIRContext *ctx = variable.getContext();
   auto loc = variable.getLoc();
 
-  // Walk the parent block in source order; for each op, inspect
-  // its operands looking for uses of `variableValue`. Source-order
-  // walk gives us deterministic version-assignment.
-  mlir::Block *block = variable->getBlock();
+  // Walk the variable's enclosing region recursively in source
+  // order. PreOrder DFS gives source-order deterministic version-
+  // assignment (Constitution Principle V) and — critically —
+  // discovers uses inside nested regions (e.g., a module-scope
+  // variable consumed inside `nsl.func`'s body, the s12 partial-
+  // assignment shape).
+  mlir::Region *region = variable->getParentRegion();
   mlir::Value currentValue = variableValue;
   unsigned versionIndex = 0;
 
-  // We iterate ops; we may MUTATE the current op's operands but
-  // must not erase the variable op until after the walk. The walk
-  // is forward and we never insert ops AFTER the current op (only
-  // before it), so iteration order is stable.
-  for (mlir::Operation &op : *block) {
-    if (&op == variable.getOperation()) {
-      continue; // skip self
+  region->walk([&](mlir::Operation *op) {
+    if (op == variable.getOperation()) {
+      return; // skip self
     }
     // For each operand of this op, check whether it currently
     // refers to `variableValue`. We do this by index because the
     // check must distinguish operand-0 (write dst) from other
     // operands (read).
-    for (unsigned operandIdx = 0; operandIdx < op.getNumOperands();
+    for (unsigned operandIdx = 0; operandIdx < op->getNumOperands();
          ++operandIdx) {
-      mlir::OpOperand &opOperand = op.getOpOperand(operandIdx);
+      mlir::OpOperand &opOperand = op->getOpOperand(operandIdx);
       if (opOperand.get() != variableValue) {
         continue;
       }
       // Found a use of the variable's result.
-      if (operandIdx == 0 && isVariableWriteOp(&op)) {
+      bool isWrite = (operandIdx == 0 && isVariableWriteOp(op));
+      // Wire-insertion is only legal when the insertion site's
+      // parent is `ModuleOp` or `FuncOp` (per `nsl.wire`'s parent
+      // constraint, M4 post-merge amendment #5). If the write is
+      // inside a `nsl.proc` / `nsl.state`, we cannot create a
+      // sibling wire there — fall through to the read-remap path
+      // (leaving the use pointing at currentValue).
+      mlir::Operation *opParent = op->getParentOp();
+      bool wireInsertionLegal =
+          mlir::isa<nsl::dialect::ModuleOp, nsl::dialect::FuncOp>(opParent);
+      if (isWrite && wireInsertionLegal) {
         // Write site: build a fresh wire and rewire the transfer's
         // dst operand. The wire is inserted JUST BEFORE the
         // transfer so source order is preserved (write-before-
@@ -131,25 +158,37 @@ bool expandOne(nsl::dialect::VariableOp variable) {
           wireName += "_";
           wireName += std::to_string(versionIndex);
         }
-        mlir::OpBuilder builder(&op);
+        mlir::OpBuilder builder(op);
         auto wire = nsl::dialect::WireOp::create(
             builder, loc, type, mlir::StringAttr::get(ctx, wireName));
         opOperand.set(wire.getResult());
         currentValue = wire.getResult();
         ++versionIndex;
       } else {
-        // Read site: remap the use to the current version. This
-        // covers `nsl.transfer dst, src` where src is %v
-        // (operandIdx == 1) AND any other op that consumes %v
-        // (e.g., `nsl.add %v, %one`).
+        // Read site OR write site whose parent is not a valid
+        // wire-parent: remap the use to the current version. On
+        // the first iteration `currentValue == variableValue`, so
+        // a partial-assignment slice (`nsl.extract %v` consuming
+        // %v with no prior whole-width write) leaves the use
+        // pointing at the variable. The variable is then NOT
+        // erased — see the `use_empty()` guard below.
         opOperand.set(currentValue);
       }
     }
-  }
+  });
 
-  // After all uses are remapped, the original variable op should
-  // have zero remaining uses. Erase it.
-  variable.erase();
+  // Only erase the variable if all uses were rewired away. Partial-
+  // assignment shapes (s12: `v[3:0] = 0;` lowered as
+  // `nsl.transfer %ext, %lit` where `%ext = nsl.extract %v, ...`)
+  // leave the variable consumed by `nsl.extract`. Erasing in that
+  // state would crash MLIR's use-list invariant. The residual
+  // `nsl.variable` op is acceptable at M5 — fully eliminating it
+  // requires either visitor-side whole-width-concat synthesis (the
+  // shape demonstrated by `partial_assignment_S12.mlir`) or a
+  // dedicated partial-assignment lowering pass, both deferred.
+  if (variableValue.use_empty()) {
+    variable.erase();
+  }
   return true;
 }
 

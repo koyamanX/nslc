@@ -1,7 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // test/Lower/m3_corpus/s12/pass.test — M5 T106 / FR-030 / SC-003.
-// XFAIL'd at HEAD: visitor STUB — type-inference incomplete on partial-assignment LHS (S12)
 //
-// XFAIL: *
+// **Closed at M5.** `NSLExpandVariablesPass` now walks the variable's
+// enclosing region recursively (rather than only the variable's
+// parent block), so the partial-assignment shape
+// `v[3:0] = 0;` — which lowers to `nsl.transfer %ext, %lit` with
+// `%ext = nsl.extract %v, ...` inside `nsl.func`'s body — no longer
+// crashes the pipeline. The pass leaves the residual `nsl.variable`
+// op in place when uses remain after the walk (full per-field /
+// whole-width-concat lowering is the visitor-side follow-up
+// demonstrated by `partial_assignment_S12.mlir`).
+//
 // RUN: %nslc -emit=mlir %S/../../../sema/s12/pass.nsl > %t.actual.mlir
