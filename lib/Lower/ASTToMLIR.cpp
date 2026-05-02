@@ -145,6 +145,129 @@ int64_t resolveDecimalLiteral(const ast::Expr *expr) {
   return value;
 }
 
+/// Parsed numeric literal: integer value + (optional) explicit width.
+/// If `hasExplicitWidth` is true, the literal carried a sized prefix
+/// (e.g., `2'd0`, `4'b0000`, `8'h2A`) and the `width` field holds it;
+/// the width-inference hint at the call site is then ignored. If
+/// false, the literal is unsized (e.g., `0`, `42`) and the call site
+/// is free to apply a hint.
+struct ParsedNumericLiteral {
+  int64_t value = 0;
+  unsigned width = 0;
+  bool hasExplicitWidth = false;
+  bool ok = false;
+};
+
+/// Parse a numeric literal spelling. Handles:
+///   - unsized decimal: `0`, `42`, `1234` (kind=Decimal, no `'`)
+///   - sized decimal:   `2'd0`, `4'd8`, `7'd42` (kind=Decimal, `'d`)
+///   - sized binary:    `4'b0000`, `2'b10` (kind=Binary, `'b`)
+///   - sized hex:       `8'h2A`, `4'hF` (kind=Hex, `'h`)
+///   - sized octal:     `3'o7` (kind=Octal, `'o`)
+/// `_` separators inside the value digits are stripped (NSL §13).
+/// Z / X / U digits are accepted for round-trip but treated as 0
+/// for value extraction (M3 Sema's domain to flag unknown bits at
+/// constant-propagation time). Caller is responsible for handing
+/// `String` literals separately — this helper returns `ok=false`.
+ParsedNumericLiteral parseNumericLiteral(const ast::LiteralExpr &lit) {
+  ParsedNumericLiteral out;
+  llvm::StringRef s = lit.spelling();
+  if (s.empty() || lit.litKind() == ast::LiteralExpr::Lit::String) {
+    return out;
+  }
+  // Optional width prefix `<digits>'` — applies to all numeric kinds.
+  size_t tick = s.find('\'');
+  unsigned explicitWidth = 0;
+  bool hasExplicit = false;
+  if (tick != llvm::StringRef::npos) {
+    hasExplicit = true;
+    auto widthStr = s.substr(0, tick);
+    for (char c : widthStr) {
+      if (c == '_') {
+        continue;
+      }
+      if (c < '0' || c > '9') {
+        return out; // malformed
+      }
+      explicitWidth = explicitWidth * 10 + static_cast<unsigned>(c - '0');
+    }
+    if (explicitWidth == 0) {
+      explicitWidth = 1; // defensive: width 0 is not legal NSL
+    }
+    s = s.substr(tick + 1);
+    if (!s.empty()) {
+      // Consume the base char (`d`/`b`/`h`/`o`); the kind enum
+      // already disambiguates so we just skip whichever char is there.
+      char base = s.front();
+      if (base == 'd' || base == 'b' || base == 'h' || base == 'o' ||
+          base == 'D' || base == 'B' || base == 'H' || base == 'O') {
+        s = s.substr(1);
+      }
+    }
+  }
+  // Parse the value digits per `litKind()`. Unknown / metavalue digits
+  // (Z/X/U) parse as 0 (lossless round-trip lives in `flags()`).
+  int64_t value = 0;
+  unsigned base = 10;
+  switch (lit.litKind()) {
+  case ast::LiteralExpr::Lit::Decimal:
+    base = 10;
+    break;
+  case ast::LiteralExpr::Lit::Binary:
+    base = 2;
+    break;
+  case ast::LiteralExpr::Lit::Hex:
+    base = 16;
+    break;
+  case ast::LiteralExpr::Lit::Octal:
+    base = 8;
+    break;
+  case ast::LiteralExpr::Lit::String:
+    return out;
+  }
+  for (char c : s) {
+    if (c == '_') {
+      continue;
+    }
+    int digit = -1;
+    if (c >= '0' && c <= '9') {
+      digit = c - '0';
+    } else if (c >= 'a' && c <= 'f') {
+      digit = c - 'a' + 10;
+    } else if (c >= 'A' && c <= 'F') {
+      digit = c - 'A' + 10;
+    } else if (c == 'z' || c == 'Z' || c == 'x' || c == 'X' || c == 'u' ||
+               c == 'U') {
+      digit = 0; // metavalue digit → treat as 0 for value extraction
+    } else {
+      return out; // malformed
+    }
+    if (static_cast<unsigned>(digit) >= base) {
+      return out; // digit out of range for base
+    }
+    value = value * static_cast<int64_t>(base) + digit;
+  }
+  out.value = value;
+  out.width = explicitWidth;
+  out.hasExplicitWidth = hasExplicit;
+  out.ok = true;
+  return out;
+}
+
+/// Smallest unsigned bit-width that can hold `value` (at least 1).
+unsigned minUnsignedWidth(int64_t value) {
+  if (value <= 0) {
+    return 1;
+  }
+  unsigned w = 0;
+  uint64_t u = static_cast<uint64_t>(value);
+  while (u > 0) {
+    ++w;
+    u >>= 1;
+  }
+  return w == 0 ? 1 : w;
+}
+
 } // namespace
 
 ASTToMLIR::ASTToMLIR(mlir::MLIRContext &ctx, const sema::SemaResult &sr)
@@ -613,26 +736,50 @@ void ASTToMLIR::visit(const ast::ParallelBlock &node) {
 // expression coverage (Binary / Unary / Conditional / Slice / Concat
 // / FieldAccess / SignExtend / ZeroExtend / Repeat / Call / IncDec /
 // StructCast / SystemVar) lands incrementally in T055.
+//
+// `typeHint` (per-call optional) implements width inference at
+// literal-lowering sites. Sized literals (`2'd0`, `4'b0000`,
+// `8'h2A`) carry their own width and ignore the hint; unsized
+// literals (`0`, `42`) consume the hint when it's a `BitsType` so
+// downstream `SameOperandsAndResultType` / `SameTypeOperands`
+// trait-driven verifiers accept the op. Recursive callers in this
+// visitor (BinaryExpr arith → LHS-then-RHS hint chain;
+// ConditionalExpr → then-then-else hint chain; etc.) propagate
+// the hint so the inference sweep covers each load-bearing leaf.
 
-mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr) {
+mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr, mlir::Type typeHint) {
   if (!expr) {
     return {};
   }
   if (expr->kind() == ast::LiteralExpr::kKind) {
     const auto *lit = static_cast<const ast::LiteralExpr *>(expr);
-    if (lit->litKind() != ast::LiteralExpr::Lit::Decimal) {
-      // Hex / Binary / Octal / String literals reach here at Phase 3
-      // with no expression-position lowering yet (T055 follow-up).
+    auto parsed = parseNumericLiteral(*lit);
+    if (!parsed.ok) {
+      // String literals + malformed numerics — no expression-position
+      // lowering at Phase 3.
       return {};
     }
     auto loc = builder_.getUnknownLoc();
-    // Phase 3 width policy: literals at the expression-tree surface
-    // default to 1-bit. Width promotion / inference is the
-    // expression-sub-visitor's job in T055; for now downstream
-    // SameTypeOperands ops will fail-loudly if the LHS width
-    // disagrees, which is the expected behaviour at this surface.
-    auto bits_ty = nsl::dialect::BitsType::get(&ctx_, /*width=*/1);
-    auto attr = builder_.getI64IntegerAttr(resolveDecimalLiteral(expr));
+    // Width-inference rule:
+    //   1. If the literal carried a sized prefix (`<W>'<base><val>`),
+    //      use that explicit width — it's a user-stated invariant.
+    //   2. Else if `typeHint` is a `BitsType`, use its width.
+    //   3. Else fall back to the smallest width that holds the value
+    //      (`minUnsignedWidth`), with a floor of 1 — this preserves
+    //      the legacy "default 1-bit" behaviour for value 0/1 but
+    //      also avoids the verifier-rejected `value 2 in bits<1>`
+    //      shape when an unsized literal lands in a context that
+    //      provides no hint (e.g., a soft-failed sub-expression).
+    unsigned width = parsed.hasExplicitWidth ? parsed.width : 0;
+    if (!parsed.hasExplicitWidth) {
+      if (auto bitsTy = mlir::dyn_cast_or_null<nsl::dialect::BitsType>(typeHint)) {
+        width = bitsTy.getWidth();
+      } else {
+        width = minUnsignedWidth(parsed.value);
+      }
+    }
+    auto bits_ty = nsl::dialect::BitsType::get(&ctx_, width);
+    auto attr = builder_.getI64IntegerAttr(parsed.value);
     auto const_op =
         nsl::dialect::ConstantOp::create(builder_, loc, bits_ty, attr);
     return const_op.getResult();
@@ -688,10 +835,23 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr) {
     // `Div` and `Mod` from the AST enum have no M4 counterpart (the
     // M4 surface omits them); soft-fail per FR-010 — Sema-clean
     // inputs upstream of M5 wouldn't surface those at this layer.
+    //
+    // Width-inference policy (call-order matters): lower LHS first
+    // (with the outer `typeHint` so an arith op's LHS literal gets
+    // the result type), capture its `mlir::Type`, then lower RHS
+    // with that type as RHS hint. This makes `(a + 1)` resolve the
+    // unsized `1` to `a`'s width without a separate sema pass. If
+    // LHS fails to lower, we bail BEFORE lowering RHS so a leaked
+    // RHS-side `nsl.constant` doesn't trip the module-level
+    // verifier (e.g., `op == 2` where `op` is an unresolved port
+    // input would otherwise leak `nsl.constant 2 : !nsl.bits<1>`).
     const auto *bin = static_cast<const ast::BinaryExpr *>(expr);
-    auto lhs_val = lowerExpr(bin->lhs());
-    auto rhs_val = lowerExpr(bin->rhs());
-    if (!lhs_val || !rhs_val) {
+    auto lhs_val = lowerExpr(bin->lhs(), typeHint);
+    if (!lhs_val) {
+      return {};
+    }
+    auto rhs_val = lowerExpr(bin->rhs(), lhs_val.getType());
+    if (!rhs_val) {
       return {};
     }
     auto loc = builder_.getUnknownLoc();
@@ -780,7 +940,12 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr) {
     // would parse as a `BitNot` of a reduction expression, which
     // decomposes naturally through the visitor.
     const auto *un = static_cast<const ast::UnaryExpr *>(expr);
-    auto sub_val = lowerExpr(un->sub());
+    // For Neg / BitNot (`SameOperandsAndResultType`) the outer
+    // `typeHint` propagates straight through to `sub`. For LogicalNot
+    // / reductions (result `!nsl.bits<1>`) the hint cannot apply,
+    // but a literal sub still resolves via its own width (sized) or
+    // value-min-width fallback (unsized).
+    auto sub_val = lowerExpr(un->sub(), typeHint);
     if (!sub_val) {
       return {};
     }
@@ -817,27 +982,36 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr) {
     // from the prefix Decimal literal (S15 spec: width is a
     // compile-time constant); operand width comes from the sub
     // expression's result type.
+    //
+    // Width-inference: the explicit prefix dictates the result type,
+    // which is also the natural hint for any unsized literal sub
+    // (e.g., `4#0` → sub-literal `0` becomes `!nsl.bits<4>`, sign-
+    // extend bits<4>→bits<4> is a structural identity that the
+    // verifier accepts since `N >= M` permits equality).
     const auto *sx = static_cast<const ast::SignExtendExpr *>(expr);
-    auto sub_val = lowerExpr(sx->sub());
+    auto result_ty =
+        nsl::dialect::BitsType::get(&ctx_, resolveWidth(sx->width()));
+    auto sub_val = lowerExpr(sx->sub(), result_ty);
     if (!sub_val) {
       return {};
     }
     auto loc = builder_.getUnknownLoc();
-    auto result_ty =
-        nsl::dialect::BitsType::get(&ctx_, resolveWidth(sx->width()));
     return nsl::dialect::SignExtendOp::create(builder_, loc, result_ty, sub_val)
         .getResult();
   }
   if (expr->kind() == ast::ZeroExtendExpr::kKind) {
     // FR-007 row "ZeroExtendExpr → nsl.zero_extend".
+    //
+    // Width-inference: same shape as `nsl.sign_extend` — explicit
+    // prefix → result type → hint to sub.
     const auto *zx = static_cast<const ast::ZeroExtendExpr *>(expr);
-    auto sub_val = lowerExpr(zx->sub());
+    auto result_ty =
+        nsl::dialect::BitsType::get(&ctx_, resolveWidth(zx->width()));
+    auto sub_val = lowerExpr(zx->sub(), result_ty);
     if (!sub_val) {
       return {};
     }
     auto loc = builder_.getUnknownLoc();
-    auto result_ty =
-        nsl::dialect::BitsType::get(&ctx_, resolveWidth(zx->width()));
     return nsl::dialect::ZeroExtendOp::create(builder_, loc, result_ty, sub_val)
         .getResult();
   }
@@ -848,11 +1022,24 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr) {
     // any Sema-clean input (FR-010). nsl.mux carries
     // SameOperandsAndResultType for the then/else operands; we
     // pick `thenE`'s lowered type as the result type.
+    //
+    // Width-inference: cond is always `!nsl.bits<1>` per the M4
+    // mux verifier; pass that hint. then/else share a type — lower
+    // then with outer hint, capture its type, hint else with that
+    // type so an unsized literal in either branch resolves
+    // consistently.
     const auto *cond = static_cast<const ast::ConditionalExpr *>(expr);
-    auto cond_val = lowerExpr(cond->cond());
-    auto then_val = lowerExpr(cond->thenE());
-    auto else_val = lowerExpr(cond->elseE());
-    if (!cond_val || !then_val || !else_val) {
+    auto cond_hint = nsl::dialect::BitsType::get(&ctx_, /*width=*/1);
+    auto cond_val = lowerExpr(cond->cond(), cond_hint);
+    if (!cond_val) {
+      return {};
+    }
+    auto then_val = lowerExpr(cond->thenE(), typeHint);
+    if (!then_val) {
+      return {};
+    }
+    auto else_val = lowerExpr(cond->elseE(), then_val.getType());
+    if (!else_val) {
       return {};
     }
     auto loc = builder_.getUnknownLoc();
@@ -1173,9 +1360,19 @@ void ASTToMLIR::visit(const ast::TransferStmt &node) {
   // load-bearing for round-trip cleanliness. Phase 3 inputs are
   // Sema-clean per FR-010, so the AST-level S15 width-agreement
   // invariant has already been established upstream.
+  //
+  // Width-inference: lower LHS first (no outer hint — LHS is a
+  // typed storage reference), capture its type, then lower RHS with
+  // that type as hint so an unsized RHS literal (e.g., `q := 0`
+  // where q is `reg[8]`) resolves to the same width. Bail BEFORE
+  // lowering RHS if LHS is null so a leaked RHS-side constant
+  // doesn't trip the module-level verifier.
   auto lhs_val = lowerExpr(node.lhs());
-  auto rhs_val = lowerExpr(node.rhs());
-  if (!lhs_val || !rhs_val) {
+  if (!lhs_val) {
+    return;
+  }
+  auto rhs_val = lowerExpr(node.rhs(), lhs_val.getType());
+  if (!rhs_val) {
     // Soft-fail per FR-010 — Sema would have caught unresolved
     // references. Emit nothing rather than a malformed op.
     return;
@@ -1316,28 +1513,51 @@ void ASTToMLIR::visit(const ast::AltBlock &node) {
   // constraint; per S13 it's constructive (priority vs parallel) and
   // the dialect verifier does NOT distinguish alt-vs-any semantics —
   // the introspection observable lives in M3.
+  //
+  // Soft-fail policy (FR-010): if every case-cond fails to lower
+  // (e.g., all conds reference unresolved input ports at Phase 3 —
+  // input/output PortDecl emission is deferred to a follow-up) AND
+  // no else clause exists, the resulting `nsl.alt` body would be
+  // empty, which the dialect verifier rejects (`AltOp::verify` —
+  // ≥ 1 case-or-default child required). We track whether at least
+  // one child was emitted; if not we erase the parent op rather
+  // than synthesising a placeholder default (the M3 corpus depends
+  // on the soft-fail being structurally clean, not phantom-default-
+  // injected).
   auto loc = builder_.getUnknownLoc();
   auto alt_op = nsl::dialect::AltOp::create(builder_, loc);
   auto &body_block = alt_op.getBody().emplaceBlock();
-  mlir::OpBuilder::InsertionGuard guard(builder_);
-  builder_.setInsertionPointToStart(&body_block);
-  for (const auto &arm : node.cases()) {
-    auto cond_val = lowerExpr(arm.cond.get());
-    if (!cond_val) {
-      continue;
+  bool emittedChild = false;
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder_);
+    builder_.setInsertionPointToStart(&body_block);
+    for (const auto &arm : node.cases()) {
+      // Width-inference: alt/any case conds are 1-bit (comparison or
+      // bare flag); supply the hint so an unsized literal cond
+      // resolves correctly.
+      auto cond_hint = nsl::dialect::BitsType::get(&ctx_, /*width=*/1);
+      auto cond_val = lowerExpr(arm.cond.get(), cond_hint);
+      if (!cond_val) {
+        continue;
+      }
+      auto case_op = nsl::dialect::CaseOp::create(builder_, loc, cond_val);
+      auto &case_body = case_op.getBody().emplaceBlock();
+      mlir::OpBuilder::InsertionGuard caseGuard(builder_);
+      builder_.setInsertionPointToStart(&case_body);
+      lowerActionBody(arm.body.get());
+      emittedChild = true;
     }
-    auto case_op = nsl::dialect::CaseOp::create(builder_, loc, cond_val);
-    auto &case_body = case_op.getBody().emplaceBlock();
-    mlir::OpBuilder::InsertionGuard caseGuard(builder_);
-    builder_.setInsertionPointToStart(&case_body);
-    lowerActionBody(arm.body.get());
+    if (node.elseCase()) {
+      auto default_op = nsl::dialect::DefaultOp::create(builder_, loc);
+      auto &default_body = default_op.getBody().emplaceBlock();
+      mlir::OpBuilder::InsertionGuard defaultGuard(builder_);
+      builder_.setInsertionPointToStart(&default_body);
+      lowerActionBody(node.elseCase());
+      emittedChild = true;
+    }
   }
-  if (node.elseCase()) {
-    auto default_op = nsl::dialect::DefaultOp::create(builder_, loc);
-    auto &default_body = default_op.getBody().emplaceBlock();
-    mlir::OpBuilder::InsertionGuard defaultGuard(builder_);
-    builder_.setInsertionPointToStart(&default_body);
-    lowerActionBody(node.elseCase());
+  if (!emittedChild) {
+    alt_op.erase();
   }
 }
 
@@ -1346,28 +1566,45 @@ void ASTToMLIR::visit(const ast::AnyBlock &node) {
   // line 904). Identical shape to `AltBlock`, distinct op kind.
   // Children = `nsl.case` and `nsl.default` (same as alt — the
   // `ParentOneOf` constraint accepts both parents).
+  //
+  // Same soft-fail policy as `visit(AltBlock)`: if no child can be
+  // emitted (all conds soft-fail and no else clause), erase the
+  // parent so the dialect verifier's ≥-1-case-or-default invariant
+  // (`AnyOp::verify`) holds.
   auto loc = builder_.getUnknownLoc();
   auto any_op = nsl::dialect::AnyOp::create(builder_, loc);
   auto &body_block = any_op.getBody().emplaceBlock();
-  mlir::OpBuilder::InsertionGuard guard(builder_);
-  builder_.setInsertionPointToStart(&body_block);
-  for (const auto &arm : node.cases()) {
-    auto cond_val = lowerExpr(arm.cond.get());
-    if (!cond_val) {
-      continue;
+  bool emittedChild = false;
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder_);
+    builder_.setInsertionPointToStart(&body_block);
+    for (const auto &arm : node.cases()) {
+      // Width-inference: alt/any case conds are 1-bit (comparison or
+      // bare flag); supply the hint so an unsized literal cond
+      // resolves correctly.
+      auto cond_hint = nsl::dialect::BitsType::get(&ctx_, /*width=*/1);
+      auto cond_val = lowerExpr(arm.cond.get(), cond_hint);
+      if (!cond_val) {
+        continue;
+      }
+      auto case_op = nsl::dialect::CaseOp::create(builder_, loc, cond_val);
+      auto &case_body = case_op.getBody().emplaceBlock();
+      mlir::OpBuilder::InsertionGuard caseGuard(builder_);
+      builder_.setInsertionPointToStart(&case_body);
+      lowerActionBody(arm.body.get());
+      emittedChild = true;
     }
-    auto case_op = nsl::dialect::CaseOp::create(builder_, loc, cond_val);
-    auto &case_body = case_op.getBody().emplaceBlock();
-    mlir::OpBuilder::InsertionGuard caseGuard(builder_);
-    builder_.setInsertionPointToStart(&case_body);
-    lowerActionBody(arm.body.get());
+    if (node.elseCase()) {
+      auto default_op = nsl::dialect::DefaultOp::create(builder_, loc);
+      auto &default_body = default_op.getBody().emplaceBlock();
+      mlir::OpBuilder::InsertionGuard defaultGuard(builder_);
+      builder_.setInsertionPointToStart(&default_body);
+      lowerActionBody(node.elseCase());
+      emittedChild = true;
+    }
   }
-  if (node.elseCase()) {
-    auto default_op = nsl::dialect::DefaultOp::create(builder_, loc);
-    auto &default_body = default_op.getBody().emplaceBlock();
-    mlir::OpBuilder::InsertionGuard defaultGuard(builder_);
-    builder_.setInsertionPointToStart(&default_body);
-    lowerActionBody(node.elseCase());
+  if (!emittedChild) {
+    any_op.erase();
   }
 }
 
@@ -1378,7 +1615,12 @@ void ASTToMLIR::visit(const ast::IfStmt &node) {
   // source `else` arm is omitted — we materialise an empty else
   // block in that case, mirroring the round-trip fixture
   // `test/Dialect/action-block/if_roundtrip.mlir` (`{ } else { }`).
-  auto cond_val = lowerExpr(node.cond());
+  // Width-inference: NSL `if` cond is naturally 1-bit (S3 / `nsl.if`
+  // accepts any-bits structurally, but downstream comparisons /
+  // logical ops produce `!nsl.bits<1>` — supply the hint so an
+  // unsized literal cond gets the canonical width).
+  auto cond_hint = nsl::dialect::BitsType::get(&ctx_, /*width=*/1);
+  auto cond_val = lowerExpr(node.cond(), cond_hint);
   if (!cond_val) {
     // Soft-fail per FR-010 — Sema-clean inputs would have caught
     // unresolved/unsupported cond expressions upstream.
@@ -1408,7 +1650,12 @@ void ASTToMLIR::visit(const ast::WhileBlock &node) {
   // `nsl.seq` ancestor (verifier in `NSLOps.cpp:563`); the M3
   // grammar's `S8` constraint (while/for must live inside `seq`)
   // ensures Sema-clean inputs always supply that ancestor.
-  auto cond_val = lowerExpr(node.cond());
+  //
+  // Width-inference: cond is naturally 1-bit (a comparison or
+  // logical op); supply the hint so an unsized cond literal
+  // resolves correctly.
+  auto cond_hint = nsl::dialect::BitsType::get(&ctx_, /*width=*/1);
+  auto cond_val = lowerExpr(node.cond(), cond_hint);
   if (!cond_val) {
     return;
   }
@@ -1455,8 +1702,11 @@ void ASTToMLIR::visit(const ast::ForBlock &node) {
   if (!init_target) {
     return;
   }
+  // Width-inference: cond is a comparison/logical op (1-bit). init
+  // is the loop-variable reference (typed storage); no hint needed.
   auto init_val = lowerExpr(init_target);
-  auto cond_val = lowerExpr(form.cond.get());
+  auto cond_hint = nsl::dialect::BitsType::get(&ctx_, /*width=*/1);
+  auto cond_val = lowerExpr(form.cond.get(), cond_hint);
   if (!init_val || !cond_val) {
     return;
   }

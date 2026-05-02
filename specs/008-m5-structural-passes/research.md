@@ -1178,6 +1178,91 @@ flip to GREEN; lit XFAIL count drops by 5 from 13 to 8.
 
 ---
 
+## 22. M5 fix-bug offload 2026-04-30: `lowerExpr` width-inference plumbing
+
+**Decision** — Add an optional `mlir::Type typeHint` parameter to
+`ASTToMLIR::lowerExpr` (header default `nullptr`); thread it through
+the recursive expression walk so unsized literals widen to the
+context-supplied type at lowering time. Pair this with a sized-
+literal spelling parser that consumes the `<W>'<base><digits>` form
+(`2'd0`, `4'b0000`, `8'h2A`) verbatim, ignoring the hint when an
+explicit width is present.
+
+**Why** — Pre-fix, `lowerExpr(LiteralExpr)` defaulted every numeric
+literal to `!nsl.bits<1>` and ignored the sized-literal prefix
+embedded in the spelling. Two failure modes ensued at the trait-
+verifier layer:
+
+  1. **`SameOperandsAndResultType` (arith / bitwise / shift)** —
+     `q := a + 1` where `q` is `reg[8]` lowered as `nsl.add %a,
+     %const1 : !nsl.bits<8>` with `%const1` as `!nsl.bits<1>` — the
+     trait rejects the type mismatch.
+  2. **`SameTypeOperands` (eq/ne/lt/le/gt/ge/land/lor)** — `i < 8`
+     where `i` is `reg[4]` lowered with `%const8 : !nsl.bits<1>` —
+     and additionally the M4 `nsl.constant` verifier rejects
+     "value 8 doesn't fit in `!nsl.bits<1>`".
+  3. **Sized literals at the spelling layer** — `acc = 2'd0` failed
+     because the parser didn't consume the `2'd...` prefix; the
+     literal lowered as `!nsl.bits<1>` value 0 even though the
+     spelling clearly specified width 2.
+
+The fix is purely visitor-side; no M4 amendment was necessary. M4's
+49+28 op surface stays frozen at 77 (sticking to the post-merge
+amendment cluster #1+#2+#3+#4+#5+#6 ceiling).
+
+**Lowering rule** (per `BinaryExpr` arith/bitwise/shift): lower LHS
+first (with the outer `typeHint`), capture its `mlir::Type`, then
+lower RHS with that type as RHS hint. The result type is inferred
+from the operands. For comparisons / logical ops (result `bits<1>`):
+same LHS-first / RHS-hinted-by-LHS pattern. For `ConditionalExpr`:
+lower then-branch first (with outer hint), use its type as else-
+branch hint. For `SignExtendExpr` / `ZeroExtendExpr`: hint the sub
+with the result type (the explicit prefix dictates result width;
+sized literals inside still self-resolve, unsized ones widen to fit
+— a no-op extend `bits<N>` → `bits<N>` is structurally legal since
+the verifier asserts `N ≥ M`). For `TransferStmt` / `IfStmt` /
+`WhileBlock` / `ForBlock` / `AltBlock` / `AnyBlock`: hint cond with
+`bits<1>`; for transfer specifically, lower LHS first and use its
+type as RHS hint.
+
+**Soft-fail bail-on-null-LHS** — When LHS lowering returns null
+(e.g., `op == 0` where `op` is an unresolved Input port at Phase 3),
+the recursive lowering bails BEFORE lowering RHS. This avoids
+leaking RHS-side `nsl.constant` ops into the IR that would later
+trip the module-level verifier (e.g., `nsl.constant 2 :
+!nsl.bits<1>` at module level after the comparison's case-arm was
+otherwise discarded).
+
+**Erase-on-empty-body for AltOp / AnyOp** — Both ops require ≥ 1
+case-or-default child. When all case-conds soft-fail and there's no
+else clause, the visitor now records whether any child was emitted;
+if none, it erases the parent op rather than leaving an invalid
+body for the verifier to flag. AltBlock with an `else` clause still
+emits the DefaultOp regardless of cond-resolution.
+
+**Outcomes** —
+
+  - 7 of 9 failing `examples/*.nsl` close (Category A: width
+    inference). Only Category B examples (`01_hello.nsl`,
+    `20_simulation_tb.nsl`) remain — both fail on the
+    `nsl.sim_finish` parent constraint inside `nsl.sim_init`, which
+    is **amendment territory** (`nsl.sim_finish`'s
+    `HasParent<"ModuleOp">` would need relaxation to
+    `ParentOneOf<["ModuleOp", "SimInitOp"]>`). Per offload guidance,
+    that's deferred to M4 amendment #7 + escalation.
+  - M3-corpus s09 fixture flips XPASS → real PASS. Golden recorded;
+    XFAIL marker dropped from `pass.test`.
+  - s12 fixture (partial-assignment `v[3:0] = 0`) remains XFAIL on a
+    different blocker: the visitor emits `transfer(extract(v, 3:0),
+    0)` but `NSLExpandVariablesPass` only walks the variable's parent
+    block and crashes on the nested-region use. Fix is independent
+    of the width-inference change; deferred.
+  - lit count: 535 PASS + 9 XFAIL → 536 PASS + 8 XFAIL.
+
+**Determinism** — All passing examples and the s09 golden round-trip
+byte-identically across two consecutive `nslc -emit=mlir` runs
+(Constitution Principle V holds).
+
 ## Cross-references
 
 - Spec: [`spec.md`](./spec.md) (FR-001 … FR-031, SC-001 … SC-012)

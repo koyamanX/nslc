@@ -84,7 +84,24 @@ private:
   /// `IdentifierExpr` (via `nameTable_`); richer expression coverage
   /// (BinaryExpr / UnaryExpr / Conditional / Slice / Concat / etc.)
   /// lands incrementally per T055.
-  mlir::Value lowerExpr(const ast::Expr *expr);
+  ///
+  /// `typeHint` (optional) carries a target `!nsl.bits<N>` width for
+  /// width-inference at literal-lowering sites. When an unsized
+  /// `LiteralExpr` (e.g., `0`, `42`) reaches a context with a known
+  /// target type (e.g., the RHS of `reg[8] q := 0`, the RHS of an
+  /// arithmetic `nsl.add %a, %b` whose LHS is `!nsl.bits<8>`), the
+  /// hint widens the resulting `nsl.constant` so trait-driven
+  /// `SameOperandsAndResultType` / `SameTypeOperands` verifiers
+  /// accept the op. Sized literals (`2'd0`, `4'b0000`, `8'h2A`) carry
+  /// their own width in the spelling and ignore the hint. Non-literal
+  /// recursions (e.g., `BinaryExpr` arguments) propagate the hint
+  /// through to inner literals; arithmetic/bitwise ops use LHS type
+  /// as RHS hint so `(a + 1)` widens `1` to `a`'s type. Comparison ops
+  /// also use LHS-as-RHS-hint (result is fixed at `!nsl.bits<1>`,
+  /// independent of the hint). Returning early when LHS is null
+  /// avoids leaking RHS-side `nsl.constant` ops into the IR.
+  mlir::Value lowerExpr(const ast::Expr *expr,
+                        mlir::Type typeHint = nullptr);
 
   mlir::MLIRContext &ctx_;
   const sema::SemaResult &sr_;
