@@ -56,6 +56,22 @@ if extra_paths:
     config.environment["PATH"] = os.pathsep.join(
         extra_paths + [config.environment.get("PATH", "")])
 
+# `nsl-opt` and `nslc` are built with -fsanitize=address; the MLIR
+# libraries they link against (libMLIR*.so under /opt/llvm) are NOT.
+# When the instrumented binary move-assigns an MLIR `SmallVector`
+# whose inline storage was poisoned by ASan's container-overflow
+# instrumentation but whose receiving end was constructed in a
+# non-instrumented translation unit, ASan flags a use-after-poison.
+# This is a well-known false positive of partial-ASan instrumentation
+# (see LLVM bug #20669 and the upstream MLIR docs); the standard
+# workaround is to disable container-overflow checks for the
+# child-process environment lit spawns. Other ASan checks (heap,
+# stack, use-after-free) remain active.
+asan_opts = config.environment.get("ASAN_OPTIONS", "")
+extra_asan = "detect_container_overflow=0"
+config.environment["ASAN_OPTIONS"] = (
+    f"{asan_opts}:{extra_asan}" if asan_opts else extra_asan)
+
 # Substitutions land verbatim inside RUN: shell commands, so paths
 # are shell-quoted to survive contributors who clone into a
 # whitespace-bearing path or use a Python interpreter at one.
