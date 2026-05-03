@@ -37,9 +37,8 @@
 #include "nsl/Sema/SymbolTable.h"
 #include "nsl/Sema/TypeSystem.h"
 
-#include <gtest/gtest.h>
 #include <gtest/gtest-spi.h>
-
+#include <gtest/gtest.h>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -83,13 +82,11 @@ std::unique_ptr<CompilationUnit> makeUnitWithStruct(SourceManager &sm) {
   members.push_back({Identifier("msb_field"), nullptr});
   members.push_back({Identifier("mid_field"), nullptr});
   members.push_back({Identifier("lsb_field"), nullptr});
-  auto sd = std::make_unique<StructDecl>(dummyRange(sm),
-                                         Identifier("hdr_t"),
+  auto sd = std::make_unique<StructDecl>(dummyRange(sm), Identifier("hdr_t"),
                                          std::move(members));
   std::vector<std::unique_ptr<Decl>> items;
   items.push_back(std::move(sd));
-  return std::make_unique<CompilationUnit>(dummyRange(sm),
-                                           std::move(items));
+  return std::make_unique<CompilationUnit>(dummyRange(sm), std::move(items));
 }
 
 // ---------------------------------------------------------------
@@ -150,9 +147,8 @@ TEST(ConstructiveS18Test, LSBFirstObservableFailsAsExpected) {
   // The first field's offset MUST be 4 (MSB-first). Asserting it
   // is 0 (LSB-first) is the opposite observable; this is the
   // expected nonfatal failure.
-  EXPECT_NONFATAL_FAILURE(
-      EXPECT_EQ(sym.fields()[0].offset, 0U),
-      "Expected equality of these values");
+  EXPECT_NONFATAL_FAILURE(EXPECT_EQ(sym.fields()[0].offset, 0U),
+                          "Expected equality of these values");
 }
 
 } // namespace

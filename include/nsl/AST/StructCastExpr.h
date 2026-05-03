@@ -20,8 +20,7 @@ namespace nsl::ast {
 class StructCastExpr final : public Expr {
 public:
   StructCastExpr(SourceRange range, Identifier typeName,
-                 std::unique_ptr<Expr> sub,
-                 std::vector<Identifier> memberPath)
+                 std::unique_ptr<Expr> sub, std::vector<Identifier> memberPath)
       : Expr(NodeKind::NK_StructCastExpr, range), typeName_(typeName),
         sub_(std::move(sub)), memberPath_(std::move(memberPath)) {}
 

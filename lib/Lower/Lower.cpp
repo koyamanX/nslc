@@ -19,15 +19,13 @@
 #include "nsl/Lower/Lower.h"
 
 #include "ASTToMLIR.h"
-
 #include "mlir/Pass/PassRegistry.h"
 
 namespace nsl::lower {
 
-mlir::OwningOpRef<mlir::ModuleOp>
-astToMLIR(mlir::MLIRContext &ctx,
-          const ast::CompilationUnit &cu,
-          const sema::SemaResult &sr) {
+mlir::OwningOpRef<mlir::ModuleOp> astToMLIR(mlir::MLIRContext &ctx,
+                                            const ast::CompilationUnit &cu,
+                                            const sema::SemaResult &sr) {
   ASTToMLIR visitor(ctx, sr);
   return visitor.lower(cu);
 }

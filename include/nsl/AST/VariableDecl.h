@@ -20,8 +20,7 @@ namespace nsl::ast {
 
 class VariableDecl final : public Decl {
 public:
-  VariableDecl(SourceRange range, Identifier name,
-               std::unique_ptr<Expr> width)
+  VariableDecl(SourceRange range, Identifier name, std::unique_ptr<Expr> width)
       : Decl(NodeKind::NK_VariableDecl, range), name_(name),
         width_(std::move(width)) {}
 

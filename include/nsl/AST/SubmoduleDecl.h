@@ -38,8 +38,8 @@ public:
   SubmoduleDecl(SourceRange range, Identifier templateName,
                 std::vector<Instance> instances,
                 std::vector<ParamAssign> paramAssigns)
-      : Decl(NodeKind::NK_SubmoduleDecl, range),
-        templateName_(templateName), instances_(std::move(instances)),
+      : Decl(NodeKind::NK_SubmoduleDecl, range), templateName_(templateName),
+        instances_(std::move(instances)),
         paramAssigns_(std::move(paramAssigns)) {}
 
   [[nodiscard]] Identifier templateName() const noexcept {
@@ -48,8 +48,7 @@ public:
   [[nodiscard]] const std::vector<Instance> &instances() const noexcept {
     return instances_;
   }
-  [[nodiscard]] const std::vector<ParamAssign> &
-  paramAssigns() const noexcept {
+  [[nodiscard]] const std::vector<ParamAssign> &paramAssigns() const noexcept {
     return paramAssigns_;
   }
 

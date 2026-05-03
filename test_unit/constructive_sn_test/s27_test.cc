@@ -37,9 +37,8 @@
 #include "nsl/Sema/SymbolTable.h"
 #include "nsl/Sema/TypeSystem.h"
 
-#include <gtest/gtest.h>
 #include <gtest/gtest-spi.h>
-
+#include <gtest/gtest.h>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -162,9 +161,8 @@ TEST(ConstructiveS27Test, ValueForControlSymbolFailsAsExpected) {
   Sema sema(diag);
   ClassifierKind k = sema.classifyIdentifierExpr(ident);
 
-  EXPECT_NONFATAL_FAILURE(
-      EXPECT_EQ(k, ClassifierKind::Value),
-      "Expected equality of these values");
+  EXPECT_NONFATAL_FAILURE(EXPECT_EQ(k, ClassifierKind::Value),
+                          "Expected equality of these values");
 }
 
 } // namespace

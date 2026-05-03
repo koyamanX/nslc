@@ -119,12 +119,12 @@ private:
 /// declaration of `accept` is split out so each subclass's `.cpp`
 /// can hold an out-of-line definition (anchored in `ASTNode.cpp` to
 /// avoid bloating per-kind translation units).
-#define NSL_AST_NODE_BOILERPLATE(NameTok)                                     \
-public:                                                                       \
-  static constexpr NodeKind kKind = NodeKind::NK_##NameTok;                   \
-  void accept(::nsl::ast::ASTVisitor &visitor) const override;                \
-  static bool classof(const ::nsl::ast::ASTNode *n) noexcept {                \
-    return n->kind() == kKind;                                                \
+#define NSL_AST_NODE_BOILERPLATE(NameTok)                                      \
+public:                                                                        \
+  static constexpr NodeKind kKind = NodeKind::NK_##NameTok;                    \
+  void accept(::nsl::ast::ASTVisitor &visitor) const override;                 \
+  static bool classof(const ::nsl::ast::ASTNode *n) noexcept {                 \
+    return n->kind() == kKind;                                                 \
   }
 
 } // namespace nsl::ast

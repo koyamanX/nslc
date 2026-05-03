@@ -46,17 +46,16 @@
 //   - `specs/008-m5-structural-passes/spec.md` FR-013
 //   - design §10 — Verilog `nsl.submodule` instantiation lowering at M7
 
-#include "nsl/Lower/Lower.h"
-
-#include "nsl/Dialect/NSL/IR/NSLDialect.h"
-
-#include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/StringRef.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/SymbolTable.h"
 #include "mlir/Pass/Pass.h"
+#include "nsl/Dialect/NSL/IR/NSLDialect.h"
+#include "nsl/Lower/Lower.h"
+
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace nsl::lower {
 
@@ -124,7 +123,8 @@ public:
       llvm::SmallVector<std::pair<mlir::StringAttr, mlir::Attribute>, 4>
           replacements;
       for (auto namedAttr : op->getAttrs()) {
-        auto sym = mlir::dyn_cast<mlir::FlatSymbolRefAttr>(namedAttr.getValue());
+        auto sym =
+            mlir::dyn_cast<mlir::FlatSymbolRefAttr>(namedAttr.getValue());
         if (!sym) {
           continue;
         }
@@ -134,7 +134,8 @@ public:
         }
         replacements.emplace_back(
             namedAttr.getName(),
-            mlir::IntegerAttr::get(mlir::IntegerType::get(ctx, 64), it->second));
+            mlir::IntegerAttr::get(mlir::IntegerType::get(ctx, 64),
+                                   it->second));
       }
       for (auto &kv : replacements) {
         op->setAttr(kv.first, kv.second);

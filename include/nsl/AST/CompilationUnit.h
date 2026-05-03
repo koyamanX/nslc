@@ -22,12 +22,12 @@ namespace nsl::ast {
 /// AST root: zero or more top-level items in declaration order.
 class CompilationUnit final : public ASTNode {
 public:
-  CompilationUnit(SourceRange range,
-                  std::vector<std::unique_ptr<Decl>> items)
-      : ASTNode(NodeKind::NK_CompilationUnit, range),
-        items_(std::move(items)) {}
+  CompilationUnit(SourceRange range, std::vector<std::unique_ptr<Decl>> items)
+      : ASTNode(NodeKind::NK_CompilationUnit, range), items_(std::move(items)) {
+  }
 
-  [[nodiscard]] const std::vector<std::unique_ptr<Decl>> &items() const noexcept {
+  [[nodiscard]] const std::vector<std::unique_ptr<Decl>> &
+  items() const noexcept {
     return items_;
   }
 

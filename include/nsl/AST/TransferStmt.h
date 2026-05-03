@@ -23,8 +23,8 @@ public:
 
   TransferStmt(SourceRange range, Op op, std::unique_ptr<Expr> lhs,
                std::unique_ptr<Expr> rhs)
-      : Stmt(NodeKind::NK_TransferStmt, range), op_(op),
-        lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
+      : Stmt(NodeKind::NK_TransferStmt, range), op_(op), lhs_(std::move(lhs)),
+        rhs_(std::move(rhs)) {}
 
   [[nodiscard]] Op op() const noexcept { return op_; }
   [[nodiscard]] const Expr *lhs() const noexcept { return lhs_.get(); }

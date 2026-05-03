@@ -476,8 +476,8 @@ bool Parser::parseDeclareItem(
       }
       ports.push_back(std::make_unique<ast::PortDecl>(
           rangeFromTo(begin, end), ast::PortDecl::Direction::Wire,
-          name_tok.spelling(), std::move(width),
-          std::vector<ast::Identifier>{}, ast::Identifier{}));
+          name_tok.spelling(), std::move(width), std::vector<ast::Identifier>{},
+          ast::Identifier{}));
     } while (check(TokenKind::tk_comma));
     if (!expect(TokenKind::tk_semicolon, "';' after wire declaration")) {
       return false;

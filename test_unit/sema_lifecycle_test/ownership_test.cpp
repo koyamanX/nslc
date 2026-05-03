@@ -28,7 +28,6 @@
 #include "nsl/Sema/Sema.h"
 
 #include <gtest/gtest.h>
-
 #include <memory>
 #include <utility>
 #include <vector>
@@ -48,10 +47,9 @@ using nsl::sema::SemaResult;
 std::unique_ptr<CompilationUnit> makeEmptyCU(SourceManager &sm) {
   // Register a tiny synthetic buffer so SourceLocation::make has a
   // valid FileID to point at.
-  auto fid = sm.addBufferInMemory(std::string("test.nsl"),
-                                  std::vector<char>{'\n'});
-  SourceRange r{SourceLocation::make(fid, 0U),
-                SourceLocation::make(fid, 1U)};
+  auto fid =
+      sm.addBufferInMemory(std::string("test.nsl"), std::vector<char>{'\n'});
+  SourceRange r{SourceLocation::make(fid, 0U), SourceLocation::make(fid, 1U)};
   std::vector<std::unique_ptr<Decl>> items;
   return std::make_unique<CompilationUnit>(r, std::move(items));
 }

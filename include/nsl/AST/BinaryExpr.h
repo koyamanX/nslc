@@ -23,21 +23,34 @@ public:
   /// table, not via enumerator value.
   enum class Op {
     // Arithmetic
-    Add, Sub, Mul, Div, Mod,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
     // Bitwise
-    BitAnd, BitOr, BitXor,
+    BitAnd,
+    BitOr,
+    BitXor,
     // Shift
-    ShiftLeft, ShiftRight,
+    ShiftLeft,
+    ShiftRight,
     // Relational
-    Equal, NotEqual, Less, LessEqual, Greater, GreaterEqual,
+    Equal,
+    NotEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
     // Logical
-    LogicalAnd, LogicalOr,
+    LogicalAnd,
+    LogicalOr,
   };
 
   BinaryExpr(SourceRange range, Op op, std::unique_ptr<Expr> lhs,
              std::unique_ptr<Expr> rhs)
-      : Expr(NodeKind::NK_BinaryExpr, range), op_(op),
-        lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
+      : Expr(NodeKind::NK_BinaryExpr, range), op_(op), lhs_(std::move(lhs)),
+        rhs_(std::move(rhs)) {}
 
   [[nodiscard]] Op op() const noexcept { return op_; }
   [[nodiscard]] const Expr *lhs() const noexcept { return lhs_.get(); }

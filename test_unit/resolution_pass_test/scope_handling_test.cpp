@@ -35,7 +35,6 @@
 // `test/sema/resolution/`.)
 
 #include "ResolutionPass.h"
-
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/Decl.h"
 #include "nsl/AST/ModuleBlock.h"
@@ -49,7 +48,6 @@
 #include "nsl/Sema/TypeSystem.h"
 
 #include <gtest/gtest.h>
-
 #include <memory>
 #include <utility>
 #include <vector>
@@ -91,8 +89,8 @@ std::unique_ptr<CompilationUnit> makeUnitOneModule(SourceManager &sm) {
   std::vector<std::unique_ptr<Decl>> funcs;
   std::vector<std::unique_ptr<Decl>> procs;
   auto mb = std::make_unique<ModuleBlock>(
-      dummyRange(sm), Identifier("M"), std::move(internals),
-      std::move(actions), std::move(funcs), std::move(procs));
+      dummyRange(sm), Identifier("M"), std::move(internals), std::move(actions),
+      std::move(funcs), std::move(procs));
 
   std::vector<std::unique_ptr<Decl>> items;
   items.push_back(std::move(mb));
@@ -101,8 +99,8 @@ std::unique_ptr<CompilationUnit> makeUnitOneModule(SourceManager &sm) {
 
 // Build: module M with one proc P (empty body).
 std::unique_ptr<CompilationUnit> makeUnitModuleWithProc(SourceManager &sm) {
-  auto seq =
-      std::make_unique<SeqBlock>(dummyRange(sm), std::vector<std::unique_ptr<Stmt>>{});
+  auto seq = std::make_unique<SeqBlock>(dummyRange(sm),
+                                        std::vector<std::unique_ptr<Stmt>>{});
   auto proc = std::make_unique<ProcDefn>(dummyRange(sm), Identifier("P"),
                                          std::move(seq));
   std::vector<std::unique_ptr<Decl>> internals;
@@ -111,8 +109,8 @@ std::unique_ptr<CompilationUnit> makeUnitModuleWithProc(SourceManager &sm) {
   std::vector<std::unique_ptr<Decl>> procs;
   procs.push_back(std::move(proc));
   auto mb = std::make_unique<ModuleBlock>(
-      dummyRange(sm), Identifier("M"), std::move(internals),
-      std::move(actions), std::move(funcs), std::move(procs));
+      dummyRange(sm), Identifier("M"), std::move(internals), std::move(actions),
+      std::move(funcs), std::move(procs));
 
   std::vector<std::unique_ptr<Decl>> items;
   items.push_back(std::move(mb));

@@ -683,8 +683,8 @@ std::unique_ptr<ast::Stmt> Parser::parseSeqBlock() {
     return nullptr;
   }
   return std::make_unique<ast::SeqBlock>(
-      rangeFromTo(seq_tok.range().begin(), rbr.range().end()),
-      std::move(items), std::move(decls));
+      rangeFromTo(seq_tok.range().begin(), rbr.range().end()), std::move(items),
+      std::move(decls));
 }
 
 std::unique_ptr<ast::Stmt> Parser::parseWhileBlock() {

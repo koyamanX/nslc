@@ -24,9 +24,8 @@
 //   2. T004–T006 land the dialect class + registration body → re-run
 //      → observe pass (green).
 
-#include "nsl/Dialect/NSL/IR/NSLDialect.h"
-
 #include "mlir/IR/DialectRegistry.h"
+#include "nsl/Dialect/NSL/IR/NSLDialect.h"
 
 #include <gtest/gtest.h>
 

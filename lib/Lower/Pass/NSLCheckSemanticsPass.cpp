@@ -28,16 +28,15 @@
 //   - `specs/008-m5-structural-passes/contracts/pass-pipeline.contract.md`
 //     §3, §4
 
-#include "nsl/Lower/Lower.h"
-
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/Pass/Pass.h"
 #include "nsl/Dialect/NSL/IR/NSLDialect.h"
+#include "nsl/Lower/Lower.h"
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
-#include "mlir/IR/BuiltinAttributes.h"
-#include "mlir/IR/BuiltinOps.h"
-#include "mlir/Pass/Pass.h"
 
 #include <regex>
 #include <string>
@@ -135,9 +134,8 @@ public:
     // (Constitution Principle V — determinism). Every op
     // (including the top-level module) has its named-attribute
     // dictionary scanned.
-    module.walk([&](mlir::Operation *op) {
-      diagCount += scanOpAttrsForResidue(op);
-    });
+    module.walk(
+        [&](mlir::Operation *op) { diagCount += scanOpAttrsForResidue(op); });
 
     // Step 2 — sensitive-Sn re-checks per `pass-pipeline.contract.md`
     // §3. Three of the six rows have meaningful structural-only
@@ -248,9 +246,8 @@ private:
         if (!inserted) {
           // Second occurrence — emit diag on the COLLIDING op (not
           // the first).
-          op.emitError()
-              << "duplicate declaration '" << nameAttr.getValue()
-              << "' in replicated 'generate' body";
+          op.emitError() << "duplicate declaration '" << nameAttr.getValue()
+                         << "' in replicated 'generate' body";
           ++count;
         }
       }

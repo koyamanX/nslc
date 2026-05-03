@@ -13,8 +13,7 @@ namespace nsl::ast {
 
 class EmptyStmt final : public Stmt {
 public:
-  explicit EmptyStmt(SourceRange range)
-      : Stmt(NodeKind::NK_EmptyStmt, range) {}
+  explicit EmptyStmt(SourceRange range) : Stmt(NodeKind::NK_EmptyStmt, range) {}
 
   NSL_AST_NODE_BOILERPLATE(EmptyStmt)
 };

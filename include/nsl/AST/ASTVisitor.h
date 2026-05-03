@@ -60,7 +60,8 @@ public:
   // every `visit(const T&)` takes a `const` reference. Mutating
   // visitors (M3 Sema's name-resolution walker, etc.) will live in
   // a parallel `MutatingASTVisitor` when introduced.
-#define NSL_NODE_KIND(EnumName, BaseClass) virtual void visit(const EnumName &node) = 0;
+#define NSL_NODE_KIND(EnumName, BaseClass)                                     \
+  virtual void visit(const EnumName &node) = 0;
 #include "nsl/AST/NodeKind.def"
 #undef NSL_NODE_KIND
 

@@ -70,7 +70,6 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include "gtest/gtest.h"
-
 #include <cstdint>
 #include <memory>
 #include <regex>
@@ -154,8 +153,7 @@ std::unique_ptr<CompilationUnit> buildSmallFixture(FileID fid) {
 // `SourceLocation` to `path:line:col` for the printer's `loc=`
 // field (Track A's printer signature is the 3-arg form per
 // research §5 / `Printer.h` rationale comment).
-std::string renderToString(const CompilationUnit &cu,
-                           const SourceManager &sm) {
+std::string renderToString(const CompilationUnit &cu, const SourceManager &sm) {
   std::string buf;
   llvm::raw_string_ostream os(buf);
   nsl::ast::print(cu, sm, os);
@@ -210,13 +208,17 @@ TEST(ASTPrinterDeterminism, NodeKindNamesMatchEnumerators) {
   // Renaming any of these enumerators is a same-patch
   // golden-recut change (Invariant 6).
   EXPECT_NE(out.find("(CompilationUnit"), std::string::npos)
-      << "missing CompilationUnit node-kind name in output:\n" << out;
+      << "missing CompilationUnit node-kind name in output:\n"
+      << out;
   EXPECT_NE(out.find("(ModuleBlock"), std::string::npos)
-      << "missing ModuleBlock node-kind name in output:\n" << out;
+      << "missing ModuleBlock node-kind name in output:\n"
+      << out;
   EXPECT_NE(out.find("(RegDecl"), std::string::npos)
-      << "missing RegDecl node-kind name in output:\n" << out;
+      << "missing RegDecl node-kind name in output:\n"
+      << out;
   EXPECT_NE(out.find("(LiteralExpr"), std::string::npos)
-      << "missing LiteralExpr node-kind name in output:\n" << out;
+      << "missing LiteralExpr node-kind name in output:\n"
+      << out;
 
   // Conversely, a misspelled enumerator (e.g., "Compilation_Unit"
   // with an underscore, or "compilationUnit" lowercase first letter)
@@ -245,8 +247,7 @@ TEST(ASTPrinterDeterminism, SourceRangeFieldRoundTrips) {
   // exact byte offsets — the byte-offset round-trip is exercised
   // implicitly by Invariant 2 (byte-identical output across runs
   // proves the same coords come back out for the same input).
-  std::regex const locRegex(
-      R"(loc=([^\s:]+):(\d+):(\d+)-(\d+):(\d+))");
+  std::regex const locRegex(R"(loc=([^\s:]+):(\d+):(\d+)-(\d+):(\d+))");
   std::smatch m;
   ASSERT_TRUE(std::regex_search(out, m, locRegex))
       << "no `loc=path:line:col-line:col` field found in output:\n"
@@ -267,8 +268,8 @@ TEST(ASTPrinterDeterminism, SourceRangeFieldRoundTrips) {
   // End >= start in (line, col) lex order.
   EXPECT_TRUE(endLine > startLine ||
               (endLine == startLine && endCol >= startCol))
-      << "end coord precedes start coord: " << startLine << ":"
-      << startCol << " > " << endLine << ":" << endCol;
+      << "end coord precedes start coord: " << startLine << ":" << startCol
+      << " > " << endLine << ":" << endCol;
 }
 
 // ---- FR-030 cross-check: format determinism over an empty unit ----------

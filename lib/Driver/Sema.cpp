@@ -15,8 +15,7 @@
 
 namespace nsl::driver {
 
-sema::SemaResult runSema(ast::CompilationUnit &unit,
-                         DiagnosticEngine     &diag) {
+sema::SemaResult runSema(ast::CompilationUnit &unit, DiagnosticEngine &diag) {
   sema::Sema sema(diag);
   return sema.run(unit);
 }

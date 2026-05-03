@@ -13,18 +13,18 @@
 #ifndef NSL_LIB_LOWER_ASTTOMLIR_H
 #define NSL_LIB_LOWER_ASTTOMLIR_H
 
-#include "nsl/AST/ASTVisitor.h"
-
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/StringSet.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/OwningOpRef.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
+#include "nsl/AST/ASTVisitor.h"
+
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringSet.h"
 
 namespace nsl::ast {
 class CompilationUnit;
@@ -100,8 +100,7 @@ private:
   /// also use LHS-as-RHS-hint (result is fixed at `!nsl.bits<1>`,
   /// independent of the hint). Returning early when LHS is null
   /// avoids leaking RHS-side `nsl.constant` ops into the IR.
-  mlir::Value lowerExpr(const ast::Expr *expr,
-                        mlir::Type typeHint = nullptr);
+  mlir::Value lowerExpr(const ast::Expr *expr, mlir::Type typeHint = nullptr);
 
   mlir::MLIRContext &ctx_;
   const sema::SemaResult &sr_;

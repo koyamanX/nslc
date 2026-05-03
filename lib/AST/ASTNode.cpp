@@ -96,8 +96,10 @@ void ASTVisitor::visitDefault(const ASTNode & /*node*/) noexcept {}
 // below is the link-time-exhaustiveness mechanism: a missing
 // `visit(const T&) = 0` implementation in a derived visitor leaves
 // the line below referencing an undefined symbol.
-#define NSL_NODE_KIND(EnumName, BaseClass)                                    \
-  void EnumName::accept(ASTVisitor &visitor) const { visitor.visit(*this); }
+#define NSL_NODE_KIND(EnumName, BaseClass)                                     \
+  void EnumName::accept(ASTVisitor &visitor) const {                           \
+    visitor.visit(*this);                                                      \
+  }
 #include "nsl/AST/NodeKind.def"
 #undef NSL_NODE_KIND
 

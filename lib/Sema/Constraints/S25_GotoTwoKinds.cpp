@@ -131,8 +131,8 @@ void walkSeqBody(const ast::Stmt *s, const llvm::StringSet<> &labels_in_seq,
     break;
   }
   case ast::NodeKind::NK_LabeledStmt:
-    walkSeqBody(static_cast<const ast::LabeledStmt &>(*s).body(),
-                labels_in_seq, diag);
+    walkSeqBody(static_cast<const ast::LabeledStmt &>(*s).body(), labels_in_seq,
+                diag);
     break;
   case ast::NodeKind::NK_SeqBlock: {
     const auto &sb = static_cast<const ast::SeqBlock &>(*s);
@@ -166,8 +166,7 @@ void walkSeqBody(const ast::Stmt *s, const llvm::StringSet<> &labels_in_seq,
   }
 }
 
-void dispatch(const ast::Stmt *s,
-              const llvm::StringSet<> &state_names_in_proc,
+void dispatch(const ast::Stmt *s, const llvm::StringSet<> &state_names_in_proc,
               DiagnosticEngine &diag) {
   if (!s) {
     return;

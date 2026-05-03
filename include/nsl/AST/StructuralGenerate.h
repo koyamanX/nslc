@@ -24,8 +24,8 @@ public:
                      std::unique_ptr<Expr> cond, std::unique_ptr<Expr> step,
                      std::unique_ptr<Stmt> body)
       : Stmt(NodeKind::NK_StructuralGenerate, range), init_(init),
-        cond_(std::move(cond)), step_(std::move(step)),
-        body_(std::move(body)) {}
+        cond_(std::move(cond)), step_(std::move(step)), body_(std::move(body)) {
+  }
 
   StructuralGenerate(SourceRange range, Identifier init,
                      std::unique_ptr<Expr> initValue,

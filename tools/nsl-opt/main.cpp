@@ -27,17 +27,15 @@
 // At M4 zero passes were registered; the `--<pass-name>` flag space
 // was empty beyond MLIR's built-in canonicalize / cse / etc. passes.
 
-#include "nsl/Dialect/NSL/IR/NSLDialect.h"
-#include "nsl/Lower/Lower.h"
-
 #include "circt/Dialect/Comb/CombDialect.h"
 #include "circt/Dialect/FSM/FSMDialect.h"
 #include "circt/Dialect/HW/HWDialect.h"
 #include "circt/Dialect/SV/SVDialect.h"
 #include "circt/Dialect/Seq/SeqDialect.h"
-
 #include "mlir/IR/DialectRegistry.h"
 #include "mlir/Tools/mlir-opt/MlirOptMain.h"
+#include "nsl/Dialect/NSL/IR/NSLDialect.h"
+#include "nsl/Lower/Lower.h"
 
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;

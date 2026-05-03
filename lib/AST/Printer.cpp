@@ -40,7 +40,6 @@
 
 #include "nsl/AST/ASTNode.h"
 #include "nsl/AST/ASTVisitor.h"
-#include "nsl/AST/Expr.h"
 #include "nsl/AST/AltBlock.h"
 #include "nsl/AST/AnyBlock.h"
 #include "nsl/AST/BareFinishStmt.h"
@@ -53,6 +52,7 @@
 #include "nsl/AST/DeclareBlock.h"
 #include "nsl/AST/DelayTaskStmt.h"
 #include "nsl/AST/EmptyStmt.h"
+#include "nsl/AST/Expr.h"
 #include "nsl/AST/FieldAccessExpr.h"
 #include "nsl/AST/FirstStateDecl.h"
 #include "nsl/AST/ForBlock.h"
@@ -475,8 +475,7 @@ private:
         // resolved Symbol* is non-null, AND only when the type is
         // not Unresolved.
         if (decl_lookup_ != nullptr &&
-            e.inferredType()->kind() !=
-                ::nsl::sema::TypeKind::Unresolved &&
+            e.inferredType()->kind() != ::nsl::sema::TypeKind::Unresolved &&
             isNameRefKind(n.kind())) {
           SourceRange decl_range = decl_lookup_(&e);
           if (decl_range.isValid()) {

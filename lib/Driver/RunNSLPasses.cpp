@@ -16,15 +16,13 @@
 // passes in the FR-012 frozen order, and runs them. Diagnostics
 // route through the shared `DiagnosticBridge` (FR-019).
 
-#include "nsl/Driver/Compilation.h"
-
 #include "../Lower/Pass/Common/DiagnosticBridge.h"
-#include "nsl/Basic/Diagnostic.h"
-#include "nsl/Lower/Lower.h"
-
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LogicalResult.h"
+#include "nsl/Basic/Diagnostic.h"
+#include "nsl/Driver/Compilation.h"
+#include "nsl/Lower/Lower.h"
 
 namespace nsl::driver {
 
@@ -46,8 +44,9 @@ mlir::LogicalResult Compilation::runNSLPasses(mlir::ModuleOp module) {
   pm.addPass(nsl::lower::createNSLExpandGeneratePass());     // slot 2
   pm.addPass(nsl::lower::createNSLExpandVariablesPass());    // slot 3
   pm.addPass(nsl::lower::createNSLExplodeSubmodArrayPass()); // slot 4
-  pm.addPass(nsl::lower::createNSLInlineInternalFuncPass()); // slot 5 (no-op at M5)
-  pm.addPass(nsl::lower::createNSLCheckSemanticsPass());     // slot 6
+  pm.addPass(
+      nsl::lower::createNSLInlineInternalFuncPass());    // slot 5 (no-op at M5)
+  pm.addPass(nsl::lower::createNSLCheckSemanticsPass()); // slot 6
 
   return pm.run(module);
 }

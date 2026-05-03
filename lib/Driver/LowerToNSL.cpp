@@ -19,16 +19,16 @@
 // handled by the dispatcher; this body re-checks `sr.hasErrors()`
 // defensively per the M5 lowering contract.
 
-#include "nsl/Driver/Compilation.h"
-
 #include "../Lower/Pass/Common/DiagnosticBridge.h"
 #include "nsl/Basic/Diagnostic.h"
+#include "nsl/Driver/Compilation.h"
 #include "nsl/Lower/Lower.h"
 
 namespace nsl::driver {
 
-mlir::OwningOpRef<mlir::ModuleOp> Compilation::lowerToNSL(
-    ast::CompilationUnit &unit, sema::SemaResult &sema_result) {
+mlir::OwningOpRef<mlir::ModuleOp>
+Compilation::lowerToNSL(ast::CompilationUnit &unit,
+                        sema::SemaResult &sema_result) {
   if (diag_.hasError()) {
     // Defensive gate per FR-020. Caller's stage-dispatcher should
     // have already short-circuited here, but the lowering body MUST

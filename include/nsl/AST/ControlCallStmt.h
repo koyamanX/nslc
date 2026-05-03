@@ -22,8 +22,8 @@ class ControlCallStmt final : public Stmt {
 public:
   ControlCallStmt(SourceRange range, ScopedName target,
                   std::vector<std::unique_ptr<Expr>> args)
-      : Stmt(NodeKind::NK_ControlCallStmt, range),
-        target_(std::move(target)), args_(std::move(args)) {}
+      : Stmt(NodeKind::NK_ControlCallStmt, range), target_(std::move(target)),
+        args_(std::move(args)) {}
 
   [[nodiscard]] const ScopedName &target() const noexcept { return target_; }
   [[nodiscard]] const std::vector<std::unique_ptr<Expr>> &

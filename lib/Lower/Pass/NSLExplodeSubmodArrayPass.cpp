@@ -38,16 +38,15 @@
 //   - `lib/Dialect/NSL/IR/NSLOps.td` `NSL_SubmoduleOp`
 //     (post-merge M4-amendment 2026-05-02 #4 added `array_size`)
 
-#include "nsl/Lower/Lower.h"
-
-#include "nsl/Dialect/NSL/IR/NSLDialect.h"
-
-#include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/SmallVector.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Pass/Pass.h"
+#include "nsl/Dialect/NSL/IR/NSLDialect.h"
+#include "nsl/Lower/Lower.h"
+
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/SmallVector.h"
 
 #include <string>
 
@@ -65,7 +64,8 @@ public:
     return "nsl-explode-submod-array";
   }
   llvm::StringRef getDescription() const final {
-    return "Slot 4: replace array-form nsl.submodule (SUB[3]) with N independent "
+    return "Slot 4: replace array-form nsl.submodule (SUB[3]) with N "
+           "independent "
            "ops + rewrite cross-IR port references (M5 FR-016).";
   }
 
@@ -119,9 +119,8 @@ public:
         // SubmoduleOp::build takes (sym_name, templateRef, array_size?)
         // per TableGen — we pass an empty IntegerAttr for the
         // optional array_size.
-        nsl::dialect::SubmoduleOp::create(
-            builder, loc, nameAttr, templateRef,
-            /*array_size=*/mlir::IntegerAttr{});
+        nsl::dialect::SubmoduleOp::create(builder, loc, nameAttr, templateRef,
+                                          /*array_size=*/mlir::IntegerAttr{});
       }
 
       // **Cross-IR port-reference rewrite hook**: when M6 introduces

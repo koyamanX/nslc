@@ -26,9 +26,7 @@ public:
   /// Inferred type of this expression. nullptr until M3 Sema runs.
   /// Read-only access; mutation goes through `setInferredType()` so
   /// the slot is grep-discoverable.
-  [[nodiscard]] TypeRef inferredType() const noexcept {
-    return inferredType_;
-  }
+  [[nodiscard]] TypeRef inferredType() const noexcept { return inferredType_; }
 
   /// Sema's hook to fill the slot. Idempotent in practice (Sema
   /// resolves each `Expr` exactly once); but the setter does not
