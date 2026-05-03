@@ -78,14 +78,6 @@ jobs:
       - name: Run stage 1 via scripts/ci.sh
         run: ./scripts/ci.sh build-matrix ${{ matrix.build_type }} ${{ matrix.compiler }}
 
-      - name: Upload compile_commands.json (used by stage 2)
-        if: matrix.build_type == 'Release' && matrix.compiler == 'gcc'
-        uses: actions/upload-artifact@v4
-        with:
-          name: compile-commands
-          path: build-Release-gcc/compile_commands.json
-          if-no-files-found: error
-
   # --------------------------------------------------------------------------
   # Stage 2: static-checks (clang-format + clang-tidy + SPDX)
   # --------------------------------------------------------------------------
@@ -106,11 +98,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download compile_commands.json
-        uses: actions/download-artifact@v4
-        with:
-          name: compile-commands
-          path: build
+      # Configure + build locally instead of downloading
+      # compile_commands.json from the build-matrix job: the JSON
+      # produced there has absolute `directory` fields pointing at
+      # `/__w/.../build-Release-gcc` (the original cell's path), and
+      # clang-tidy `chdir`s into that directory before reading any
+      # entry. Cross-job artifact paths can't satisfy that without a
+      # rebuild, so do the rebuild here. Mirrors the unit-tests and
+      # lowering-tests jobs.
+      - name: Configure + build (Release × gcc)
+        run: ./scripts/ci.sh build-matrix Release gcc
 
       - name: Run stage 2 via scripts/ci.sh
         run: ./scripts/ci.sh static-checks
@@ -165,11 +162,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure + build (Release × gcc)
-        run: ./scripts/ci.sh build-matrix Release gcc
+      # gcc's ASan instrumentation breaks `mlir::BuiltinDialect::initialize`
+      # (use-after-poison in `addType<Float8E4M3Type>` → SmallVector move-
+      # assign). clang's ASan handles the same path fine. Use clang for
+      # the lit suite; gcc still validates everything else through the
+      # build-matrix and unit-tests stages.
+      - name: Configure + build (Release × clang)
+        run: ./scripts/ci.sh build-matrix Release clang
 
       - name: Run stage 4 via scripts/ci.sh
-        run: ./scripts/ci.sh lowering-tests build-Release-gcc
+        run: ./scripts/ci.sh lowering-tests build-Release-clang
 
   # --------------------------------------------------------------------------
   # Stage 5: end-to-end (wired but empty until M7)
