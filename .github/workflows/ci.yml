@@ -162,13 +162,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      # gcc's ASan instrumentation breaks `mlir::BuiltinDialect::initialize`
-      # (use-after-poison in `addType<Float8E4M3Type>` → SmallVector move-
-      # assign). clang's ASan handles the same path fine. Use clang for
-      # the lit suite; gcc still validates everything else through the
-      # build-matrix and unit-tests stages.
-      - name: Configure + build (Release × clang)
-        run: ./scripts/ci.sh build-matrix Release clang
+      # nsl-opt and nslc invoke MLIR's BuiltinDialect::initialize on
+      # every MLIRContext construction. The vendored libMLIR.so under
+      # /opt/llvm is built WITHOUT ASan, but its SmallVector inline-
+      # storage layout differs from the ASan-instrumented binary's
+      # — moving a populated SmallVector across the boundary fires
+      # use-after-poison on the destination's poisoned tail.
+      # ASAN_OPTIONS=detect_container_overflow=0 doesn't help (the
+      # poisoning persists). Build the lit-target binaries without
+      # ASan; the unit-tests / build-matrix cells keep full coverage.
+      - name: Configure + build (Release × clang, no ASan)
+        run: NSL_ENABLE_ASAN=OFF ./scripts/ci.sh build-matrix Release clang
 
       - name: Run stage 4 via scripts/ci.sh
         run: ./scripts/ci.sh lowering-tests build-Release-clang
