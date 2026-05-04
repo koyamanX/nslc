@@ -157,31 +157,37 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `008-m5-structural-passes` — land `nsl-lower`
-part 1 (layer 8a): the AST → `nsl` MLIR dialect lowering visitor
-(`ASTToMLIR`, single-pass with `SymbolTable` lazy resolution per
-/speckit-clarify Q4 → Option A) plus the six-pass structural-
-expansion pipeline (`NSLResolveParamsPass` →
-`NSLExpandGeneratePass` → `NSLExpandVariablesPass` →
-`NSLExplodeSubmodArrayPass` → `NSLInlineInternalFuncPass` (no-op
-slot at M5 per Q3 → Option B) → `NSLCheckSemanticsPass`). Wires
-`Compilation::lowerToNSL` / `runNSLPasses` (M4-stub bodies → real
-bodies) and the new `nslc -emit=mlir` driver flag (default printer
-output per Q2 → Option A). `%IDENT%` residue detection is regex
-over `mlir::StringAttr` values (per Q1 → Option B); the
-`NSLCheckSemanticsPass` re-checks exactly six post-expansion-
-sensitive `Sn` (S6, S10, S15, S16, S20, S25 — list frozen by
-`contracts/residue-detection.contract.md` §3 + `pass-pipeline.contract.md`
-§3). Public umbrella header `Lower.h` exports 8 frozen symbols
-(visitor entry + 6 pass constructors + 1 registration helper);
-M4 dialect contract is unchanged. For technologies, project
+**Active feature**: `010-t2-formatter-v0` — land the first NSL
+code formatter: `nsl-fmt` CLI + `libNslFmt.a` (the first of the
+three Principle-II-named user-facing tooling binaries — `nsl-fmt`,
+`nsl-lsp`, `nsl-lint`). Implements
+[`docs/design/nsl_tooling_design.md`](./docs/design/nsl_tooling_design.md)
+§§2.4 and 5.1–5.4: the CST trivia layer, the Wadler–Leijen
+`Doc`-IR pretty-printer, the six NSL-specific layout rules, the
+ten `.nsl-fmt.toml` configuration knobs, and the seven CLI flags
+(`-i`, `-c`/`--check`, `--stdin`, `--config`, `--range`,
+positional file args, `--help`/`--version`). Three
+/speckit-clarify decisions land in this milestone: Q1 — the
+formatter parses *raw* source pre-preprocessing and treats each
+directive line as an opaque CST token (clang-format model — the
+only option compatible with SC-002 audited-corpus idempotence,
+since every audited file uses `#include`); Q2 — `--range LINE:LINE`
+ships at T2 (the layout engine already operates on subtrees,
+defining the full CLI surface now avoids retrofit at T5); Q3 —
+multi-file invocations continue past per-file errors, collect and
+report ALL offending files (gofmt / black --check style; CI logs
+surface the complete fix list in one round trip). Public umbrella
+header `Fmt.h` exports 10 frozen symbols (3 types + 7 free
+functions); CST shape is internal but contractually frozen. T5
+(LSP `textDocument/formatting`) is **out of scope** for T2; T2's
+`libNslFmt.a` is the API T5 will wrap. For technologies, project
 structure, entity catalog, contracts, and quickstart, read the
 current plan:
-[`specs/008-m5-structural-passes/plan.md`](./specs/008-m5-structural-passes/plan.md).
+[`specs/010-t2-formatter-v0/plan.md`](./specs/010-t2-formatter-v0/plan.md).
 Companion artifacts:
-[`spec.md`](./specs/008-m5-structural-passes/spec.md),
-[`research.md`](./specs/008-m5-structural-passes/research.md),
-[`data-model.md`](./specs/008-m5-structural-passes/data-model.md),
-[`contracts/`](./specs/008-m5-structural-passes/contracts/),
-[`quickstart.md`](./specs/008-m5-structural-passes/quickstart.md).
+[`spec.md`](./specs/010-t2-formatter-v0/spec.md),
+[`research.md`](./specs/010-t2-formatter-v0/research.md),
+[`data-model.md`](./specs/010-t2-formatter-v0/data-model.md),
+[`contracts/`](./specs/010-t2-formatter-v0/contracts/),
+[`quickstart.md`](./specs/010-t2-formatter-v0/quickstart.md).
 <!-- SPECKIT END -->
