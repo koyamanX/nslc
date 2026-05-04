@@ -40,16 +40,16 @@ corpus under `test/Fmt/` (lit) and `test_unit/Fmt/` (gtest).
 **Purpose**: Project initialization, vendor third-party dep,
 empty CMake scaffolding so subsequent tasks have a place to land.
 
-- [ ] T001 Create `lib/Fmt/CMakeLists.txt` declaring `add_nsl_library(nsl-fmt LINK_LIBS nsl-frontend tomlpp)` per [`plan.md`](./plan.md) "Project Structure" section
-- [ ] T002 Create `tools/nsl-fmt/CMakeLists.txt` declaring `add_nsl_executable(nsl-fmt LINK_LIBS nsl-fmt)` and `tools/nsl-fmt/main.cpp` with a one-line `int main() { return 0; }` stub
-- [ ] T003 Add `lib/Fmt/` and `tools/nsl-fmt/` to the parent `CMakeLists.txt` `add_subdirectory(...)` lists in `lib/CMakeLists.txt` and `tools/CMakeLists.txt`
-- [ ] T004 [P] Create `include/nsl/Fmt/Fmt.h` empty umbrella with SPDX header + namespace `nsl::fmt {}`. Public-symbol declarations are added INCREMENTALLY by T026 (`format_buffer`, `FormatResult`, `LineRange`), T076 (`emit_unified_diff`), T087 (`version_string`), T088 (`config_key_names`), T089 (`default_configuration`), T102 (`Configuration`), T103 (`parse_config_file`), T106 (`discover_config`) as each function lands; T086 (Phase 5) verifies the final 10-symbol shape via `audit_fmt_api.sh`. No declaration is added in T004 itself.
-- [ ] T005 [P] Vendor `toml++` v3.4 under `third_party/tomlpp/` as a one-time human action: download `toml.hpp` and `LICENSE` from https://github.com/marzer/tomlplusplus/releases/tag/v3.4.0 ONCE, COMMIT both files into the repo, and author `third_party/tomlpp/PROVENANCE.md` recording upstream URL + commit SHA + MIT license. The build MUST NOT fetch from the network at configure time or build time (Principle V — reproducibility / determinism). Per Principle V vendoring discipline (research §4).
-- [ ] T006 [P] Create `third_party/tomlpp/CMakeLists.txt` declaring `add_library(tomlpp INTERFACE)` + `target_include_directories(tomlpp INTERFACE .)`
-- [ ] T007 Add `third_party/tomlpp/` to project-root `CMakeLists.txt` via `add_subdirectory(third_party/tomlpp)`
-- [ ] T008 [P] Add the new `check-nsl-fmt`, `check-fmt-lit`, `check-fmt-unit` ninja targets to project-root `CMakeLists.txt` (custom targets that depend on the matching test directories — `check-nsl-fmt` is the umbrella that depends on the other two)
-- [ ] T009 [P] Create `test/Fmt/lit.cfg.py` registering the `test/Fmt/` corpus with the project's existing lit infrastructure (use `test/Lower/lit.cfg.py` as reference)
-- [ ] T010 [P] Register `test/Fmt/` in the project-root `lit.cfg.py` discovery list
+- [X] T001 Create `lib/Fmt/CMakeLists.txt` declaring `add_nsl_library(nsl-fmt LINK_LIBS nsl-frontend tomlpp)` per [`plan.md`](./plan.md) "Project Structure" section
+- [X] T002 Create `tools/nsl-fmt/CMakeLists.txt` declaring `add_nsl_executable(nsl-fmt LINK_LIBS nsl-fmt)` and `tools/nsl-fmt/main.cpp` with a one-line `int main() { return 0; }` stub
+- [X] T003 Add `lib/Fmt/` and `tools/nsl-fmt/` to the parent `CMakeLists.txt` `add_subdirectory(...)` lists in `lib/CMakeLists.txt` and `tools/CMakeLists.txt`
+- [X] T004 [P] Create `include/nsl/Fmt/Fmt.h` empty umbrella with SPDX header + namespace `nsl::fmt {}`. Public-symbol declarations are added INCREMENTALLY by T026 (`format_buffer`, `FormatResult`, `LineRange`), T076 (`emit_unified_diff`), T087 (`version_string`), T088 (`config_key_names`), T089 (`default_configuration`), T102 (`Configuration`), T103 (`parse_config_file`), T106 (`discover_config`) as each function lands; T086 (Phase 5) verifies the final 10-symbol shape via `audit_fmt_api.sh`. No declaration is added in T004 itself.
+- [X] T005 [P] Vendor `toml++` v3.4 under `third_party/tomlpp/` as a one-time human action: download `toml.hpp` and `LICENSE` from https://github.com/marzer/tomlplusplus/releases/tag/v3.4.0 ONCE, COMMIT both files into the repo, and author `third_party/tomlpp/PROVENANCE.md` recording upstream URL + commit SHA + MIT license. The build MUST NOT fetch from the network at configure time or build time (Principle V — reproducibility / determinism). Per Principle V vendoring discipline (research §4).
+- [X] T006 [P] Create `third_party/tomlpp/CMakeLists.txt` declaring `add_library(tomlpp INTERFACE)` + `target_include_directories(tomlpp INTERFACE .)`
+- [X] T007 Add `third_party/tomlpp/` to project-root `CMakeLists.txt` via `add_subdirectory(third_party/tomlpp)`
+- [X] T008 [P] Add the new `check-nsl-fmt`, `check-fmt-lit`, `check-fmt-unit` ninja targets to project-root `CMakeLists.txt` (custom targets that depend on the matching test directories — `check-nsl-fmt` is the umbrella that depends on the other two)
+- [X] T009 [P] Create `test/Fmt/lit.cfg.py` registering the `test/Fmt/` corpus with the project's existing lit infrastructure (use `test/Lower/lit.cfg.py` as reference)
+- [X] T010 [P] Register `test/Fmt/` in the project-root `lit.cfg.py` discovery list
 
 **Phase 1 checkpoint**: `ninja -C build-noasan nsl-fmt` builds an
 empty binary; `ninja check-nsl-fmt` runs zero tests successfully.

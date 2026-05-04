@@ -132,6 +132,13 @@ include_directories(SYSTEM ${MLIR_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS} ${CIRCT_INC
 # Subdirectories
 # -----------------------------------------------------------------------------
 
+# Vendored third-party dependencies. Currently only `tomlpp` (toml++
+# v3.4 single-header TOML parser, MIT-licensed; vendored at T2 per
+# `third_party/tomlpp/PROVENANCE.md`). MUST be added BEFORE
+# `add_subdirectory(lib)` because `lib/Fmt/CMakeLists.txt` references
+# the `tomlpp` INTERFACE target.
+add_subdirectory(third_party/tomlpp)
+
 add_subdirectory(lib)
 add_subdirectory(tools)
 
@@ -139,4 +146,40 @@ if(NSL_BUILD_TESTS)
   enable_testing()
   add_subdirectory(test)
   add_subdirectory(test_unit)
+
+  # -----------------------------------------------------------------------------
+  # Per-feature roll-up ninja targets (T2 — `check-nsl-fmt`)
+  # -----------------------------------------------------------------------------
+  #
+  # `check-nslc` (defined in test/CMakeLists.txt) runs the full lit
+  # suite. T2 adds three sub-targets so a contributor working on the
+  # formatter can iterate without rebuilding the rest:
+  #
+  #   * check-fmt-lit  — runs only `test/Fmt/` lit fixtures
+  #   * check-fmt-unit — runs only `test_unit/Fmt/` GoogleTest binaries
+  #   * check-nsl-fmt  — umbrella that depends on both
+  #
+  # The lit subset uses LLVM's `add_lit_testsuite()` (singular) which
+  # creates ONE named target running lit over the given directory.
+  # (LLVM also ships `add_lit_testsuites(prefix dir)` (plural) which
+  # creates a `check-<prefix>-<subdir>` target per direct subdirectory
+  # of `dir`; we want the umbrella behavior, hence the singular form.)
+  # The unit-test subset is a custom target that the per-Fmt gtest
+  # CMakeLists.txt files in `test_unit/Fmt/` (added in Phase 2+) will
+  # `add_dependencies()` themselves to.
+  #
+  # Both sub-targets resolve at Phase 1 even with an empty `test/Fmt/`
+  # tree — lit on an empty corpus reports "0 tests" and exits 0,
+  # which is what the Phase-1 checkpoint expects.
+  add_lit_testsuite(check-fmt-lit
+    "Running the nsl-fmt lit fixtures"
+    "${CMAKE_SOURCE_DIR}/test/Fmt"
+    DEPENDS nsl-fmt FileCheck)
+
+  add_custom_target(check-fmt-unit
+    COMMENT "Run all test_unit/Fmt/ GoogleTest binaries (Phase 2+ populates this)")
+
+  add_custom_target(check-nsl-fmt
+    DEPENDS check-fmt-lit check-fmt-unit
+    COMMENT "Run the full nsl-fmt regression: lit + GoogleTest")
 endif()
