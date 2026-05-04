@@ -157,31 +157,43 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `008-m5-structural-passes` — land `nsl-lower`
-part 1 (layer 8a): the AST → `nsl` MLIR dialect lowering visitor
-(`ASTToMLIR`, single-pass with `SymbolTable` lazy resolution per
-/speckit-clarify Q4 → Option A) plus the six-pass structural-
-expansion pipeline (`NSLResolveParamsPass` →
-`NSLExpandGeneratePass` → `NSLExpandVariablesPass` →
-`NSLExplodeSubmodArrayPass` → `NSLInlineInternalFuncPass` (no-op
-slot at M5 per Q3 → Option B) → `NSLCheckSemanticsPass`). Wires
-`Compilation::lowerToNSL` / `runNSLPasses` (M4-stub bodies → real
-bodies) and the new `nslc -emit=mlir` driver flag (default printer
-output per Q2 → Option A). `%IDENT%` residue detection is regex
-over `mlir::StringAttr` values (per Q1 → Option B); the
-`NSLCheckSemanticsPass` re-checks exactly six post-expansion-
-sensitive `Sn` (S6, S10, S15, S16, S20, S25 — list frozen by
-`contracts/residue-detection.contract.md` §3 + `pass-pipeline.contract.md`
-§3). Public umbrella header `Lower.h` exports 8 frozen symbols
-(visitor entry + 6 pass constructors + 1 registration helper);
-M4 dialect contract is unchanged. For technologies, project
-structure, entity catalog, contracts, and quickstart, read the
-current plan:
-[`specs/008-m5-structural-passes/plan.md`](./specs/008-m5-structural-passes/plan.md).
+**Active feature**: `010-m6-circt-lowering` — land `nsl-lower`
+part 2 (layer 8b): the **`NSLToCIRCTPass`** conversion pass that
+consumes M5's `nsl::*` IR and produces `mlir::ModuleOp` populated
+entirely by ops from CIRCT's `hw`, `comb`, `seq`, `fsm`, `sv`
+dialects. User-visible deliverable: `nslc -emit=hw input.nsl`
+operational + byte-stable + verifier-clean across all five CIRCT
+dialects + survives stock CIRCT pass round-trip
+(`circt-opt --convert-fsm-to-seq --lower-seq-to-sv
+--prepare-for-emission`) externally. Driven via MLIR
+`DialectConversion` framework in full-conversion mode;
+`CIRCTTypeConverter` maps `!nsl.bits<W>` → `iW` and
+`!nsl.struct<@T>` → packed `iN` (S18 MSB-first). Headline pattern
+families: ModulePatterns (US2), FSMPatterns (US3 — `nsl.proc`/
+`nsl.state`/`nsl.seq` → `fsm.machine`), StatePatterns +
+ArithPatterns + BitOpPatterns + ControlPatterns + SimPatterns +
+ParamPatterns (US4 — leaf-op coverage of design §10's mapping
+table, ~40 rows). Three /speckit-clarify decisions pin
+conventions: Q1 → A `comb`-only arithmetic (no `hwarith`,
+no `CIRCTHwArith` link dep); Q2 → C async-active-low default
+reset on `seq.firreg` (no-`interface` path) for ASIC + FPGA
+portability + audited-corpus alignment; Q3 → A mux-on-data for
+`nsl.if`-over-reg-LHS (one `seq.firreg` per `nsl.reg` regardless
+of conditional nesting). Two specify-time decisions: `_init`
+block (S29) → `sv.initial` under `sv.ifdef "SIMULATION"` (sim-
+only); `-emit=hw` halts strictly at the nsl→CIRCT conversion
+boundary — stock CIRCT passes are M7's responsibility. Wires
+new `Compilation::lowerToCIRCT` member function. Public umbrella
+header `Lower.h` grows from M5's 8 symbols to **10**
+(adds `createNSLToCIRCTPass` + `registerNSLToCIRCTPass`); M4
+dialect contract is unchanged; M5 pass-pipeline contract is
+unchanged. For technologies, project structure, entity catalog,
+contracts, and quickstart, read the current plan:
+[`specs/010-m6-circt-lowering/plan.md`](./specs/010-m6-circt-lowering/plan.md).
 Companion artifacts:
-[`spec.md`](./specs/008-m5-structural-passes/spec.md),
-[`research.md`](./specs/008-m5-structural-passes/research.md),
-[`data-model.md`](./specs/008-m5-structural-passes/data-model.md),
-[`contracts/`](./specs/008-m5-structural-passes/contracts/),
-[`quickstart.md`](./specs/008-m5-structural-passes/quickstart.md).
+[`spec.md`](./specs/010-m6-circt-lowering/spec.md),
+[`research.md`](./specs/010-m6-circt-lowering/research.md),
+[`data-model.md`](./specs/010-m6-circt-lowering/data-model.md),
+[`contracts/`](./specs/010-m6-circt-lowering/contracts/),
+[`quickstart.md`](./specs/010-m6-circt-lowering/quickstart.md).
 <!-- SPECKIT END -->
