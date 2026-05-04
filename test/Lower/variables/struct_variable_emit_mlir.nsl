@@ -1,51 +1,61 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// test/Lower/variables/struct_variable_emit_mlir.nsl — US3 end-to-
-// end fixture (T079). Marked XFAIL below; deferral mirrors
-// `test/Lower/passes/nsl-expand-variables/struct_typed.mlir`.
+// test/Lower/variables/struct_variable_emit_mlir.nsl —
+// **ASPIRATIONAL FIXTURE.** Marked expected-to-fail (see directive
+// at the bottom of the file) until/unless NSL the *language* is
+// extended.
 //
-// **DEFERRED**. The intended source pattern is:
+// This fixture is NOT a deferred implementation — the source pattern
+// it exercises is **not part of the NSL grammar**:
 //
-//   struct T { a: 8; b: 8; }
+//   struct T { a[8]; b[8]; };
 //   module M {
-//     T variable s;        // <-- struct-typed variable
-//     ...
+//     T variable s;        // <-- NOT in lang.ebnf
+//     s.a = 0;
+//     s.b = 0;
 //   }
 //
-// Three blockers compound here:
+// Per `lang.ebnf §6` lines 311–314:
 //
-//  1. Per `lang.ebnf §6` `internal_declaration`, the `variable`
-//     keyword takes a bare identifier + optional `[width]`; there
-//     is no parser path for `<TypeRef> variable s;`. The grammar
-//     accepts struct-typed `reg`/`wire` (`StructInstDecl`) but not
-//     struct-typed `variable`. A grammar amendment + parser path
-//     are prerequisites.
+//   variable_declaration = "variable" variable_declarator
+//                          { "," variable_declarator } ";" ;
+//   variable_declarator  = identifier [ "[" width_expression "]" ] ;
 //
-//  2. M4's `nsl.variable` op constrains the result type to
-//     `NSL_AnyBits` (NSLOps.td:280; FR-013). The verifier rejects
-//     `!nsl.struct<@T>` outright. A fifth M4 amendment relaxing the
-//     constraint OR an AST-time per-field decomposition (preferred
-//     option; see `struct_typed.mlir`'s deferral banner) is
-//     required.
+// `variable` is strictly bare-form (`variable name;` or
+// `variable name[width];`). The struct-instance form
+// `<Type> reg s;` / `<Type> wire s;` (lang.ebnf line 297
+// `struct_instance_declaration`) is deliberately NOT extended to
+// `variable`. NSL does not currently have struct-typed variables.
 //
-//  3. The expand-variables pass would need per-field handling
-//     (clone the chain per field; merge field-level versions on
-//     whole-struct read sites). The M4 surface lacks a struct-pack
-//     op; only `nsl.struct_cast` (Q3 Option A) goes the bits→struct
-//     direction. A field-pack op or composition via `nsl.field` +
-//     `nsl.concat` + `nsl.struct_cast` would close the surface.
+// Closing this fixture would require, in order:
 //
-// Per the US2 T066/T067 + `struct_typed.mlir` precedent, this is a
-// documented amendment-class blocker. Module-scope scalar variables
-// (T078) are the substantive deliverable for US3 ship.
+//   (a) An NSL **language** amendment extending
+//       `variable_declaration` to admit a TypeRef prefix (a spec
+//       PR — Constitution Principle I + VII, with audited-corpus
+//       review since none of the seven audited projects use
+//       struct-typed variables today).
+//   (b) M2 parser path for the new form.
+//   (c) Either an M4 amendment relaxing `nsl.variable`'s
+//       `NSL_AnyBits` result constraint to admit `!nsl.struct<@T>`,
+//       OR — preferred — an AST-time per-field decomposition that
+//       lowers `T variable s;` into per-field `nsl.variable` ops.
+//   (d) `NSLExpandVariablesPass` per-field handling (clone the
+//       chain per field; merge on whole-struct read sites).
+//   (e) An MLIR struct-pack op (or composition via `nsl.field` +
+//       `nsl.concat` + `nsl.struct_cast`) so whole-struct reads
+//       compose cleanly.
+//
+// All five preconditions are out of scope for an infra-cleanup PR.
+// The CHECK lines below preserve the intended post-amendment IR
+// shape so a future spec/implementation PR has a target to satisfy.
 //
 // XFAIL: *
 // RUN: %nslc -emit=mlir %s | %FileCheck %s
 
 struct T {
-  a: 8;
-  b: 8;
-}
+  a[8];
+  b[8];
+};
 
 module M {
   T variable s;     // CHECK: nsl.variable

@@ -1257,6 +1257,23 @@ void Walker::stmtLabeled(const ast::LabeledStmt &n) {
 
 void Walker::stmtStructuralGenerate(const ast::StructuralGenerate &n) {
   table_.enterScope(ScopeKind::SeqOrParallel);
+  // Register the loop variable as an `integer` symbol per S10
+  // (`generate` loop var must be integer). Without this, references
+  // to the loop var inside cond / step / body fail name resolution
+  // ("unresolved name 'i'"). The symbol is scoped to this generate
+  // block and goes out of scope when we leaveScope() below.
+  if (!n.init().empty()) {
+    auto sym = std::make_unique<IntegerSymbol>(n.init(), n.loc());
+    IntegerSymbol *raw = sym.get();
+    if (table_.declare(std::move(sym))) {
+      // Match `declInteger`'s host-int-sized BitVector(64) so that
+      // `exprIdentifier` finds a non-null inferred type when
+      // resolving references to the loop variable in cond / step /
+      // body. Without this, `i < N` and `i = i + 1` evaluate
+      // typeless and downstream constraints (S10) lose ground truth.
+      raw->setType(types_.bitVector(64));
+    }
+  }
   if (n.cond()) {
     visitExpr(*n.cond());
   }

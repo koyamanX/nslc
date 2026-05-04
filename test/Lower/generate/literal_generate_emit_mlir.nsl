@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// RUN: %nslc -emit=mlir %s 2>/dev/null | %FileCheck %s
+//
+// M5 US2 / FR-014 — end-to-end literal-bound generate fixture per
+// the US2 acceptance scenario 1 (driven from pure NSL source).
+//
+// XFAIL CLOSED 2026-05-04 by the bundle:
+//   - M4 amendment #5 (nsl.reg parent → StructuralGenerateOp)
+//     [shipped in the M5 PR].
+//   - FR-037 amendment (P3 severity downgrade) + lexer extension
+//     folding `%i%` residue into surrounding identifier text.
+//
+// Pipeline: M1 IdentSplicer warns on `%i%` (loop-var residue) and
+// leaves it verbatim → lexer tokenizes `buf_%i%` as a single
+// identifier → AST→MLIR visitor emits `nsl.reg "buf_%i%"` inside
+// `nsl.structural_generate` → `NSLResolveParamsPass` (slot 1, no-op
+// here — no params) → `NSLExpandGeneratePass` (slot 2) clones the
+// body 4 times with `%i%` substring substituted by the iteration
+// index → `NSLCheckSemanticsPass` (slot 6) clears (no residue).
+
+module GenLiteral {
+    generate(i = 0; i < 4; i = i + 1) {
+        reg buf_%i% = 0;
+    }
+}
+
+// CHECK-LABEL: nsl.module @GenLiteral
+// CHECK-NOT: nsl.structural_generate
+// CHECK-DAG: nsl.reg "buf_0"
+// CHECK-DAG: nsl.reg "buf_1"
+// CHECK-DAG: nsl.reg "buf_2"
+// CHECK-DAG: nsl.reg "buf_3"

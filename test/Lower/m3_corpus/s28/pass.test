@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // test/Lower/m3_corpus/s28/pass.test — M5 T106 / FR-030 / SC-003.
+// Auto-generated golden-diff harness paired with pass.expected.mlir.
+// Asserts `nslc -emit=mlir` on the M3 Sema pass-case fixture for
+// constraint s28 produces byte-identical output to the captured
+// golden. Regression-guard: any visitor change that silently mutates
+// lowering output for an M3 fixture flips this test red.
 //
-// **Cross-milestone deferral (M5+ visitor infra).** NSL syntax places
-// `state s1 { ... }` definitions at module top-level (sibling of
-// `proc p`); M4's frozen 79-op dialect placed `nsl.state` under
-// `HasParent<"ProcOp">`. The visitor must therefore map each top-
-// level state-defn to the proc(s) that reference it via
-// `state_name s1, s2;` — a per-proc `controlTable_`/`nameTable_`
-// inversion that exceeds the M5 visitor's current scope. Multi-proc
-// state-name sharing further complicates: two procs referencing the
-// same state name cannot both host an `nsl.state @s1` (Symbol
-// uniqueness). The eventual fix is M5+ visitor work, possibly
-// alongside an M4 amendment relaxing `nsl.state`'s parent constraint.
+// XFAIL CLOSED 2026-05-04 by M4 amendment #8 — `nsl.state` parent
+// trait widened from `HasParent<"ProcOp">` to
+// `ParentOneOf<["ModuleOp", "ProcOp"]>`, mirroring the NSL grammar
+// shape (top-level `state s { }` defs as siblings of `proc p`).
+// `FirstStateOp::verify` and `GotoOp::verify` updated to also resolve
+// state-name targets at module scope when the proc body lacks them.
 //
-// XFAIL: *
 // RUN: %nslc -emit=mlir %S/../../../sema/s28/pass.nsl > %t.actual.mlir
+// RUN: diff %t.actual.mlir %S/pass.expected.mlir

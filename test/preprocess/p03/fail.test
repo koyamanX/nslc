@@ -1,30 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// test/preprocess/p03/fail.test — P3 undefined-macro fail-case per
+// test/preprocess/p03/fail.test — P3 undefined-macro fixture per
 // the FR-037 locked diagnostic strings in
 // `specs/002-m1-lex-preprocess/contracts/diagnostic-output.contract.md`
 // + the "Mandatory diagnostic-string fixtures" table.
 //
-// FR-037 P3 lock:  `undefined macro reference: '%<NAME>%'`
+// FR-037 P3 lock:  `undefined macro reference: '%<NAME>%'`  (warning)
 //
-// Per Constitution Principle VIII the failing fixture asserts the
-// EXACT diagnostic string. Renaming or weakening this string later
-// requires a contract amendment in
-// `contracts/diagnostic-output.contract.md` PLUS this fixture's
-// update in the same change.
+// Per Constitution Principle VIII the fixture asserts the EXACT
+// diagnostic string. The string itself is locked; the severity was
+// downgraded from Error to Warning in the 2026-05-04 contract
+// amendment so the M5 `NSLCheckSemanticsPass` (slot 6) can surface
+// the canonical residue diagnostic at MLIR-emit time without the M1
+// phase short-circuiting the pipeline.
 //
-// `not %nslc ...` makes lit expect a non-zero exit code; per the
-// `nslc -emit=tokens` contract that's exit 1 with the diagnostic on
-// stderr and NO tokens on stdout (no partial output).
-//
-// **RED state**: against the unchanged Phase-3 tree the lexer
-// produces tokens for `%UNDEF%` per §13 (e.g., `tk_percent` +
-// `tk_identifier UNDEF` + `tk_percent`) and exits 0 — no
-// preprocessor exists to detect the undefined macro. Phase-4's
-// `IdentSplicer` raises the FR-037 diagnostic.
+// `nslc -emit=tokens` exits 0 (warning is non-fatal) and emits the
+// token stream to stdout; the warning text appears on stderr.
 
 // RUN: echo 'reg x = %%UNDEF%%;' > %t.nsl
-// RUN: not %nslc -emit=tokens %t.nsl 2>&1 | FileCheck %s
+// RUN: %nslc -emit=tokens %t.nsl 2>&1 | FileCheck %s
 
-// FR-037 LOCKED STRING — exact match:
-// CHECK: error: undefined macro reference: '%UNDEF%'
+// FR-037 LOCKED STRING — exact match (severity warning post-amendment):
+// CHECK: warning: undefined macro reference: '%UNDEF%'

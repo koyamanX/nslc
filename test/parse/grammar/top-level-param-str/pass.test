@@ -7,7 +7,7 @@
 // §3.1`) per Constitution Principle VIII (TDD; FR-029) and
 // `specs/005-m2-parser/research.md` §9 (test corpus organization).
 //
-// Subject: top_level_parameter — param_str form
+// Subject: top_level_parameter — param_str form (parser-accepts + S16-rejects)
 //
 // The input is written to a temp file via lit's `%t` substitution
 // rather than embedded in this `.test`; otherwise the SPDX header
@@ -28,8 +28,6 @@
 // so the FileCheck pipeline observes a mismatch and the test fails.
 
 // RUN: printf 'param_str MODE = "SIM";\n' > %t.nsl
-// RUN: %nslc -emit=ast %t.nsl | FileCheck %s
+// RUN: not %nslc -emit=ast %t.nsl 2>&1 | FileCheck %s
 
-// CHECK: (CompilationUnit
-// CHECK: (TopLevelParamDecl
-// CHECK: name=MODE
+// CHECK: error: 'param_int' / 'param_str' is meaningful only for Verilog/VHDL/SystemC submodules; pure-NSL modules use '#define' (S16)

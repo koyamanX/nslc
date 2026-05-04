@@ -11,10 +11,12 @@
 // objects with `severity:"note"` and an `included_from` field.
 
 // RUN: echo '#include "middle.nsl"' > %t.nsl
-// RUN: not %nslc --diagnostic-format=json -emit=tokens -I %S/Inputs %t.nsl 2>&1 | FileCheck %s
+// RUN: %nslc --diagnostic-format=json -emit=tokens -I %S/Inputs %t.nsl 2>&1 | FileCheck %s
 
-// Primary error: five mandatory NDJSON fields, severity error.
-// CHECK: {"path":"{{.*}}inner.nsl","line":7,"col":1,"severity":"error","message":"undefined macro reference: '%UNDEF%'"}
+// Primary diagnostic: five mandatory NDJSON fields. FR-037 P3
+// severity downgraded from error to warning by the 2026-05-04
+// contract amendment (residue forwarded to M5 `NSLCheckSemanticsPass`).
+// CHECK: {"path":"{{.*}}inner.nsl","line":7,"col":1,"severity":"warning","message":"undefined macro reference: '%UNDEF%'"}
 
 // Two include-stack notes (innermost first per the contract).
 // CHECK: {"path":"{{.*}}middle.nsl","line":4,"col":{{[0-9]+}},"severity":"note","message":"included from","included_from":{"path":"{{.*}}middle.nsl","line":4,"col":{{[0-9]+}}}}

@@ -1,18 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // test/Lower/m3_corpus/s16/pass.test — M5 T106 / FR-030 / SC-003.
+// Auto-generated golden-diff harness paired with pass.expected.mlir.
 //
-// **Working-as-intended deferral.** The shared input
-// `test/sema/s16/pass.nsl` Sema-passes (S16's compile-time check
-// is structurally permissive) but the AST→MLIR + dialect-verifier
-// path correctly emits the FROZEN diagnostic
-// `parameter '@N' meaningful only for V/V/SC submodules` — a
-// pure-NSL parameter binding without an enclosing
-// Verilog/VHDL/SystemC submodule violates the M5 lowering surface.
-// The XFAIL is permanent for this fixture: the input is by-design
-// rejected at the M5 layer; only an S16-conforming variant could
-// produce a green `-emit=mlir` round-trip, which is a separate
-// fixture concern (not this fixture's contract).
+// Previously XFAIL'd as "permanent working-as-intended" because the
+// shared input `test/sema/s16/pass.nsl` used a top-level `param_int`
+// (now rejected by the tightened S16 walker). XFAIL CLOSED 2026-05-04
+// by the §3.1 + S16 alignment amendment: the shared input was
+// rewritten to use `#define WIDTH 8` + `%WIDTH%` splice (the
+// canonical pure-NSL compile-time-constant idiom per `pp.ebnf §2.2`).
+// The lowering produces a clean `nsl.reg "q" : !nsl.bits<8>` and the
+// golden-diff matches.
 //
-// XFAIL: *
 // RUN: %nslc -emit=mlir %S/../../../sema/s16/pass.nsl > %t.actual.mlir
+// RUN: diff %t.actual.mlir %S/pass.expected.mlir

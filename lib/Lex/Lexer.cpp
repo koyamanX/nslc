@@ -158,12 +158,45 @@ public:
 
   /// Scan an identifier or keyword starting at `cur` (caller has
   /// confirmed `isIdentStart(buf[cur])` or `buf[cur] == '_'`).
+  ///
+  /// Per FR-037 amendment 2026-05-04, an undefined `%IDENT%` splice
+  /// marker that survives the IdentSplicer (P3 residue) is folded
+  /// into the surrounding identifier text. This lets `buf_%TYPO%`
+  /// reach the lexer/parser as a single `tk_identifier` whose
+  /// spelling preserves the `%X%` substring; the M5
+  /// `NSLCheckSemanticsPass` then surfaces the canonical residue
+  /// diagnostic at slot 6 (`residue-detection.contract.md`). A bare
+  /// `%` not forming `%X%` shape continues to terminate the
+  /// identifier (modulo operator preserved).
   Token scanIdentifierOrKeyword() {
     uint32_t const begin = cur;
     bool const starts_with_underscore = (buf[cur] == '_');
     ++cur;
-    while (cur < buf.size() && isIdentBody(buf[cur])) {
-      ++cur;
+    while (cur < buf.size()) {
+      if (isIdentBody(buf[cur])) {
+        ++cur;
+        continue;
+      }
+      if (buf[cur] == '%') {
+        // Probe for `%IDENT%` shape (lex-level residue interpolation).
+        // The IdentSplicer accepts `%_NAME%` (its `isIdentStart`
+        // includes `_`); mirror that here so a residue like
+        // `buf_%_TYPO%` survives as a single identifier rather than
+        // splitting at the inner `%`.
+        uint32_t probe = cur + 1;
+        if (probe < buf.size() &&
+            (isIdentStart(buf[probe]) || buf[probe] == '_')) {
+          uint32_t scan = probe;
+          while (scan < buf.size() && isIdentBody(buf[scan])) {
+            ++scan;
+          }
+          if (scan < buf.size() && buf[scan] == '%') {
+            cur = scan + 1; // consume `%X%` into identifier
+            continue;
+          }
+        }
+      }
+      break;
     }
     llvm::StringRef const text = buf.substr(begin, cur - begin);
     TokenKind const kind = starts_with_underscore ? classifyUnderscoreName(text)
