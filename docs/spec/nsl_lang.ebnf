@@ -119,18 +119,37 @@ struct_member      = identifier [ "[" constant_expression "]" ] ";" ;
 
 (* ========== 3.1 Top-level parameters ======================================= *)
 
-(* Top-level parameters live OUTSIDE any declare / module block and serve    *
- * as compile-time constants usable in structural-expansion contexts         *
- * (module-instance counts, width expressions, "#if" branches via            *
- * comparison):                                                              *
+(* AMENDMENT 2026-05-04: §3.1 reframed to align with S16.                    *
  *                                                                           *
- *     param_str MODE = "SIM";      // global compile-time string            *
- *     param_int N    = 8;          // global compile-time integer           *
+ * Top-level parameters live OUTSIDE any declare / module block and bind     *
+ * source values for Verilog/VHDL/SystemC submodule parameter slots at       *
+ * instantiation time:                                                       *
  *                                                                           *
- * These are distinct from the param_int / param_str declared inside a       *
- * "declare" header (§3) — those are connection-time parameters passed to    *
- * a Verilog/VHDL submodule.  A top-level parameter MUST carry an            *
- * initializer; a header-parameter may not (its value arrives at bind).     *)
+ *     param_str MODE = "SIM";      // bound at instantiation of a HDL sub   *
+ *     param_int N    = 8;          // bound at instantiation of a HDL sub   *
+ *                                                                           *
+ * They are NOT compile-time constants for pure-NSL contexts. **Pure-NSL     *
+ * modules carry no parameters; the only correct compile-time-constant       *
+ * mechanism for pure-NSL is "#define"** (`pp.ebnf §2.2`). S16 enforces      *
+ * this: a top-level `param_int` / `param_str` coexisting with a pure-NSL    *
+ * `module` block is an error; the param must connect to a submodule whose   *
+ * `declare` header is HDL-foreign.                                          *
+ *                                                                           *
+ * The Verilog-side mechanism: a Verilog/VHDL/SystemC submodule's `declare`  *
+ * header (§3, line 153) carries connection-time `parameter_declaration`s    *
+ * with no initializer. The value arrives at bind from a top-level           *
+ * `param_int` / `param_str` declared in the importing NSL file.             *
+ *                                                                           *
+ * A top-level parameter MUST carry an initializer; a header-parameter may   *
+ * not (its value arrives at bind).                                          *
+ *                                                                           *
+ * The previous §3.1 commentary (pre-2026-05-04) described top-level params  *
+ * as "compile-time constants usable in structural-expansion contexts        *
+ * (module-instance counts, width expressions, '#if' branches via            *
+ * comparison)". That commentary contradicted S16 and is REMOVED. None of    *
+ * the seven audited NSL projects use top-level `param_int` for pure-NSL    *
+ * structural-expansion bounds; they use `#define`. The grammar production   *
+ * is retained because the HDL-submodule-binding case uses it.              *)
 
 top_level_parameter = ( "param_int" identifier "=" constant_expression ";" )
                     | ( "param_str" identifier "=" string_literal       ";" ) ;
