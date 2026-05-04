@@ -42,10 +42,10 @@ moment US1 lands.
 **Purpose**: Create the directory tree and install the scope-test
 runner. No grammar / fixture authoring yet.
 
-- [ ] T001 Create the T1 directory tree: `mkdir -p grammars/textmate editors/vscode/syntaxes test/tooling/textmate/fixtures test/tooling/textmate/scope-tests` and add `.gitkeep` placeholders so empty subdirs survive the initial commit
-- [ ] T002 [P] Author `test/tooling/textmate/package.json` declaring `vscode-tmgrammar-test` as a `devDependency` (pinned to a specific version per Constitution Principle V determinism); include the `_comment_top` SPDX header per `research.md §2`
-- [ ] T003 [P] Author `test/tooling/textmate/.gitignore` excluding `node_modules/` and `package-lock.json` rebuild artefacts; commit `package-lock.json` itself for build reproducibility
-- [ ] T004 Inside `test/tooling/textmate/`, run `npm install` to produce `package-lock.json`; verify `npx vscode-tmgrammar-test --help` succeeds
+- [X] T001 Create the T1 directory tree: `mkdir -p grammars/textmate editors/vscode/syntaxes test/tooling/textmate/fixtures test/tooling/textmate/scope-tests` and add `.gitkeep` placeholders so empty subdirs survive the initial commit
+- [X] T002 [P] Author `test/tooling/textmate/package.json` declaring `vscode-tmgrammar-test` as a `devDependency` (pinned to `0.1.3` per Constitution Principle V determinism); include the `_comment_top` SPDX header per `research.md §2`
+- [X] T003 [P] Author `test/tooling/textmate/.gitignore` excluding `node_modules/`; commit `package-lock.json` itself for build reproducibility
+- [X] T004 Inside `test/tooling/textmate/`, run `npm install --cache="$TMPDIR/npm-cache"` to produce `package-lock.json` (sandbox-write redirect for `~/.npm/_cacache`); verified `npx vscode-tmgrammar-test --help` succeeds
 
 **Checkpoint**: Empty test scaffolding exists; the runner is invokable.
 
@@ -62,9 +62,9 @@ corpus per `data-model.md §2` coupling diagram.
 complete — every grammar emission task in Phase 3+ edits this
 script.
 
-- [ ] T005 Create `scripts/gen_textmate_grammar.py` skeleton (Python 3, SPDX header on line 1 per `scripts/gen_keyword_fixtures.py` precedent); the script reads `include/nsl/Lex/KeywordSet.def`, holds the `KEYWORD_CATEGORY` table per `data-model.md §1.2` covering all 42 spellings, raises with a localised error when a `KeywordSet.def` row has no category mapping (per quickstart §4 step 3 message), and emits a minimal `grammars/textmate/nsl.tmLanguage.json` containing only the `_comment_top` SPDX header, `name`, `scopeName: "source.nsl"`, `fileTypes: ["nsl","nslh","inc"]`, and an empty `patterns` array
-- [ ] T006 [P] Create `scripts/gen_textmate_fixtures.py` skeleton (Python 3, SPDX header on line 1); the script reads `include/nsl/Lex/KeywordSet.def` and emits `test/tooling/textmate/fixtures/all-keywords.nsl` with one occurrence per keyword (no assertions yet — assertions are added in T010); the fixture is a valid NSL skeleton (e.g. each keyword wrapped in a comment-fenced minimal context) so the runner does not error on parse-edge cases
-- [ ] T007 Run both generators twice and verify byte-stable output (Constitution Principle V): `python3 scripts/gen_textmate_grammar.py && cp grammars/textmate/nsl.tmLanguage.json /tmp/g1.json && python3 scripts/gen_textmate_grammar.py && diff /tmp/g1.json grammars/textmate/nsl.tmLanguage.json` returns 0; same for the fixture generator
+- [X] T005 Create `scripts/gen_textmate_grammar.py` skeleton (Python 3, SPDX header on line 1 per `scripts/gen_keyword_fixtures.py` precedent); the script reads `include/nsl/Lex/KeywordSet.def`, holds the `KEYWORD_CATEGORY` table per `data-model.md §1.2` covering all 42 spellings, raises with a localised error when a `KeywordSet.def` row has no category mapping (per quickstart §4 step 3 message), and emits a minimal `grammars/textmate/nsl.tmLanguage.json` containing only the `_comment_top` SPDX header, `name`, `scopeName: "source.nsl"`, `fileTypes: ["nsl","nslh","inc"]`, and an empty `patterns` array
+- [X] T006 [P] Create `scripts/gen_textmate_fixtures.py` skeleton (Python 3, SPDX header on line 1); the script reads `include/nsl/Lex/KeywordSet.def` and emits `test/tooling/textmate/fixtures/all-keywords.nsl` with one occurrence per keyword (no assertions yet — assertions are added in T009); the fixture is a valid NSL skeleton so the runner does not error on parse-edge cases
+- [X] T007 Run both generators twice and verify byte-stable output (Constitution Principle V): two-run diff returns 0 for both `nsl.tmLanguage.json` and `all-keywords.nsl`
 
 **Checkpoint**: Foundation ready — user-story implementation can now begin.
 
