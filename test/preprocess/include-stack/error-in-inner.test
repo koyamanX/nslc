@@ -14,8 +14,12 @@
 // `contracts/diagnostic-output.contract.md`).
 
 // RUN: echo '#include "middle.nsl"' > %t.nsl
-// RUN: not %nslc -emit=tokens -I %S/Inputs %t.nsl 2>&1 | FileCheck %s
+// RUN: %nslc -emit=tokens -I %S/Inputs %t.nsl 2>&1 | FileCheck %s
 
-// CHECK: inner.nsl:7:1: error: undefined macro reference: '%UNDEF%'
+// FR-037 P3 severity downgraded from error to warning by the
+// 2026-05-04 contract amendment (residue forwarded to M5
+// `NSLCheckSemanticsPass`); the include-stack note chain is
+// independent of severity.
+// CHECK: inner.nsl:7:1: warning: undefined macro reference: '%UNDEF%'
 // CHECK: note: included from {{.*}}middle.nsl:4
 // CHECK: note: included from {{.*}}{{(t.nsl|tmp.nsl)}}:1

@@ -25,6 +25,10 @@
 // with lit's `%`-substitution layer, so we drop down to the byte
 // escape to write a literal `%` char into the temp file.
 // RUN: printf '#line 1000 "synth.nsl"\n\n\045UNDEF\045\n' > %t.nsl
-// RUN: not %nslc -emit=tokens %t.nsl 2>&1 | FileCheck %s
+// RUN: %nslc -emit=tokens %t.nsl 2>&1 | FileCheck %s
 
-// CHECK: synth.nsl:1001:{{[0-9]+}}: error: undefined macro reference: '%UNDEF%'
+// FR-037 P3 severity downgraded from error to warning by the
+// 2026-05-04 contract amendment (residue forwarded to M5
+// `NSLCheckSemanticsPass`); virtual-coordinate substring is
+// independent of the severity.
+// CHECK: synth.nsl:1001:{{[0-9]+}}: warning: undefined macro reference: '%UNDEF%'

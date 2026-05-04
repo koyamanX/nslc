@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// RUN: %nslc -emit=mlir %s 2>/dev/null | %FileCheck %s
+//
+// M5 US2 / FR-014 — end-to-end macro-bound generate fixture (T067).
+//
+// XFAIL CLOSED 2026-05-04 by the bundle:
+//   - M4 amendment #5 (nsl.reg parent → StructuralGenerateOp).
+//   - FR-037 amendment (P3 severity → warning) + lexer extension
+//     folding `%i%` residue into surrounding identifier text.
+//   - Sema fix: register the generate loop-var as IntegerSymbol.
+//
+// Per S16 a pure-NSL module's compile-time configuration uses
+// `#define`, NOT `param_int` (that's reserved for Verilog/VHDL
+// submodule binding). The preprocessor expands `N` to its replacement
+// text `4` before lex; the resulting `i < 4` literal-bounded
+// generate is byte-identical to the literal-bound shape covered by
+// the sibling fixture `literal_generate_emit_mlir.nsl`. Splitting
+// the two fixtures keeps the spec-anchored "macro-bounded loop"
+// scenario independently verifiable from the "literal-bounded loop"
+// one.
+
+#define N 4
+
+module GenParam {
+    generate(i = 0; i < %N%; i = i + 1) {
+        reg buf_%i% = 0;
+    }
+}
+
+// CHECK-LABEL: nsl.module @GenParam
+// CHECK-NOT: nsl.structural_generate
+// CHECK-DAG: nsl.reg "buf_0"
+// CHECK-DAG: nsl.reg "buf_1"
+// CHECK-DAG: nsl.reg "buf_2"
+// CHECK-DAG: nsl.reg "buf_3"

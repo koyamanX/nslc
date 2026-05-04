@@ -137,14 +137,42 @@ LSP consumer.
 Per FR-037, fail-fixtures for the following rules MUST cite the
 exact diagnostic message string. The message strings are:
 
-| Rule | Message (M1 lock) |
-|------|-------------------|
-| P3   | `undefined macro reference: '%<NAME>%'` |
-| P6   | `compile-time helper '_<NAME>' used outside #define / #if condition` |
-| P7   | `float literal cannot cross the preprocessor seam` |
-| P9   | `'#endif' without matching '#if' / '#ifdef' / '#ifndef'` (and the symmetric `unterminated #if at end of file`) |
-| Lex unterminated string | `unterminated string literal` |
+| Rule | Message (M1 lock) | Severity |
+|------|-------------------|----------|
+| P3   | `undefined macro reference: '%<NAME>%'` | warning (since 2026-05-04 amendment — see below) |
+| P6   | `compile-time helper '_<NAME>' used outside #define / #if condition` | error |
+| P7   | `float literal cannot cross the preprocessor seam` | error |
+| P9   | `'#endif' without matching '#if' / '#ifdef' / '#ifndef'` (and the symmetric `unterminated #if at end of file`) | error |
+| Lex unterminated string | `unterminated string literal` | error |
 
 Renaming or weakening any of these strings later requires a
 contract amendment in this file PLUS updating the corresponding
 fail-fixture.
+
+### 2026-05-04 amendment — P3 severity downgrade
+
+P3's severity is **warning**, not error. Rationale: residue
+(undefined `%X%` references) is the architectural input to the M5
+`NSLCheckSemanticsPass` (slot 6 of the structural-expansion
+pipeline) which surfaces the canonical FROZEN diagnostic
+`error: unresolved macro splice '%<NAME>%' after structural
+expansion` at MLIR-emit time. With P3 emitting an Error at the M1
+phase, `nslc -emit=mlir` short-circuits before reaching the M5
+layer and the architectural intent is unreachable on pure-NSL
+inputs (the path was XFAIL'd through M5 ship — see
+`test/Lower/residue/typo_undefined_emit_mlir.nsl` historical
+banner + tasks.md offload tasks #23 / #31).
+
+Coupled changes:
+- The lexer's identifier rule (`lib/Lex/Lexer.cpp` /
+  `scanIdentifierOrKeyword`) folds `%X%` residue into the
+  surrounding identifier text so the residue reaches MLIR
+  `StringAttr` values for the M5 regex check.
+- `lang.ebnf §13` identifier note records the lex-level
+  interpolation (residue passes through identifier-body context).
+- The four M1 fail-fixtures asserting the `error: ...` form on
+  P3 (`p03/fail.test`, `line/diag-after-line.test`,
+  `include-stack/error-in-inner.test`,
+  `include-stack/error-in-inner.json.test`) are updated to
+  assert `warning: ...` and to drop the `not %nslc` prefix
+  (warning is non-fatal).

@@ -1,34 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-// XFAIL: *
 // RUN: not %nslc -emit=mlir %s 2>&1 | %FileCheck %s
 //
 // M5 US4 / FR-018 — end-to-end residue fixture per US4 acceptance
 // scenario 1: NSL source with `%TYPO%` reaches the IR; the
 // `NSLCheckSemanticsPass` (slot 6) emits the FROZEN diagnostic.
 //
-// **DEFERRED at M5 — same M1 preprocessor blocker as US2 T066/T067**
-// (precedent recorded in `tasks.md` T066 status note + offload
-// task #23). The M1 preprocessor rejects `%TYPO%` at LEX time:
-//
-//   error: undefined macro reference: '%TYPO%'
-//
-// before the parser ever produces the AST shape that the AST→MLIR
-// visitor would lower into a `nsl.reg "buf_%TYPO%"` op. So the
-// residue NEVER reaches the slot-6 check; the architectural intent
-// of FR-018 (residue surfaces at the M5 layer with a sourced
-// diagnostic) is unreachable on PURE-NSL inputs at M5.
-//
-// The pass-standalone fixtures
-// `test/Lower/passes/nsl-check-semantics/residue_{typo,undefined,multi}.mlir`
-// exercise the slot-6 mechanics fully via hand-rolled `.mlir` —
-// the substantive deliverable. End-to-end coverage waits on M1
-// preprocessor amendment to either (a) admit `%IDENT%` references
-// without an enclosing macro definition (forwarding the residue
-// to MLIR layer per pp.ebnf §4 P3), or (b) introduce a "known-
-// loop-var" allow-list that lets `%i%` etc. survive the lex.
-//
-// Until then this fixture is XFAIL'd. The CHECK lines preserve the
-// intended diagnostic-string contract for that future amendment.
+// XFAIL CLOSED 2026-05-04 by FR-037 amendment (P3 severity
+// downgraded from Error to Warning) + lexer extension folding
+// `%X%` residue into surrounding identifier text. The path is now:
+//   1. M1 IdentSplicer: `%TYPO%` undefined → emit warning, leave
+//      `buf_%TYPO%` text verbatim in the spliced output.
+//   2. Lexer: tokenize `buf_%TYPO%` as a single `tk_identifier`
+//      (post-amendment grammar — see lang.ebnf §13 note).
+//   3. AST → MLIR visitor: `reg buf_%TYPO%;` lowers to
+//      `nsl.reg "buf_%TYPO%"`.
+//   4. NSLCheckSemanticsPass (slot 6): regex matches `%TYPO%` in
+//      the StringAttr, emits FROZEN error, driver exits non-zero.
 
 module ResidueTypo {
     reg buf_%TYPO%;
