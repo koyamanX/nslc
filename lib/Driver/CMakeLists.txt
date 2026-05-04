@@ -12,14 +12,17 @@ add_nsl_library(nsl-driver
   EmitTokens.cpp
   EmitAST.cpp
   EmitMLIR.cpp
+  EmitHW.cpp
   Sema.cpp
   Compilation.cpp
   LowerToNSL.cpp
   RunNSLPasses.cpp
+  LowerToCIRCT.cpp
   HEADERS
     ${CMAKE_SOURCE_DIR}/include/nsl/Driver/EmitTokens.h
     ${CMAKE_SOURCE_DIR}/include/nsl/Driver/EmitAST.h
     ${CMAKE_SOURCE_DIR}/include/nsl/Driver/EmitMLIR.h
+    ${CMAKE_SOURCE_DIR}/include/nsl/Driver/EmitHW.h
     ${CMAKE_SOURCE_DIR}/include/nsl/Driver/Sema.h
     ${CMAKE_SOURCE_DIR}/include/nsl/Driver/Compilation.h
   DEPENDS

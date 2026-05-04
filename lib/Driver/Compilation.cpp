@@ -11,17 +11,21 @@
 //   - `specs/007-m4-mlir-dialect/data-model.md` §5 — driver dialect-
 //     load surface.
 //
-// At M4 the constructor loads only the `nsl` dialect; the CIRCT
-// dialects (`hw`, `comb`, `seq`, `fsm`, `sv`) per design §11 lines
-// 1146–1150 land in `nsl-opt`'s registry (FR-014; see
-// `tools/nsl-opt/main.cpp`) but NOT in the driver's context, because
-// at M4 the driver never reaches a stage that emits CIRCT (FR-023
-// rejects `-emit=hw`/`-emit=verilog`). The CIRCT-dialect-load lines
-// land in this constructor at M6 alongside the AST → CIRCT
-// lowering.
+// At M6 the constructor loads the `nsl` dialect (M4) plus the five
+// CIRCT dialects (`hw`, `comb`, `seq`, `fsm`, `sv`) per design §11
+// lines 1146–1150. The CIRCT dialects are required because the M6
+// `Compilation::lowerToCIRCT` member function produces ops in all
+// five; loading them into the driver context up-front matches the
+// `tools/nsl-opt/main.cpp` registry pattern and guarantees the
+// PassManager has the dialects available before pass execution.
 
 #include "nsl/Driver/Compilation.h"
 
+#include "circt/Dialect/Comb/CombDialect.h"
+#include "circt/Dialect/FSM/FSMDialect.h"
+#include "circt/Dialect/HW/HWDialect.h"
+#include "circt/Dialect/SV/SVDialect.h"
+#include "circt/Dialect/Seq/SeqDialect.h"
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Dialect/NSL/IR/NSLDialect.h"
 
@@ -32,6 +36,13 @@ Compilation::Compilation(DiagnosticEngine &diag) : diag_(diag), mlir_ctx_() {
   // the driver-side context so the M5 AST→MLIR lowering body has
   // a registered dialect to build ops in.
   mlir_ctx_.loadDialect<nsl::dialect::NSLDialect>();
+  // M6: load the five CIRCT dialects so `Compilation::lowerToCIRCT`
+  // can emit `hw::*`, `comb::*`, `seq::*`, `fsm::*`, `sv::*` ops.
+  mlir_ctx_.loadDialect<circt::hw::HWDialect>();
+  mlir_ctx_.loadDialect<circt::comb::CombDialect>();
+  mlir_ctx_.loadDialect<circt::seq::SeqDialect>();
+  mlir_ctx_.loadDialect<circt::fsm::FSMDialect>();
+  mlir_ctx_.loadDialect<circt::sv::SVDialect>();
 }
 
 Compilation::~Compilation() = default;

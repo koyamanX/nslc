@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // include/nsl/Lower/Lower.h — single public umbrella header for the
-// `nsl-lower` library (M5, layer 8a).
+// `nsl-lower` library (M5, layer 8a; M6 extends with the
+// nsl→CIRCT conversion pass, layer 8b).
 //
 // **Specification anchors**:
 //   - `specs/008-m5-structural-passes/spec.md` FR-001 — single
@@ -9,10 +10,13 @@
 //     `nsl-lower` is NOT one of the named exceptions for `nsl-ast`
 //     and `nsl-sema`; it gets exactly one public header.
 //   - `specs/008-m5-structural-passes/contracts/lower-api.contract.md`
-//     §2 — frozen public surface (8 free functions: 1 visitor entry +
-//     6 pass constructors + 1 registration helper).
+//     §2 — frozen public surface (8 free functions at M5: 1 visitor
+//     entry + 6 pass constructors + 1 registration helper).
 //   - `specs/008-m5-structural-passes/data-model.md` §1, §2 — class
 //     shape + pipeline ordering.
+//   - `specs/010-m6-circt-lowering/contracts/lower-api.contract.md`
+//     §2 — extended public surface at M6 (10 symbols: M5's 8 plus
+//     `createNSLToCIRCTPass` and `registerNSLToCIRCTPass`).
 //
 // Consumers (`nsl-driver` member functions `lowerToNSL` /
 // `runNSLPasses`, the `tools/nsl-opt` developer/test binary) include
@@ -109,13 +113,38 @@ std::unique_ptr<mlir::Pass> createNSLCheckSemanticsPass();
 // Pass registration (lower-api.contract.md §2.3)
 // -------------------------------------------------------------------
 
-/// Register all six M5 passes with MLIR's pass-registry so they are
-/// discoverable by name from `nsl-opt -<flag>`. Idempotent: the
-/// underlying `mlir::registerPass` is idempotent by design.
+/// Register all six M5 passes plus the M6 nsl→CIRCT conversion
+/// pass with MLIR's pass-registry so they are discoverable by name
+/// from `nsl-opt -<flag>`. Idempotent: the underlying
+/// `mlir::registerPass` is idempotent by design.
 ///
 /// Called from `tools/nsl-opt/main.cpp` after
 /// `nsl::dialect::registerNSLDialect()`.
 void registerNSLLowerPasses();
+
+// -------------------------------------------------------------------
+// M6: nsl → CIRCT conversion pass
+// (lower-api.contract.md §4, §5)
+// -------------------------------------------------------------------
+
+/// M6 conversion pass — lowers every `nsl::*` op in the input
+/// `mlir::ModuleOp` to its equivalent CIRCT op (one of `hw`,
+/// `comb`, `seq`, `fsm`, `sv`). Uses MLIR's `DialectConversion`
+/// framework in full-conversion mode (every `nsl::*` op marked
+/// illegal; all five CIRCT dialects marked legal). Failure is
+/// reported through MLIR's diagnostic engine; the project-side
+/// `DiagnosticBridge` translates to `basic::DiagnosticEngine`
+/// (Constitution Principle IV).
+///
+/// Per `specs/010-m6-circt-lowering/contracts/circt-lowering.contract.md`
+/// §1 the per-op mapping table is frozen by reference to design
+/// `docs/design/nsl_compiler_design.md` §10 lines 1206–1258.
+std::unique_ptr<mlir::Pass> createNSLToCIRCTPass();
+
+/// Register the M6 conversion pass with MLIR's global pass registry
+/// so `nsl-opt -nsl-to-circt %s` is discoverable. Implicitly invoked
+/// by `registerNSLLowerPasses()`. Idempotent.
+void registerNSLToCIRCTPass();
 
 } // namespace nsl::lower
 
