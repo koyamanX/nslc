@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception -->
+
 # Implementation Plan: T1 — TextMate Grammar + Language Configuration for NSL
 
 **Branch**: `009-t1-textmate-grammar` | **Date**: 2026-05-04 | **Spec**: [spec.md](./spec.md)

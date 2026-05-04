@@ -1,0 +1,14 @@
+// SYNTAX TEST "source.nsl"
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// macro-references.nsl — hand-authored fixture covering the
+// `%IDENT%` macro splice form from `nsl_pp.ebnf §4` per
+// `specs/009-t1-textmate-grammar/contracts/grammar-coverage.contract.md` §7
+// and `data-model.md §1.7`. The form is recognised in any
+// position (the regex is not context-sensitive); the canonical
+// use is inside a `reg` declaration's width specification.
+
+%WIDTH%
+// <- variable.other.macro.nsl
+%FOO_BAR%
+// <- variable.other.macro.nsl

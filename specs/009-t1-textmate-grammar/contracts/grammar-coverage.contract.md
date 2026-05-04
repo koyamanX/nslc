@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception -->
+
 # Contract — Grammar Coverage
 
 **Feature**: `009-t1-textmate-grammar`

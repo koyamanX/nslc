@@ -23,12 +23,11 @@ the grammar's keyword pattern emission (T016). Running
 skeleton grammar will FAIL on every assertion — that's the
 red-state observation Principle VIII requires.
 
-**T006 skeleton state**: at this point in the milestone, the
-fixture generator emits ONE LINE per keyword (the keyword in
-isolation as the start of a placeholder NSL fragment) but no
-inline scope assertions. T009 (Phase 3) extends this script to
-emit the `// <- <scope>` assertion comments per
-`contracts/scope-test-format.contract.md` §1.1.
+**T009 state**: emits one keyword line per `KeywordSet.def` row
+PLUS an inline `// <- <scope>` assertion comment per
+`contracts/scope-test-format.contract.md` §1.1 / `data-model.md`
+§1.2. The scope is determined by the `KEYWORD_CATEGORY` table
+(imported from `gen_textmate_grammar.py`).
 
 Usage:
   python3 scripts/gen_textmate_fixtures.py [--check]
@@ -67,26 +66,38 @@ SPDX_HEADER = (
     "// regenerate via `python3 scripts/gen_textmate_fixtures.py`.\n"
     "//\n"
     "// One line per reserved keyword from `nsl_lang.ebnf §15`.\n"
-    "// Each line places the keyword in column 1 so the\n"
-    "// scope-test runner's `// <- <scope>` assertion form\n"
-    "// (per contracts/scope-test-format.contract.md §1.1)\n"
-    "// targets it directly.\n"
-    "//\n"
-    "// **T006 skeleton state**: only keyword lines are emitted;\n"
-    "// inline scope assertions land in T009 (Phase 3).\n"
+    "// Each line places the keyword in column 1 followed by an\n"
+    "// inline `// <- <scope>` assertion comment per\n"
+    "// contracts/scope-test-format.contract.md §1.1 — the\n"
+    "// vscode-tmgrammar-test runner reads the assertion against\n"
+    "// the previous line.\n"
 )
+
+# vscode-tmgrammar-test requires a `// SYNTAX TEST "<scope-name>"`
+# header on line 1 of every test file. See the runner's README
+# (test/tooling/textmate/node_modules/vscode-tmgrammar-test/README.md
+# §"Unit tests"). The header MUST be the literal first comment.
+SYNTAX_TEST_HEADER = '// SYNTAX TEST "source.nsl"\n'
 
 
 def render_fixture(spellings: list[str]) -> str:
-    """Build the fixture text deterministically."""
-    out: list[str] = [SPDX_HEADER, ""]
+    """Build the fixture text deterministically with embedded
+    `// <- <scope>` assertions for the runner."""
+    out: list[str] = [SYNTAX_TEST_HEADER]
+    out.append(SPDX_HEADER)
+    out.append("\n")  # blank line before keyword block
     for sp in spellings:
-        out.append(sp)
-        # T009 will append a `// <- <scope>` assertion line here
-        # per contracts/scope-test-format.contract.md §1.1.
-        # T006 skeleton emits only the keyword line.
-    out.append("")  # POSIX trailing newline
-    return "\n".join(out)
+        cat = KEYWORD_CATEGORY[sp]
+        scope = SCOPE_FOR_CATEGORY[cat]
+        out.append(sp + "\n")
+        # The `// <-` assertion form points at column 1 of the
+        # PREVIOUS line. The leading `<` aligns with column 1; the
+        # length of the assertion target equals the keyword's
+        # spelling length minus 1 (the `<` itself counts as col 1).
+        # Using just `// <-` is sufficient — the runner asserts the
+        # scope at column 1 of the previous line.
+        out.append(f"// <- {scope}\n")
+    return "".join(out)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -117,13 +128,9 @@ def main(argv: list[str] | None = None) -> int:
     FIXTURE_OUT.write_text(rendered, encoding="utf-8")
     sys.stdout.write(
         f"[gen_textmate_fixtures] wrote {FIXTURE_OUT} "
-        f"(skeleton state: {len(spellings)} keyword lines, "
-        f"0 assertions emitted; assertions added in T009)\n"
+        f"({len(spellings)} keyword lines + {len(spellings)} "
+        f"scope assertions)\n"
     )
-    # Touch SCOPE_FOR_CATEGORY / KEYWORD_CATEGORY so static
-    # analysers see them imported-and-referenced (they will be
-    # fully consumed by T009).
-    _ = SCOPE_FOR_CATEGORY, KEYWORD_CATEGORY
     return 0
 
 

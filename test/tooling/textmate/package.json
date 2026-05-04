@@ -9,6 +9,6 @@
     "vscode-tmgrammar-test": "0.1.3"
   },
   "scripts": {
-    "test": "vscode-tmgrammar-test --grammar ../../grammars/textmate/nsl.tmLanguage.json 'scope-tests/*.spec'"
+    "test": "vscode-tmgrammar-test --grammar ../../../grammars/textmate/nsl.tmLanguage.json 'fixtures/*.nsl'"
   }
 }

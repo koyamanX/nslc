@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception -->
+
 # Specification Quality Checklist: T1 — TextMate Grammar + Language Configuration for NSL
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning

@@ -28,16 +28,6 @@ localised message identifying the missing keyword. CI gates a
 regenerate-and-diff check (per `data-model.md` §3 / §4) so spec
 ↔ grammar drift is mechanically impossible.
 
-**T005 skeleton state**: at this point in the milestone, the
-script emits a TextMate grammar with an empty `patterns` array
-— enough to be valid JSON consumed by `vscode-tmgrammar-test`
-but assigning no scopes to anything. T016-T020 (Phase 3 of
-tasks.md) progressively add pattern groups for keywords,
-system names, numerics, comments/strings, and operators. T034
-+ T035 (Phase 5) add directives and macros. The empty-grammar
-skeleton is what makes the Phase 3 fixture tests observe
-FAILING per Constitution Principle VIII.
-
 Usage:
   python3 scripts/gen_textmate_grammar.py [--check]
 
@@ -147,6 +137,18 @@ SCOPE_FOR_CATEGORY: dict[str, str] = {
     "support_clock":    "support.type.clock.nsl",
 }
 
+# Built-in `_`-prefix system-name closed set per data-model.md §1.3
+# and grammar-coverage.contract.md §2. The list is FROZEN at T1;
+# modifying it requires both contract + data-model amendments
+# (Principle VII).
+SYSTEM_FUNCTIONS: list[str] = [
+    "_display", "_monitor", "_write", "_finish", "_stop",
+    "_readmemh", "_readmemb", "_init", "_delay",
+]
+SYSTEM_VARIABLES: list[str] = [
+    "_random", "_time",
+]
+
 
 # -----------------------------------------------------------------------------
 # KeywordSet.def parser
@@ -195,7 +197,7 @@ def check_coverage(spellings: list[str]) -> None:
 
 
 # -----------------------------------------------------------------------------
-# Grammar emission — T005 skeleton state (empty patterns)
+# Grammar emission
 # -----------------------------------------------------------------------------
 
 SPDX_COMMENT_TOP = (
@@ -209,30 +211,317 @@ SPDX_COMMENT_TOP = (
 )
 
 
+def _category_groups(spellings: list[str]) -> dict[str, list[str]]:
+    """Group spellings by category label preserving source order
+    within each category (Principle V determinism)."""
+    groups: dict[str, list[str]] = {}
+    for sp in spellings:
+        cat = KEYWORD_CATEGORY[sp]
+        groups.setdefault(cat, []).append(sp)
+    return groups
+
+
+def _build_keyword_repository(spellings: list[str]) -> dict[str, dict]:
+    """Build a `repository` block with one entry per category.
+
+    Each entry is a single-pattern object whose `match` is a
+    `\\b(spelling1|spelling2|…)\\b` alternation over the spellings
+    in that category. Per data-model §1.2 + grammar-coverage.contract §1.
+    """
+    repo: dict[str, dict] = {}
+    groups = _category_groups(spellings)
+    # Iterate over SCOPE_FOR_CATEGORY for deterministic order
+    # (the dict keeps insertion order in Python 3.7+).
+    for cat, scope in SCOPE_FOR_CATEGORY.items():
+        if cat not in groups:
+            # No spellings for this category yet (defensive; the
+            # coverage check ensures every category in
+            # KEYWORD_CATEGORY has at least one entry).
+            continue
+        # Sort within category by length DESC then alphabetic so
+        # longer spellings (`func_in`) match before shorter
+        # prefixes (`func`). This is required for Oniguruma
+        # `\b(...|...)\b` matching since the leading `\b` would
+        # otherwise allow `func` to win against `func_in`.
+        ordered = sorted(groups[cat], key=lambda s: (-len(s), s))
+        alt = "|".join(re.escape(sp) for sp in ordered)
+        repo[f"keyword-{cat}"] = {
+            "name": scope,
+            "match": rf"\b({alt})\b",
+        }
+    return repo
+
+
+def _build_system_name_repository() -> dict[str, dict]:
+    """Per data-model §1.3 + grammar-coverage.contract §2:
+    closed set of `_`-prefix names. Two repository entries:
+    one for system functions, one for system variables.
+
+    Pattern uses `\\b` boundaries — note Oniguruma `\\b` does
+    not break on `_`, so `_display` matches as a whole token.
+    """
+    funcs = sorted(SYSTEM_FUNCTIONS, key=lambda s: (-len(s), s))
+    vars_ = sorted(SYSTEM_VARIABLES, key=lambda s: (-len(s), s))
+    return {
+        "system-function": {
+            "name": "support.function.system.nsl",
+            "match": rf"\b({'|'.join(re.escape(f) for f in funcs)})\b",
+        },
+        "system-variable": {
+            "name": "support.variable.system.nsl",
+            "match": rf"\b({'|'.join(re.escape(v) for v in vars_)})\b",
+        },
+    }
+
+
+def _build_numeric_repository() -> dict[str, dict]:
+    """Per data-model §1.4 + grammar-coverage.contract §3.
+
+    Pattern ordering matters: Verilog-sized must match before
+    bare decimal so `8'hFF` does not fragment into `8` + `'hFF`.
+    The order is enforced by listing the `include` references in
+    the parent `numerics` group (see _build_root_patterns).
+    """
+    return {
+        "number-verilog": {
+            "name": "constant.numeric.verilog.nsl",
+            # \d+ width, then ' base char, then digits with markers + separators
+            "match": r"\b\d+'[bBoOdDhH][0-9a-fA-FxXzZuU_]+",
+        },
+        "number-hex": {
+            "name": "constant.numeric.hex.nsl",
+            "match": r"\b0[xX][0-9a-fA-F_]+",
+        },
+        "number-binary": {
+            "name": "constant.numeric.binary.nsl",
+            "match": r"\b0[bB][01_]+",
+        },
+        "number-octal": {
+            "name": "constant.numeric.octal.nsl",
+            "match": r"\b0[oO][0-7_]+",
+        },
+        "number-decimal": {
+            "name": "constant.numeric.decimal.nsl",
+            "match": r"\b\d[\d_]*",
+        },
+    }
+
+
+def _build_comment_string_repository() -> dict[str, dict]:
+    """Per data-model §1.8 (comments) + §1.9 (strings + escapes)
+    + grammar-coverage.contract §4. Block comments are non-
+    nestable per nsl_lang.ebnf §14; the `begin`/`end` rule
+    handles non-nesting natively (TextMate does not support
+    nested begin/end without explicit recursion).
+    """
+    return {
+        "comment-line": {
+            "name": "comment.line.double-slash.nsl",
+            "match": r"//.*$",
+        },
+        "comment-block": {
+            "name": "comment.block.nsl",
+            "begin": r"/\*",
+            "end": r"\*/",
+        },
+        "string-double": {
+            "name": "string.quoted.double.nsl",
+            "begin": r"\"",
+            "end": r"\"",
+            "patterns": [
+                {
+                    "name": "constant.character.escape.nsl",
+                    "match": r"\\.",
+                },
+            ],
+        },
+    }
+
+
+def _build_operator_repository() -> dict[str, dict]:
+    """Per data-model §1.5 + grammar-coverage.contract §5.
+
+    Multi-character operators are listed before single-character
+    in the `match` alternation so `==` wins over `=` etc.
+    Each category gets its own repository entry.
+    """
+    # Within each category, list multi-char before single-char.
+    return {
+        "operator-arithmetic": {
+            "name": "keyword.operator.arithmetic.nsl",
+            "match": r"\+\+|--|\+|-|\*",
+        },
+        "operator-bitwise": {
+            "name": "keyword.operator.bitwise.nsl",
+            "match": r"&|\||\^|~",
+        },
+        "operator-shift": {
+            "name": "keyword.operator.shift.nsl",
+            "match": r"<<|>>",
+        },
+        "operator-comparison": {
+            "name": "keyword.operator.comparison.nsl",
+            "match": r"==|!=|<=|>=|<|>",
+        },
+        "operator-logical": {
+            "name": "keyword.operator.logical.nsl",
+            "match": r"&&|\|\||!",
+        },
+        "operator-assignment": {
+            "name": "keyword.operator.assignment.nsl",
+            "match": r":=|=",
+        },
+        "operator-extension": {
+            "name": "keyword.operator.extension.nsl",
+            "match": r"#|'",
+        },
+    }
+
+
+def _build_directive_repository() -> dict[str, dict]:
+    """Per data-model §1.6 + grammar-coverage.contract §6.
+
+    Line-start anchored (^\\s*#... \\b) so a sign-extend `#` in
+    expression position does NOT match as a directive. Per
+    FR-021 best-effort regex disambiguation; T8 (tree-sitter)
+    refines.
+
+    NOTE: TextMate's regex engine sees each line as a fresh
+    input, so `^` is line-start. The literal `#` after optional
+    whitespace pins the directive prefix.
+    """
+    return {
+        "directive-preprocessor": {
+            "name": "keyword.directive.preprocessor.nsl",
+            "match": r"^\s*#(include|define|undef|ifdef|ifndef|if|else|endif|line)\b",
+        },
+    }
+
+
+def _build_macro_repository() -> dict[str, dict]:
+    """Per data-model §1.7 + grammar-coverage.contract §7.
+    %IDENT% macro splice form. Distinct scope from identifier
+    and keyword scopes so the preprocessor seam is visible.
+    """
+    return {
+        "macro-reference": {
+            "name": "variable.other.macro.nsl",
+            "match": r"%[A-Za-z_][A-Za-z0-9_]*%",
+        },
+    }
+
+
+def _build_root_patterns(repo: dict[str, dict]) -> list[dict]:
+    """Top-level `patterns` array — references repository entries
+    in the order required by first-match-wins semantics.
+
+    Ordering rationale (data-model §§1.4, 1.5, 1.6):
+      1. Comments + strings FIRST so embedded keyword-like tokens
+         inside them don't match keyword/storage scopes.
+      2. Directives (line-start anchored) before extension-`#`
+         operator so `#line` wins over operator `#`.
+      3. Macro reference (`%IDENT%`) — distinctive form, before
+         operators which include `%` is not in (no overlap).
+      4. Numerics in the order Verilog-sized → hex → binary →
+         octal → decimal (so `8'hFF` doesn't fragment).
+      5. Keywords (sub-categorised). Order within the keyword
+         block doesn't matter much because each category's
+         alternation is anchored by `\\b…\\b`.
+      6. System names (`_display`, `_random`, …) — closed set,
+         distinct from regular identifiers.
+      7. Operators. Multi-char alternation handles ordering
+         within each category.
+    """
+    refs: list[dict] = []
+
+    # 1. Comments + strings first (begin/end rules so embedded
+    # tokens don't match other scopes).
+    if "comment-line" in repo:
+        refs.append({"include": "#comment-line"})
+    if "comment-block" in repo:
+        refs.append({"include": "#comment-block"})
+    if "string-double" in repo:
+        refs.append({"include": "#string-double"})
+
+    # 2. Preprocessor directives (line-start) before extension `#`.
+    if "directive-preprocessor" in repo:
+        refs.append({"include": "#directive-preprocessor"})
+
+    # 3. Macro references.
+    if "macro-reference" in repo:
+        refs.append({"include": "#macro-reference"})
+
+    # 4. Numerics — first-match-wins ordering.
+    for key in (
+        "number-verilog", "number-hex", "number-binary",
+        "number-octal", "number-decimal",
+    ):
+        if key in repo:
+            refs.append({"include": f"#{key}"})
+
+    # 5. Keywords (sub-categorised). Iterate SCOPE_FOR_CATEGORY
+    # for deterministic order.
+    for cat in SCOPE_FOR_CATEGORY:
+        key = f"keyword-{cat}"
+        if key in repo:
+            refs.append({"include": f"#{key}"})
+
+    # 6. System names.
+    if "system-function" in repo:
+        refs.append({"include": "#system-function"})
+    if "system-variable" in repo:
+        refs.append({"include": "#system-variable"})
+
+    # 7. Operators. Multi-character variants must win over
+    # single-character — that means `operator-logical` (which
+    # owns `&&`, `||`) must precede `operator-bitwise` (which
+    # owns `&`, `|`); `operator-comparison` (which owns `<=`,
+    # `>=`, `<<` would be ambiguous so shift goes first) must
+    # precede the single-char `<`/`>` would be in the same
+    # category. Order:
+    #   shift (`<<`, `>>`) → comparison (`==`/`!=`/`<=`/`>=`/`<`/`>`)
+    #     → logical (`&&`/`||`/`!`) → bitwise (`&`/`|`/`^`/`~`)
+    #     → assignment (`:=`/`=`) → arithmetic (`++`/`--`/`+`/`-`/`*`)
+    #     → extension (`#`/`'`).
+    for key in (
+        "operator-shift",
+        "operator-comparison",
+        "operator-logical",
+        "operator-bitwise",
+        "operator-assignment",
+        "operator-arithmetic",
+        "operator-extension",
+    ):
+        if key in repo:
+            refs.append({"include": f"#{key}"})
+
+    return refs
+
+
 def emit_grammar(spellings: list[str]) -> dict:
     """Build the TextMate grammar dict.
 
-    **T005 skeleton state**: the `patterns` array is empty;
-    pattern groups will be added by T016-T020 (Phase 3) and
-    T034-T035 (Phase 5) per tasks.md. The skeleton is enough to
-    validate as JSON, register the scope name `source.nsl`, and
-    declare file extensions — but it assigns no scope to any
-    token. Phase 3 fixture tests will observe FAILING against
-    this skeleton per Constitution Principle VIII (TDD).
+    Populates the `repository` and `patterns` arrays from
+    `KeywordSet.def` (keyword block) plus inline pattern
+    templates for system names, numerics, comments, strings,
+    operators, directives, and macro references.
     """
-    # `spellings` is parsed and coverage-checked here even
-    # though the skeleton emits no patterns; the check_coverage
-    # call earlier in main() establishes the spec-coupling
-    # invariant from T005 onward.
-    del spellings  # consumed for coverage check; not yet emitted
+    repo: dict[str, dict] = {}
+    repo.update(_build_comment_string_repository())
+    repo.update(_build_directive_repository())
+    repo.update(_build_macro_repository())
+    repo.update(_build_numeric_repository())
+    repo.update(_build_keyword_repository(spellings))
+    repo.update(_build_system_name_repository())
+    repo.update(_build_operator_repository())
 
     grammar = {
         "_comment_top": SPDX_COMMENT_TOP,
         "name": "NSL",
         "scopeName": "source.nsl",
         "fileTypes": ["nsl", "nslh", "inc"],
-        "patterns": [],
-        "repository": {},
+        "patterns": _build_root_patterns(repo),
+        "repository": repo,
     }
     return grammar
 
@@ -274,11 +563,12 @@ def main(argv: list[str] | None = None) -> int:
 
     GRAMMAR_OUT.parent.mkdir(parents=True, exist_ok=True)
     GRAMMAR_OUT.write_text(rendered, encoding="utf-8")
+    n_patterns = len(grammar["patterns"])
+    n_repo = len(grammar["repository"])
     sys.stdout.write(
         f"[gen_textmate_grammar] wrote {GRAMMAR_OUT} "
-        f"(skeleton state: {len(spellings)} keywords coverage-"
-        f"checked, 0 patterns emitted; populated in T016-T020, "
-        f"T034-T035)\n"
+        f"({len(spellings)} keywords, {n_patterns} root patterns, "
+        f"{n_repo} repository entries)\n"
     )
     return 0
 

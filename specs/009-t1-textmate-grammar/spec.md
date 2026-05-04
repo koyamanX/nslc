@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception -->
+
 # Feature Specification: T1 — TextMate Grammar + Language Configuration for NSL
 
 **Feature Branch**: `009-t1-textmate-grammar`
@@ -232,11 +234,20 @@ new keyword; re-run the tests and confirm they pass.
 - **FR-001**: The grammar MUST recognise and assign a keyword scope to
   every reserved keyword listed in `docs/spec/nsl_lang.ebnf §15` —
   both the Appendix-3 set and the practical-additions set in the same
-  section. (As of 2026-05-04 this is approximately 50 words.)
+  section. (As of 2026-05-04 this is **42 keywords** — 31 Appendix-3 +
+  11 practical additions per `include/nsl/Lex/KeywordSet.def`; the
+  count tracks the X-macro file in source-of-truth coupling.)
 - **FR-002**: The grammar MUST distinguish keyword sub-categories per
   `docs/design/nsl_tooling_design.md §4.1`: declaration, control-block,
   control-flow, modifier, storage-type, support-type, support-function,
-  support-variable.
+  support-variable. T1 introduces one additional sub-scope —
+  `storage.modifier.direction.nsl` for `inout`/`input`/`output`
+  port-direction keywords — which `nsl_tooling_design.md §4.1`
+  does NOT enumerate; per `data-model.md §1.2` rationale, this
+  honours FR-001 (every keyword highlighted) by giving the three
+  port-direction tokens a sub-scope rather than dumping them into
+  `storage.type.control.nsl`. The full T1 category mapping is
+  frozen in `contracts/grammar-coverage.contract.md §1`.
 - **FR-003**: The grammar MUST recognise line comments (`// …` to end
   of line) and block comments (`/* … */`, non-nestable per
   `nsl_lang.ebnf §14`) and ensure no inner token receives a non-comment
@@ -368,8 +379,10 @@ new keyword; re-run the tests and confirm they pass.
   100% of reserved keywords coloured under the keyword scope, with
   zero keyword-mis-colouring inside comments or string literals.
 - **SC-002**: The scope-test fixture asserts ≥ 1 occurrence per
-  reserved keyword in `nsl_lang.ebnf §15` (≥ 50 distinct keyword
-  assertions as of 2026-05-04), ≥ 1 occurrence per numeric form
+  reserved keyword in `nsl_lang.ebnf §15` (currently **42 distinct
+  keyword assertions** as of 2026-05-04; the count tracks the
+  X-macro file `include/nsl/Lex/KeywordSet.def` in source-of-truth
+  coupling per Principle VII), ≥ 1 occurrence per numeric form
   (≥ 8 forms: bare decimal, hex `0x…`, binary `0b…`, octal `0o…`,
   Verilog-sized for each of `b`/`o`/`d`/`h` × with-and-without
   `Z`/`X`/`U` markers), and ≥ 1 occurrence per directive form

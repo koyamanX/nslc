@@ -1,0 +1,31 @@
+// SYNTAX TEST "source.nsl"
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// all-directives.nsl — hand-authored fixture covering all 9
+// preprocessor directive forms from `nsl_pp.ebnf §2` per
+// `specs/009-t1-textmate-grammar/contracts/grammar-coverage.contract.md` §6
+// and `data-model.md §1.6`.
+//
+// Each directive is line-start-anchored; `#line` highlights as a
+// directive while a sign-extend `#` in expression position
+// matches the extension-operator scope (FR-021 best-effort
+// regex disambiguation; T8 tree-sitter refines).
+
+#include "foo.nsl"
+// <- keyword.directive.preprocessor.nsl
+#define WIDTH 8
+// <- keyword.directive.preprocessor.nsl
+#undef WIDTH
+// <- keyword.directive.preprocessor.nsl
+#if 1
+// <- keyword.directive.preprocessor.nsl
+#ifdef DEBUG
+// <- keyword.directive.preprocessor.nsl
+#ifndef RELEASE
+// <- keyword.directive.preprocessor.nsl
+#else
+// <- keyword.directive.preprocessor.nsl
+#endif
+// <- keyword.directive.preprocessor.nsl
+#line 42 "src.nsl"
+// <- keyword.directive.preprocessor.nsl
