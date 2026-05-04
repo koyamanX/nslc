@@ -43,8 +43,8 @@ empty CMake scaffolding so subsequent tasks have a place to land.
 - [ ] T001 Create `lib/Fmt/CMakeLists.txt` declaring `add_nsl_library(nsl-fmt LINK_LIBS nsl-frontend tomlpp)` per [`plan.md`](./plan.md) "Project Structure" section
 - [ ] T002 Create `tools/nsl-fmt/CMakeLists.txt` declaring `add_nsl_executable(nsl-fmt LINK_LIBS nsl-fmt)` and `tools/nsl-fmt/main.cpp` with a one-line `int main() { return 0; }` stub
 - [ ] T003 Add `lib/Fmt/` and `tools/nsl-fmt/` to the parent `CMakeLists.txt` `add_subdirectory(...)` lists in `lib/CMakeLists.txt` and `tools/CMakeLists.txt`
-- [ ] T004 [P] Create `include/nsl/Fmt/Fmt.h` empty umbrella with SPDX header + namespace `nsl::fmt {}` (declarations land in later phases per [`contracts/format-api.contract.md`](./contracts/format-api.contract.md) §3)
-- [ ] T005 [P] Vendor `toml++` v3.4 under `third_party/tomlpp/`: download `toml.hpp` from https://github.com/marzer/tomlplusplus/releases/tag/v3.4.0, copy `LICENSE`, write `third_party/tomlpp/PROVENANCE.md` recording upstream URL + commit SHA + MIT license per Principle V vendoring discipline (research §4)
+- [ ] T004 [P] Create `include/nsl/Fmt/Fmt.h` empty umbrella with SPDX header + namespace `nsl::fmt {}`. Public-symbol declarations are added INCREMENTALLY by T026 (`format_buffer`, `FormatResult`, `LineRange`), T076 (`emit_unified_diff`), T087 (`version_string`), T088 (`config_key_names`), T089 (`default_configuration`), T102 (`Configuration`), T103 (`parse_config_file`), T106 (`discover_config`) as each function lands; T086 (Phase 5) verifies the final 10-symbol shape via `audit_fmt_api.sh`. No declaration is added in T004 itself.
+- [ ] T005 [P] Vendor `toml++` v3.4 under `third_party/tomlpp/` as a one-time human action: download `toml.hpp` and `LICENSE` from https://github.com/marzer/tomlplusplus/releases/tag/v3.4.0 ONCE, COMMIT both files into the repo, and author `third_party/tomlpp/PROVENANCE.md` recording upstream URL + commit SHA + MIT license. The build MUST NOT fetch from the network at configure time or build time (Principle V — reproducibility / determinism). Per Principle V vendoring discipline (research §4).
 - [ ] T006 [P] Create `third_party/tomlpp/CMakeLists.txt` declaring `add_library(tomlpp INTERFACE)` + `target_include_directories(tomlpp INTERFACE .)`
 - [ ] T007 Add `third_party/tomlpp/` to project-root `CMakeLists.txt` via `add_subdirectory(third_party/tomlpp)`
 - [ ] T008 [P] Add the new `check-nsl-fmt`, `check-fmt-lit`, `check-fmt-unit` ninja targets to project-root `CMakeLists.txt` (custom targets that depend on the matching test directories — `check-nsl-fmt` is the umbrella that depends on the other two)
@@ -69,8 +69,8 @@ with a CST-mode flag.
 - [ ] T014 Implement `lib/Fmt/CST.h` with `CSTNode`, `Trivia`, `DirectiveTok`, `Slice`, `SourceFile` types per [`contracts/cst-shape.contract.md`](./contracts/cst-shape.contract.md) §1, §3, §5 (data-only; no methods beyond constructors)
 - [ ] T015 Implement `lib/Fmt/DirectiveSplitter.{h,cpp}` per [`research.md`](./research.md) §1 — line-oriented scanner, `\`-continuation handling, BOM-prefix retention; T011/T012/T013 turn green
 - [ ] T016 [P] Create gtest fixture `test_unit/Fmt/directive_splitter_test.cc::CSTRoundTrip` asserting `serialize(parse_cst(s)) == s` for a 5-line synthetic NSL file — observe FAILING
-- [ ] T017 Add `bool emitCST_` flag (default `false`) to `nsl::parse::Parser` in `lib/Parse/Parser.{h,cpp}`; gate every `consume()` / `match()` / `parseProduction()` call on `if (emitCST_) cstBuilder_->push(...)` per [`research.md`](./research.md) §2
-- [ ] T018 Implement `include/nsl/Parse/CSTMode.h` and `lib/Parse/CSTMode.cpp` exposing `Parser::setEmitCST(CSTBuilder*)` — the only new symbol added to `nsl-parse`'s public surface
+- [ ] T017 Add `bool emitCST_` flag (default `false`) and an opaque `CSTSink* emitSink_` member to `nsl::parse::Parser` in `lib/Parse/Parser.{h,cpp}`; declare a new abstract `class CSTSink { virtual void beginNode(...); virtual void recordToken(...); virtual void endNode(...); virtual ~CSTSink() = default; }` inside the EXISTING `include/nsl/Parse/Parser.h` (Principle II — nsl-parse keeps a single public header; CSTSink is the only new public symbol); gate every `consume()` / `match()` / `parseProduction()` call on `if (emitCST_) emitSink_->...` per [`research.md`](./research.md) §2
+- [ ] T018 Implement `Parser::setEmitCST(CSTSink*)` in the private impl file `lib/Parse/CSTMode.cpp` (NO new public header — Parser.h already declares the symbol); the `nsl-fmt` library's `CSTBuilder` (T019) implements the `CSTSink` interface from above the layer boundary, so dependency direction stays downward (Principle II layer-table rule)
 - [ ] T019 Implement `lib/Fmt/CSTBuilder.{h,cpp}` per [`data-model.md`](./data-model.md) §3 — `beginNode()` / `recordToken()` / `endNode()` / `takeRoot()`; T016 turns green
 - [ ] T020 [P] Create gtest fixture `test_unit/Fmt/directive_splitter_test.cc::CSTInvariants` asserting every CSTNode has a non-empty `SourceRange`, no overlapping child ranges, no byte-loss (per [`contracts/cst-shape.contract.md`](./contracts/cst-shape.contract.md) §3 invariants table) — observe FAILING then green after T019
 - [ ] T021 [P] Create gtest fixture `test_unit/Fmt/doc_layout_test.cc::TextConcatRender` asserting `Doc::concat({Doc::text("a"), Doc::text("b")})` renders to `"ab"` — observe FAILING
@@ -142,6 +142,10 @@ diff. Verified by ninja `check-fmt-lit` passing the
 - [ ] T063 [US1] Implement over-long-line "best effort" in `lib/Fmt/LayoutRenderer.cpp` (emit the un-breakable line and continue); T042 turns green
 - [ ] T064 [US1] Implement idempotence — by construction, T030–T035 having idempotence.nsl golden files already exercises this; T043 turns green once the planner is stable
 - [ ] T065 [US1] Verify directive pass-through fixtures T044–T048 turn green against the implemented DirectiveSplitter + LayoutPlanner (no new code expected; this task is the verification step)
+
+### Additional tests (added during /speckit-analyze remediation, finding C4)
+
+- [ ] T125 [P] [US1] Author lit fixture `test/Fmt/edge/literal-preservation/numeric-and-zxu.test` containing each numeric literal form once (decimal `42`, hex `0xFF`, binary `0b1010`, NSL value literal `8'b1010`, Z/X/U value literals like `4'bZZZZ`, `4'bXXXX`, `4'bUUUU`); assert byte-identical round-trip per FR-011 — observe FAILING then green by construction once the lexer's existing byte-fidelity is exercised through CST + LayoutPlanner
 
 **Phase 3 checkpoint**: All US1 fixtures green;
 `ninja check-fmt-lit` passes the `test/Fmt/rules/`,
@@ -259,6 +263,17 @@ edge cases.
 - [ ] T107 [US4] Implement CLI `--config PATH` flag in `tools/nsl-fmt/main.cpp` — when set, suppress `discover_config()`; T099 turns green
 - [ ] T108 [US4] Wire `Configuration` through `format_buffer()` so every `LayoutPlanner` decision honors the active config; verify R1–R6 fixtures still green with non-default configs (regression sweep)
 
+### Additional tests (added during /speckit-analyze remediation, finding C3)
+
+Per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §8 rule↔key interaction matrix, every Configuration key has an effect on at least one rule. The default-valued fixtures in T030–T035 do not exercise the non-default codepath. The fixtures below close that gap.
+
+- [ ] T119 [P] [US4] Author lit fixture `test/Fmt/config/non-default/indent-tab/tab-indent.test` asserting `indent = "tab"` emits `\t` characters (not spaces) at every indent level; assert idempotent — observe FAILING
+- [ ] T120 [P] [US4] Author lit fixture `test/Fmt/config/non-default/indent-spaces2/two-space-indent.test` asserting `indent = "spaces2"` emits exactly 2 spaces per level — observe FAILING
+- [ ] T121 [P] [US4] Author lit fixture `test/Fmt/config/non-default/brace-style-allman/allman-blocks.test` asserting `brace_style = "allman"` opens `{` on its own line for every block (`alt`, `module`, `func`, etc.) — observe FAILING
+- [ ] T122 [P] [US4] Author lit fixture `test/Fmt/config/non-default/trailing-commas-add/proc-args.test` asserting `trailing_commas = "add"` appends a comma after the last arg in multi-line `proc_name` arg lists; companion `test/Fmt/config/non-default/trailing-commas-remove/proc-args.test` asserts `"remove"` strips it — observe FAILING
+- [ ] T123 [P] [US4] Author lit fixture `test/Fmt/config/non-default/spaces-inside-braces/concat.test` asserting `spaces_inside_braces = true` emits `{ a, b, c }` (with leading + trailing space) per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §4 — observe FAILING
+- [ ] T124 [P] [US4] Author lit fixture `test/Fmt/config/non-default/preserve-comments-leading-only/drop-trailing.test` asserting `preserve_comments = "leading_only"` drops trailing line comments while keeping leading ones; companion `none/drop-all.test` asserts `"none"` drops all comments per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §6 — observe FAILING
+
 **Phase 6 checkpoint**: All US4 fixtures green. A project lead's
 `.nsl-fmt.toml` works end-to-end.
 
@@ -278,6 +293,10 @@ determinism gate, pre-merge checklist sweep.
 - [ ] T115 Verify pre-merge checklist from [`quickstart.md`](./quickstart.md) §7 — every box ticked
 - [ ] T116 [P] Run `clang-format` and `clang-tidy` (project profile) on every new file in `lib/Fmt/`, `include/nsl/Fmt/`, `tools/nsl-fmt/`, `test_unit/Fmt/`
 - [ ] T117 [P] Verify SPDX header presence on every new file (per Constitution "Build, Code, and Licensing Standards")
+
+### Additional task (added during /speckit-analyze remediation, finding C2 — SC-003 perf gate)
+
+- [ ] T118 [P] Author gtest `test_unit/Fmt/perf_smoke_test.cc::Check1000LineUnder250ms` constructing a synthetic 1000-line NSL file (e.g. 1000 `wire foo_<n> [8];` declarations under one `module`), invoking `format_buffer()` from a `--check`-equivalent code path, measuring wall-clock with `std::chrono::steady_clock`, and asserting elapsed < 500 ms (2× SC-003's 250 ms target to absorb CI hardware variance) — gates SC-003. Keep this test in the `check-fmt-unit` ninja target so CI stage 3 catches regressions.
 
 **Phase 7 checkpoint**: PR is mergeable per Principle IX merge
 gate (CI green, CodeRabbit review clean, Linear issue referenced).
@@ -437,10 +456,12 @@ Spot check:
 
 ---
 
-**Total tasks**: 117 — Phase 1: 10, Phase 2: 19, Phase 3: 36
-(US1), Phase 4: 15 (US2), Phase 5: 13 (US3), Phase 6: 15 (US4),
-Phase 7: 9.
+**Total tasks**: 125 — Phase 1: 10, Phase 2: 19, Phase 3: 37
+(US1: 36 + 1 added by /speckit-analyze C4), Phase 4: 15 (US2),
+Phase 5: 13 (US3), Phase 6: 21 (US4: 15 + 6 added by C3),
+Phase 7: 10 (9 + 1 added by C2).
 
-**Parallel opportunities**: 63 of 117 tasks marked `[P]` —
+**Parallel opportunities**: 71 of 125 tasks marked `[P]` —
 test-fixture authoring batches are particularly amenable to
-sub-agent offload (`nsl-test-author`).
+sub-agent offload (`nsl-test-author`). All 8 tasks added by
+/speckit-analyze remediation (T118–T125) are `[P]`.

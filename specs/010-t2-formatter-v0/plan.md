@@ -236,9 +236,9 @@ third_party/tomlpp/
 ├── LICENSE                                  # NEW: MIT
 └── PROVENANCE.md                            # NEW: upstream URL + commit SHA + license
 
-include/nsl/Parse/CSTMode.h                  # NEW: parser CST-mode extension hook (Principle II — extends, does not duplicate)
+include/nsl/Parse/Parser.h                   # AMEND: add `class CSTSink` virtual interface + `Parser::setEmitCST(CSTSink*)` method (the only new symbols on nsl-parse's existing single public header — Principle II keeps the single-header rule for nsl-parse)
 lib/Parse/
-└── CSTMode.cpp                              # NEW: emits CSTNode alongside AST (one new Parser flag)
+└── CSTMode.cpp                              # NEW: private impl of Parser::setEmitCST + the gated emit-event call sites (no public header)
 
 test/Fmt/
 ├── rules/                                   # FR-009 / FR-020 — six §5.3 rules
@@ -307,11 +307,18 @@ Constitution Principle II. T2 introduces `nsl-fmt` as the first of
 the three named user-facing tooling binaries. No `frontend/` /
 `backend/` split — the formatter is a library + a thin CLI on top.
 
-The `lib/Parse/CSTMode.{h,cpp}` addition is the only modification
-to `libNSLFrontend.a` itself; it is a parser flag that emits the
-existing AST plus a parallel CST tree (preserving trivia + token
-positions). This is Principle II's preferred shape: extend the
-shared layer, don't duplicate.
+The two-line amendment to `include/nsl/Parse/Parser.h` (a new
+abstract `CSTSink` interface + a `Parser::setEmitCST(CSTSink*)`
+method) plus the private impl file `lib/Parse/CSTMode.cpp` are
+the only modifications to `libNSLFrontend.a` itself. Together
+they add ONE new public symbol (`CSTSink`) to `nsl-parse`'s
+existing single public header — Principle II's single-header
+rule for `nsl-parse` is preserved (no second header). The
+`CSTSink` is implemented above the layer boundary (by
+`nsl-fmt`'s `CSTBuilder`), keeping dependency direction
+downward. This is Principle II's preferred shape: extend the
+shared layer through a layered observer interface, don't
+duplicate parsing code and don't widen the public surface.
 
 ## Complexity Tracking
 
