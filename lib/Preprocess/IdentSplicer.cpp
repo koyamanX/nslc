@@ -189,13 +189,22 @@ std::string IdentSplicer::splice(llvm::StringRef line,
           // from Error to Warning. The locked string survives;
           // severity drops so the M1 phase no longer hard-blocks
           // `nslc -emit=mlir`. Architectural intent (residue
-          // forwarded to the M5 `NSLCheckSemanticsPass` slot 6
-          // for the canonical FROZEN diagnostic
+          // forwarded to the M5 `NSLCheckSemanticsPass` slot 6 for
+          // the canonical FROZEN diagnostic
           // `unresolved macro splice '%X%' after structural
           // expansion`). The lexer's identifier rule (post-
           // 2026-05-04 amendment) folds `%X%` into surrounding
           // identifier text so the residue reaches MLIR string
           // attrs; the M5 layer regex catches it.
+          //
+          // Known noise: inside `generate(i = ...; ...; ...)` the
+          // body's `%i%` references are valid generate-loop-var
+          // residue (substituted by `NSLExpandGeneratePass` per-
+          // iteration), but the preprocessor doesn't yet track
+          // generate scope so the warning fires for them too. The
+          // happy-path lit fixtures discard stderr accordingly. The
+          // structurally-correct fix is generate-scope tracking in
+          // the preprocessor (parser-light infra), deferred.
           std::string msg = "undefined macro reference: '%";
           msg += name.str();
           msg += "%'";

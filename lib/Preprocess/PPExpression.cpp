@@ -461,13 +461,22 @@ private:
 
     const MacroDef *def = owner_.macros_.lookup(name);
     if (def == nullptr) {
-      // FR-037 locked diagnostic for P3 — emitted here in expression
-      // context too so `#if %X% > 0` with undefined %X% raises the
-      // same canonical text as a passthrough-line use.
+      // FR-037 P3 — locked diagnostic. Severity downgraded from
+      // Error to Warning by the 2026-05-04 contract amendment so
+      // residue can flow to the M5 `NSLCheckSemanticsPass` (slot 6)
+      // for the canonical `unresolved macro splice` diagnostic.
+      // Emit directly (bypassing the `report()` helper which sets
+      // `errored_` to true) so #if expression evaluation continues
+      // with the undefined macro treated as 0 — matching the
+      // passthrough-line behavior in `IdentSplicer.cpp`.
       std::string msg = "undefined macro reference: '%";
       msg += name.str();
       msg += "%'";
-      report(msg, begin);
+      SourceLocation loc = locAt(base_, begin);
+      if (!loc.isValid()) {
+        loc = base_;
+      }
+      owner_.diag_.report(Severity::Warning, loc, msg);
       return PPValue(int64_t{0});
     }
 

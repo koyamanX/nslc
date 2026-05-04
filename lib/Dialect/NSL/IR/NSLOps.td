@@ -1053,9 +1053,16 @@ def NSL_StateOp : NSL_Op<"state", [
     state defs and conflicted with multi-proc state-name sharing
     (Symbol uniqueness — two procs both wanting `nsl.state @s1`
     inside their bodies). Admitting `ModuleOp` as a legal parent
-    aligns the dialect with NSL's actual grammar; `nsl.first_state
-    @s1` continues to work as a `FlatSymbolRefAttr` resolving to a
-    same-region or sibling-region `nsl.state` Symbol.
+    aligns the dialect with NSL's actual grammar.
+
+    Symbol-table resolution caveat: `nsl.proc` is a `SymbolTable`,
+    so a `FlatSymbolRefAttr` inside a proc does not naturally cross
+    the table boundary to reach a module-level `nsl.state` sibling.
+    The state-target verifiers (`FirstStateOp::verify`,
+    `GotoOp::verify`, `FireProbeOp::verify`) explicitly fall back
+    to the enclosing `nsl.module`'s symbol table when the in-proc
+    lookup misses, restoring the user-visible single-namespace
+    illusion required by the NSL grammar shape.
   }];
   let arguments = (ins SymbolNameAttr:$sym_name);
   let regions = (region SizedRegion<1>:$body);

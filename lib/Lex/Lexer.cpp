@@ -179,8 +179,13 @@ public:
       }
       if (buf[cur] == '%') {
         // Probe for `%IDENT%` shape (lex-level residue interpolation).
+        // The IdentSplicer accepts `%_NAME%` (its `isIdentStart`
+        // includes `_`); mirror that here so a residue like
+        // `buf_%_TYPO%` survives as a single identifier rather than
+        // splitting at the inner `%`.
         uint32_t probe = cur + 1;
-        if (probe < buf.size() && isIdentStart(buf[probe])) {
+        if (probe < buf.size() &&
+            (isIdentStart(buf[probe]) || buf[probe] == '_')) {
           uint32_t scan = probe;
           while (scan < buf.size() && isIdentBody(buf[scan])) {
             ++scan;

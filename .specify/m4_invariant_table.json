@@ -30,7 +30,7 @@
     { "name": "nsl.invoke_method",         "category": "atomic",           "invariants": ["callee-symbol-ref-present"] },
     { "name": "nsl.proc",                  "category": "procedure",        "invariants": ["parent-nsl-module", "sym-name-required", "at-most-one-first-state-child"] },
     { "name": "nsl.first_state",           "category": "procedure",        "invariants": ["parent-nsl-proc", "target-resolves-to-sibling-state"] },
-    { "name": "nsl.state",                 "category": "procedure",        "invariants": ["parent-module-or-proc", "sym-name-required"] },
+    { "name": "nsl.state",                 "category": "procedure",        "invariants": ["parent-nsl-module-or-proc", "sym-name-required"] },
     { "name": "nsl.func",                  "category": "procedure",        "invariants": ["parent-nsl-module", "sym-name-required"] },
     { "name": "nsl.goto",                  "category": "procedure-helper", "invariants": ["transitive-parent-nsl-seq-or-state", "target-resolves-to-sibling-label-or-state"] },
     { "name": "nsl.sim_display",           "category": "system-task",      "invariants": ["parent-nsl-module-or-sim-init"] },

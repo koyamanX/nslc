@@ -794,7 +794,8 @@ mlir::LogicalResult FirstStateOp::verify() {
   }
 
   return emitOpError() << "'target' '" << getTarget()
-                       << "' does not name a sibling 'nsl.state'";
+                       << "' does not name an 'nsl.state' in the "
+                          "enclosing 'nsl.proc' or 'nsl.module'";
 }
 
 // ===========================================================================
@@ -812,19 +813,27 @@ mlir::LogicalResult GotoOp::verify() {
            << "must be enclosed by 'nsl.seq' (label form) or 'nsl.state' "
               "(state-name form)";
   }
-  // Resolve `target`. State-name form: try the enclosing `nsl.proc`
-  // symbol table first (M4 shape: states inside proc), then fall back
-  // to the enclosing `nsl.module` (post-amendment #8 shape: top-level
-  // states siblings of proc). Label form: not yet implemented in this
-  // dialect (M4 has no label op), so fall through to the state-form
-  // check.
-  if (auto procOp = (*this)->getParentOfType<ProcOp>()) {
-    mlir::Operation *resolved =
-        mlir::SymbolTable::lookupSymbolIn(procOp, getTargetAttr());
-    if (mlir::isa_and_nonnull<StateOp>(resolved)) {
-      return mlir::success();
+  // Resolve `target`. Two cases keyed off ancestor type:
+  //  - state-form (stateAncestor present): the goto targets an
+  //    `nsl.state` Symbol. Try the enclosing `nsl.proc` symbol
+  //    table first (M4 shape: states inside proc), then fall back
+  //    to the enclosing `nsl.module` (post-amendment #8 shape: top-
+  //    level states siblings of proc). The fallback also covers the
+  //    case where the goto sits directly inside a module-level
+  //    `nsl.state` (no enclosing `nsl.proc`).
+  //  - label-form (seqAncestor only): the goto targets a label op.
+  //    M4 does not implement labels yet, so accept any target name
+  //    and defer the resolution check to a later milestone.
+  if (stateAncestor) {
+    auto procOp = (*this)->getParentOfType<ProcOp>();
+    if (procOp) {
+      mlir::Operation *resolved =
+          mlir::SymbolTable::lookupSymbolIn(procOp, getTargetAttr());
+      if (mlir::isa_and_nonnull<StateOp>(resolved)) {
+        return mlir::success();
+      }
     }
-    if (auto moduleOp = procOp->getParentOfType<ModuleOp>()) {
+    if (auto moduleOp = (*this)->getParentOfType<ModuleOp>()) {
       mlir::Operation *resolvedAtModule =
           mlir::SymbolTable::lookupSymbolIn(moduleOp, getTargetAttr());
       if (mlir::isa_and_nonnull<StateOp>(resolvedAtModule)) {
@@ -832,7 +841,8 @@ mlir::LogicalResult GotoOp::verify() {
       }
     }
     return emitOpError() << "'target' symbol ref '" << getTarget()
-                         << "' does not resolve to a sibling 'nsl.state'";
+                         << "' does not resolve to an 'nsl.state' in the "
+                            "enclosing 'nsl.proc' or 'nsl.module'";
   }
   return mlir::success();
 }
@@ -906,11 +916,23 @@ mlir::LogicalResult FireProbeOp::verify() {
       }
     }
   }
+  // Walk #4 (post-amendment #8): Symbol-bearing `nsl.state` at
+  // module scope. NSL grammar (`lang.ebnf §6` / S28) places state
+  // defs as siblings of `nsl.proc`; the SymbolTable on `ModuleOp`
+  // resolves them. This walk catches `fire_probe @s1` referring to
+  // a top-level state def in the post-amendment shape.
+  if (mlir::Operation *symOp = mlir::SymbolTable::lookupSymbolIn(
+          moduleOp.getOperation(),
+          mlir::StringAttr::get(getContext(), target))) {
+    if (mlir::isa<StateOp>(symOp)) {
+      return mlir::success();
+    }
+  }
   return emitOpError() << "'target' '" << target
                        << "' does not name a sibling 'nsl.func_in', "
                           "'nsl.func_out', 'nsl.func_self', "
-                          "'nsl.proc', or (within an enclosing proc) "
-                          "'nsl.state'";
+                          "'nsl.proc', or 'nsl.state' (in the enclosing "
+                          "'nsl.proc' or 'nsl.module')";
 }
 
 mlir::LogicalResult StructCastOp::verify() {
