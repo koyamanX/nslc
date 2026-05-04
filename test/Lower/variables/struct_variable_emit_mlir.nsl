@@ -6,7 +6,7 @@
 //
 // **DEFERRED**. The intended source pattern is:
 //
-//   struct T { a: 8; b: 8; }
+//   struct T { a[8]; b[8]; };
 //   module M {
 //     T variable s;        // <-- struct-typed variable
 //     ...
@@ -43,9 +43,9 @@
 // RUN: %nslc -emit=mlir %s | %FileCheck %s
 
 struct T {
-  a: 8;
-  b: 8;
-}
+  a[8];
+  b[8];
+};
 
 module M {
   T variable s;     // CHECK: nsl.variable
