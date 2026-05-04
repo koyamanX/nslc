@@ -2,13 +2,21 @@
 //
 // test/sema/s16/pass.nsl — S16 (lang.ebnf:880) pass case.
 // S16: `param_int` / `param_str` are meaningful only for HDL
-// submodules (Verilog/VHDL/SystemC). Pass case: param_int at top
-// level — well-formed parser-wise; Sema's check passes only when
-// the param is associated with an HDL submodule. Phase 4b T056
-// will refine.
+// submodules (Verilog/VHDL/SystemC). Pure-NSL modules carry no
+// parameters; the `#define` preprocessor mechanism (`pp.ebnf §2.2`)
+// is the only correct compile-time-constant idiom.
+//
+// Pass case: a pure-NSL module that uses `#define` instead of
+// `param_int` for compile-time configuration. No `TopLevelParamDecl`
+// is emitted, so the S16 walker has nothing to flag.
 
 // RUN: %nslc -emit=ast %s 2>&1 | FileCheck %s
 
-param_int N = 8;
+#define WIDTH 8
 
-// CHECK: (TopLevelParamDecl {{.*}}kind=Int{{.*}}name=N
+module m_pass {
+  reg q[%WIDTH%];
+}
+
+// CHECK: (ModuleBlock {{.*}}name=m_pass
+// CHECK-NOT: (TopLevelParamDecl
