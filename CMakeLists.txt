@@ -176,8 +176,18 @@ if(NSL_BUILD_TESTS)
     "${CMAKE_SOURCE_DIR}/test/Fmt"
     DEPENDS nsl-fmt FileCheck)
 
+  # `check-fmt-unit` runs every GoogleTest binary tagged with the
+  # `Fmt` ctest label. Per-suite CMakeLists.txt files under
+  # `test_unit/Fmt/` register their binaries in the
+  # `_NSL_FMT_GTEST_BINARIES` global property + label their tests
+  # `LABELS Fmt`, so this target picks them up automatically as
+  # Phase 2+ adds more suites — no edits to this file needed.
+  get_property(_nsl_fmt_gtest_bins GLOBAL PROPERTY _NSL_FMT_GTEST_BINARIES)
   add_custom_target(check-fmt-unit
-    COMMENT "Run all test_unit/Fmt/ GoogleTest binaries (Phase 2+ populates this)")
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L Fmt
+    DEPENDS ${_nsl_fmt_gtest_bins}
+    USES_TERMINAL
+    COMMENT "Running all test_unit/Fmt/ GoogleTest binaries")
 
   add_custom_target(check-nsl-fmt
     DEPENDS check-fmt-lit check-fmt-unit

@@ -28,14 +28,15 @@
 # in T017 (a single new abstract symbol on the existing single public
 # header — Principle II preserved).
 #
-# Phase 1 ships a zero-behaviour stub: one anchor TU (Stub.cpp) so the
-# static archive has at least one object. Phase 2 will add CST.cpp,
-# DirectiveSplitter.cpp, CSTBuilder.cpp, Doc.cpp, LayoutRenderer.cpp,
-# Format.cpp; Phase 3 adds LayoutPlanner.cpp; etc. Stub.cpp is removed
-# in the same commit as the first real source file lands.
+# Phase 2a (T011–T015) lands the directive-splitter pre-pass: CST data
+# types (CST.h, header-only) plus DirectiveSplitter.{h,cpp}. The Phase-1
+# `Stub.cpp` anchor TU is removed — DirectiveSplitter.cpp is now the
+# library's first real source. Phase 2b adds CSTBuilder.cpp; Phase 2c
+# adds Doc.cpp / LayoutRenderer.cpp / Format.cpp; Phase 3 adds
+# LayoutPlanner.cpp; etc.
 
 add_library(NslFmt STATIC
-  Stub.cpp
+  DirectiveSplitter.cpp
 )
 
 target_include_directories(NslFmt
