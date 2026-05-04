@@ -60,7 +60,7 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 - [ ] T018 Author `createNSLToCIRCTPass()` factory function in `lib/Lower/NSLToCIRCTPass.cpp` returning `std::make_unique<NSLToCIRCTPass>()` (depends on T017)
 - [ ] T019 Author `registerNSLToCIRCTPass()` registration helper in `lib/Lower/NSLToCIRCTPass.cpp` calling `mlir::registerPass(createNSLToCIRCTPass)` (depends on T018)
 - [ ] T020 Amend `registerNSLPasses()` body in `lib/Lower/Lower.cpp` (or umbrella source) to also call `registerNSLToCIRCTPass()` — ABI preserved (depends on T019)
-- [ ] T021 Amend `lib/Lower/CMakeLists.txt` source list to include the 11 new `.cpp` files from T006–T017; add `CIRCTFSM` to `LINK_LIBS` per [`contracts/lower-api.contract.md`](./contracts/lower-api.contract.md) §5 (no `CIRCTHwArith` per Q1 → A)
+- [ ] T021 Amend `lib/Lower/CMakeLists.txt` source list to include the 11 new `.cpp` files: `CIRCTTypeConverter.cpp` (T007), the 9 family-pattern `.cpp` files under `CIRCTPatterns/` (T008–T016), and `NSLToCIRCTPass.cpp` (T017). Add `CIRCTFSM` to `LINK_LIBS` per [`contracts/lower-api.contract.md`](./contracts/lower-api.contract.md) §5 (no `CIRCTHwArith` per Q1 → A)
 - [ ] T022 Add `Compilation::lowerToCIRCT(mlir::ModuleOp)` declaration in `include/nsl/Driver/Compilation.h` per [`data-model.md`](./data-model.md) §4
 - [ ] T023 Add `Compilation::lowerToCIRCT(mlir::ModuleOp)` body in `lib/Driver/Compilation.cpp` — constructs `mlir::PassManager`, adds `createNSLToCIRCTPass()`, instantiates `DiagnosticBridge`, calls `pm.run(module)`, returns result (depends on T018, T022)
 - [ ] T024 Wire the `EmitKind::HW` (and `EmitKind::CIRCT` alias per [`data-model.md`](./data-model.md) §5) arm in `Compilation::emit` per [`contracts/driver-emit-hw.contract.md`](./contracts/driver-emit-hw.contract.md) §2 — calls `lowerToNSL` → check non-null → `runNSLPasses` → check success → `lowerToCIRCT` → check success → `module.print(os, mlir::OpPrintingFlags())` (depends on T023)
@@ -111,7 +111,8 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 - [ ] T038 [US2] Implement `OpConversionPattern<nsl::ModuleOp>` in `lib/Lower/CIRCTPatterns/ModulePatterns.cpp` — walks paired `nsl::DeclareOp` to build the port list, creates `hw::HWModuleOp`, recursively converts the body region. Per [`contracts/circt-lowering.contract.md`](./contracts/circt-lowering.contract.md) §3 port-list derivation rules. Implicit `clk` + `rst_n` appended for no-`interface` modules. (T030–T035 fixtures pass after this lands)
 - [ ] T039 [US2] Implement `OpConversionPattern<nsl::SubmoduleOp>` in `lib/Lower/CIRCTPatterns/ParamPatterns.cpp` — singleton form (array form already exploded by M5's `NSLExplodeSubmodArrayPass`); creates `hw::InstanceOp` referencing target `hw.module` symbol; threads operand wires through. (T036 fixture passes)
 - [ ] T040 [US2] Implement `OpConversionPattern<nsl::ParamIntOp>` in `lib/Lower/CIRCTPatterns/ParamPatterns.cpp` — produces `hw::InstanceOp` parameter-wire on consuming instances per S16 + design line 1255. (T037 fixture passes)
-- [ ] T041 [US2] Implement `OpConversionPattern<nsl::ParamStrOp>` in `lib/Lower/CIRCTPatterns/ParamPatterns.cpp` — ditto for string-typed params (design line 1256). Add fixture `test/Lower/circt/module/submodule_with_strparam.nsl` if not already present.
+- [ ] T041 [P] [US2] Author `test/Lower/circt/module/submodule_with_strparam.nsl` + `.expected.mlir` — `param_str NAME = "foo"` consumed by submodule instantiation → `hw.instance` parameter wire (string-typed) per S16 + design line 1256
+- [ ] T041b [US2] Implement `OpConversionPattern<nsl::ParamStrOp>` in `lib/Lower/CIRCTPatterns/ParamPatterns.cpp` — ditto for string-typed params (design line 1256). (T041 fixture passes after this lands)
 - [ ] T042 [US2] Register `populateModulePatterns` to add the ModuleOp pattern from T038
 - [ ] T043 [US2] Register `populateParamPatterns` to add the SubmoduleOp + ParamIntOp + ParamStrOp patterns from T039–T041
 - [ ] T044 [US2] Run lit on `test/Lower/circt/module/` — confirm all 8 fixtures pass; CI coverage guard reports module + submodule + param patterns covered.
@@ -288,6 +289,11 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 - [ ] T136 [P] Author one M3-corpus extension fixture under `test/Lower/m3_corpus/` per `Sn` whose lowering verdict can change post-CIRCT-conversion (none expected; document the empty set if so) — Sema verdicts are upstream, but a sanity-pass through `-emit=hw` confirms M5/M6 do not regress M3 cases
 - [ ] T137 Author the post-implementation triage section at the bottom of this `tasks.md` after M6 merges — list any XFAILs introduced or closed during M6 work, with disposition (CLOSED / DEFERRED / WAI), per the M5 precedent
 
+### Coverage-gap closures (added 2026-05-04 post-/speckit-analyze — close C1 + C2)
+
+- [ ] T138 [P] [US1] Author `test/Lower/circt/round_trip/structural_generate_fail_fast.test` — hand-authored `.mlir` fixture containing a residual `nsl.structural_generate` op (an invariant violation that should never reach M6 from a clean M5 pipeline); lit recipe runs `not nsl-opt -nsl-to-circt %s 2>&1 | FileCheck %s --check-prefix=ERR` asserting `ERR: error: nsl→CIRCT conversion failed for op 'nsl.structural_generate'`. Closes FR-022 explicit fail-fast coverage (the implicit ConversionTarget illegal-op rule covered the case, but no positive regression existed). Belongs to US1's harness phase logically; appended at the tail per M5's T110 precedent.
+- [ ] T139 [P] [US5] Author `test/Lower/circt/round_trip/stdin_pipe.test` — exercises `cat %S/zero_nsl_ops.nsl | nslc -emit=hw -` (matches the source already used by T026). Lit recipe asserts exit 0 AND output is byte-identical to the `-o`-form invocation. Closes FR-026 stdin-support explicit coverage.
+
 ---
 
 ## Dependencies
@@ -375,7 +381,7 @@ Stories integrate via the foundation's family-file scaffold; no cross-story file
 - Commit after each task or logical group; PR for each user-story phase if team strategy
 - Stop at any checkpoint to validate independently
 - Avoid: vague tasks, same-family-file conflicts within a single US, cross-story dependencies that break independence
-- Total task count: **~137 tasks** across **8 phases** (T001–T137 in this draft; final count subject to /speckit-analyze cross-artefact audit)
+- Total task count: **140 tasks** across **8 phases** (T001–T137 + T041b + T138 + T139; up from 137 after `/speckit-analyze` 2026-05-04 added T041b to split T041's fixture-then-pattern step and appended T138 + T139 to close C1 + C2 coverage gaps).
 
 ---
 

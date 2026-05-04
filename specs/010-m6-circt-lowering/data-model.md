@@ -143,14 +143,16 @@ private:
 | `ControlPatterns.cpp` | 4 | `nsl::AltOp`, `nsl::AnyOp`, `nsl::IfOp`, `nsl::CallOp` (func_in variant) |
 | `FSMPatterns.cpp` | 7 | `nsl::ProcOp`, `nsl::StateOp`, `nsl::SeqOp`, `nsl::FirstStateOp`, `nsl::GotoOp` (state form), `nsl::GotoOp` (label form), `nsl::FinishOp`, `nsl::CallOp` (proc_name variant) |
 | `ArithPatterns.cpp` | 9 | `nsl::AddOp`, `SubOp`, `MulOp`, `EqOp`, `NeOp`, `LtOp`, `LeOp`, `GtOp`, `GeOp` |
-| `BitOpPatterns.cpp` | 13 | `nsl::AndOp`, `OrOp`, `XorOp`, `ShlOp`, `ShrOp`, `LandOp`, `LorOp`, `NotOp`, `NegOp`, `LnotOp`, `ReduceAndOp`, `ReduceOrOp`, `ReduceXorOp`, plus `SignExtendOp`, `ZeroExtendOp`, `MuxOp`, `ConcatOp`, `ExtractOp`, `RepeatOp` (counted as bit-ops in the family taxonomy) |
+| `BitOpPatterns.cpp` | 19 | `nsl::AndOp`, `OrOp`, `XorOp`, `ShlOp`, `ShrOp`, `LandOp`, `LorOp`, `NotOp`, `NegOp`, `LnotOp`, `ReduceAndOp`, `ReduceOrOp`, `ReduceXorOp`, `SignExtendOp`, `ZeroExtendOp`, `MuxOp`, `ConcatOp`, `ExtractOp`, `RepeatOp` |
 | `SimPatterns.cpp` | 4 + S29 | `nsl::SimDisplayOp`, `SimFinishOp`, `SimInitOp`, `SimDelayOp`, plus the S29 `_init` block lowering |
 | `ParamPatterns.cpp` | 3 | `nsl::ParamIntOp`, `ParamStrOp`, `SubmoduleOp` |
 
-(BitOpPatterns count of 13 is the named-op count; the actual
-.cpp file holds ~19 patterns including the extension/concat/extract
-rewrites. Counts are illustrative — the contract's freeze list is
-the design-§10 mapping-table rows, not these counts.)
+(Pattern counts above are the per-op count, totaling **40** patterns
+across the 9 family files. The design-§10 mapping-table rows are the
+contract surface — see [`contracts/circt-lowering.contract.md`](../contracts/circt-lowering.contract.md)
+§1 — and they bound the pattern count from below. Adding a new op
+to the M4 dialect adds one new pattern AND one new fixture AND one
+new contract row in lock-step.)
 
 **Pattern interface** (every pattern extends `mlir::OpConversionPattern`):
 
