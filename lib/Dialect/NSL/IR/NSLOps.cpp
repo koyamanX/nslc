@@ -716,55 +716,85 @@ mlir::LogicalResult ProcOp::verify() {
 }
 
 mlir::LogicalResult FirstStateOp::verify() {
-  // The `target` symbol ref SHOULD resolve to a sibling `nsl.state`
-  // op. Per Q1 Option A (structural-only), if the symbol is unresolved
-  // OR resolves to something other than `nsl.state`, this MAY be a
-  // structural error. However, M4 is conservative here: we only
-  // diagnose when the symbol resolves to a *non-state* sibling
-  // (definitive structural mismatch); unresolved symrefs defer to
-  // upstream's SymbolTable diagnostic and allow surrounding
-  // verifiers (e.g. the parent `nsl.state`'s `sym_name` check) to
-  // surface first.
+  // The `target` symbol ref SHOULD resolve to an `nsl.state` op
+  // either as a sibling inside the enclosing `nsl.proc` (the M4
+  // shape) OR as a sibling of `nsl.proc` at module level (post-
+  // amendment #8 — top-level NSL `state s { }` defs).
+  //
+  // Per Q1 Option A (structural-only): if the symbol resolves to
+  // something other than `nsl.state`, that's a structural error.
+  // Unresolved symrefs defer to upstream's SymbolTable diagnostic.
   auto procOp = (*this)->getParentOfType<ProcOp>();
   if (!procOp) {
     return mlir::success();
   }
-  mlir::Operation *resolved =
-      mlir::SymbolTable::lookupSymbolIn(procOp, getTargetAttr());
-  if (resolved && !mlir::isa<StateOp>(resolved)) {
-    return emitOpError() << "'target' symbol ref '" << getTarget()
-                         << "' resolves to a non-'nsl.state' sibling";
-  }
-  // The fail-case fixture `first_state_invalid_no_target.mlir`
-  // expects substring "target" — emit a diagnostic when no sibling
-  // `nsl.state` whose `sym_name` matches the target is found.
-  // CAUTION: a sibling `nsl.state` may itself be malformed (missing
-  // `sym_name`) — read the attribute defensively so this verifier
-  // never crashes on a malformed sibling (the malformed sibling's
-  // own `Symbol`-trait verifier surfaces the diagnostic).
-  bool foundState = false;
-  bool sawMalformedState = false;
-  for (mlir::Operation &child : procOp.getBody().front()) {
-    auto state = mlir::dyn_cast<StateOp>(&child);
-    if (!state) {
-      continue;
+  // Helper: scan `region`'s top-level ops for a `nsl.state` whose
+  // `sym_name` matches `target`. Returns (foundState, sawMalformed).
+  auto scanRegion = [&](mlir::Region &region)
+      -> std::pair<bool, bool> {
+    bool found = false;
+    bool malformed = false;
+    if (region.empty()) {
+      return {found, malformed};
     }
-    auto siblingSym = state->getAttrOfType<mlir::StringAttr>(
-        mlir::SymbolTable::getSymbolAttrName());
-    if (!siblingSym) {
-      sawMalformedState = true;
-      continue;
+    for (mlir::Operation &child : region.front()) {
+      auto state = mlir::dyn_cast<StateOp>(&child);
+      if (!state) {
+        continue;
+      }
+      auto siblingSym = state->getAttrOfType<mlir::StringAttr>(
+          mlir::SymbolTable::getSymbolAttrName());
+      if (!siblingSym) {
+        malformed = true;
+        continue;
+      }
+      if (siblingSym.getValue() == getTarget()) {
+        found = true;
+        break;
+      }
     }
-    if (siblingSym.getValue() == getTarget()) {
-      foundState = true;
-      break;
+    return {found, malformed};
+  };
+
+  // First, check resolution inside the proc body (legacy M4 shape +
+  // backward-compat). If a non-state op resolves under that name in
+  // proc-scope, that's a structural mismatch.
+  if (mlir::Operation *resolved =
+          mlir::SymbolTable::lookupSymbolIn(procOp, getTargetAttr())) {
+    if (!mlir::isa<StateOp>(resolved)) {
+      return emitOpError() << "'target' symbol ref '" << getTarget()
+                           << "' resolves to a non-'nsl.state' sibling";
     }
   }
-  if (!foundState && !sawMalformedState) {
-    return emitOpError() << "'target' '" << getTarget()
-                         << "' does not name a sibling 'nsl.state'";
+  auto [foundInProc, malformedInProc] = scanRegion(procOp.getBody());
+  if (foundInProc) {
+    return mlir::success();
   }
-  return mlir::success();
+
+  // Fall back to the enclosing module (amendment #8 shape).
+  if (auto moduleOp = procOp->getParentOfType<ModuleOp>()) {
+    if (mlir::Operation *resolved =
+            mlir::SymbolTable::lookupSymbolIn(moduleOp, getTargetAttr())) {
+      if (!mlir::isa<StateOp>(resolved)) {
+        return emitOpError() << "'target' symbol ref '" << getTarget()
+                             << "' resolves to a non-'nsl.state' sibling";
+      }
+    }
+    auto [foundInMod, malformedInMod] = scanRegion(moduleOp.getBody());
+    if (foundInMod) {
+      return mlir::success();
+    }
+    if (malformedInProc || malformedInMod) {
+      // A malformed sibling state's own Symbol-trait verifier will
+      // surface the diagnostic; defer to it.
+      return mlir::success();
+    }
+  } else if (malformedInProc) {
+    return mlir::success();
+  }
+
+  return emitOpError() << "'target' '" << getTarget()
+                       << "' does not name a sibling 'nsl.state'";
 }
 
 // ===========================================================================
@@ -782,16 +812,27 @@ mlir::LogicalResult GotoOp::verify() {
            << "must be enclosed by 'nsl.seq' (label form) or 'nsl.state' "
               "(state-name form)";
   }
-  // Resolve `target`. State-name form: enclosing `nsl.proc` symbol
-  // table. Label form: not yet implemented in this dialect (M4 has no
-  // label op), so fall through to the state-form check.
+  // Resolve `target`. State-name form: try the enclosing `nsl.proc`
+  // symbol table first (M4 shape: states inside proc), then fall back
+  // to the enclosing `nsl.module` (post-amendment #8 shape: top-level
+  // states siblings of proc). Label form: not yet implemented in this
+  // dialect (M4 has no label op), so fall through to the state-form
+  // check.
   if (auto procOp = (*this)->getParentOfType<ProcOp>()) {
     mlir::Operation *resolved =
         mlir::SymbolTable::lookupSymbolIn(procOp, getTargetAttr());
-    if (!mlir::isa_and_nonnull<StateOp>(resolved)) {
-      return emitOpError() << "'target' symbol ref '" << getTarget()
-                           << "' does not resolve to a sibling 'nsl.state'";
+    if (mlir::isa_and_nonnull<StateOp>(resolved)) {
+      return mlir::success();
     }
+    if (auto moduleOp = procOp->getParentOfType<ModuleOp>()) {
+      mlir::Operation *resolvedAtModule =
+          mlir::SymbolTable::lookupSymbolIn(moduleOp, getTargetAttr());
+      if (mlir::isa_and_nonnull<StateOp>(resolvedAtModule)) {
+        return mlir::success();
+      }
+    }
+    return emitOpError() << "'target' symbol ref '" << getTarget()
+                         << "' does not resolve to a sibling 'nsl.state'";
   }
   return mlir::success();
 }

@@ -1037,8 +1037,26 @@ def NSL_FirstStateOp : NSL_Op<"first_state", [HasParent<"ProcOp">]> {
 
 def NSL_StateOp : NSL_Op<"state", [
     Symbol, NoTerminator, SingleBlock,
-    HasParent<"ProcOp">]> {
+    ParentOneOf<["ModuleOp", "ProcOp"]>]> {
   let summary = "An NSL `nsl.state` (one state of an `nsl.proc`).";
+  let description = [{
+    `nsl.state @s { ... }` represents one state of an `nsl.proc`.
+
+    Post-merge M4-amendment 2026-05-04 (#8): the parent constraint
+    is widened from `HasParent<"ProcOp">` to
+    `ParentOneOf<["ModuleOp", "ProcOp"]>` to mirror the NSL grammar
+    shape (`lang.ebnf §6` / S28). NSL syntax places `state <n> { ... }`
+    definitions at module top-level as siblings of `proc p`, with
+    `proc p { state_name s1, s2; first_state s1; ... }` referencing
+    them via `state_name` lists. Modeling `nsl.state` only as a
+    child of `nsl.proc` forced the visitor to relocate top-level
+    state defs and conflicted with multi-proc state-name sharing
+    (Symbol uniqueness — two procs both wanting `nsl.state @s1`
+    inside their bodies). Admitting `ModuleOp` as a legal parent
+    aligns the dialect with NSL's actual grammar; `nsl.first_state
+    @s1` continues to work as a `FlatSymbolRefAttr` resolving to a
+    same-region or sibling-region `nsl.state` Symbol.
+  }];
   let arguments = (ins SymbolNameAttr:$sym_name);
   let regions = (region SizedRegion<1>:$body);
   let assemblyFormat = "$sym_name attr-dict-with-keyword $body";
