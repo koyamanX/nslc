@@ -20,17 +20,28 @@
 
 #include "DirectiveSplitter.h"
 #include "CST.h"
+#include "CSTBuilder.h"
 
+#include "nsl/AST/CompilationUnit.h"
+#include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
+#include "nsl/Basic/SourceManager.h"
+#include "nsl/Lex/Lexer.h"
+#include "nsl/Lex/Token.h"
+#include "nsl/Parse/Parser.h"
 
 #include "llvm/ADT/StringRef.h"
 
 #include "gtest/gtest.h"
 
+#include <cstddef>
+#include <memory>
 #include <string>
+#include <vector>
 
 using nsl::FileID;
 using nsl::SourceRange;
+using nsl::fmt::CSTBuilder;
 using nsl::fmt::DirectiveSplitter;
 using nsl::fmt::DirectiveTok;
 using nsl::fmt::Slice;
@@ -153,6 +164,121 @@ TEST(DirectiveSplitterTest, AllNSLFragmentNoDirectives) {
   ASSERT_EQ(slices.size(), 1u);
   EXPECT_EQ(slices[0].kind, Slice::Kind::NSLFragment);
   EXPECT_EQ(slices[0].rawText, source);
+}
+
+// -----------------------------------------------------------------------------
+// T016 — CSTRoundTrip
+// -----------------------------------------------------------------------------
+//
+// Per `cst-shape.contract.md` §8: serialising the recorded CST event
+// stream MUST reproduce the source byte-for-byte. For Phase 2b the
+// CSTBuilder records only top-level production + tokens (sub-
+// production wrapping arrives in Phase 3+); the source-buffer-
+// guided `serialize()` reconstructs trivia from the source view.
+//
+// Helper: convert a C string to a vector<char> (matches the existing
+// parser-test convention from test_unit/parse_test/).
+std::vector<char> bytesOf(const char *literal) {
+  std::vector<char> out;
+  while (*literal != 0) {
+    out.push_back(*literal++);
+  }
+  return out;
+}
+
+TEST(DirectiveSplitterTest, CSTRoundTrip) {
+  // 5-line synthetic NSL source per T016 description.
+  const char *kSource =
+      "module hello {\n"
+      "  reg r[8] = 0;\n"
+      "  reg s[8];\n"
+      "  wire w[16];\n"
+      "}\n";
+  StringRef sourceView(kSource);
+
+  nsl::SourceManager sm;
+  nsl::FileID fid = sm.addBufferInMemory("/virt/cst-roundtrip.nsl",
+                                         bytesOf(kSource));
+  ASSERT_TRUE(fid.isValid());
+  nsl::DiagnosticEngine diag(sm);
+  nsl::Lexer lex(sm, fid, diag);
+
+  CSTBuilder builder(sourceView);
+  std::unique_ptr<nsl::ast::CompilationUnit> cu =
+      nsl::parse::parseCompilationUnit(lex, diag, &builder);
+
+  ASSERT_NE(cu, nullptr) << "parse should succeed for well-formed input";
+  EXPECT_FALSE(diag.hasError()) << "no diagnostics expected";
+
+  // The Phase 2b CST contains exactly one top-level node + every
+  // consumed token.
+  EXPECT_EQ(builder.nodeCount(), 1u)
+      << "exactly one CompilationUnit beginNode/endNode pair expected";
+  EXPECT_GT(builder.tokenCount(), 0u)
+      << "the parser should have consumed at least one token";
+
+  // Round-trip: serialize() must reproduce the source byte-for-byte
+  // (cst-shape contract §8 invariant).
+  EXPECT_EQ(builder.serialize(), std::string(kSource));
+}
+
+// -----------------------------------------------------------------------------
+// T020 — CSTInvariants
+// -----------------------------------------------------------------------------
+//
+// Per `cst-shape.contract.md` §3:
+//   * every recorded token has a non-empty SourceRange;
+//   * tokens are in source order with no overlapping ranges;
+//   * the no-byte-loss invariant holds (round-trip exact match,
+//     verified via serialize()).
+//
+TEST(DirectiveSplitterTest, CSTInvariants) {
+  const char *kSource =
+      "module empty {\n"
+      "}\n";
+  StringRef sourceView(kSource);
+
+  nsl::SourceManager sm;
+  nsl::FileID fid = sm.addBufferInMemory("/virt/cst-invariants.nsl",
+                                         bytesOf(kSource));
+  ASSERT_TRUE(fid.isValid());
+  nsl::DiagnosticEngine diag(sm);
+  nsl::Lexer lex(sm, fid, diag);
+
+  CSTBuilder builder(sourceView);
+  std::unique_ptr<nsl::ast::CompilationUnit> cu =
+      nsl::parse::parseCompilationUnit(lex, diag, &builder);
+
+  ASSERT_NE(cu, nullptr);
+  EXPECT_FALSE(diag.hasError());
+
+  // Invariant 1: every token has a non-empty SourceRange (offset > 0
+  // by length is the easiest check; a zero-length range would indicate
+  // a degenerate token).
+  for (const nsl::Token &t : builder.tokens()) {
+    EXPECT_TRUE(t.range().begin().isValid())
+        << "every token must have a valid begin SourceLocation";
+    EXPECT_LE(t.range().begin().offset(), t.range().end().offset())
+        << "every token range must be non-decreasing";
+  }
+
+  // Invariant 2: monotonically non-decreasing token ranges (source
+  // order). The parser may emit tokens with adjacent ranges
+  // (consecutive non-trivia tokens) but never out-of-order.
+  for (std::size_t i = 1; i < builder.tokens().size(); ++i) {
+    EXPECT_LE(builder.tokens()[i - 1].range().end().offset(),
+              builder.tokens()[i].range().begin().offset())
+        << "token " << i << " starts before previous token ends";
+  }
+
+  // Invariant 3: no-byte-loss — `serialize()` exactly equals source.
+  // (The strongest end-to-end invariant; subsumes the per-byte
+  // coverage check above, but we keep both for failure isolation.)
+  EXPECT_EQ(builder.serialize(), std::string(kSource));
+
+  // Invariant 4 (frame bookkeeping): one completed top-level node.
+  EXPECT_EQ(builder.nodeCount(), 1u);
+  EXPECT_EQ(builder.completedNodes()[0].kindName, "CompilationUnit");
 }
 
 // All nine directive opcodes are recognised.

@@ -31,28 +31,33 @@
 # Phase 2a (T011–T015) lands the directive-splitter pre-pass: CST data
 # types (CST.h, header-only) plus DirectiveSplitter.{h,cpp}. The Phase-1
 # `Stub.cpp` anchor TU is removed — DirectiveSplitter.cpp is now the
-# library's first real source. Phase 2b adds CSTBuilder.cpp; Phase 2c
-# adds Doc.cpp / LayoutRenderer.cpp / Format.cpp; Phase 3 adds
-# LayoutPlanner.cpp; etc.
+# library's first real source.
+#
+# Phase 2b (T016–T020) adds CSTBuilder.{h,cpp} — the concrete
+# `parse::CSTSink` implementation that records the parser's CST-mode
+# event stream. NslFmt now links nsl-parse for the CSTSink interface
+# (declared in include/nsl/Parse/Parser.h per T017).
+#
+# Phase 2c adds Doc.cpp / LayoutRenderer.cpp / Format.cpp; Phase 3
+# adds LayoutPlanner.cpp; etc.
 
 add_library(NslFmt STATIC
   DirectiveSplitter.cpp
+  CSTBuilder.cpp
 )
 
 target_include_directories(NslFmt
   PUBLIC
     "${CMAKE_SOURCE_DIR}/include")
 
-# Eventual deps (commented out in Phase 1 — uncommented per task as
-# each layer's API gets used):
-#   nsl-basic     # DiagnosticEngine, SourceManager (Phase 2)
-#   nsl-lex       # Lexer / TokenKind (Phase 2)
-#   nsl-parse     # Parser + CSTSink interface (Phase 2 — T017/T018)
-#   nsl-ast       # CST node-kind taxonomy mirrors AST (Phase 2)
+# Eventual deps (uncommented per task as each layer's API gets used):
+#   nsl-lex       # Lexer / TokenKind (Phase 2c — needed by Format.cpp)
+#   nsl-ast       # CST node-kind taxonomy mirrors AST (Phase 3)
 #   tomlpp        # TOML config parsing (Phase 6 — T103)
-#   LLVMSupport   # StringRef, Twine, raw_ostream (Phase 2)
+#   LLVMSupport   # StringRef, Twine, raw_ostream (Phase 2c)
 target_link_libraries(NslFmt
   PUBLIC
-    nsl-basic)
+    nsl-basic
+    nsl-parse)   # T2 Phase 2b — CSTSink interface in Parser.h
 
 target_compile_features(NslFmt PUBLIC cxx_std_17)

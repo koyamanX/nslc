@@ -44,6 +44,7 @@
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Lex/Lexer.h"
 #include "nsl/Lex/Token.h"
+#include "nsl/Parse/Parser.h"   // CSTSink (T2 Phase 2b)
 
 #include "llvm/ADT/StringRef.h"
 
@@ -78,7 +79,32 @@ public:
   TokenKind peekKind() { return lex_.peek(0).kind(); }
 
   /// Consume the next token and return it.
-  Token consume() { return lex_.next(); }
+  ///
+  /// T2 Phase 2b extension: when a `CSTSink` is attached via
+  /// `setCSTSink()`, every consumed token is also routed through
+  /// `sink_->recordToken(t)` so a parallel CST-mode observer can
+  /// rebuild the source. Per `specs/010-t2-formatter-v0/research.md`
+  /// §2 + Constitution Principle II: the sink lives ABOVE the
+  /// `nsl-parse` layer; the inline call here adds zero overhead
+  /// when `sink_` is null (the AST-only hot path).
+  Token consume() {
+    Token t = lex_.next();
+    if (sink_ != nullptr) {
+      sink_->recordToken(t);
+    }
+    return t;
+  }
+
+  /// Attach a CST-mode observer. `sink == nullptr` (the default)
+  /// disables the observer. Lifetime of `*sink` MUST exceed every
+  /// subsequent `parseFoo()` call — typically the sink lives on the
+  /// caller's stack frame for the duration of `parseCompilationUnit`.
+  void setCSTSink(CSTSink *sink) noexcept { sink_ = sink; }
+
+  /// Public accessor for the attached sink (used by free-function
+  /// overloads in `lib/Parse/CSTMode.cpp` to wrap top-level
+  /// productions with `beginNode`/`endNode`).
+  [[nodiscard]] CSTSink *cstSink() const noexcept { return sink_; }
 
   /// True if the next token is `k`.
   bool check(TokenKind k) { return peekKind() == k; }
@@ -290,6 +316,15 @@ private:
   /// Callers drain via `drainPendingDecls()` immediately after the
   /// call. Cleared at the top of every `parseInternalDecl` invocation.
   std::vector<std::unique_ptr<ast::Decl>> pendingExtraDecls_;
+
+  /// Optional CST-mode observer (T2 Phase 2b). `nullptr` when CST
+  /// emission is disabled (the AST-only hot path). Set via
+  /// `setCSTSink()`; consumed in `consume()` and by the free-
+  /// function overload in `lib/Parse/CSTMode.cpp` that wraps the
+  /// top-level production with `beginNode`/`endNode`. Per Principle
+  /// II the sink lives above the `nsl-parse` layer; the Parser
+  /// holds only an opaque pointer to the abstract interface.
+  CSTSink *sink_ = nullptr;
 };
 
 } // namespace nsl::parse

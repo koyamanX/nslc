@@ -37,6 +37,9 @@ add_executable(directive_splitter_test
 target_link_libraries(directive_splitter_test
   PRIVATE
     nsl-basic
+    nsl-lex     # T2 Phase 2b — Lexer + Token used by CSTRoundTrip / CSTInvariants tests
+    nsl-ast     # T2 Phase 2b — CompilationUnit return type
+    nsl-parse   # T2 Phase 2b — parseCompilationUnit + CSTSink interface
     NslFmt
     GTest::gtest_main)
 
