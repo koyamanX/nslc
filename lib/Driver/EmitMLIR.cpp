@@ -36,6 +36,8 @@
 
 #include "nsl/Driver/EmitMLIR.h"
 
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/OperationSupport.h"
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
@@ -46,9 +48,6 @@
 #include "nsl/Parse/Parser.h"
 #include "nsl/Preprocess/Preprocessor.h"
 #include "nsl/Sema/Sema.h"
-
-#include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/OperationSupport.h"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/ErrorOr.h"

@@ -27,7 +27,6 @@
 #include "nsl/Sema/SymbolTable.h"
 
 #include <gtest/gtest.h>
-
 #include <memory>
 #include <utility>
 
@@ -89,12 +88,12 @@ TEST(SymbolTableScopeStackTest, DeclareRejectsDuplicateInSameScope) {
   SymbolTable table;
   table.enterScope(ScopeKind::Module);
 
-  EXPECT_TRUE(table.declare(
-      std::make_unique<RegSymbol>(Identifier("q"), makeRange())));
+  EXPECT_TRUE(
+      table.declare(std::make_unique<RegSymbol>(Identifier("q"), makeRange())));
 
   // Same name, same scope → duplicate, must reject.
-  EXPECT_FALSE(table.declare(
-      std::make_unique<RegSymbol>(Identifier("q"), makeRange())));
+  EXPECT_FALSE(
+      table.declare(std::make_unique<RegSymbol>(Identifier("q"), makeRange())));
 
   // Different name in same scope → still accepts.
   EXPECT_TRUE(table.declare(
@@ -153,9 +152,8 @@ TEST(SymbolTableScopeStackTest, LookupScopedSinglePartLikeLookup) {
   SymbolTable table;
   table.enterScope(ScopeKind::Module);
 
-  ASSERT_TRUE(table.declare(
-      std::make_unique<PortSymbol>(Identifier("clk"), makeRange(),
-                                   PortDirection::Input)));
+  ASSERT_TRUE(table.declare(std::make_unique<PortSymbol>(
+      Identifier("clk"), makeRange(), PortDirection::Input)));
 
   nsl::ast::ScopedName name;
   name.parts.push_back(Identifier("clk"));

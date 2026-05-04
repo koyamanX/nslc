@@ -1,5 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-FROM nsl/base:dev
+# Parent image: local builds default to the short `nsl/base:dev` tag
+# `scripts/docker-build.sh` produces; CI overrides via build-arg to the
+# fully-qualified ghcr.io name so buildx (docker-container driver,
+# isolated from the host docker daemon) can pull it directly.
+ARG PARENT_IMAGE=nsl/base:dev
+FROM ${PARENT_IMAGE}
 
 ARG DEBIAN_FRONTEND=noninteractive
 

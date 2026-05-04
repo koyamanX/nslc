@@ -95,10 +95,10 @@ public:
   /// Out-of-line destructor (anchored in `Sema.cpp`).
   ~Sema();
 
-  Sema(const Sema &)            = delete;
+  Sema(const Sema &) = delete;
   Sema &operator=(const Sema &) = delete;
-  Sema(Sema &&)                 = delete;
-  Sema &operator=(Sema &&)      = delete;
+  Sema(Sema &&) = delete;
+  Sema &operator=(Sema &&) = delete;
 
   /// Run Sema on `unit`. Executes the resolution pass first
   /// (single top-down `ASTVisitor` walk: open/close scopes,
@@ -146,10 +146,10 @@ private:
   /// `lib/Sema/Constraints/`).
   void runConstraintPasses(ast::CompilationUnit &unit);
 
-  DiagnosticEngine             &diag_;
-  std::unique_ptr<SymbolTable>  symbols_;
-  std::unique_ptr<TypeSystem>   types_;
-  bool                          hasRun_ = false;
+  DiagnosticEngine &diag_;
+  std::unique_ptr<SymbolTable> symbols_;
+  std::unique_ptr<TypeSystem> types_;
+  bool hasRun_ = false;
 };
 
 } // namespace nsl::sema

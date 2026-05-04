@@ -51,7 +51,6 @@
 #include "llvm/Support/Casting.h"
 
 #include "gtest/gtest.h"
-
 #include <memory>
 #include <vector>
 
@@ -82,9 +81,9 @@ TEST(RecoveryPartialAST, ModuleItemRecoveryPreservesSiblings) {
   nsl::FileID const fid = sm.addBufferInMemory(
       "/virt/recovery-mid-module.nsl",
       bytesOf("module foo {\n"
-              "  wire a;\n"     // surviving sibling #1 (before error)
-              "  reg\n"         // malformed — missing identifier
-              "  wire c;\n"     // surviving sibling #2 (after error)
+              "  wire a;\n" // surviving sibling #1 (before error)
+              "  reg\n"     // malformed — missing identifier
+              "  wire c;\n" // surviving sibling #2 (after error)
               "}\n"));
   ASSERT_TRUE(fid.isValid());
 
@@ -157,15 +156,14 @@ TEST(RecoveryPartialAST, ModuleItemRecoveryPreservesSiblings) {
 // no synthetic placeholder for the dropped `reg` or `func`.
 TEST(RecoveryPartialAST, TwoErrorsInModuleBodyPreserveSiblings) {
   nsl::SourceManager sm;
-  nsl::FileID const fid = sm.addBufferInMemory(
-      "/virt/recovery-two-errors.nsl",
-      bytesOf("module foo {\n"
-              "  wire a;\n"
-              "  reg\n"
-              "  wire b;\n"
-              "  func g\n"
-              "  wire c;\n"
-              "}\n"));
+  nsl::FileID const fid = sm.addBufferInMemory("/virt/recovery-two-errors.nsl",
+                                               bytesOf("module foo {\n"
+                                                       "  wire a;\n"
+                                                       "  reg\n"
+                                                       "  wire b;\n"
+                                                       "  func g\n"
+                                                       "  wire c;\n"
+                                                       "}\n"));
   ASSERT_TRUE(fid.isValid());
 
   nsl::DiagnosticEngine diag(sm);
@@ -184,8 +182,7 @@ TEST(RecoveryPartialAST, TwoErrorsInModuleBodyPreserveSiblings) {
          "`func g`-with-no-body must emit diagnostics in a single run.";
 
   ASSERT_EQ(cu->items().size(), 1U);
-  const auto *mod =
-      llvm::cast<nsl::ast::ModuleBlock>(cu->items()[0].get());
+  const auto *mod = llvm::cast<nsl::ast::ModuleBlock>(cu->items()[0].get());
 
   // Three surviving wires; no synthetic placeholders.
   ASSERT_EQ(mod->internals().size(), 3U)

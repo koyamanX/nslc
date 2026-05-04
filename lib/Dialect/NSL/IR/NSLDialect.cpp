@@ -22,6 +22,7 @@
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/DialectRegistry.h"
 #include "mlir/IR/OpImplementation.h"
+
 #include "llvm/ADT/TypeSwitch.h"
 
 // TableGen-generated dialect-class definitions (the

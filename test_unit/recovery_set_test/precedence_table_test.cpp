@@ -56,9 +56,7 @@
 //     `&`, `|`, `^` BOTH must be true (research §2 N2 dispatch).
 
 #include "PrecedenceTable.h"
-
 #include "nsl/Lex/Token.h"
-#include "PrecedenceTable.h"
 
 #include "gtest/gtest.h"
 
@@ -86,83 +84,65 @@ inline bool hasNud(::nsl::TokenKind k) noexcept {
 }
 
 inline bool hasLed(::nsl::TokenKind k) noexcept {
-  return ::nsl::parse::getPrecedence(k).ledPrec != ::nsl::parse::PrecLevel::None;
+  return ::nsl::parse::getPrecedence(k).ledPrec !=
+         ::nsl::parse::PrecLevel::None;
 }
 
 // ---- Binary precedence ladder per `lang.ebnf §11` ----------------------
 
 // Multiplicative (`*`) MUST bind strictly tighter than additive (`+`).
 TEST(PrecedenceTable, MultiplicativeBindsTighterThanAdditive) {
-  EXPECT_GT(prec(TokenKind::tk_star),
-            prec(TokenKind::tk_plus))
+  EXPECT_GT(prec(TokenKind::tk_star), prec(TokenKind::tk_plus))
       << "* MUST have higher Pratt precedence than +";
-  EXPECT_GT(prec(TokenKind::tk_star),
-            prec(TokenKind::tk_minus))
+  EXPECT_GT(prec(TokenKind::tk_star), prec(TokenKind::tk_minus))
       << "* MUST have higher Pratt precedence than - (binary)";
 }
 
 // Additive (`+`/`-`) MUST bind strictly tighter than shift (`<<`/`>>`).
 TEST(PrecedenceTable, AdditiveBindsTighterThanShift) {
-  EXPECT_GT(prec(TokenKind::tk_plus),
-            prec(TokenKind::tk_shift_left));
-  EXPECT_GT(prec(TokenKind::tk_minus),
-            prec(TokenKind::tk_shift_right));
-  EXPECT_EQ(prec(TokenKind::tk_plus),
-            prec(TokenKind::tk_minus))
+  EXPECT_GT(prec(TokenKind::tk_plus), prec(TokenKind::tk_shift_left));
+  EXPECT_GT(prec(TokenKind::tk_minus), prec(TokenKind::tk_shift_right));
+  EXPECT_EQ(prec(TokenKind::tk_plus), prec(TokenKind::tk_minus))
       << "+ and - share an additive precedence level per §11";
 }
 
 // Shift (`<<`/`>>`) MUST bind strictly tighter than relational.
 TEST(PrecedenceTable, ShiftBindsTighterThanRelational) {
-  EXPECT_GT(prec(TokenKind::tk_shift_left),
-            prec(TokenKind::tk_less));
-  EXPECT_GT(prec(TokenKind::tk_shift_right),
-            prec(TokenKind::tk_greater));
-  EXPECT_EQ(prec(TokenKind::tk_shift_left),
-            prec(TokenKind::tk_shift_right));
+  EXPECT_GT(prec(TokenKind::tk_shift_left), prec(TokenKind::tk_less));
+  EXPECT_GT(prec(TokenKind::tk_shift_right), prec(TokenKind::tk_greater));
+  EXPECT_EQ(prec(TokenKind::tk_shift_left), prec(TokenKind::tk_shift_right));
 }
 
 // Relational (`<`,`<=`,`>`,`>=`) MUST bind tighter than equality.
 TEST(PrecedenceTable, RelationalBindsTighterThanEquality) {
-  EXPECT_GT(prec(TokenKind::tk_less),
-            prec(TokenKind::tk_equal));
-  EXPECT_GT(prec(TokenKind::tk_greater),
-            prec(TokenKind::tk_not_equal));
-  EXPECT_EQ(prec(TokenKind::tk_less),
-            prec(TokenKind::tk_less_equal));
-  EXPECT_EQ(prec(TokenKind::tk_less),
-            prec(TokenKind::tk_greater));
-  EXPECT_EQ(prec(TokenKind::tk_less),
-            prec(TokenKind::tk_greater_equal));
+  EXPECT_GT(prec(TokenKind::tk_less), prec(TokenKind::tk_equal));
+  EXPECT_GT(prec(TokenKind::tk_greater), prec(TokenKind::tk_not_equal));
+  EXPECT_EQ(prec(TokenKind::tk_less), prec(TokenKind::tk_less_equal));
+  EXPECT_EQ(prec(TokenKind::tk_less), prec(TokenKind::tk_greater));
+  EXPECT_EQ(prec(TokenKind::tk_less), prec(TokenKind::tk_greater_equal));
 }
 
 // Equality MUST bind tighter than bitwise-AND.
 TEST(PrecedenceTable, EqualityBindsTighterThanBitwiseAnd) {
-  EXPECT_GT(prec(TokenKind::tk_equal),
-            prec(TokenKind::tk_amp));
-  EXPECT_EQ(prec(TokenKind::tk_equal),
-            prec(TokenKind::tk_not_equal));
+  EXPECT_GT(prec(TokenKind::tk_equal), prec(TokenKind::tk_amp));
+  EXPECT_EQ(prec(TokenKind::tk_equal), prec(TokenKind::tk_not_equal));
 }
 
 // Bitwise-AND > Bitwise-XOR > Bitwise-OR (per `lang.ebnf §11`
 // nesting `bitwise_and_expr < bitwise_xor_expr < bitwise_or_expr`).
 TEST(PrecedenceTable, BitwiseAndXorOrLadder) {
-  EXPECT_GT(prec(TokenKind::tk_amp),
-            prec(TokenKind::tk_caret))
+  EXPECT_GT(prec(TokenKind::tk_amp), prec(TokenKind::tk_caret))
       << "& MUST bind tighter than ^ (bitwise_and_expr nests inside "
          "bitwise_xor_expr in §11)";
-  EXPECT_GT(prec(TokenKind::tk_caret),
-            prec(TokenKind::tk_pipe))
+  EXPECT_GT(prec(TokenKind::tk_caret), prec(TokenKind::tk_pipe))
       << "^ MUST bind tighter than | (bitwise_xor_expr nests inside "
          "bitwise_or_expr in §11)";
 }
 
 // Bitwise-OR > Logical-AND > Logical-OR.
 TEST(PrecedenceTable, BitwiseOrTighterThanLogical) {
-  EXPECT_GT(prec(TokenKind::tk_pipe),
-            prec(TokenKind::tk_logical_and));
-  EXPECT_GT(prec(TokenKind::tk_logical_and),
-            prec(TokenKind::tk_logical_or));
+  EXPECT_GT(prec(TokenKind::tk_pipe), prec(TokenKind::tk_logical_and));
+  EXPECT_GT(prec(TokenKind::tk_logical_and), prec(TokenKind::tk_logical_or));
 }
 
 // ---- Nud / Led dispatch per N2 (research §2) ---------------------------
@@ -200,12 +180,10 @@ TEST(PrecedenceTable, CaretHasBothDenotations) {
 TEST(PrecedenceTable, PlusAndMinusHaveBothDenotations) {
   EXPECT_TRUE(hasNud(TokenKind::tk_plus))
       << "+ MUST have a nud (unary plus per `unary_expr`)";
-  EXPECT_TRUE(hasLed(TokenKind::tk_plus))
-      << "+ MUST have a led (additive)";
+  EXPECT_TRUE(hasLed(TokenKind::tk_plus)) << "+ MUST have a led (additive)";
   EXPECT_TRUE(hasNud(TokenKind::tk_minus))
       << "- MUST have a nud (unary minus per `unary_expr`)";
-  EXPECT_TRUE(hasLed(TokenKind::tk_minus))
-      << "- MUST have a led (additive)";
+  EXPECT_TRUE(hasLed(TokenKind::tk_minus)) << "- MUST have a led (additive)";
 }
 
 // `~` and `!` are ONLY prefix (no infix denotation in §11).

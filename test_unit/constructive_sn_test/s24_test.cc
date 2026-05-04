@@ -25,8 +25,8 @@
 // (truncated `initValues()` shorter than `depth()`) per Q1 Option
 // B — also skipped at Phase 4a.
 
-#include <gtest/gtest.h>
 #include <gtest/gtest-spi.h>
+#include <gtest/gtest.h>
 
 namespace {
 

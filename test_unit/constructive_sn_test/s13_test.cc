@@ -27,8 +27,8 @@
 #include "nsl/AST/AnyBlock.h"
 #include "nsl/AST/NodeKind.h"
 
-#include <gtest/gtest.h>
 #include <gtest/gtest-spi.h>
+#include <gtest/gtest.h>
 
 namespace {
 

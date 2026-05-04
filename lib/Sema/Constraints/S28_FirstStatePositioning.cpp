@@ -23,8 +23,7 @@
 namespace nsl::sema {
 namespace {
 
-void collectInProcBody(const ast::Stmt *s,
-                       llvm::StringSet<> &state_names,
+void collectInProcBody(const ast::Stmt *s, llvm::StringSet<> &state_names,
                        std::vector<const ast::FirstStateDecl *> &first_states) {
   if (!s) {
     return;
@@ -41,7 +40,8 @@ void collectInProcBody(const ast::Stmt *s,
           state_names.insert(nm);
         }
       } else if (d->kind() == ast::NodeKind::NK_FirstStateDecl) {
-        first_states.push_back(static_cast<const ast::FirstStateDecl *>(d.get()));
+        first_states.push_back(
+            static_cast<const ast::FirstStateDecl *>(d.get()));
       }
     }
     for (const auto &it : pb.items()) {

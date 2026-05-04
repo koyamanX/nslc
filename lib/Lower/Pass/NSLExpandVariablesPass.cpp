@@ -67,14 +67,13 @@
 // **At Phase 2 this pass was a registered NO-OP slot.** This file
 // now implements the real body per T081.
 
-#include "nsl/Lower/Lower.h"
-
-#include "nsl/Dialect/NSL/IR/NSLDialect.h"
-
-#include "llvm/ADT/SmallVector.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Pass/Pass.h"
+#include "nsl/Dialect/NSL/IR/NSLDialect.h"
+#include "nsl/Lower/Lower.h"
+
+#include "llvm/ADT/SmallVector.h"
 
 #include <string>
 
@@ -86,8 +85,8 @@ namespace {
 /// first operand is the variable's result Value (i.e., a transfer-
 /// like dst-then-src op).
 bool isVariableWriteOp(mlir::Operation *op) {
-  return mlir::isa<nsl::dialect::TransferOp,
-                   nsl::dialect::ClockedTransferOp>(op);
+  return mlir::isa<nsl::dialect::TransferOp, nsl::dialect::ClockedTransferOp>(
+      op);
 }
 
 /// Expand a single `nsl.variable` op. Returns true if the op was
@@ -200,8 +199,10 @@ public:
 
   llvm::StringRef getArgument() const final { return "nsl-expand-variables"; }
   llvm::StringRef getDescription() const final {
-    return "Slot 3: convert nsl.variable to SSA chain of nsl.wire+nsl.transfer; "
-           "per-field for struct-typed; preserve S12 partial-assignment (M5 FR-015).";
+    return "Slot 3: convert nsl.variable to SSA chain of "
+           "nsl.wire+nsl.transfer; "
+           "per-field for struct-typed; preserve S12 partial-assignment (M5 "
+           "FR-015).";
   }
 
   void runOnOperation() final {

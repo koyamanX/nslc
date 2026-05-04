@@ -15,7 +15,6 @@
 // unresolved-name lookups are tagged-but-not-reported.
 
 #include "ResolutionPass.h"
-
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/Decl.h"
 #include "nsl/AST/FuncDefn.h"
@@ -31,7 +30,6 @@
 #include "nsl/Sema/TypeSystem.h"
 
 #include <gtest/gtest.h>
-
 #include <memory>
 #include <utility>
 #include <vector>
@@ -69,8 +67,7 @@ SourceRange dummyRange(SourceManager &sm) {
                      SourceLocation::make(fid, 1U)};
 }
 
-std::unique_ptr<IdentifierExpr> makeIdent(SourceManager &sm,
-                                          const char *name) {
+std::unique_ptr<IdentifierExpr> makeIdent(SourceManager &sm, const char *name) {
   ScopedName sn;
   sn.parts.push_back(Identifier(name));
   return std::make_unique<IdentifierExpr>(dummyRange(sm), std::move(sn));
@@ -83,8 +80,8 @@ TEST(ResolutionPassNoCascadeTest, FiveUseSitesYieldOneDiagnostic) {
   // Build a func body whose references to `fooo` appear five times.
   // Each is its own TransferStmt: q := fooo;
   std::vector<std::unique_ptr<Decl>> internals;
-  internals.push_back(std::make_unique<RegDecl>(
-      dummyRange(sm), Identifier("q"), nullptr, nullptr));
+  internals.push_back(std::make_unique<RegDecl>(dummyRange(sm), Identifier("q"),
+                                                nullptr, nullptr));
 
   std::vector<std::unique_ptr<Stmt>> stmts;
   for (int i = 0; i < 5; ++i) {
@@ -103,8 +100,8 @@ TEST(ResolutionPassNoCascadeTest, FiveUseSitesYieldOneDiagnostic) {
   for (auto &s : stmts) {
     ScopedName fname;
     fname.parts.push_back(Identifier("f"));
-    funcs.push_back(std::make_unique<FuncDefn>(dummyRange(sm),
-                                               std::move(fname), std::move(s)));
+    funcs.push_back(std::make_unique<FuncDefn>(dummyRange(sm), std::move(fname),
+                                               std::move(s)));
   }
 
   auto mb = std::make_unique<ModuleBlock>(
@@ -114,8 +111,7 @@ TEST(ResolutionPassNoCascadeTest, FiveUseSitesYieldOneDiagnostic) {
 
   std::vector<std::unique_ptr<Decl>> items;
   items.push_back(std::move(mb));
-  auto cu =
-      std::make_unique<CompilationUnit>(dummyRange(sm), std::move(items));
+  auto cu = std::make_unique<CompilationUnit>(dummyRange(sm), std::move(items));
 
   SymbolTable table;
   TypeSystem types;

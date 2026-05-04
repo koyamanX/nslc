@@ -21,8 +21,7 @@ namespace nsl::ast {
 class MemDecl final : public Decl {
 public:
   MemDecl(SourceRange range, Identifier name, std::unique_ptr<Expr> depth,
-          std::unique_ptr<Expr> width,
-          std::vector<std::unique_ptr<Expr>> init)
+          std::unique_ptr<Expr> width, std::vector<std::unique_ptr<Expr>> init)
       : Decl(NodeKind::NK_MemDecl, range), name_(name),
         depth_(std::move(depth)), width_(std::move(width)),
         init_(std::move(init)) {}
@@ -30,7 +29,8 @@ public:
   [[nodiscard]] Identifier name() const noexcept { return name_; }
   [[nodiscard]] const Expr *depth() const noexcept { return depth_.get(); }
   [[nodiscard]] const Expr *width() const noexcept { return width_.get(); }
-  [[nodiscard]] const std::vector<std::unique_ptr<Expr>> &init() const noexcept {
+  [[nodiscard]] const std::vector<std::unique_ptr<Expr>> &
+  init() const noexcept {
     return init_;
   }
 

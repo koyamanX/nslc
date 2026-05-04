@@ -23,9 +23,9 @@
 // MLIR's TableGen-emitted trait verifiers and keep `success()` stubs
 // or no `verify()` declaration at all.
 
+#include "mlir/IR/SymbolTable.h"
 #include "nsl/Dialect/NSL/IR/NSLDialect.h"
 
-#include "mlir/IR/SymbolTable.h"
 #include "llvm/ADT/SmallPtrSet.h"
 
 // Op-class definitions (constructors / accessors / parser / printer
@@ -49,8 +49,8 @@ namespace {
 /// can `return emitParentMismatch(op, "seq");` directly.
 mlir::LogicalResult emitParentMismatch(mlir::Operation *op,
                                        llvm::StringRef expectedKind) {
-  return op->emitOpError()
-         << "must be enclosed by 'nsl." << expectedKind << "'";
+  return op->emitOpError() << "must be enclosed by 'nsl." << expectedKind
+                           << "'";
 }
 
 /// True iff `v` is the result of an `nsl.reg` op or an `nsl.field` op
@@ -89,8 +89,8 @@ std::optional<unsigned> computeStructTotalWidth(mlir::Operation *user,
   if (!nearestSymTable) {
     return std::nullopt;
   }
-  mlir::Operation *target = mlir::SymbolTable::lookupSymbolIn(
-      nearestSymTable, structTy.getName());
+  mlir::Operation *target =
+      mlir::SymbolTable::lookupSymbolIn(nearestSymTable, structTy.getName());
   auto structDecl = mlir::dyn_cast_or_null<StructOp>(target);
   if (!structDecl) {
     return std::nullopt;
@@ -117,16 +117,15 @@ std::optional<unsigned> computeStructTotalWidth(mlir::Operation *user,
 /// Look up the `nsl.field_decl` op at index `idx` inside the struct
 /// declaration that `structTy` symbolically refers to. Returns the
 /// op (or nullptr if unresolved / out-of-range).
-FieldDeclOp lookupFieldDeclByIndex(mlir::Operation *user,
-                                   StructType structTy,
+FieldDeclOp lookupFieldDeclByIndex(mlir::Operation *user, StructType structTy,
                                    uint64_t idx) {
   mlir::Operation *nearestSymTable =
       mlir::SymbolTable::getNearestSymbolTable(user);
   if (!nearestSymTable) {
     return {};
   }
-  mlir::Operation *target = mlir::SymbolTable::lookupSymbolIn(
-      nearestSymTable, structTy.getName());
+  mlir::Operation *target =
+      mlir::SymbolTable::lookupSymbolIn(nearestSymTable, structTy.getName());
   auto structDecl = mlir::dyn_cast_or_null<StructOp>(target);
   if (!structDecl) {
     return {};
@@ -177,8 +176,7 @@ mlir::LogicalResult StructOp::verify() {
   // type is `!nsl.struct<@T>`; refuse if `@T` resolves transitively
   // back to *this* struct.
   llvm::SmallPtrSet<mlir::Operation *, 8> seen;
-  std::function<bool(StructOp)> reachesSelf =
-      [&](StructOp current) -> bool {
+  std::function<bool(StructOp)> reachesSelf = [&](StructOp current) -> bool {
     if (current == *this) {
       return true;
     }
@@ -200,9 +198,9 @@ mlir::LogicalResult StructOp::verify() {
       if (!nearestSymTable) {
         continue;
       }
-      auto referenced = mlir::dyn_cast_or_null<StructOp>(
-          mlir::SymbolTable::lookupSymbolIn(nearestSymTable,
-                                            structTy.getName()));
+      auto referenced =
+          mlir::dyn_cast_or_null<StructOp>(mlir::SymbolTable::lookupSymbolIn(
+              nearestSymTable, structTy.getName()));
       if (!referenced) {
         continue;
       }
@@ -227,8 +225,7 @@ mlir::LogicalResult StructOp::verify() {
       continue;
     }
     auto referenced = mlir::dyn_cast_or_null<StructOp>(
-        mlir::SymbolTable::lookupSymbolIn(nearestSymTable,
-                                          structTy.getName()));
+        mlir::SymbolTable::lookupSymbolIn(nearestSymTable, structTy.getName()));
     if (!referenced) {
       continue;
     }
@@ -326,8 +323,8 @@ mlir::LogicalResult ConstantOp::verify() {
   }
   uint64_t mask = (uint64_t{1} << width) - 1;
   if (raw & ~mask) {
-    return emitOpError() << "value " << raw
-                         << " does not fit in '!nsl.bits<" << width << ">'";
+    return emitOpError() << "value " << raw << " does not fit in '!nsl.bits<"
+                         << width << ">'";
   }
   return mlir::success();
 }
@@ -432,10 +429,9 @@ mlir::LogicalResult verifyExtendWidthsMonotonic(mlir::Operation *op,
     return mlir::success();
   }
   if (toBits.getWidth() < fromBits.getWidth()) {
-    return op->emitOpError() << name
-                             << " result width " << toBits.getWidth()
-                             << " is smaller than operand width "
-                             << fromBits.getWidth();
+    return op->emitOpError()
+           << name << " result width " << toBits.getWidth()
+           << " is smaller than operand width " << fromBits.getWidth();
   }
   return mlir::success();
 }
@@ -517,8 +513,8 @@ mlir::LogicalResult ExtractOp::verify() {
   uint64_t opWidth = operandBits.getWidth();
   if (low + resWidth > opWidth) {
     return emitOpError() << "extract slice [lowBit=" << low
-                         << ", width=" << resWidth
-                         << "] exceeds operand width " << opWidth;
+                         << ", width=" << resWidth << "] exceeds operand width "
+                         << opWidth;
   }
   return mlir::success();
 }
@@ -536,8 +532,8 @@ mlir::LogicalResult RepeatOp::verify() {
   uint64_t expected = static_cast<uint64_t>(count) * operandBits.getWidth();
   if (expected != resultBits.getWidth()) {
     return emitOpError() << "result width " << resultBits.getWidth()
-                         << " does not equal count×operand-width "
-                         << expected << " (count=" << count
+                         << " does not equal count×operand-width " << expected
+                         << " (count=" << count
                          << ", operand-width=" << operandBits.getWidth() << ")";
   }
   return mlir::success();
@@ -655,27 +651,27 @@ mlir::LogicalResult CallOp::verify() {
     if (auto fin = mlir::dyn_cast<FuncInOp>(&child)) {
       if (fin.getName() == callee) {
         if (fin.getArgs().size() != argCount) {
-          return emitOpError() << "arg count mismatch: callee '" << callee
-                               << "' expects " << fin.getArgs().size()
-                               << ", got " << argCount;
+          return emitOpError()
+                 << "arg count mismatch: callee '" << callee << "' expects "
+                 << fin.getArgs().size() << ", got " << argCount;
         }
         return mlir::success();
       }
     } else if (auto fout = mlir::dyn_cast<FuncOutOp>(&child)) {
       if (fout.getName() == callee) {
         if (fout.getArgs().size() != argCount) {
-          return emitOpError() << "arg count mismatch: callee '" << callee
-                               << "' expects " << fout.getArgs().size()
-                               << ", got " << argCount;
+          return emitOpError()
+                 << "arg count mismatch: callee '" << callee << "' expects "
+                 << fout.getArgs().size() << ", got " << argCount;
         }
         return mlir::success();
       }
     } else if (auto fself = mlir::dyn_cast<FuncSelfOp>(&child)) {
       if (fself.getName() == callee) {
         if (fself.getArgs().size() != argCount) {
-          return emitOpError() << "arg count mismatch: callee '" << callee
-                               << "' expects " << fself.getArgs().size()
-                               << ", got " << argCount;
+          return emitOpError()
+                 << "arg count mismatch: callee '" << callee << "' expects "
+                 << fself.getArgs().size() << ", got " << argCount;
         }
         return mlir::success();
       }
@@ -733,8 +729,8 @@ mlir::LogicalResult FirstStateOp::verify() {
   if (!procOp) {
     return mlir::success();
   }
-  mlir::Operation *resolved = mlir::SymbolTable::lookupSymbolIn(
-      procOp, getTargetAttr());
+  mlir::Operation *resolved =
+      mlir::SymbolTable::lookupSymbolIn(procOp, getTargetAttr());
   if (resolved && !mlir::isa<StateOp>(resolved)) {
     return emitOpError() << "'target' symbol ref '" << getTarget()
                          << "' resolves to a non-'nsl.state' sibling";
@@ -790,8 +786,8 @@ mlir::LogicalResult GotoOp::verify() {
   // table. Label form: not yet implemented in this dialect (M4 has no
   // label op), so fall through to the state-form check.
   if (auto procOp = (*this)->getParentOfType<ProcOp>()) {
-    mlir::Operation *resolved = mlir::SymbolTable::lookupSymbolIn(
-        procOp, getTargetAttr());
+    mlir::Operation *resolved =
+        mlir::SymbolTable::lookupSymbolIn(procOp, getTargetAttr());
     if (!mlir::isa_and_nonnull<StateOp>(resolved)) {
       return emitOpError() << "'target' symbol ref '" << getTarget()
                            << "' does not resolve to a sibling 'nsl.state'";
@@ -890,9 +886,9 @@ mlir::LogicalResult StructCastOp::verify() {
     } else if (mlir::isa<BitsType>(dstTy)) {
       // bits→bits is a vacuous cast; require width-equal.
       if (bitsWidth != mlir::cast<BitsType>(dstTy).getWidth()) {
-        return emitOpError() << "bits→bits cast width mismatch: source "
-                             << bitsWidth << ", result "
-                             << mlir::cast<BitsType>(dstTy).getWidth();
+        return emitOpError()
+               << "bits→bits cast width mismatch: source " << bitsWidth
+               << ", result " << mlir::cast<BitsType>(dstTy).getWidth();
       }
       return mlir::success();
     }
@@ -924,8 +920,7 @@ mlir::LogicalResult FieldOp::verify() {
     return mlir::success();
   }
   auto structDecl = mlir::dyn_cast_or_null<StructOp>(
-      mlir::SymbolTable::lookupSymbolIn(nearestSymTable,
-                                        structTy.getName()));
+      mlir::SymbolTable::lookupSymbolIn(nearestSymTable, structTy.getName()));
   if (!structDecl) {
     return mlir::success();
   }
@@ -936,8 +931,8 @@ mlir::LogicalResult FieldOp::verify() {
     }
   }
   if (idx >= numFields) {
-    return emitOpError() << "field 'index' " << idx
-                         << " is out of range [0, " << numFields << ")";
+    return emitOpError() << "field 'index' " << idx << " is out of range [0, "
+                         << numFields << ")";
   }
   // Result-type-match: the result's type must equal the field decl's
   // declared type at that index.

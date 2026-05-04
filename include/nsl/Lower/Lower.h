@@ -61,10 +61,9 @@ namespace nsl::lower {
 /// after posting at least one diagnostic to the active
 /// `mlir::DiagnosticEngine`. The caller's `DiagnosticBridge` then
 /// forwards to `basic::DiagnosticEngine`.
-mlir::OwningOpRef<mlir::ModuleOp>
-astToMLIR(mlir::MLIRContext &ctx,
-          const ast::CompilationUnit &cu,
-          const sema::SemaResult &sr);
+mlir::OwningOpRef<mlir::ModuleOp> astToMLIR(mlir::MLIRContext &ctx,
+                                            const ast::CompilationUnit &cu,
+                                            const sema::SemaResult &sr);
 
 // -------------------------------------------------------------------
 // Pass constructors (FR-011, lower-api.contract.md §2.2)

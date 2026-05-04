@@ -7,11 +7,10 @@
 
 #include "DiagnosticBridge.h"
 
-#include "nsl/Basic/Diagnostic.h"
-#include "nsl/Basic/SourceLocation.h"
-
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/Location.h"
+#include "nsl/Basic/Diagnostic.h"
+#include "nsl/Basic/SourceLocation.h"
 
 namespace nsl::lower {
 
@@ -49,8 +48,7 @@ nsl::Severity translateSeverity(mlir::DiagnosticSeverity s) {
 // of the M5 visitor implementation.
 DiagnosticBridge::DiagnosticBridge(DiagnosticEngine &sink,
                                    mlir::MLIRContext &ctx)
-    : sink_(sink),
-      handler_(&ctx, [](mlir::Diagnostic & /*d*/) {
+    : sink_(sink), handler_(&ctx, [](mlir::Diagnostic & /*d*/) {
         // Phase 3 (US1) forward-progress fix: returning failure()
         // lets MLIR's default printer emit the diagnostic to stderr
         // directly, bypassing nsl::DiagnosticEngine.

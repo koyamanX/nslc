@@ -86,7 +86,8 @@ void walkSliceCheck(const ast::SliceExpr &n, DiagnosticEngine &diag,
   }
 }
 
-void walkExpr(const ast::Expr *e, DiagnosticEngine &diag, SymbolTable *symbols) {
+void walkExpr(const ast::Expr *e, DiagnosticEngine &diag,
+              SymbolTable *symbols) {
   if (e == nullptr) {
     return;
   }
@@ -141,7 +142,8 @@ void walkExpr(const ast::Expr *e, DiagnosticEngine &diag, SymbolTable *symbols) 
     break;
   }
   case ast::NodeKind::NK_FieldAccessExpr:
-    walkExpr(static_cast<const ast::FieldAccessExpr &>(*e).obj(), diag, symbols);
+    walkExpr(static_cast<const ast::FieldAccessExpr &>(*e).obj(), diag,
+             symbols);
     break;
   case ast::NodeKind::NK_CallExpr: {
     const auto &n = static_cast<const ast::CallExpr &>(*e);

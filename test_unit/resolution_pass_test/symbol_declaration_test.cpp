@@ -28,7 +28,6 @@
 // per-fixture lit files.
 
 #include "ResolutionPass.h"
-
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/Decl.h"
 #include "nsl/AST/IntegerDecl.h"
@@ -43,7 +42,6 @@
 #include "nsl/Sema/TypeSystem.h"
 
 #include <gtest/gtest.h>
-
 #include <memory>
 #include <utility>
 #include <vector>
@@ -83,11 +81,11 @@ SourceRange dummyRange(SourceManager &sm) {
 std::unique_ptr<CompilationUnit>
 makeUnitWithInternals(SourceManager &sm,
                       std::vector<std::unique_ptr<Decl>> internals) {
-  auto mb = std::make_unique<ModuleBlock>(
-      dummyRange(sm), Identifier("M"), std::move(internals),
-      std::vector<std::unique_ptr<Stmt>>{},
-      std::vector<std::unique_ptr<Decl>>{},
-      std::vector<std::unique_ptr<Decl>>{});
+  auto mb = std::make_unique<ModuleBlock>(dummyRange(sm), Identifier("M"),
+                                          std::move(internals),
+                                          std::vector<std::unique_ptr<Stmt>>{},
+                                          std::vector<std::unique_ptr<Decl>>{},
+                                          std::vector<std::unique_ptr<Decl>>{});
   std::vector<std::unique_ptr<Decl>> items;
   items.push_back(std::move(mb));
   return std::make_unique<CompilationUnit>(dummyRange(sm), std::move(items));
@@ -98,8 +96,8 @@ TEST(ResolutionPassSymbolDeclTest, RegSymbolCreated) {
   DiagnosticEngine diag(sm);
 
   std::vector<std::unique_ptr<Decl>> internals;
-  internals.push_back(std::make_unique<RegDecl>(
-      dummyRange(sm), Identifier("q"), nullptr, nullptr));
+  internals.push_back(std::make_unique<RegDecl>(dummyRange(sm), Identifier("q"),
+                                                nullptr, nullptr));
   auto cu = makeUnitWithInternals(sm, std::move(internals));
 
   SymbolTable table;
@@ -114,10 +112,10 @@ TEST(ResolutionPassSymbolDeclTest, DuplicateRegEmitsError) {
   DiagnosticEngine diag(sm);
 
   std::vector<std::unique_ptr<Decl>> internals;
-  internals.push_back(std::make_unique<RegDecl>(
-      dummyRange(sm), Identifier("q"), nullptr, nullptr));
-  internals.push_back(std::make_unique<RegDecl>(
-      dummyRange(sm), Identifier("q"), nullptr, nullptr));
+  internals.push_back(std::make_unique<RegDecl>(dummyRange(sm), Identifier("q"),
+                                                nullptr, nullptr));
+  internals.push_back(std::make_unique<RegDecl>(dummyRange(sm), Identifier("q"),
+                                                nullptr, nullptr));
   auto cu = makeUnitWithInternals(sm, std::move(internals));
 
   SymbolTable table;
@@ -134,10 +132,10 @@ TEST(ResolutionPassSymbolDeclTest, MixedKindsAllAccepted) {
   DiagnosticEngine diag(sm);
 
   std::vector<std::unique_ptr<Decl>> internals;
-  internals.push_back(std::make_unique<RegDecl>(
-      dummyRange(sm), Identifier("q"), nullptr, nullptr));
-  internals.push_back(std::make_unique<WireDecl>(dummyRange(sm),
-                                                 Identifier("w"), nullptr));
+  internals.push_back(std::make_unique<RegDecl>(dummyRange(sm), Identifier("q"),
+                                                nullptr, nullptr));
+  internals.push_back(
+      std::make_unique<WireDecl>(dummyRange(sm), Identifier("w"), nullptr));
   internals.push_back(
       std::make_unique<IntegerDecl>(dummyRange(sm), Identifier("i")));
   auto cu = makeUnitWithInternals(sm, std::move(internals));

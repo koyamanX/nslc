@@ -77,8 +77,8 @@ public:
   /// returns an empty `OwningOpRef`. Reachable only via direct C++
   /// caller; the `nslc` CLI does not invoke this at M4 (FR-023
   /// rejects `-emit=mlir`).
-  mlir::OwningOpRef<mlir::ModuleOp> lowerToNSL(
-      ast::CompilationUnit &unit, sema::SemaResult &sema_result);
+  mlir::OwningOpRef<mlir::ModuleOp> lowerToNSL(ast::CompilationUnit &unit,
+                                               sema::SemaResult &sema_result);
 
   /// Run the structural-expansion passes over the `nsl` dialect IR
   /// (M5 deliverable; M4 stub).

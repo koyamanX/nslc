@@ -72,7 +72,6 @@
 // of `T`.
 
 #include "gtest/gtest.h"
-
 #include <cstddef>
 
 using nsl::ast::ASTVisitor;

@@ -106,8 +106,7 @@ bool SymbolTable::declare(std::unique_ptr<Symbol> sym) {
   return scopes_.back()->insert(std::move(sym));
 }
 
-bool SymbolTable::declareInScope(ScopeKind kind,
-                                 std::unique_ptr<Symbol> sym) {
+bool SymbolTable::declareInScope(ScopeKind kind, std::unique_ptr<Symbol> sym) {
   for (auto it = scopes_.rbegin(); it != scopes_.rend(); ++it) {
     if ((*it)->kind() == kind) {
       return (*it)->insert(std::move(sym));

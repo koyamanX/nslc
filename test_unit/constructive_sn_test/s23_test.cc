@@ -34,9 +34,8 @@
 #include "nsl/Sema/SymbolTable.h"
 #include "nsl/Sema/TypeSystem.h"
 
-#include <gtest/gtest.h>
 #include <gtest/gtest-spi.h>
-
+#include <gtest/gtest.h>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -76,25 +75,22 @@ SourceRange dummyRange(SourceManager &sm) {
 // Build a CompilationUnit with `module M { reg flushing = 0; }`
 // where the reg has no explicit `width`.
 std::unique_ptr<CompilationUnit> makeUnitForS23(SourceManager &sm) {
-  auto init = std::make_unique<LiteralExpr>(dummyRange(sm),
-                                            LiteralExpr::Lit::Decimal,
-                                            Identifier("0"), 0U);
-  auto reg = std::make_unique<RegDecl>(dummyRange(sm),
-                                       Identifier("flushing"),
+  auto init = std::make_unique<LiteralExpr>(
+      dummyRange(sm), LiteralExpr::Lit::Decimal, Identifier("0"), 0U);
+  auto reg = std::make_unique<RegDecl>(dummyRange(sm), Identifier("flushing"),
                                        /*width=*/nullptr,
                                        /*init=*/std::move(init));
   std::vector<std::unique_ptr<Decl>> internals;
   internals.push_back(std::move(reg));
 
-  auto mb = std::make_unique<ModuleBlock>(
-      dummyRange(sm), Identifier("M"), std::move(internals),
-      std::vector<std::unique_ptr<Stmt>>{},
-      std::vector<std::unique_ptr<Decl>>{},
-      std::vector<std::unique_ptr<Decl>>{});
+  auto mb = std::make_unique<ModuleBlock>(dummyRange(sm), Identifier("M"),
+                                          std::move(internals),
+                                          std::vector<std::unique_ptr<Stmt>>{},
+                                          std::vector<std::unique_ptr<Decl>>{},
+                                          std::vector<std::unique_ptr<Decl>>{});
   std::vector<std::unique_ptr<Decl>> items;
   items.push_back(std::move(mb));
-  return std::make_unique<CompilationUnit>(dummyRange(sm),
-                                           std::move(items));
+  return std::make_unique<CompilationUnit>(dummyRange(sm), std::move(items));
 }
 
 // ---------------------------------------------------------------
@@ -130,8 +126,8 @@ TEST(ConstructiveS23Test, RegOmittedWidthWithInitIs1Bit) {
   // may be revised by Phase 4b without changing the contract.
   Symbol *sym = r.symbols->lookup(Identifier("flushing"));
   ASSERT_NE(sym, nullptr) << "Phase 4b T068 must keep RegSymbol "
-                              "for `flushing` reachable from the "
-                              "post-Sema SymbolTable.";
+                             "for `flushing` reachable from the "
+                             "post-Sema SymbolTable.";
   ASSERT_EQ(sym->kind(), SymbolKind::SK_Reg);
 
   auto *reg = static_cast<RegSymbol *>(sym);
@@ -151,9 +147,8 @@ TEST(ConstructiveS23Test, BitNotBitVectorOneFailsAsExpected) {
   // Build a freestanding TypeSystem to assert the design §6.x
   // distinction independent of Phase 4b's progress.
   nsl::sema::TypeSystem ts;
-  EXPECT_NONFATAL_FAILURE(
-      EXPECT_EQ(ts.bit(), ts.bitVector(1)),
-      "Expected equality of these values");
+  EXPECT_NONFATAL_FAILURE(EXPECT_EQ(ts.bit(), ts.bitVector(1)),
+                          "Expected equality of these values");
 }
 
 } // namespace

@@ -15,8 +15,10 @@
 
 #include "ASTToMLIR.h"
 
-#include <algorithm>
-
+#include "mlir/IR/Block.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "nsl/AST/AltBlock.h"
 #include "nsl/AST/AnyBlock.h"
 #include "nsl/AST/BareFinishStmt.h"
@@ -62,16 +64,13 @@
 #include "nsl/AST/WhileBlock.h"
 #include "nsl/AST/WireDecl.h"
 #include "nsl/AST/ZeroExtendExpr.h"
-
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/raw_ostream.h"
 #include "nsl/Dialect/NSL/IR/NSLDialect.h"
 #include "nsl/Sema/Sema.h"
 
-#include "mlir/IR/Block.h"
-#include "mlir/IR/Builders.h"
-#include "mlir/IR/BuiltinAttributes.h"
-#include "mlir/IR/BuiltinOps.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/raw_ostream.h"
+
+#include <algorithm>
 
 namespace nsl::lower {
 
@@ -422,8 +421,8 @@ void ASTToMLIR::visit(const ast::FirstStateDecl &node) {
   // FR-006 row "FirstStateDecl → nsl.first_state @s". Single
   // attribute-only op; no region.
   auto loc = builder_.getUnknownLoc();
-  auto target = mlir::FlatSymbolRefAttr::get(
-      builder_.getStringAttr(node.target()));
+  auto target =
+      mlir::FlatSymbolRefAttr::get(builder_.getStringAttr(node.target()));
   (void)nsl::dialect::FirstStateOp::create(builder_, loc, target);
 }
 
@@ -455,8 +454,7 @@ static bool moduleHasProcBody(const ast::ModuleBlock &mod,
 /// outermost `ParallelBlock` whose `decls()` bucket holds child
 /// `Decl`s including `StateDefn` (`ParallelBlock.h` splits items
 /// into stmts and decls).
-static bool procHasStateBody(const ast::ProcDefn &proc,
-                             llvm::StringRef name) {
+static bool procHasStateBody(const ast::ProcDefn &proc, llvm::StringRef name) {
   const ast::Stmt *body = proc.body();
   if (!body) {
     return false;
@@ -596,8 +594,8 @@ void ASTToMLIR::visit(const ast::MemDecl &node) {
       nsl::dialect::BitsType::get(&ctx_, resolveWidth(node.width()));
   auto mem_ty =
       nsl::dialect::MemType::get(&ctx_, resolveWidth(node.depth()), element_ty);
-  auto mem_op = nsl::dialect::MemOp::create(builder_, loc, mem_ty,
-                                            builder_.getStringAttr(node.name()));
+  auto mem_op = nsl::dialect::MemOp::create(
+      builder_, loc, mem_ty, builder_.getStringAttr(node.name()));
   nameTable_[node.name()] = mem_op.getResult();
 }
 
@@ -772,7 +770,8 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr, mlir::Type typeHint) {
     //      provides no hint (e.g., a soft-failed sub-expression).
     unsigned width = parsed.hasExplicitWidth ? parsed.width : 0;
     if (!parsed.hasExplicitWidth) {
-      if (auto bitsTy = mlir::dyn_cast_or_null<nsl::dialect::BitsType>(typeHint)) {
+      if (auto bitsTy =
+              mlir::dyn_cast_or_null<nsl::dialect::BitsType>(typeHint)) {
         width = bitsTy.getWidth();
       } else {
         width = minUnsignedWidth(parsed.value);
@@ -886,35 +885,35 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr, mlir::Type typeHint) {
     // SameTypeOperands; result is !nsl.bits<1>.
     case BO::Equal:
       return nsl::dialect::EqOp::create(builder_, loc, bits1_ty, lhs_val,
-                                         rhs_val)
+                                        rhs_val)
           .getResult();
     case BO::NotEqual:
       return nsl::dialect::NeOp::create(builder_, loc, bits1_ty, lhs_val,
-                                         rhs_val)
+                                        rhs_val)
           .getResult();
     case BO::Less:
       return nsl::dialect::LtOp::create(builder_, loc, bits1_ty, lhs_val,
-                                         rhs_val)
+                                        rhs_val)
           .getResult();
     case BO::LessEqual:
       return nsl::dialect::LeOp::create(builder_, loc, bits1_ty, lhs_val,
-                                         rhs_val)
+                                        rhs_val)
           .getResult();
     case BO::Greater:
       return nsl::dialect::GtOp::create(builder_, loc, bits1_ty, lhs_val,
-                                         rhs_val)
+                                        rhs_val)
           .getResult();
     case BO::GreaterEqual:
       return nsl::dialect::GeOp::create(builder_, loc, bits1_ty, lhs_val,
-                                         rhs_val)
+                                        rhs_val)
           .getResult();
     case BO::LogicalAnd:
       return nsl::dialect::LandOp::create(builder_, loc, bits1_ty, lhs_val,
-                                           rhs_val)
+                                          rhs_val)
           .getResult();
     case BO::LogicalOr:
       return nsl::dialect::LorOp::create(builder_, loc, bits1_ty, lhs_val,
-                                          rhs_val)
+                                         rhs_val)
           .getResult();
     case BO::Div:
     case BO::Mod:
@@ -963,16 +962,13 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr, mlir::Type typeHint) {
       return nsl::dialect::LnotOp::create(builder_, loc, bits1_ty, sub_val)
           .getResult();
     case UO::ReduceAnd:
-      return nsl::dialect::ReduceAndOp::create(builder_, loc, bits1_ty,
-                                                sub_val)
+      return nsl::dialect::ReduceAndOp::create(builder_, loc, bits1_ty, sub_val)
           .getResult();
     case UO::ReduceOr:
-      return nsl::dialect::ReduceOrOp::create(builder_, loc, bits1_ty,
-                                               sub_val)
+      return nsl::dialect::ReduceOrOp::create(builder_, loc, bits1_ty, sub_val)
           .getResult();
     case UO::ReduceXor:
-      return nsl::dialect::ReduceXorOp::create(builder_, loc, bits1_ty,
-                                                sub_val)
+      return nsl::dialect::ReduceXorOp::create(builder_, loc, bits1_ty, sub_val)
           .getResult();
     }
     return {};
@@ -1044,7 +1040,7 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr, mlir::Type typeHint) {
     }
     auto loc = builder_.getUnknownLoc();
     return nsl::dialect::MuxOp::create(builder_, loc, then_val.getType(),
-                                        cond_val, then_val, else_val)
+                                       cond_val, then_val, else_val)
         .getResult();
   }
   if (expr->kind() == ast::SliceExpr::kKind) {
@@ -1068,7 +1064,7 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr, mlir::Type typeHint) {
     auto loc = builder_.getUnknownLoc();
     auto result_ty = nsl::dialect::BitsType::get(&ctx_, width);
     return nsl::dialect::ExtractOp::create(builder_, loc, result_ty, sub_val,
-                                            static_cast<uint64_t>(low_bit))
+                                           static_cast<uint64_t>(low_bit))
         .getResult();
   }
   if (expr->kind() == ast::ConcatExpr::kKind) {
@@ -1099,7 +1095,7 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr, mlir::Type typeHint) {
     auto loc = builder_.getUnknownLoc();
     auto result_ty = nsl::dialect::BitsType::get(&ctx_, total_width);
     return nsl::dialect::ConcatOp::create(builder_, loc, result_ty,
-                                           mlir::ValueRange(part_vals))
+                                          mlir::ValueRange(part_vals))
         .getResult();
   }
   if (expr->kind() == ast::StructCastExpr::kKind) {
@@ -1126,11 +1122,11 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr, mlir::Type typeHint) {
       // no field access would still lower legally — emit just the
       // struct_cast in that case.
       auto loc = builder_.getUnknownLoc();
-      auto sym_ref = mlir::SymbolRefAttr::get(
-          builder_.getStringAttr(sc->typeName()));
+      auto sym_ref =
+          mlir::SymbolRefAttr::get(builder_.getStringAttr(sc->typeName()));
       auto struct_ty = nsl::dialect::StructType::get(&ctx_, sym_ref);
       return nsl::dialect::StructCastOp::create(builder_, loc, struct_ty,
-                                                 sub_val)
+                                                sub_val)
           .getResult();
     }
     // Look up the struct in the transitional name-keyed catalog.
@@ -1142,21 +1138,21 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr, mlir::Type typeHint) {
       return {};
     }
     auto loc = builder_.getUnknownLoc();
-    auto sym_ref = mlir::SymbolRefAttr::get(
-        builder_.getStringAttr(sc->typeName()));
+    auto sym_ref =
+        mlir::SymbolRefAttr::get(builder_.getStringAttr(sc->typeName()));
     auto struct_ty = nsl::dialect::StructType::get(&ctx_, sym_ref);
-    mlir::Value cur = nsl::dialect::StructCastOp::create(
-                          builder_, loc, struct_ty, sub_val)
-                          .getResult();
+    mlir::Value cur =
+        nsl::dialect::StructCastOp::create(builder_, loc, struct_ty, sub_val)
+            .getResult();
     // Chain `nsl.field` per memberPath segment. Phase B handles only
     // the single-level case; chained struct-typed fields would
     // require recursing into the field's type's structTable_ entry.
     const auto *cur_fields = &struct_it->second;
     for (const ast::Identifier &member : sc->memberPath()) {
       // Linear scan is fine: structs are typically tiny (≤ 8 fields).
-      auto field_it = std::find_if(
-          cur_fields->begin(), cur_fields->end(),
-          [&](const StructField &f) { return f.name == member; });
+      auto field_it =
+          std::find_if(cur_fields->begin(), cur_fields->end(),
+                       [&](const StructField &f) { return f.name == member; });
       if (field_it == cur_fields->end()) {
         return {}; // Sema-clean inputs wouldn't reach here.
       }
@@ -1166,7 +1162,8 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr, mlir::Type typeHint) {
                 .getResult();
       // Walk into a nested struct if the field's type is itself a
       // struct (so the next memberPath element resolves correctly).
-      if (auto next_struct = mlir::dyn_cast<nsl::dialect::StructType>(field_ty)) {
+      if (auto next_struct =
+              mlir::dyn_cast<nsl::dialect::StructType>(field_ty)) {
         auto nested_it = structTable_.find(
             next_struct.getName().getRootReference().getValue());
         if (nested_it == structTable_.end()) {
@@ -1207,9 +1204,10 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr, mlir::Type typeHint) {
       return {};
     }
     const auto &fields = struct_it->second;
-    auto field_it = std::find_if(
-        fields.begin(), fields.end(),
-        [&](const StructField &f) { return f.name == fa->field(); });
+    auto field_it =
+        std::find_if(fields.begin(), fields.end(), [&](const StructField &f) {
+          return f.name == fa->field();
+        });
     if (field_it == fields.end()) {
       return {};
     }
@@ -1337,8 +1335,7 @@ void ASTToMLIR::visit(const ast::StructInstDecl &node) {
     // No init attribute at Phase B (struct-init lowering is a
     // follow-up).
     auto reg_op = nsl::dialect::RegOp::create(
-        builder_, loc, struct_ty,
-        builder_.getStringAttr(node.instanceName()),
+        builder_, loc, struct_ty, builder_.getStringAttr(node.instanceName()),
         /*init=*/mlir::IntegerAttr{});
     nameTable_[node.instanceName()] = reg_op.getResult();
     return;
@@ -1449,9 +1446,9 @@ void ASTToMLIR::visit(const ast::FuncSelfDecl &node) {
   // `nsl.func_in`/`nsl.func_out`/`nsl.func_self` matching its
   // target symbol (`NSLOps.cpp:792-822`).
   auto loc = builder_.getUnknownLoc();
-  (void)nsl::dialect::FuncSelfOp::create(
-      builder_, loc, builder_.getStringAttr(node.name()),
-      /*args=*/mlir::ValueRange{});
+  (void)nsl::dialect::FuncSelfOp::create(builder_, loc,
+                                         builder_.getStringAttr(node.name()),
+                                         /*args=*/mlir::ValueRange{});
   controlTable_.insert(node.name());
 }
 
@@ -1472,19 +1469,19 @@ void ASTToMLIR::visit(const ast::PortDecl &node) {
   llvm::StringRef name = node.name();
   switch (node.direction()) {
   case D::FuncIn:
-    (void)nsl::dialect::FuncInOp::create(
-        builder_, loc, /*result=*/mlir::Type{},
-        builder_.getStringAttr(name), /*args=*/mlir::ValueRange{});
+    (void)nsl::dialect::FuncInOp::create(builder_, loc, /*result=*/mlir::Type{},
+                                         builder_.getStringAttr(name),
+                                         /*args=*/mlir::ValueRange{});
     break;
   case D::FuncOut:
     (void)nsl::dialect::FuncOutOp::create(builder_, loc,
-                                           builder_.getStringAttr(name),
-                                           /*args=*/mlir::ValueRange{});
+                                          builder_.getStringAttr(name),
+                                          /*args=*/mlir::ValueRange{});
     break;
   case D::FuncSelf:
     (void)nsl::dialect::FuncSelfOp::create(builder_, loc,
-                                            builder_.getStringAttr(name),
-                                            /*args=*/mlir::ValueRange{});
+                                           builder_.getStringAttr(name),
+                                           /*args=*/mlir::ValueRange{});
     break;
   default:
     return;
@@ -1697,7 +1694,8 @@ void ASTToMLIR::visit(const ast::ForBlock &node) {
   // soft-fail.
   const ast::Expr *init_target = nullptr;
   if (form.init->kind() == ast::TransferStmt::kKind) {
-    init_target = static_cast<const ast::TransferStmt *>(form.init.get())->lhs();
+    init_target =
+        static_cast<const ast::TransferStmt *>(form.init.get())->lhs();
   }
   if (!init_target) {
     return;
@@ -1714,7 +1712,7 @@ void ASTToMLIR::visit(const ast::ForBlock &node) {
   // Enum form: step is absent, emit 2-operand variant.
   if (!form.step) {
     auto for_op = nsl::dialect::ForOp::create(builder_, loc, init_val, cond_val,
-                                               /*step=*/mlir::ValueRange{});
+                                              /*step=*/mlir::ValueRange{});
     auto &body_block = for_op.getBody().emplaceBlock();
     mlir::OpBuilder::InsertionGuard guard(builder_);
     builder_.setInsertionPointToStart(&body_block);
@@ -1728,7 +1726,8 @@ void ASTToMLIR::visit(const ast::ForBlock &node) {
   // `TransferStmt` (`id := expr`).
   const ast::Expr *step_target = nullptr;
   if (form.step->kind() == ast::TransferStmt::kKind) {
-    step_target = static_cast<const ast::TransferStmt *>(form.step.get())->lhs();
+    step_target =
+        static_cast<const ast::TransferStmt *>(form.step.get())->lhs();
   } else if (form.step->kind() == ast::IncDecStmt::kKind) {
     step_target =
         static_cast<const ast::IncDecStmt *>(form.step.get())->target();
@@ -1740,8 +1739,9 @@ void ASTToMLIR::visit(const ast::ForBlock &node) {
   if (!step_val) {
     return;
   }
-  auto for_op = nsl::dialect::ForOp::create(builder_, loc, init_val, cond_val,
-                                             /*step=*/mlir::ValueRange{step_val});
+  auto for_op =
+      nsl::dialect::ForOp::create(builder_, loc, init_val, cond_val,
+                                  /*step=*/mlir::ValueRange{step_val});
   auto &body_block = for_op.getBody().emplaceBlock();
   mlir::OpBuilder::InsertionGuard guard(builder_);
   builder_.setInsertionPointToStart(&body_block);
@@ -1779,9 +1779,9 @@ void ASTToMLIR::visit(const ast::TopLevelParamDecl &node) {
   if (node.paramKind() == ast::TopLevelParamDecl::ParamKind::Int) {
     int64_t value = resolveDecimalLiteral(node.init());
     paramTable_[node.name()] = value;
-    nsl::dialect::ParamIntOp::create(
-        builder_, loc, builder_.getStringAttr(node.name()),
-        builder_.getI64IntegerAttr(value));
+    nsl::dialect::ParamIntOp::create(builder_, loc,
+                                     builder_.getStringAttr(node.name()),
+                                     builder_.getI64IntegerAttr(value));
   } else {
     // ParamKind::Str — init is a `LiteralExpr` whose `litKind() ==
     // LiteralExpr::Lit::String`. Spelling is the verbatim source
@@ -1795,9 +1795,9 @@ void ASTToMLIR::visit(const ast::TopLevelParamDecl &node) {
         payload = unquoteStringLiteral(lit->spelling());
       }
     }
-    nsl::dialect::ParamStrOp::create(
-        builder_, loc, builder_.getStringAttr(node.name()),
-        builder_.getStringAttr(payload));
+    nsl::dialect::ParamStrOp::create(builder_, loc,
+                                     builder_.getStringAttr(node.name()),
+                                     builder_.getStringAttr(payload));
   }
 }
 
@@ -1867,8 +1867,8 @@ void ASTToMLIR::visit(const ast::StructuralGenerate &node) {
     // Pull rhs() through the proper API.
     // Forward-include guard: BinaryExpr.h is already included for the
     // expression sub-visitor at line 24.
-    upper_v = resolveBound(
-        static_cast<const ast::BinaryExpr *>(cond)->rhs(), 0);
+    upper_v =
+        resolveBound(static_cast<const ast::BinaryExpr *>(cond)->rhs(), 0);
   } else {
     upper_v = resolveBound(cond, 0);
   }
@@ -1885,8 +1885,7 @@ void ASTToMLIR::visit(const ast::StructuralGenerate &node) {
   int64_t step_v = 1;
   const ast::Expr *step = node.step();
   if (step && step->kind() == ast::BinaryExpr::kKind) {
-    step_v = resolveBound(
-        static_cast<const ast::BinaryExpr *>(step)->rhs(), 1);
+    step_v = resolveBound(static_cast<const ast::BinaryExpr *>(step)->rhs(), 1);
     if (step_v == 0) {
       step_v = 1; // dialect verifier rejects step==0; defensive
     }
@@ -1902,8 +1901,8 @@ void ASTToMLIR::visit(const ast::StructuralGenerate &node) {
 
   auto gen_op = nsl::dialect::StructuralGenerateOp::create(
       builder_, loc, builder_.getI64IntegerAttr(lower_v),
-      builder_.getI64IntegerAttr(upper_v),
-      builder_.getI64IntegerAttr(step_v), loop_var_attr);
+      builder_.getI64IntegerAttr(upper_v), builder_.getI64IntegerAttr(step_v),
+      loop_var_attr);
   auto &body_block = gen_op.getBody().emplaceBlock();
   mlir::OpBuilder::InsertionGuard guard(builder_);
   builder_.setInsertionPointToStart(&body_block);

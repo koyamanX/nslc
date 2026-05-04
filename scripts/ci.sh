@@ -67,10 +67,24 @@ _one_cell() {
     *)     die "unknown compiler '${cxx}' (gcc|clang)";;
   esac
 
+  # Optional: opt-out of ASan for this cell. The lowering-tests
+  # job sets NSL_ENABLE_ASAN=OFF because lit invokes nsl-opt /
+  # nslc, which load MLIR's BuiltinDialect during MLIRContext
+  # construction. The vendored libMLIR.so under /opt/llvm is built
+  # WITHOUT ASan, which clashes with the instrumented binary's
+  # SmallVector container annotations and fires use-after-poison
+  # on every test. Other cells (build-matrix, unit-tests) keep
+  # ASan on, so the project still gets full sanitizer coverage.
+  local asan_opt=()
+  if [[ -n "${NSL_ENABLE_ASAN:-}" ]]; then
+    asan_opt+=("-DNSL_ENABLE_ASAN=${NSL_ENABLE_ASAN}")
+  fi
+
   cmake -S "${REPO_ROOT}" -B "${cell_dir}" -G Ninja \
     "-DCMAKE_BUILD_TYPE=${build_type}" \
     "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" \
     "${cmake_extra[@]}" \
+    "${asan_opt[@]}" \
     "${MLIR_DIR:+-DMLIR_DIR=${MLIR_DIR}}" \
     "${CIRCT_DIR:+-DCIRCT_DIR=${CIRCT_DIR}}"
   cmake --build "${cell_dir}"

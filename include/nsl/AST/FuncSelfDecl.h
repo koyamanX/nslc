@@ -19,11 +19,9 @@ namespace nsl::ast {
 class FuncSelfDecl final : public Decl {
 public:
   FuncSelfDecl(SourceRange range, Identifier name,
-               std::vector<Identifier> dummyArgs,
-               Identifier returnTerminal)
+               std::vector<Identifier> dummyArgs, Identifier returnTerminal)
       : Decl(NodeKind::NK_FuncSelfDecl, range), name_(name),
-        dummyArgs_(std::move(dummyArgs)),
-        returnTerminal_(returnTerminal) {}
+        dummyArgs_(std::move(dummyArgs)), returnTerminal_(returnTerminal) {}
 
   [[nodiscard]] Identifier name() const noexcept { return name_; }
   [[nodiscard]] const std::vector<Identifier> &dummyArgs() const noexcept {

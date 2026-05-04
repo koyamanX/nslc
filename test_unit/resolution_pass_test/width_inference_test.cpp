@@ -16,7 +16,6 @@
 //   - the slot is never null after the pass.
 
 #include "ResolutionPass.h"
-
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/Decl.h"
 #include "nsl/AST/FuncDefn.h"
@@ -33,7 +32,6 @@
 #include "nsl/Sema/TypeSystem.h"
 
 #include <gtest/gtest.h>
-
 #include <memory>
 #include <utility>
 #include <vector>
@@ -75,8 +73,7 @@ SourceRange dummyRange(SourceManager &sm) {
                      SourceLocation::make(fid, 1U)};
 }
 
-std::unique_ptr<IdentifierExpr> makeIdent(SourceManager &sm,
-                                          const char *name) {
+std::unique_ptr<IdentifierExpr> makeIdent(SourceManager &sm, const char *name) {
   ScopedName sn;
   sn.parts.push_back(Identifier(name));
   return std::make_unique<IdentifierExpr>(dummyRange(sm), std::move(sn));
@@ -92,8 +89,8 @@ TEST(ResolutionPassWidthInferenceTest, IntegerLiteralResolvesToBitVector) {
   //     func clk { q := 5; }
   //   }
   std::vector<std::unique_ptr<Decl>> internals;
-  internals.push_back(std::make_unique<RegDecl>(
-      dummyRange(sm), Identifier("q"), nullptr, nullptr));
+  internals.push_back(std::make_unique<RegDecl>(dummyRange(sm), Identifier("q"),
+                                                nullptr, nullptr));
 
   auto lhs = makeIdent(sm, "q");
   auto rhs = std::make_unique<LiteralExpr>(
@@ -121,8 +118,7 @@ TEST(ResolutionPassWidthInferenceTest, IntegerLiteralResolvesToBitVector) {
 
   std::vector<std::unique_ptr<Decl>> items;
   items.push_back(std::move(mb));
-  auto cu =
-      std::make_unique<CompilationUnit>(dummyRange(sm), std::move(items));
+  auto cu = std::make_unique<CompilationUnit>(dummyRange(sm), std::move(items));
 
   SymbolTable table;
   TypeSystem types;

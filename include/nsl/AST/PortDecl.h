@@ -44,11 +44,11 @@ public:
   };
 
   PortDecl(SourceRange range, Direction direction, Identifier name,
-           std::unique_ptr<Expr> width,
-           std::vector<Identifier> dummyArgs, Identifier returnTerminal)
-      : Decl(NodeKind::NK_PortDecl, range), direction_(direction),
-        name_(name), width_(std::move(width)),
-        dummyArgs_(std::move(dummyArgs)), returnTerminal_(returnTerminal) {}
+           std::unique_ptr<Expr> width, std::vector<Identifier> dummyArgs,
+           Identifier returnTerminal)
+      : Decl(NodeKind::NK_PortDecl, range), direction_(direction), name_(name),
+        width_(std::move(width)), dummyArgs_(std::move(dummyArgs)),
+        returnTerminal_(returnTerminal) {}
 
   [[nodiscard]] Direction direction() const noexcept { return direction_; }
   [[nodiscard]] Identifier name() const noexcept { return name_; }

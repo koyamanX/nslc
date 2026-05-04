@@ -98,10 +98,10 @@ public:
   /// units do not duplicate it.
   virtual ~Symbol();
 
-  Symbol(const Symbol &)            = delete;
+  Symbol(const Symbol &) = delete;
   Symbol &operator=(const Symbol &) = delete;
-  Symbol(Symbol &&)                 = delete;
-  Symbol &operator=(Symbol &&)      = delete;
+  Symbol(Symbol &&) = delete;
+  Symbol &operator=(Symbol &&) = delete;
 
   /// Runtime kind discriminator (closed set; one per
   /// `SymbolKind.def` entry).
@@ -136,10 +136,10 @@ protected:
       : kind_(k), name_(n), declLoc_(r), type_(nullptr) {}
 
 private:
-  SymbolKind       kind_;
-  ast::Identifier  name_;
-  SourceRange      declLoc_;
-  TypeRef          type_;
+  SymbolKind kind_;
+  ast::Identifier name_;
+  SourceRange declLoc_;
+  TypeRef type_;
 };
 
 // -----------------------------------------------------------------
@@ -154,10 +154,10 @@ class ValueSymbol : public Symbol {
 public:
   ~ValueSymbol() override;
 
-  ValueSymbol(const ValueSymbol &)            = delete;
+  ValueSymbol(const ValueSymbol &) = delete;
   ValueSymbol &operator=(const ValueSymbol &) = delete;
-  ValueSymbol(ValueSymbol &&)                 = delete;
-  ValueSymbol &operator=(ValueSymbol &&)      = delete;
+  ValueSymbol(ValueSymbol &&) = delete;
+  ValueSymbol &operator=(ValueSymbol &&) = delete;
 
 protected:
   ValueSymbol(SymbolKind k, ast::Identifier n, SourceRange r) noexcept
@@ -173,10 +173,10 @@ class ControlSymbol : public Symbol {
 public:
   ~ControlSymbol() override;
 
-  ControlSymbol(const ControlSymbol &)            = delete;
+  ControlSymbol(const ControlSymbol &) = delete;
   ControlSymbol &operator=(const ControlSymbol &) = delete;
-  ControlSymbol(ControlSymbol &&)                 = delete;
-  ControlSymbol &operator=(ControlSymbol &&)      = delete;
+  ControlSymbol(ControlSymbol &&) = delete;
+  ControlSymbol &operator=(ControlSymbol &&) = delete;
 
 protected:
   ControlSymbol(SymbolKind k, ast::Identifier n, SourceRange r) noexcept
@@ -367,7 +367,7 @@ public:
 
   /// Phase 4 mutator used by the `S18` walker.
   void setFields(std::vector<FieldInfo> f, uint64_t total) noexcept {
-    fields_     = std::move(f);
+    fields_ = std::move(f);
     totalWidth_ = total;
   }
 
@@ -376,7 +376,7 @@ public:
 
 private:
   std::vector<FieldInfo> fields_;
-  uint64_t               totalWidth_;
+  uint64_t totalWidth_;
 };
 
 // -----------------------------------------------------------------
@@ -435,12 +435,12 @@ public:
   }
 
 private:
-  ScopeKind                                       kind_;
-  Scope                                          *parent_;
-  Symbol                                         *owner_;
-  llvm::DenseMap<llvm::StringRef, Symbol *>       table_;
-  std::vector<std::unique_ptr<Symbol>>            ownedSymbols_;
-  std::vector<Symbol *>                           declOrder_;
+  ScopeKind kind_;
+  Scope *parent_;
+  Symbol *owner_;
+  llvm::DenseMap<llvm::StringRef, Symbol *> table_;
+  std::vector<std::unique_ptr<Symbol>> ownedSymbols_;
+  std::vector<Symbol *> declOrder_;
 };
 
 // -----------------------------------------------------------------
@@ -461,10 +461,10 @@ public:
   SymbolTable();
   ~SymbolTable();
 
-  SymbolTable(const SymbolTable &)            = delete;
+  SymbolTable(const SymbolTable &) = delete;
   SymbolTable &operator=(const SymbolTable &) = delete;
-  SymbolTable(SymbolTable &&)                 = delete;
-  SymbolTable &operator=(SymbolTable &&)      = delete;
+  SymbolTable(SymbolTable &&) = delete;
+  SymbolTable &operator=(SymbolTable &&) = delete;
 
   /// Push a new scope onto the stack. `owner` is the `Symbol*` that
   /// "opened" this scope (e.g., the `ProcSymbol` for a `Proc`

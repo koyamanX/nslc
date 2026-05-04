@@ -42,17 +42,17 @@ namespace nsl::sema {
 /// `StructTypeSymbol` consume the same record.
 struct FieldInfo {
   ast::Identifier name;
-  uint64_t        width;
-  uint64_t        offset; ///< bit position from MSB (per S18)
+  uint64_t width;
+  uint64_t offset; ///< bit position from MSB (per S18)
 };
 
 /// Closed set of concrete `Type` kinds (data-model §3.2).
 enum class TypeKind : uint8_t {
-  Bit,         ///< Singleton 1-bit type (`BitType`)
-  BitVector,   ///< `BitVectorType{N}` for N ≥ 1
-  Struct,      ///< `StructType` — interned by name
-  Memory,      ///< `MemoryType` — interned by `(depth, element)`
-  Unresolved,  ///< Singleton sentinel for FR-017 no-cascade
+  Bit,        ///< Singleton 1-bit type (`BitType`)
+  BitVector,  ///< `BitVectorType{N}` for N ≥ 1
+  Struct,     ///< `StructType` — interned by name
+  Memory,     ///< `MemoryType` — interned by `(depth, element)`
+  Unresolved, ///< Singleton sentinel for FR-017 no-cascade
 };
 
 // -----------------------------------------------------------------
@@ -74,10 +74,10 @@ public:
   /// Out-of-line virtual destructor (anchored in `TypeSystem.cpp`).
   virtual ~Type();
 
-  Type(const Type &)            = delete;
+  Type(const Type &) = delete;
   Type &operator=(const Type &) = delete;
-  Type(Type &&)                 = delete;
-  Type &operator=(Type &&)      = delete;
+  Type(Type &&) = delete;
+  Type &operator=(Type &&) = delete;
 
   /// Runtime kind discriminator (closed set; one per `TypeKind`
   /// enumerator).
@@ -157,9 +157,9 @@ public:
   // a forward declaration here); definitions live in TypeSystem.cpp
   // via the SymbolTable.h include there.
 private:
-  ast::Identifier        name_;
+  ast::Identifier name_;
   std::vector<FieldInfo> fields_;
-  uint64_t               totalWidth_;
+  uint64_t totalWidth_;
 };
 
 /// `mem` type — interned by `(depth, element)`. Per design §6.x
@@ -181,7 +181,7 @@ public:
 
 private:
   uint64_t depth_;
-  TypeRef  element_;
+  TypeRef element_;
 };
 
 /// Singleton "unresolved" sentinel — used as the `inferredType()` of
@@ -213,10 +213,10 @@ public:
   TypeSystem();
   ~TypeSystem();
 
-  TypeSystem(const TypeSystem &)            = delete;
+  TypeSystem(const TypeSystem &) = delete;
   TypeSystem &operator=(const TypeSystem &) = delete;
-  TypeSystem(TypeSystem &&)                 = delete;
-  TypeSystem &operator=(TypeSystem &&)      = delete;
+  TypeSystem(TypeSystem &&) = delete;
+  TypeSystem &operator=(TypeSystem &&) = delete;
 
   /// Singleton 1-bit type. Always returns the same `TypeRef` for
   /// the lifetime of `*this`.

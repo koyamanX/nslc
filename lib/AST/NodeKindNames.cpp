@@ -13,8 +13,8 @@ namespace nsl::ast {
 
 llvm::StringRef toString(NodeKind k) {
   switch (k) {
-#define NSL_NODE_KIND(EnumName, BaseClass)                                    \
-  case NodeKind::NK_##EnumName:                                               \
+#define NSL_NODE_KIND(EnumName, BaseClass)                                     \
+  case NodeKind::NK_##EnumName:                                                \
     return #EnumName;
 #include "nsl/AST/NodeKind.def"
 #undef NSL_NODE_KIND

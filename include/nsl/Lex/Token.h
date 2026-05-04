@@ -80,8 +80,10 @@ enum class TokenKind : uint16_t {
   tk_assign_seq, ///< `:=` (S3 sequential assignment)
   tk_plus,
   tk_minus,
-  tk_plus_plus,   ///< `++` (per `lang.ebnf §11` line 654 — `primary_expr` inc form)
-  tk_minus_minus, ///< `--` (per `lang.ebnf §11` line 657 — `primary_expr` dec form)
+  tk_plus_plus, ///< `++` (per `lang.ebnf §11` line 654 — `primary_expr` inc
+                ///< form)
+  tk_minus_minus, ///< `--` (per `lang.ebnf §11` line 657 — `primary_expr` dec
+                  ///< form)
   tk_star,
   tk_slash,
   tk_percent,

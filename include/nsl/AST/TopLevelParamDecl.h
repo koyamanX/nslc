@@ -23,8 +23,8 @@ public:
 
   TopLevelParamDecl(SourceRange range, ParamKind k, Identifier name,
                     std::unique_ptr<Expr> init)
-      : Decl(NodeKind::NK_TopLevelParamDecl, range), paramKind_(k),
-        name_(name), init_(std::move(init)) {}
+      : Decl(NodeKind::NK_TopLevelParamDecl, range), paramKind_(k), name_(name),
+        init_(std::move(init)) {}
 
   [[nodiscard]] ParamKind paramKind() const noexcept { return paramKind_; }
   [[nodiscard]] Identifier name() const noexcept { return name_; }

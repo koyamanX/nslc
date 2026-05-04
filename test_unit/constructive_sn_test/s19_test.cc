@@ -32,8 +32,8 @@
 
 #include "nsl/AST/SeqBlock.h"
 
-#include <gtest/gtest.h>
 #include <gtest/gtest-spi.h>
+#include <gtest/gtest.h>
 
 namespace {
 

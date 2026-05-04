@@ -35,7 +35,6 @@
 #include "nsl/Basic/SourceLocation.h"
 
 #include "gtest/gtest.h"
-
 #include <type_traits>
 
 using nsl::FileID;

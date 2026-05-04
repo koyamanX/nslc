@@ -25,7 +25,6 @@
 #include "nsl/Sema/TypeSystem.h"
 
 #include <gtest/gtest.h>
-
 #include <vector>
 
 namespace {

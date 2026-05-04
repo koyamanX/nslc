@@ -13,12 +13,10 @@
 //   - `specs/008-m5-structural-passes/contracts/pass-pipeline.contract.md`
 //     §2 row 5.
 
-#include "nsl/Lower/Lower.h"
-
-#include "nsl/Dialect/NSL/IR/NSLDialect.h"
-
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Pass/Pass.h"
+#include "nsl/Dialect/NSL/IR/NSLDialect.h"
+#include "nsl/Lower/Lower.h"
 
 namespace nsl::lower {
 
@@ -35,7 +33,8 @@ public:
   }
   llvm::StringRef getDescription() const final {
     return "Slot 5: optional perf pass — inline single-call-site func_self. "
-           "Registered no-op slot at M5 (Q3 → Option B); reserves pipeline ABI.";
+           "Registered no-op slot at M5 (Q3 → Option B); reserves pipeline "
+           "ABI.";
   }
 
   void runOnOperation() final {

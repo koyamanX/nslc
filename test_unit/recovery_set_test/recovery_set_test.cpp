@@ -54,8 +54,7 @@
 // TWO files (this test + Recovery.h) in one commit. The shape
 // asserted here mirrors research §3 verbatim.
 
-#include "Recovery.h"          // private header — Track L authors
-
+#include "Recovery.h" // private header — Track L authors
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceManager.h"
 #include "nsl/Lex/Lexer.h"
@@ -68,7 +67,6 @@
 #include "ParserImpl.h"
 
 #include "gtest/gtest.h"
-
 #include <vector>
 
 using nsl::TokenKind;
@@ -106,8 +104,8 @@ TEST(RecoverySet, EmptySetContainsNothing) {
 // (2) `TokenSet` constructed from a brace-enclosed list contains
 // exactly the listed kinds, nothing else.
 TEST(RecoverySet, ConstructedFromListContainsExactlyThose) {
-  constexpr TokenSet semi_or_rbrace = TokenSet(
-      {TokenKind::tk_semicolon, TokenKind::tk_rbrace});
+  constexpr TokenSet semi_or_rbrace =
+      TokenSet({TokenKind::tk_semicolon, TokenKind::tk_rbrace});
   EXPECT_TRUE(semi_or_rbrace.contains(TokenKind::tk_semicolon));
   EXPECT_TRUE(semi_or_rbrace.contains(TokenKind::tk_rbrace));
   EXPECT_FALSE(semi_or_rbrace.contains(TokenKind::tk_module));
@@ -133,9 +131,8 @@ TEST(RecoverySet, UnionContainsBothOperands) {
 // is load-bearing for Principle V determinism).
 TEST(RecoverySet, TopLevelRecoverySetContainsContractTokens) {
   constexpr TokenSet top_level = TokenSet(
-      {TokenKind::tk_struct_, TokenKind::tk_declare,
-       TokenKind::tk_module, TokenKind::tk_param_int,
-       TokenKind::tk_param_str, TokenKind::tk_eof});
+      {TokenKind::tk_struct_, TokenKind::tk_declare, TokenKind::tk_module,
+       TokenKind::tk_param_int, TokenKind::tk_param_str, TokenKind::tk_eof});
   EXPECT_TRUE(top_level.contains(TokenKind::tk_struct_));
   EXPECT_TRUE(top_level.contains(TokenKind::tk_declare));
   EXPECT_TRUE(top_level.contains(TokenKind::tk_module));
@@ -164,8 +161,8 @@ TEST(RecoverySet, TopLevelRecoverySetContainsContractTokens) {
 // must leave `peek()` at the `;`.
 TEST(RecoverySet, SkipUntilStopsAtFirstMatchingToken) {
   nsl::SourceManager sm;
-  nsl::FileID const fid = sm.addBufferInMemory(
-      "/virt/skip-stop-first.nsl", bytesOf("; reg q;\n"));
+  nsl::FileID const fid =
+      sm.addBufferInMemory("/virt/skip-stop-first.nsl", bytesOf("; reg q;\n"));
   ASSERT_TRUE(fid.isValid());
   nsl::DiagnosticEngine diag(sm);
   nsl::Lexer lex(sm, fid, diag);
@@ -174,8 +171,8 @@ TEST(RecoverySet, SkipUntilStopsAtFirstMatchingToken) {
   ASSERT_EQ(p.peekKind(), TokenKind::tk_semicolon)
       << "Pre-skip: cursor must be at `;` (the first token).";
 
-  TokenKind stopped = ::nsl::parse::skipUntil(p,
-      TokenSet({TokenKind::tk_semicolon}));
+  TokenKind stopped =
+      ::nsl::parse::skipUntil(p, TokenSet({TokenKind::tk_semicolon}));
 
   EXPECT_EQ(stopped, TokenKind::tk_semicolon);
   EXPECT_EQ(p.peekKind(), TokenKind::tk_semicolon)
@@ -191,8 +188,8 @@ TEST(RecoverySet, SkipUntilStopsAtFirstMatchingToken) {
 // must advance through `wire`, `q`, then stop at the first `;`.
 TEST(RecoverySet, SkipUntilAdvancesToFirstMatch) {
   nsl::SourceManager sm;
-  nsl::FileID const fid = sm.addBufferInMemory(
-      "/virt/skip-advance.nsl", bytesOf("wire q ; reg r ;\n"));
+  nsl::FileID const fid = sm.addBufferInMemory("/virt/skip-advance.nsl",
+                                               bytesOf("wire q ; reg r ;\n"));
   ASSERT_TRUE(fid.isValid());
   nsl::DiagnosticEngine diag(sm);
   nsl::Lexer lex(sm, fid, diag);
@@ -200,8 +197,8 @@ TEST(RecoverySet, SkipUntilAdvancesToFirstMatch) {
 
   ASSERT_EQ(p.peekKind(), TokenKind::tk_wire);
 
-  TokenKind stopped = ::nsl::parse::skipUntil(p,
-      TokenSet({TokenKind::tk_semicolon}));
+  TokenKind stopped =
+      ::nsl::parse::skipUntil(p, TokenSet({TokenKind::tk_semicolon}));
 
   EXPECT_EQ(stopped, TokenKind::tk_semicolon);
   EXPECT_EQ(p.peekKind(), TokenKind::tk_semicolon)
@@ -218,15 +215,15 @@ TEST(RecoverySet, SkipUntilAdvancesToFirstMatch) {
 // at `tk_eof`.
 TEST(RecoverySet, SkipUntilStopsAtEofWhenNoMatch) {
   nsl::SourceManager sm;
-  nsl::FileID const fid = sm.addBufferInMemory(
-      "/virt/skip-eof.nsl", bytesOf("wire q wire r\n"));
+  nsl::FileID const fid =
+      sm.addBufferInMemory("/virt/skip-eof.nsl", bytesOf("wire q wire r\n"));
   ASSERT_TRUE(fid.isValid());
   nsl::DiagnosticEngine diag(sm);
   nsl::Lexer lex(sm, fid, diag);
   Parser p(lex, diag);
 
-  TokenKind stopped = ::nsl::parse::skipUntil(p,
-      TokenSet({TokenKind::tk_semicolon}));
+  TokenKind stopped =
+      ::nsl::parse::skipUntil(p, TokenSet({TokenKind::tk_semicolon}));
 
   EXPECT_EQ(stopped, TokenKind::tk_eof);
   EXPECT_EQ(p.peekKind(), TokenKind::tk_eof)
@@ -243,13 +240,11 @@ TEST(RecoverySet, SkipUntilIsDeterministicAcrossRuns) {
   auto run = []() -> TokenKind {
     nsl::SourceManager sm;
     nsl::FileID const fid = sm.addBufferInMemory(
-        "/virt/skip-determinism.nsl",
-        bytesOf("module foo { wire q ; }\n"));
+        "/virt/skip-determinism.nsl", bytesOf("module foo { wire q ; }\n"));
     nsl::DiagnosticEngine diag(sm);
     nsl::Lexer lex(sm, fid, diag);
     Parser p(lex, diag);
-    return ::nsl::parse::skipUntil(p,
-        TokenSet({TokenKind::tk_semicolon}));
+    return ::nsl::parse::skipUntil(p, TokenSet({TokenKind::tk_semicolon}));
   };
 
   TokenKind first = run();
@@ -332,8 +327,8 @@ TEST(RecoverySet, NestedGuardsUnionSets) {
 // `skipUntilActiveRecovery()` resumes at the first `;`.
 TEST(RecoverySet, SkipUntilActiveRecoveryUsesGuardSet) {
   nsl::SourceManager sm;
-  nsl::FileID const fid = sm.addBufferInMemory(
-      "/virt/guard-skip.nsl", bytesOf("wire q ; reg r ;\n"));
+  nsl::FileID const fid = sm.addBufferInMemory("/virt/guard-skip.nsl",
+                                               bytesOf("wire q ; reg r ;\n"));
   nsl::DiagnosticEngine diag(sm);
   nsl::Lexer lex(sm, fid, diag);
   Parser p(lex, diag);

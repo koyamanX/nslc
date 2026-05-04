@@ -87,8 +87,7 @@ public:
           // PR#8 review (lines 87 + 96).
           auto opRange = [&]() noexcept -> SourceRange {
             if (t.lhs() != nullptr && t.rhs() != nullptr) {
-              return SourceRange{t.lhs()->loc().end(),
-                                 t.rhs()->loc().begin()};
+              return SourceRange{t.lhs()->loc().end(), t.rhs()->loc().begin()};
             }
             return t.loc();
           };

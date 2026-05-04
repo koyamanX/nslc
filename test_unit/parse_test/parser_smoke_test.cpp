@@ -49,7 +49,6 @@
 #include "llvm/Support/Casting.h"
 
 #include "gtest/gtest.h"
-
 #include <memory>
 #include <vector>
 
@@ -131,8 +130,7 @@ TEST(ParserSmokeTest, ParsesModuleWithSingleRegDecl) {
 // behavior — the parser doesn't crash on an empty buffer.
 TEST(ParserSmokeTest, ParsesEmptyCompilationUnit) {
   nsl::SourceManager sm;
-  nsl::FileID const fid =
-      sm.addBufferInMemory("/virt/empty.nsl", bytesOf(""));
+  nsl::FileID const fid = sm.addBufferInMemory("/virt/empty.nsl", bytesOf(""));
   ASSERT_TRUE(fid.isValid());
 
   nsl::DiagnosticEngine diag(sm);

@@ -16,18 +16,17 @@
 //   - `specs/008-m5-structural-passes/contracts/pass-pipeline.contract.md`
 //     §2 row 2
 
-#include "nsl/Lower/Lower.h"
-
-#include "nsl/Dialect/NSL/IR/NSLDialect.h"
-
-#include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringRef.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Pass/Pass.h"
+#include "nsl/Dialect/NSL/IR/NSLDialect.h"
+#include "nsl/Lower/Lower.h"
+
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 
 #include <string>
 
@@ -40,8 +39,7 @@ namespace {
 ///
 /// Determinism (Constitution Principle V): pure scan; no map / hash
 /// / unordered iteration involved. Linear in the input size.
-std::string substituteLoopVar(llvm::StringRef text,
-                              llvm::StringRef loop_var,
+std::string substituteLoopVar(llvm::StringRef text, llvm::StringRef loop_var,
                               llvm::StringRef replacement) {
   if (loop_var.empty()) {
     return text.str();
@@ -189,8 +187,7 @@ unsigned expandOne(nsl::dialect::StructuralGenerateOp gen) {
         mlir::Operation &op = *it;
         llvm::SmallVector<mlir::NamedAttribute, 4> rewrites;
         for (auto namedAttr : op.getAttrs()) {
-          auto strAttr =
-              mlir::dyn_cast<mlir::StringAttr>(namedAttr.getValue());
+          auto strAttr = mlir::dyn_cast<mlir::StringAttr>(namedAttr.getValue());
           if (!strAttr) {
             continue;
           }

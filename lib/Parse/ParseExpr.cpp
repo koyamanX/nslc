@@ -437,7 +437,7 @@ std::unique_ptr<ast::Expr>
 Parser::parsePostfix(std::unique_ptr<ast::Expr> head) {
   while (head && isPostfixStart(peekKind())) {
     if (check(TokenKind::tk_lbracket)) {
-      Token lbr = consume();
+      consume();
       auto hi = parseExpr();
       if (!hi) {
         return nullptr;
@@ -544,7 +544,7 @@ std::unique_ptr<ast::Expr> Parser::parseExprAtPrecedence(int floor) {
   // (constant-evaluable) expression and the next token is `{`. We
   // accept it whenever an `{` follows; Sema validates count-ness.
   if (check(TokenKind::tk_lbrace)) {
-    Token lbr = consume();
+    consume();
     auto body = parseExpr();
     if (!body) {
       return nullptr;
