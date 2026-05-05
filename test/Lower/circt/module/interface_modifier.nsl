@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/module/interface_modifier.nsl — M6 Phase 4 (US2)
+// fixture (T033). The S20 `interface` modifier on a declare block
+// names clock(s) and reset(s) explicitly; M6 emits user-named input
+// ports (typed `i1`) verbatim from the modifier in lieu of the
+// implicit `clk` / `rst_n` pair (per `circt-lowering.contract.md` §3
+// rule 7 + `firreg-convention.contract.md` §2). The reg-on-explicit-
+// interface lowering (`seq.compreg` instead of FirRegOp) is Phase 6
+// territory; this fixture only verifies the port-naming half of the
+// explicit-`interface` path (Phase 4 doesn't lower `nsl.reg` anyway).
+//
+// **Closes M4-amendment-#10 deferral.** Pre-amendment-#10 this
+// fixture was XFAIL'd because `nsl::DeclareOp` carried no
+// `interface_clock` / `interface_reset` attrs. Amendment-#10 adds the
+// optional StrAttr pair on `nsl::DeclareOp`, the M5 visitor populates
+// them from `ast::DeclareBlock::clockName()` / `resetName()`, and M6's
+// `lowerOneModule` reads them to drive the port-list shape.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare interface(clock=my_clk, reset=my_rst_n) M {
+  input a[8];
+  output q[8];
+}
+
+module M {
+  q = a;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK-SAME: in %a : i8
+// CHECK-SAME: in %my_clk : i1
+// CHECK-SAME: in %my_rst_n : i1
+// CHECK-SAME: out q : i8
+// CHECK-NOT: in %m_clock : i1
+// CHECK-NOT: in %p_reset : i1
+// CHECK-NOT: nsl.

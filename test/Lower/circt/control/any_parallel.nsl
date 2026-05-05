@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/control/any_parallel.nsl — M6 Phase 6 fixture
+// (T087, refreshed by Round-1 review fix for PR #14 Finding #11).
+// `any { c1: q = a; c2: q = b; }` parallel semantics: every matching
+// case fires (S13 parallel). Implementation per
+// `circt-lowering.contract.md` §5: per-target
+// `comb.or(comb.mux(condA, valA, 0), comb.mux(condB, valB, 0), …)`.
+//
+// **Round-1 correction**: previously this fixture's input was lowered
+// via the priority-encoded `lowerAltOp` chain, producing nested
+// `comb.mux` for which the LAST case overwrote earlier ones (silent
+// miscompile of S13 parallel semantics). The fix in `lowerAnyOp`
+// emits per-target OR-of-mux envelopes; this fixture now asserts
+// the corrected shape.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  input b[8];
+  input c1[1];
+  input c2[1];
+  output q[8];
+}
+
+module M {
+  any {
+    c1: q = a;
+    c2: q = b;
+  }
+}
+
+// Per-case envelope: comb.mux(caseCond, val, 0).
+// CHECK-LABEL: hw.module @M
+// CHECK: %[[Z1:.*]] = hw.constant 0 : i8
+// CHECK: %[[E1:.*]] = comb.mux %c1, %a, %[[Z1]]
+// CHECK: %[[Z2:.*]] = hw.constant 0 : i8
+// CHECK: %[[E2:.*]] = comb.mux %c2, %b, %[[Z2]]
+// CHECK: comb.or %[[E1]], %[[E2]]
+// CHECK: hw.output
+// CHECK-NOT: nsl.

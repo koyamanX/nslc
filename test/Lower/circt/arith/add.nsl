@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/arith/add.nsl — M6 Phase 6 (US4) fixture (T061).
+// `nsl.add %a, %b : !nsl.bits<8>` lowers to `comb.add %a, %b : i8`.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  input b[8];
+  output q[8];
+}
+
+module M {
+  q = a + b;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK: comb.add %a, %b : i8
+// CHECK: hw.output
+// CHECK-NOT: nsl.

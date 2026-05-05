@@ -37,6 +37,11 @@ void registerNSLLowerPasses() {
   mlir::registerPass([]() { return createNSLExplodeSubmodArrayPass(); });
   mlir::registerPass([]() { return createNSLInlineInternalFuncPass(); });
   mlir::registerPass([]() { return createNSLCheckSemanticsPass(); });
+  // M6: nsl→CIRCT conversion. Per
+  // specs/010-m6-circt-lowering/contracts/lower-api.contract.md §3 —
+  // registration set grows from 6 to 7 passes; this function's
+  // signature is unchanged.
+  registerNSLToCIRCTPass();
 }
 
 } // namespace nsl::lower

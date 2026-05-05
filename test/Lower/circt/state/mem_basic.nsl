@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/state/mem_basic.nsl — M6 Phase 6 fixture (T084).
+// `mem m[256][8]` → `seq.firmem` with depth 256 and width 8.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+}
+
+module M {
+  mem m[256][8];
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK: seq.firmem
+// CHECK-SAME: <256 x 8>
+// CHECK-NOT: nsl.

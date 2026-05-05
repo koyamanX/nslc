@@ -139,4 +139,8 @@ if(NSL_BUILD_TESTS)
   enable_testing()
   add_subdirectory(test)
   add_subdirectory(test_unit)
+  # M6 (FR-033 + tasks.md T028): per-family conversion-pattern ↔
+  # fixture bijection guard. Configure-time check with
+  # FATAL_ERROR on violation.
+  include(${CMAKE_SOURCE_DIR}/test/Lower/circt/coverage_guard.cmake)
 endif()

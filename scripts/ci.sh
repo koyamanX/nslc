@@ -245,6 +245,23 @@ stage_static_checks() {
     log "  (skipping cross-host-path determinism check: scripts/determinism_check.sh not yet present)"
   fi
 
+  # 7b. M6 US5 / T132 cross-host-path determinism check for `-emit=hw`
+  # (FR-022 + driver-emit-hw.contract.md §6). Sibling of step 7;
+  # extends the M5 mechanism to the M6 driver layer per Phase-7 of
+  # `specs/010-m6-circt-lowering/tasks.md`. Same opt-in env var as
+  # the M5 sibling — both gates run together when
+  # NSLC_RUN_DETERMINISM_CHECK=1 is set.
+  if [[ -x "${REPO_ROOT}/scripts/determinism_check_emit_hw.sh" \
+        && "${NSLC_RUN_DETERMINISM_CHECK:-0}" == "1" ]]; then
+    log "  bash scripts/determinism_check_emit_hw.sh (NSLC_RUN_DETERMINISM_CHECK=1)"
+    bash "${REPO_ROOT}/scripts/determinism_check_emit_hw.sh" \
+      || rc=$?
+  elif [[ -x "${REPO_ROOT}/scripts/determinism_check_emit_hw.sh" ]]; then
+    log "  (skipping cross-host-path -emit=hw determinism check; set NSLC_RUN_DETERMINISM_CHECK=1 to opt in)"
+  else
+    log "  (skipping cross-host-path -emit=hw determinism check: scripts/determinism_check_emit_hw.sh not yet present)"
+  fi
+
   # 8. M5 T110 / FR-008 + SC-009 op-location audit
   # (closes /speckit-analyze 2026-04-30 findings A3 + A4).
   # Verifies every emitted nsl::* op carries a non-trivial

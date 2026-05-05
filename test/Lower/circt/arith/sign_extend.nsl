@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/arith/sign_extend.nsl — M6 Phase 6 fixture (T075).
+// Per spec Q1 → A: `nsl.sign_extend` → `comb.concat (replicate MSB,
+// operand)`. No `hwarith.cast` (research §1).
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[4];
+  output q[8];
+}
+
+module M {
+  q = 8#a;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK: comb.extract %a from 3 : (i4) -> i1
+// CHECK: comb.replicate
+// CHECK: comb.concat
+// CHECK-NOT: nsl.

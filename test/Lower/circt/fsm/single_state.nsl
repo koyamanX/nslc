@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/fsm/single_state.nsl — M6 Phase 5 (US3) fixture
+// (T045). The README's named M6 pattern degenerate case: one
+// `nsl::ProcOp` with a single `nsl::StateOp` child and a
+// `nsl::FirstStateOp` pointing at it.
+//
+// Lowering shape (per `circt-lowering.contract.md` §1 + §6):
+//   nsl.proc @P { first_state @s0  state @s0 { } }
+//   →
+//   fsm.machine @P attributes { initialState = "s0" } {
+//     fsm.state @s0
+//   }
+//
+// The `fsm.machine` lands at top-level (sibling of `hw.module @M`)
+// per CIRCT's FSM-dialect convention (machines are top-level ops;
+// `hw.module` references them via `fsm.hw_instance` which is Phase
+// 6+ wiring).
+//
+// `nsl.first_state` is consumed during ProcOp lowering — its
+// `target` becomes the `initialState` attribute. It does NOT appear
+// as a standalone op in the output.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+}
+
+module M {
+  proc_name p;
+  proc p {
+    state_name s0;
+    first_state s0;
+    state s0 {
+    }
+  }
+}
+
+// CHECK-LABEL: fsm.machine @p
+// CHECK-SAME: initialState = "s0"
+// CHECK: fsm.state @s0
+// CHECK-NOT: nsl.proc
+// CHECK-NOT: nsl.state
+// CHECK-NOT: nsl.first_state

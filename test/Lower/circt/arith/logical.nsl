@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/arith/logical.nsl — M6 Phase 6 fixture (T073).
+// Logical operators: `&&` (`nsl.land` → `comb.and` on i1), `||`
+// (`nsl.lor` → `comb.or`), `!` (`nsl.lnot` → `comb.icmp eq …, 0`),
+// `~` (`nsl.not` → `comb.xor %a, all-ones`), `-` (unary, `nsl.neg`
+// → `comb.sub 0, %a`).
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[1];
+  input b[1];
+  input c[8];
+  output qa[1];
+  output qo[1];
+  output qn[1];
+  output qb[8];
+  output qm[8];
+}
+
+module M {
+  qa = a && b;
+  qo = a || b;
+  qn = !a;
+  qb = ~c;
+  qm = -c;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK-DAG: comb.and %a, %b : i1
+// CHECK-DAG: comb.or %a, %b : i1
+// CHECK-DAG: comb.icmp eq %a
+// CHECK-DAG: comb.xor %c
+// CHECK-DAG: comb.sub
+// CHECK-NOT: nsl.

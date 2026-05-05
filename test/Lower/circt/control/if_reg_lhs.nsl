@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/control/if_reg_lhs.nsl — M6 Phase 6 fixture
+// (T089, refreshed by Round-1 review fix for PR #14 Finding #9).
+// Per Q3 → A: `if(c) r := a;` with reg LHS lowers via mux on the
+// FirRegOp's data input. Round-1 correction: the `prev` arm of the
+// mux MUST be the reg's own previous-cycle value (`%r` — the
+// firreg's result), not the reset constant. Seeding `pendingNext`
+// with `rstVal` produced `comb.mux(c, a, rstVal)` which means an
+// unwritten register would feed its initialiser back every cycle
+// — a silent miscompile of S13 mux-on-data semantics.
+//
+// Expected shape now: `comb.mux(c, a, %r)` followed by
+// `seq.firreg %r ... reset async %p_reset, rstVal`.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  input c[1];
+  output q[8];
+}
+
+module M {
+  reg r[8] = 0;
+  if(c) r := a;
+  q = r;
+}
+
+// CHECK-LABEL: hw.module @M
+// The mux's `prev` arm references the firreg's OWN result (%r),
+// NOT the reset constant. This is the Round-1 #9 fix verification.
+// CHECK: %[[MUX:.*]] = comb.mux %c, %a, %r
+// CHECK: %r = seq.firreg %[[MUX]] {{.*}}reset async %p_reset
+// CHECK-NOT: nsl.

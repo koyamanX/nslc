@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/state/transfer_combinational.nsl — M6 Phase 6
+// fixture (T085). Combinational `=` transfer with arith on RHS:
+// the RHS expression's CIRCT result wires directly to hw.output for
+// output-port LHS.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  input b[8];
+  output q[8];
+}
+
+module M {
+  q = a + b;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK: %[[V:[0-9]+]] = comb.add %a, %b
+// CHECK: hw.output %[[V]]
+// CHECK-NOT: nsl.

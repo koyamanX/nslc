@@ -32,6 +32,18 @@ add_nsl_library(nsl-lower
   Pass/NSLExplodeSubmodArrayPass.cpp
   Pass/NSLInlineInternalFuncPass.cpp
   Pass/NSLCheckSemanticsPass.cpp
+  # M6 (Phase 2 scaffold; pattern bodies fill across Phases 4–7):
+  Pass/NSLToCIRCTPass.cpp
+  Pass/CIRCTTypeConverter.cpp
+  Pass/CIRCTPatterns/ArithPatterns.cpp
+  Pass/CIRCTPatterns/BitOpPatterns.cpp
+  Pass/CIRCTPatterns/ControlPatterns.cpp
+  Pass/CIRCTPatterns/FSMPatterns.cpp
+  Pass/CIRCTPatterns/ModulePatterns.cpp
+  Pass/CIRCTPatterns/ParamPatterns.cpp
+  Pass/CIRCTPatterns/PortPatterns.cpp
+  Pass/CIRCTPatterns/SimPatterns.cpp
+  Pass/CIRCTPatterns/StatePatterns.cpp
   HEADERS
     ${CMAKE_SOURCE_DIR}/include/nsl/Lower/Lower.h
   DEPENDS nsl-sema nsl-dialect
@@ -39,10 +51,12 @@ add_nsl_library(nsl-lower
     MLIRIR
     MLIRPass
     MLIRSupport
+    MLIRTransforms       # M6: DialectConversion framework
     CIRCTHW
     CIRCTComb
     CIRCTSeq
-    CIRCTSV)
+    CIRCTSV
+    CIRCTFSM)            # M6 NEW per lower-api.contract.md §5
 
 # Match MLIR upstream's `-fno-rtti` convention. Pass classes derive
 # from `mlir::Pass` (via `mlir::PassWrapper<...>`); building this

@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/round_trip/zero_nsl_ops.nsl — M6 US1 harness
+// fixture (T026). Asserts the most fundamental M6 invariant:
+// after `nslc -emit=hw`, the output IR contains ZERO ops in the
+// `nsl::*` dialect — every reachable op belongs to one of the
+// five CIRCT dialects (`hw`, `comb`, `seq`, `fsm`, `sv`).
+//
+// Per `tasks.md` T026 + spec §FR-022 + `circt-lowering.contract.md`
+// §1: this fixture is the umbrella regression target. It fires
+// GREEN once Phase 4 (US2 module skeleton) + Phase 6 (US4
+// arithmetic family) land enough patterns to handle the simple
+// shape exercised below.
+//
+// **Phase 4 status: PASS** (XFAIL removed in the same commit that
+// landed T038 — the structural ModuleOp/DeclareOp rewrite in
+// `lowerNSLModulesToHWModules`).
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  output q[8];
+}
+
+module M {
+  q = a;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK-NOT: nsl.

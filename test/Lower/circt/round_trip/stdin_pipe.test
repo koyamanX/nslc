@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/round_trip/stdin_pipe.test — M6 Phase 8 polish
+// task (T139). XFAIL'd: nslc currently does not support `-` as a
+// stdin-marker positional argument. Closing FR-026 stdin-support
+// requires a separate driver amendment (parsing `-` in
+// `tools/nslc/main.cpp`'s positional-arg loop and routing
+// `std::cin` through the existing read-input path). Pending that
+// amendment, this fixture is XFAIL'd to preserve the audit trail
+// for the C2 finding from /speckit-analyze.
+
+// XFAIL: *
+// RUN: cat %S/zero_nsl_ops.nsl | %nslc -emit=hw - > %t.stdin.hw
+// RUN: %nslc -emit=hw %S/zero_nsl_ops.nsl > %t.file.hw
+// RUN: diff -q %t.stdin.hw %t.file.hw
