@@ -60,7 +60,7 @@ should render under their respective scopes.
 
 ### Verify activation
 
-```
+```text
 :NSL Language Support     ←  open VS Code's extension panel; T1's
                               extension entry appears with the
                               version 0.1.0 and "Programming
@@ -71,7 +71,7 @@ In the Command Palette: `Developer: Inspect Editor Tokens and
 Scopes`. Click on a `module` keyword in the editor; the panel
 shows:
 
-```
+```text
 foreground   #569CD6  (or your theme's mapping)
 TextMate scope     keyword.declaration.nsl
                    source.nsl
@@ -97,16 +97,15 @@ single npm-based runner.
 
 Expected output (≤ 10 s — SC-006):
 
-```
-[ci.sh] tooling-textmate
-[ci.sh] running vscode-tmgrammar-test on test/tooling/textmate/scope-tests/*.spec
-✓ all-keywords.spec    (42 assertions)
-✓ all-numbers.spec     (12 assertions)
-✓ all-operators.spec   (8 categories, 23 tokens)
-✓ all-directives.spec  (9 directives)
-✓ comments-and-strings.spec  (7 assertions, including embedded-keyword cases)
-✓ macro-references.spec      (2 assertions)
-[ci.sh] PASS — 93 assertions passed in 6 fixtures
+```text
+[ci.sh] stage 3 sub-step: tooling-textmate
+[ci.sh]   npx vscode-tmgrammar-test --grammar ../../../grammars/textmate/nsl.tmLanguage.json 'fixtures/*.nsl'
+✓ fixtures/all-directives.nsl run successfuly.
+✓ fixtures/all-keywords.nsl run successfuly.
+✓ fixtures/all-numbers.nsl run successfuly.
+✓ fixtures/all-operators.nsl run successfuly.
+✓ fixtures/comments-and-strings.nsl run successfuly.
+✓ fixtures/macro-references.nsl run successfuly.
 ```
 
 Non-zero exit → at least one assertion failed; the runner prints
@@ -116,20 +115,22 @@ scope (per `contracts/scope-test-format.contract.md` §5).
 ### Watch-mode (during development)
 
 ```bash
-cd editors/vscode  # or wherever node_modules is installed
+cd test/tooling/textmate
 npx vscode-tmgrammar-test \
-  --grammar ../../grammars/textmate/nsl.tmLanguage.json \
-  --tests   "../../test/tooling/textmate/scope-tests/*.spec" \
+  --grammar ../../../grammars/textmate/nsl.tmLanguage.json \
+  'fixtures/*.nsl' \
   --watch
 ```
 
-Re-runs on every grammar / fixture / spec edit.
+Re-runs on every grammar / fixture edit. Assertions live inline
+inside the fixture files (per `contracts/scope-test-format.contract.md`
+§1.1).
 
 ---
 
 ## §4 Add a new reserved keyword (worked example — FR-001 / SC-003)
 
-Suppose `nsl_lang.ebnf §15` gains a new keyword `pipeline` (a
+Suppose `lang.ebnf §15` gains a new keyword `pipeline` (a
 hypothetical extension). The full chain to land it:
 
 ### Step 1 — spec edit
@@ -171,7 +172,7 @@ KEYWORD_CATEGORY = {
 
 If you forget this step, the script raises:
 
-```
+```text
 RuntimeError: KeywordSet.def has 'pipeline' but no category-mapping
 entry. Add `'pipeline': '<category>'` to KEYWORD_CATEGORY in
 scripts/gen_textmate_grammar.py per data-model.md §1.2.
@@ -254,7 +255,7 @@ Single PR carrying:
 Operators are not in `KeywordSet.def`. The flow is shorter:
 
 ```bash
-# 1. spec edit  — add to nsl_lang.ebnf §11 (Expressions) or §4.1
+# 1. spec edit  — add to lang.ebnf §11 (Expressions) or §4.1
 $EDITOR docs/spec/nsl_lang.ebnf
 $EDITOR docs/design/nsl_tooling_design.md
 

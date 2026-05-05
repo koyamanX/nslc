@@ -103,7 +103,7 @@ precedent: `.github/branch-protection.json`.
 ## 3. Built-in `_`-prefix system-name set
 
 **Decision**: Mirror the explicit list in
-`docs/design/nsl_tooling_design.md §4.1` — *not* `nsl_lang.ebnf
+`docs/design/nsl_tooling_design.md §4.1` — *not* `lang.ebnf
 §15` and *not* the broader `pp.ebnf §3.1` helper closed set
 (which is for the preprocessor, not the NSL language).
 
@@ -115,7 +115,7 @@ precedent: `.github/branch-protection.json`.
 
 **Rationale**: `nsl_tooling_design.md §4.1` is the single
 authority for highlighter token categories; the spec
-(`nsl_lang.ebnf §15`) lists no `_`-prefix names because they are
+(`lang.ebnf §15`) lists no `_`-prefix names because they are
 recognised at the lexer N11 layer, not the keyword set. Helpers
 from `pp.ebnf §3.1` (`_int`, `_pow`, `_sin`, …) live in the
 preprocessor sub-grammar and never appear in NSL source — so they
@@ -398,12 +398,12 @@ identifier-with-numeric-suffix languages.
 
 **Observation**: the spec's FR-001 says "approximately 50 words"
 and SC-002 says "≥ 50 distinct keyword assertions"; the actual
-count from `KeywordSet.def` (and therefore `nsl_lang.ebnf §15`)
+count from `KeywordSet.def` (and therefore `lang.ebnf §15`)
 is **42** as of 2026-05-04 (31 Appendix-3 + 11 practical
 additions).
 
 **Decision**: keep the spec wording intentionally non-numeric
-("every reserved keyword from `nsl_lang.ebnf §15`"); the
+("every reserved keyword from `lang.ebnf §15`"); the
 numeric estimates serve as illustrative bounds. Do NOT amend
 the spec to read "exactly 42" — that number drifts with each
 spec amendment under Principle I. The contract-side authority

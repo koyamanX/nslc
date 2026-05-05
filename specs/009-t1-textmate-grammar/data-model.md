@@ -27,7 +27,7 @@ set. T1 does not modify this file; it reads it.
 | `group` | enum {`appendix3`, `practical`} | `KeywordSet.def` (group comments) | passed through to T1 only as informational; both groups receive the same TextMate scope category |
 
 **Cardinality**: as of 2026-05-04, **42** entries (31 Appendix-3 +
-11 practical additions). Tracks `nsl_lang.ebnf §15` per Principle I.
+11 practical additions). Tracks `lang.ebnf §15` per Principle I.
 
 ### 1.2 Token-category mapping  (NEW — T1-introduced)
 
@@ -39,27 +39,40 @@ its TextMate scope category sub-name per
 | Field | Type | Notes |
 |---|---|---|
 | `spelling` | string | matches `KeywordSet.def` |
-| `category` | enum (see below) | one of 8 keyword sub-categories |
+| `category` | enum (see below) | one of 12 concrete categories |
 
-**Category enum** (frozen at T1 PR-landing):
+**Category enum** — 12 concrete categories (the exact identifiers
+emitted by `scripts/gen_textmate_grammar.py`'s `KEYWORD_CATEGORY`
+table; `SCOPE_FOR_CATEGORY` in the same script maps each to its
+TextMate scope name):
 
-| Category | TextMate sub-scope | Spellings (as of 2026-05-04) |
+| Category | TextMate scope | Spellings (as of 2026-05-04) |
 |---|---|---|
 | `declaration` | `keyword.declaration.nsl` | `declare`, `module`, `struct` |
 | `control_block` | `keyword.control.block.nsl` | `alt`, `any`, `if`, `else`, `seq`, `for`, `while`, `generate` |
 | `control_flow` | `keyword.control.flow.nsl` | `goto`, `return`, `finish` |
 | `modifier` | `keyword.modifier.nsl` | `interface`, `simulation` |
-| `storage_type` | `storage.type.{register,wire,memory,integer,param,control}.nsl` | `reg`, `wire`, `mem`, `integer`, `variable`, `param_int`, `param_str`, `parameter`, `func`, `function`, `func_in`, `func_out`, `func_self`, `proc`, `proc_name`, `state`, `state_name`, `first_state`, `label_name`, `label`, `invoke` |
+| `storage_register` | `storage.type.register.nsl` | `reg` |
+| `storage_wire` | `storage.type.wire.nsl` | `wire` |
+| `storage_memory` | `storage.type.memory.nsl` | `mem` |
+| `storage_integer` | `storage.type.integer.nsl` | `integer`, `variable` |
+| `storage_param` | `storage.type.param.nsl` | `param_int`, `param_str`, `parameter` |
+| `storage_control` | `storage.type.control.nsl` | `func`, `function`, `func_in`, `func_out`, `func_self`, `proc`, `proc_name`, `state`, `state_name`, `first_state`, `label_name`, `label`, `invoke` |
 | `port_direction` | `storage.modifier.direction.nsl` | `input`, `output`, `inout` |
-| `support_type_clock` | `support.type.clock.nsl` | `m_clock`, `p_reset` |
+| `support_clock` | `support.type.clock.nsl` | `m_clock`, `p_reset` |
 
-**Cardinality**: ≥ 1 entry per `KeywordSet.def` row. The mapping
-is exhaustive and asserted in `scripts/gen_textmate_grammar.py`'s
-top-of-file consistency check (raises if a `KeywordSet.def`
-spelling has no entry).
+**Cardinality**: 42 keywords across 12 categories (as of
+2026-05-04). The mapping is exhaustive in both directions:
+every spelling in `include/nsl/Lex/KeywordSet.def` has a
+`KEYWORD_CATEGORY` entry, and every `KEYWORD_CATEGORY` entry
+references a spelling in `KeywordSet.def`. The generator's
+`check_coverage()` asserts both invariants at run-time and
+raises a localised `RuntimeError` on either mismatch — making
+the spec ↔ design coupling mechanically auditable per
+Constitution Principle VII.
 
 **`port_direction` rationale**: `inout` / `input` / `output` are
-listed in `nsl_lang.ebnf §15` as reserved keywords but
+listed in `lang.ebnf §15` as reserved keywords but
 `nsl_tooling_design.md §4.1` does not enumerate a port-direction
 scope. T1 introduces `storage.modifier.direction.nsl` to honour
 FR-001 (every keyword highlighted) and FR-002 (sub-categorised
@@ -87,7 +100,7 @@ research.md §3.
 ### 1.4 Numeric-literal forms  (NEW — T1-introduced)
 
 Hand-authored regex set inside `scripts/gen_textmate_grammar.py`,
-mirroring `nsl_lang.ebnf §13` and `nsl_tooling_design.md §4.1`.
+mirroring `lang.ebnf §13` and `nsl_tooling_design.md §4.1`.
 
 | Form | Example | Regex (Oniguruma) | Scope |
 |---|---|---|---|
@@ -135,7 +148,7 @@ work.
 | `#endif` | `^\s*#endif\b` | same |
 | `#line` | `^\s*#line\b` | same |
 
-All 9 directives match at line start (per `nsl_pp.ebnf §1`
+All 9 directives match at line start (per `pp.ebnf §1`
 line-orientation invariant). The line-start anchor is what makes
 `#line` highlight as a directive while `#` in `q := #a + b;`
 matches as the sign-extend operator under FR-008/FR-021.
@@ -146,7 +159,7 @@ matches as the sign-extend operator under FR-008/FR-021.
 |---|---|---|
 | `%IDENT%` | `%[A-Za-z_][A-Za-z0-9_]*%` | `variable.other.macro.nsl` |
 
-Per `nsl_pp.ebnf §4` and FR-007. Distinct scope from identifier
+Per `pp.ebnf §4` and FR-007. Distinct scope from identifier
 (`variable.other.*`) and keyword scopes — readers can see the
 preprocessor seam at a glance.
 
@@ -157,7 +170,7 @@ preprocessor seam at a glance.
 | Line comment | `//.*$` | `comment.line.double-slash.nsl` |
 | Block comment | `/\* … \*/` (non-nestable) | `comment.block.nsl` |
 
-Block comments are non-nestable per `nsl_lang.ebnf §14`; the
+Block comments are non-nestable per `lang.ebnf §14`; the
 TextMate begin/end pair handles non-nesting natively.
 
 ### 1.9 String-literal form  (NEW — T1-introduced)

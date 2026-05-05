@@ -283,27 +283,34 @@ stage_static_checks() {
   fi
 
   # 10. T1 / FR-013 — tooling-grammar-mirror byte-equality.
-  # Per specs/009-t1-textmate-grammar/research.md §5, the canonical
-  # artefact lives at `grammars/textmate/nsl.tmLanguage.json` and a
-  # symlink at `editors/vscode/syntaxes/nsl.tmLanguage.json` points
-  # to it. On Linux/CI the symlink is fine; the byte-equality check
-  # additionally protects against the Windows-zip-extraction case
-  # where the symlink is materialised as a stale copy.
+  # Per specs/009-t1-textmate-grammar/research.md §5 (as amended by
+  # the PR #13 CodeRabbit review): the canonical artefact lives at
+  # `grammars/textmate/nsl.tmLanguage.json` and a materialised copy
+  # at `editors/vscode/syntaxes/nsl.tmLanguage.json` is written in
+  # lockstep by `scripts/gen_textmate_grammar.py`. The materialised-
+  # copy approach replaces an earlier symlink design which broke on
+  # Windows / zip-archive extraction (the symlink became a literal
+  # path string). The byte-equality check below catches drift OR a
+  # missing mirror.
   local canonical="${REPO_ROOT}/grammars/textmate/nsl.tmLanguage.json"
   local mirror="${REPO_ROOT}/editors/vscode/syntaxes/nsl.tmLanguage.json"
-  if [[ -f "${canonical}" && -e "${mirror}" ]]; then
+  if [[ ! -f "${canonical}" ]]; then
+    log "  (skipping tooling-grammar-mirror: canonical not yet present)"
+  elif [[ ! -f "${mirror}" ]]; then
+    log "  ERROR: editors/vscode/syntaxes/nsl.tmLanguage.json is"
+    log "         missing while the canonical grammar exists."
+    log "         Run: python3 scripts/gen_textmate_grammar.py"
+    log "         (the generator writes both paths in lockstep)."
+    rc=1
+  else
     log "  cmp ${canonical} ${mirror}"
     if ! cmp -s "${canonical}" "${mirror}"; then
       log "  ERROR: editors/vscode/syntaxes/nsl.tmLanguage.json"
       log "         is not byte-equal to the canonical grammar."
-      log "         Re-create the symlink (Linux: ln -sf"
-      log "         ../../../grammars/textmate/nsl.tmLanguage.json"
-      log "         editors/vscode/syntaxes/nsl.tmLanguage.json) or"
-      log "         re-copy on Windows; per research.md §5."
+      log "         Run: python3 scripts/gen_textmate_grammar.py"
+      log "         (the generator writes both paths in lockstep)."
       rc=1
     fi
-  else
-    log "  (skipping tooling-grammar-mirror: artefacts not yet present)"
   fi
 
   return "${rc}"

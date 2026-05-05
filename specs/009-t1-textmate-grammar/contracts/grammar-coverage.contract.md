@@ -17,7 +17,7 @@ The "production" column refers to surface-syntax productions in
 
 ---
 
-## §1 Reserved keywords (`nsl_lang.ebnf §15`)
+## §1 Reserved keywords (`lang.ebnf §15`)
 
 The keyword set is enumerated in
 `include/nsl/Lex/KeywordSet.def`. T1 reads that file as its
@@ -132,7 +132,7 @@ remain **unscoped** at T1 (per `nsl_tooling_design.md §4.1`'s
 
 ---
 
-## §3 Numeric literals (`nsl_lang.ebnf §13`)
+## §3 Numeric literals (`lang.ebnf §13`)
 
 Pattern ordering is significant — the grammar matches alternatives
 in the order shown.
@@ -146,7 +146,7 @@ in the order shown.
 | Decimal | `\b\d[\d_]*` | `constant.numeric.decimal.nsl` |
 
 **Underscore separators** (`1_000_000`, `8'b1010_0011`) are part
-of the literal token (per `nsl_lang.ebnf §13`'s `digit_part`
+of the literal token (per `lang.ebnf §13`'s `digit_part`
 rule). The whole literal — separators included — receives the
 single numeric scope.
 
@@ -156,7 +156,7 @@ literal receives `constant.numeric.verilog.nsl`.
 
 ---
 
-## §4 String and comment forms (`nsl_lang.ebnf §14`, §13)
+## §4 String and comment forms (`lang.ebnf §14`, §13)
 
 | Form | Regex | Scope |
 |---|---|---|
@@ -165,7 +165,7 @@ literal receives `constant.numeric.verilog.nsl`.
 | String literal | `"(?:\\.|[^"\\])*"` | `string.quoted.double.nsl` |
 | Backslash escape inside string | `\\.` | `constant.character.escape.nsl` |
 
-Block comments are non-nestable per `nsl_lang.ebnf §14` ("NON-
+Block comments are non-nestable per `lang.ebnf §14` ("NON-
 nestable per Ref §0"). The TextMate `begin`/`end` rule honors
 non-nesting natively.
 
@@ -173,15 +173,29 @@ non-nesting natively.
 
 ## §5 Operators (`nsl_tooling_design.md §4.1`)
 
-| Category | Tokens | Scope |
-|---|---|---|
-| arithmetic | `+`, `-`, `*`, `++`, `--` | `keyword.operator.arithmetic.nsl` |
-| bitwise | `&`, `\|`, `^`, `~` | `keyword.operator.bitwise.nsl` |
-| shift | `<<`, `>>` | `keyword.operator.shift.nsl` |
-| comparison | `==`, `!=`, `<=`, `>=`, `<`, `>` | `keyword.operator.comparison.nsl` |
-| logical | `&&`, `\|\|`, `!` | `keyword.operator.logical.nsl` |
-| assignment | `:=`, `=` | `keyword.operator.assignment.nsl` |
-| extension | `#`, `'` | `keyword.operator.extension.nsl` |
+| Category | Scope |
+|---|---|
+| arithmetic | `keyword.operator.arithmetic.nsl` |
+| bitwise | `keyword.operator.bitwise.nsl` |
+| shift | `keyword.operator.shift.nsl` |
+| comparison | `keyword.operator.comparison.nsl` |
+| logical | `keyword.operator.logical.nsl` |
+| assignment | `keyword.operator.assignment.nsl` |
+| extension | `keyword.operator.extension.nsl` |
+
+Token sets per category (operator literals listed in a code block
+to avoid markdown-table column-counting issues with the literal
+`|` and `||` operators):
+
+```text
+arithmetic   +  -  *  ++  --
+bitwise      &  |  ^  ~
+shift        <<  >>
+comparison   ==  !=  <=  >=  <  >
+logical      &&  ||  !
+assignment   :=  =
+extension    #  '
+```
 
 **Pattern ordering** within a category matters for
 multi-character operators: `==` must match before `=`, `<=`
@@ -200,7 +214,7 @@ before `<`, `>=` before `>`, `<<` before `<`, `>>` before `>`,
 
 ---
 
-## §6 Preprocessor directives (`nsl_pp.ebnf §2`)
+## §6 Preprocessor directives (`pp.ebnf §2`)
 
 All directives match at line start and receive
 `keyword.directive.preprocessor.nsl`.
@@ -225,7 +239,7 @@ body-rules-still-apply" pattern.
 
 ---
 
-## §7 Macro reference (`nsl_pp.ebnf §4`)
+## §7 Macro reference (`pp.ebnf §4`)
 
 | Form | Regex | Scope |
 |---|---|---|
@@ -276,6 +290,6 @@ belongs at T4 / T8.
   may colour scopes differently. Reclassification PRs MUST list
   affected fixture assertions and update this contract.
 - **Adding a new operator / new directive / new numeric form** as
-  a result of a `nsl_lang.ebnf` or `nsl_pp.ebnf` amendment: same
+  a result of a `lang.ebnf` or `pp.ebnf` amendment: same
   rule — update spec → update grammar → update this contract,
   all in one PR. Spec ↔ design coupling per Principle VII.

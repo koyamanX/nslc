@@ -51,8 +51,8 @@ affect editor behaviour.
 
 | Field | Required value | Rationale |
 |---|---|---|
-| `lineComment` | `"//"` | Per `nsl_lang.ebnf §14`'s `line_comment` production. |
-| `blockComment[0]` | `"/*"` | Per `nsl_lang.ebnf §14`'s `block_comment` open. |
+| `lineComment` | `"//"` | Per `lang.ebnf §14`'s `line_comment` production. |
+| `blockComment[0]` | `"/*"` | Per `lang.ebnf §14`'s `block_comment` open. |
 | `blockComment[1]` | `"*/"` | Per same. Block comments are non-nestable but `comments.blockComment` does not encode that — the grammar's begin/end rule does (see grammar-coverage.contract.md §4). |
 
 VS Code uses these to drive the comment-toggle commands tested by
@@ -72,12 +72,12 @@ spec User Story 2 acceptance scenarios 2 and 3.
 
 | Pair | Used by | Rationale |
 |---|---|---|
-| `{` `}` | block delimiters per `nsl_lang.ebnf §§4–9` (declare / module / func / proc bodies; alt / any / seq / if blocks); generate-loop bodies §8 | Standard. |
-| `[` `]` | width specifications and bit slices per `nsl_lang.ebnf §11` | Standard. |
-| `(` `)` | function-call argument lists, parenthesised expressions per `nsl_lang.ebnf §11`; declare/module port lists §4 | Standard. |
+| `{` `}` | block delimiters per `lang.ebnf §§4–9` (declare / module / func / proc bodies; alt / any / seq / if blocks); generate-loop bodies §8 | Standard. |
+| `[` `]` | width specifications and bit slices per `lang.ebnf §11` | Standard. |
+| `(` `)` | function-call argument lists, parenthesised expressions per `lang.ebnf §11`; declare/module port lists §4 | Standard. |
 
 **Single quote `'` is intentionally absent.** The Verilog-sized
-literal `8'hFF` (per `nsl_lang.ebnf §13`) consumes `'` as a
+literal `8'hFF` (per `lang.ebnf §13`) consumes `'` as a
 literal-form delimiter; treating `'` as a bracket-pair would
 auto-close the literal mid-parse and break authoring (see spec
 Edge Cases). Documented as a non-default choice here so the
@@ -139,7 +139,7 @@ TypeScript grammar's. Two alternations:
    the digits, or the hex chars are in the negation class).
 2. The negation-class alternation matches identifiers — every
    character that is not whitespace and not a punctuation
-   metacharacter. Aligns with `nsl_lang.ebnf §13`'s `identifier`
+   metacharacter. Aligns with `lang.ebnf §13`'s `identifier`
    production: leading letter or underscore, followed by
    letters / digits / underscores.
 
@@ -193,5 +193,5 @@ once T5 ships.
 | Drop the `_comment_top` SPDX header | **No** — Principle IX SPDX rule | Reject |
 | Auto-close single quote `'` | **No** — breaks Verilog-sized literals | Reject |
 | Add `'` to `surroundingPairs` only (not `autoClosingPairs`) | Conditional | Acceptable: surrounding-pair triggers only with selected text, not free typing — does not break literal authoring. Update §5; document in spec Edge Cases. |
-| Tighten `wordPattern` to match `nsl_lang.ebnf §13`'s exact identifier production | Yes — refinement | Update §6 with the specific regex; add unit-style test under `test/tooling/textmate/word-pattern/` |
+| Tighten `wordPattern` to match `lang.ebnf §13`'s exact identifier production | Yes — refinement | Update §6 with the specific regex; add unit-style test under `test/tooling/textmate/word-pattern/` |
 | Add `onEnterRules` | Yes when T5 lands | Defer; do not add at T1 |

@@ -52,6 +52,12 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 KEYWORD_SET_DEF = REPO_ROOT / "include" / "nsl" / "Lex" / "KeywordSet.def"
 GRAMMAR_OUT = REPO_ROOT / "grammars" / "textmate" / "nsl.tmLanguage.json"
+# Mirror copy under `editors/vscode/syntaxes/`. Per CodeRabbit
+# review on PR #13: a symlink fails on Windows / zip-archive
+# extraction (the path becomes a literal string instead of a
+# resolved file). We materialise both files and let the stage-2
+# `tooling-grammar-mirror` byte-equality check enforce sync.
+GRAMMAR_MIRROR = REPO_ROOT / "editors" / "vscode" / "syntaxes" / "nsl.tmLanguage.json"
 
 # -----------------------------------------------------------------------------
 # Category mapping — data-model.md §1.2
@@ -551,18 +557,21 @@ def main(argv: list[str] | None = None) -> int:
     rendered = render_grammar(grammar)
 
     if args.check:
-        committed = GRAMMAR_OUT.read_text(encoding="utf-8") if GRAMMAR_OUT.exists() else ""
-        if rendered != committed:
-            sys.stderr.write(
-                f"[gen_textmate_grammar] {GRAMMAR_OUT} is stale.\n"
-                f"  Run: python3 scripts/gen_textmate_grammar.py\n"
-                f"  Then commit the regenerated file.\n"
-            )
-            return 1
-        return 0
+        rc = 0
+        for path in (GRAMMAR_OUT, GRAMMAR_MIRROR):
+            committed = path.read_text(encoding="utf-8") if path.exists() else ""
+            if rendered != committed:
+                sys.stderr.write(
+                    f"[gen_textmate_grammar] {path} is stale.\n"
+                    f"  Run: python3 scripts/gen_textmate_grammar.py\n"
+                    f"  Then commit the regenerated file.\n"
+                )
+                rc = 1
+        return rc
 
-    GRAMMAR_OUT.parent.mkdir(parents=True, exist_ok=True)
-    GRAMMAR_OUT.write_text(rendered, encoding="utf-8")
+    for path in (GRAMMAR_OUT, GRAMMAR_MIRROR):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(rendered, encoding="utf-8")
     n_patterns = len(grammar["patterns"])
     n_repo = len(grammar["repository"])
     sys.stdout.write(

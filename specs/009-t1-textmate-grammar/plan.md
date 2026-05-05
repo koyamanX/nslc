@@ -12,10 +12,10 @@ tooling deliverable, gating only on the spec (no compiler dependency).
 T1 ships two JSON artefacts plus a scope-test fixture corpus:
 
 1. **`grammars/textmate/nsl.tmLanguage.json`** — TextMate grammar
-   covering every reserved keyword from `nsl_lang.ebnf §15`, every
+   covering every reserved keyword from `lang.ebnf §15`, every
    numeric form from `§13`, every comment / string / operator form
    from `§14` and `nsl_tooling_design.md §4.1`, every preprocessor
-   directive from `nsl_pp.ebnf §2`, and the `%IDENT%` macro form
+   directive from `pp.ebnf §2`, and the `%IDENT%` macro form
    from `§4`. Scope name is `source.nsl`; file extensions are
    `.nsl`, `.nslh`, `.inc`.
 2. **`editors/vscode/language-configuration.json`** — VS Code editor
@@ -79,14 +79,17 @@ schema). Generator scripts in Python 3 (matches existing
   enumeration (lit + FileCheck for lowering / E2E; gtest / nsl-opt
   for unit / dialect) does not constrain non-compiler tooling tests;
   `vscode-tmgrammar-test` is the conventional driver for this layer.
-- **Format**: assertion files use `vscode-tmgrammar-test`'s `// >`
+- **Format**: assertion files use `vscode-tmgrammar-test`'s `// <-` and `// ^^^`
   syntax — each assertion line points back at a fixture line and
   asserts the expected scope at a specific column range.
-- **Coverage**: ≥ 1 occurrence per reserved keyword (≥ 42 distinct
+- **Coverage**: ≥ 1 occurrence per reserved keyword (42 distinct
   keywords as of 2026-05-04 per `KeywordSet.def`), ≥ 1 per numeric
-  form (≥ 8 forms), ≥ 1 per directive form (9 directives), ≥ 1 per
-  operator category (8 categories), ≥ 1 macro reference, ≥ 1 line
-  comment, ≥ 1 block comment, ≥ 1 string literal with escape.
+  form (5 distinct regex patterns per `data-model.md §1.4`:
+  decimal, hex, binary, octal, Verilog-sized — Verilog-sized
+  exemplars cover `b`/`o`/`d`/`h` and `Z`/`X`/`U` value markers),
+  ≥ 1 per directive form (9 directives), ≥ 1 per operator
+  category (7 categories), ≥ 1 macro reference, ≥ 1 line comment,
+  ≥ 1 block comment, ≥ 1 string literal with escape.
 
 **Target Platform**: any TextMate-compatible editor (VS Code,
 Sublime Text 4, Atom, GitHub web, TextMate itself). Fast path:
@@ -110,10 +113,11 @@ fixture, checks ~100 assertions.)
   which is itself deferred).
 
 **Scale/Scope**: 42 reserved keywords (current `KeywordSet.def`
-count); 11 system functions + 2 system variables (`HelperSet.def`
-boundary applies — see research.md §3); 9 preprocessor directives
-(`nsl_pp.ebnf §2`); 1 macro form (`%IDENT%`); 8 numeric forms;
-~ 25 distinct operator tokens grouped into 8 categories. Fixture
+count); 9 system functions + 2 system variables per
+`data-model.md §1.3` (`HelperSet.def` boundary applies — see
+research.md §3); 9 preprocessor directives (`pp.ebnf §2`); 1
+macro form (`%IDENT%`); 5 numeric-form regex patterns; ~ 24
+distinct operator tokens grouped into 7 categories. Fixture
 corpus expected ≤ 200 lines NSL plus parallel assertion files;
 total in-tree footprint ≤ 50 KB JSON + ≤ 30 KB fixtures.
 
@@ -128,7 +132,7 @@ artefact; **N/A** — principle does not apply to this layer.
 
 | # | Principle | Status | Notes |
 |---|---|---|---|
-| I | Spec Is Authoritative | **PASS** | T1 mirrors `nsl_lang.ebnf §15` mechanically via `KeywordSet.def` consumption. The "no silent AST drops" sub-clause does not apply (no parser). |
+| I | Spec Is Authoritative | **PASS** | T1 mirrors `lang.ebnf §15` mechanically via `KeywordSet.def` consumption. The "no silent AST drops" sub-clause does not apply (no parser). |
 | II | Layered Library Architecture | **PASS** (trivially) | T1 has no C++ library, no parser, no AST — the no-duplication rule has nothing to duplicate. The deliverable is JSON + Python generators only. |
 | III | Stock CIRCT Below `nsl` Dialect | **N/A** | T1 is upstream of the entire compiler stack; no CIRCT involvement. |
 | IV | Source-Locating Diagnostics | **N/A** | TextMate runtime emits no diagnostics. Scope-test failure messages are runner output, not user-facing diagnostics. |
@@ -187,19 +191,14 @@ test/
 └── tooling/                                    # NEW directory tree
     └── textmate/
         ├── fixtures/
-        │   ├── all-keywords.nsl                # generated; one occurrence per KeywordSet.def entry
-        │   ├── all-numbers.nsl                 # hand-authored; bare/0x/0b/0o + Verilog-sized × b/o/d/h
-        │   ├── all-operators.nsl               # hand-authored; one per operator category
-        │   ├── all-directives.nsl              # hand-authored; one line per pp.ebnf §2 directive
-        │   ├── comments-and-strings.nsl        # hand-authored; line/block comments + strings + escapes
-        │   └── macro-references.nsl            # hand-authored; %IDENT% in expression position
-        └── scope-tests/
-            ├── all-keywords.spec               # generated assertions
-            ├── all-numbers.spec
-            ├── all-operators.spec
-            ├── all-directives.spec
-            ├── comments-and-strings.spec
-            └── macro-references.spec
+        │   ├── all-keywords.nsl                # generated; line-1 `// SYNTAX TEST "source.nsl"` header + inline `// <-` / `// ^^^` assertions
+        │   ├── all-numbers.nsl                 # hand-authored; same inline-assertion shape
+        │   ├── all-operators.nsl               # hand-authored
+        │   ├── all-directives.nsl              # hand-authored
+        │   ├── comments-and-strings.nsl        # hand-authored; includes negative-coverage assertions
+        │   └── macro-references.nsl            # hand-authored; %IDENT% in width position
+        └── scope-tests/                         # reserved for future driver migrations; T1 keeps assertions inline in the fixture files above (see contracts/scope-test-format.contract.md §1.1 / §2)
+            └── .gitkeep
 
 include/nsl/Lex/KeywordSet.def                 # EXISTING — single source of truth; T1 consumes
 ```

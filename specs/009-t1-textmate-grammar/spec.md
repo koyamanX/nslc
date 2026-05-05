@@ -35,7 +35,7 @@ TextMate grammars. Reserved keywords (`module`, `declare`, `reg`, `wire`,
 `proc`, `state`, `func`, `goto`, `finish`, …), comments, string literals,
 and number literals (decimal, hex `0x…`, binary `0b…`, octal `0o…`, and
 the Verilog-style sized form `<width>'b…` / `'o…` / `'d…` / `'h…`
-including `Z` / `X` / `U` value markers per `nsl_lang.ebnf §13`) are each
+including `Z` / `X` / `U` value markers per `lang.ebnf §13`) are each
 visually distinct. The reader can scan the file and recognise its
 structure without invoking the compiler.
 
@@ -47,7 +47,7 @@ binary is needed.
 
 **Independent Test**: Open a representative NSL file from the audited
 corpus (e.g. `rv32x_dev/main.nsl`) in VS Code with the grammar folder
-loaded; observe that every reserved keyword from `nsl_lang.ebnf §15` is
+loaded; observe that every reserved keyword from `lang.ebnf §15` is
 coloured under the keyword scope, every number form under a numeric
 scope, every comment under a comment scope, every string under a string
 scope, and that no token inside a comment or string is mis-coloured as a
@@ -56,7 +56,7 @@ keyword.
 **Acceptance Scenarios**:
 
 1. **Given** an NSL file containing every reserved keyword from
-   `nsl_lang.ebnf §15`, **When** opened in a TextMate-compatible viewer
+   `lang.ebnf §15`, **When** opened in a TextMate-compatible viewer
    with the T1 grammar loaded, **Then** every keyword token is assigned
    to the keyword-category scope appropriate to its role
    (declaration / control / flow / modifier / storage / system).
@@ -96,7 +96,7 @@ tooling track.
 **Independent Test**: In VS Code, open a fresh `.nsl` file with the T1
 package loaded; type `module foo {⏎` and confirm that the cursor lands
 indented inside an auto-inserted `}`; select a region and press the
-comment-toggle shortcut; confirm the selection is wrapped in `// `
+comment-toggle shortcut; confirm the selection is wrapped in `//`
 (line) or `/* … */` (block) appropriately; type `"a` and confirm a
 closing `"` is auto-inserted.
 
@@ -120,7 +120,7 @@ closing `"` is auto-inserted.
 ### User Story 3 — Preprocessor directives and macro splices are visually distinguished (Priority: P3)
 
 NSL source uses the line-oriented preprocessor described in
-`nsl_pp.ebnf §2` (`#include`, `#define`, `#undef`, `#if`, `#ifdef`,
+`pp.ebnf §2` (`#include`, `#define`, `#undef`, `#if`, `#ifdef`,
 `#ifndef`, `#else`, `#endif`, `#line`) and the `%IDENT%` macro splicing
 form described in `§4`. Both should be visually distinct from
 NSL-language keywords so a reader can see at a glance where the
@@ -133,7 +133,7 @@ Calling them out as a separate category is high value but lower priority
 than baseline keyword/comment/literal colouring (P1).
 
 **Independent Test**: Open a fixture file containing every directive
-form from `nsl_pp.ebnf §2` plus one `%IDENT%` reference; confirm each
+form from `pp.ebnf §2` plus one `%IDENT%` reference; confirm each
 directive line carries a directive scope distinct from
 `keyword.declaration` / `keyword.control`, and that `%IDENT%` carries
 its own macro-reference scope.
@@ -158,7 +158,7 @@ its own macro-reference scope.
 
 The NSL spec evolves under Constitution Principle I (monotonic
 S/N/P numbering) and the `coupling-audit` rule (Principle VII): any
-spec change that touches `nsl_lang.ebnf §15` (reserved keywords) must
+spec change that touches `lang.ebnf §15` (reserved keywords) must
 propagate to the highlighter. The maintainer needs an automated check
 that catches drift before merge.
 
@@ -177,7 +177,7 @@ new keyword; re-run the tests and confirm they pass.
 
 1. **Given** the current grammar and the current fixture, **When** the
    scope tests run, **Then** every assertion passes.
-2. **Given** a new keyword added to `nsl_lang.ebnf §15` but not to the
+2. **Given** a new keyword added to `lang.ebnf §15` but not to the
    grammar, **When** a corresponding fixture line is added asserting
    the new keyword's scope, **Then** the scope tests fail and identify
    the missing keyword by name.
@@ -196,10 +196,10 @@ new keyword; re-run the tests and confirm they pass.
   same — only the string scope applies.
 - **Verilog-sized number with `Z`/`X`/`U` value markers**
   (`8'hFZ_3X`, `4'bx10z`): the entire token is one numeric literal;
-  underscores within digits are part of the token (per `nsl_lang.ebnf
+  underscores within digits are part of the token (per `lang.ebnf
   §13`).
 - **Sign-extend `#` vs `#line` directive**: both use `#`. The directive
-  matches at line start (per `nsl_pp.ebnf §1` line orientation); the
+  matches at line start (per `pp.ebnf §1` line orientation); the
   sign-extend `#` matches in expression position. TextMate is
   context-free so this disambiguation is best-effort and will be
   perfected at T8 (tree-sitter) and T4 (LSP semantic tokens). This
@@ -209,7 +209,7 @@ new keyword; re-run the tests and confirm they pass.
   scope at T1. Refinement deferred to T4/T8.
 - **Built-in `_`-prefix names** (`_display`, `_random`, `_time`,
   `_finish`, `_init`, `_delay`, `_readmemh`, `_readmemb`, `_stop`,
-  `_monitor`, `_write`, per `nsl_lang.ebnf` parser note N11): these
+  `_monitor`, `_write`, per `lang.ebnf` parser note N11): these
   receive a dedicated system-name scope distinct from regular
   identifiers; user-defined `_x` names remain unscoped.
 - **Backslash escapes inside strings** (`"a\nb"`): the backslash
@@ -250,23 +250,23 @@ new keyword; re-run the tests and confirm they pass.
   frozen in `contracts/grammar-coverage.contract.md §1`.
 - **FR-003**: The grammar MUST recognise line comments (`// …` to end
   of line) and block comments (`/* … */`, non-nestable per
-  `nsl_lang.ebnf §14`) and ensure no inner token receives a non-comment
+  `lang.ebnf §14`) and ensure no inner token receives a non-comment
   scope.
 - **FR-004**: The grammar MUST recognise string literals (`"…"` with
   backslash escapes) and ensure no inner token receives a non-string
   scope; backslash escape sequences inside strings receive a distinct
   sub-scope.
 - **FR-005**: The grammar MUST recognise every numeric literal form
-  defined in `nsl_lang.ebnf §13`: bare decimal, hex `0x…`, binary
+  defined in `lang.ebnf §13`: bare decimal, hex `0x…`, binary
   `0b…`, octal `0o…`, and Verilog-style sized literals `<width>'b…`,
   `<width>'o…`, `<width>'d…`, `<width>'h…`, including `Z`/`X`/`U`
   value markers and underscore digit separators.
 - **FR-006**: The grammar MUST recognise every preprocessor directive
-  defined in `nsl_pp.ebnf §2` (`#include`, `#define`, `#undef`, `#if`,
+  defined in `pp.ebnf §2` (`#include`, `#define`, `#undef`, `#if`,
   `#ifdef`, `#ifndef`, `#else`, `#endif`, `#line`) and assign them a
   directive scope distinct from NSL-language keyword scopes.
 - **FR-007**: The grammar MUST recognise the `%IDENT%` macro-reference
-  form defined in `nsl_pp.ebnf §4` and assign it a macro-reference
+  form defined in `pp.ebnf §4` and assign it a macro-reference
   scope distinct from identifier and keyword scopes.
 - **FR-008**: The grammar MUST recognise operators per
   `nsl_tooling_design.md §4.1`: arithmetic (`+`, `-`, `*`, `++`, `--`),
@@ -279,7 +279,7 @@ new keyword; re-run the tests and confirm they pass.
   `_readmemb`/`_init`/`_delay`; system variables `_random`/`_time`)
   and assign them a system-name scope distinct from user identifiers.
 - **FR-010**: The grammar MUST recognise auto-synthesised clock and
-  reset names `m_clock` and `p_reset` (per `nsl_lang.ebnf §15` and
+  reset names `m_clock` and `p_reset` (per `lang.ebnf §15` and
   `nsl_tooling_design.md §4.1`) and assign them a clock/reset support
   scope.
 
@@ -294,7 +294,7 @@ new keyword; re-run the tests and confirm they pass.
   pairs, auto-close pairs, and surround-with pairs for `()`, `[]`,
   `{}`, and `"…"`.
 - **FR-014**: The language configuration MUST declare a word pattern
-  matching the NSL identifier production from `nsl_lang.ebnf §13` —
+  matching the NSL identifier production from `lang.ebnf §13` —
   i.e. a leading letter or underscore followed by letters / digits /
   underscores.
 - **FR-015**: The language configuration MUST declare an indent-rule
@@ -304,10 +304,10 @@ new keyword; re-run the tests and confirm they pass.
 #### Test gate (mandatory per README §Roadmap T1)
 
 - **FR-016**: A scope-test fixture MUST exist that contains at least
-  one occurrence of every reserved keyword from `nsl_lang.ebnf §15`,
+  one occurrence of every reserved keyword from `lang.ebnf §15`,
   every numeric literal form from `§13`, every operator category from
   `nsl_tooling_design.md §4.1`, every preprocessor directive form
-  from `nsl_pp.ebnf §2`, every `%IDENT%` form from `§4`, both comment
+  from `pp.ebnf §2`, every `%IDENT%` form from `§4`, both comment
   forms, and at least one string literal with an escape sequence.
 - **FR-017**: An automated scope-test runner MUST verify, for every
   expected (file, line, column) → scope assertion in the fixture,
@@ -379,7 +379,7 @@ new keyword; re-run the tests and confirm they pass.
   100% of reserved keywords coloured under the keyword scope, with
   zero keyword-mis-colouring inside comments or string literals.
 - **SC-002**: The scope-test fixture asserts ≥ 1 occurrence per
-  reserved keyword in `nsl_lang.ebnf §15` (currently **42 distinct
+  reserved keyword in `lang.ebnf §15` (currently **42 distinct
   keyword assertions** as of 2026-05-04; the count tracks the
   X-macro file `include/nsl/Lex/KeywordSet.def` in source-of-truth
   coupling per Principle VII), ≥ 1 occurrence per numeric form
@@ -388,7 +388,7 @@ new keyword; re-run the tests and confirm they pass.
   `Z`/`X`/`U` markers), and ≥ 1 occurrence per directive form
   (9 directives) — and 100% of these assertions pass on a clean
   checkout.
-- **SC-003**: When `nsl_lang.ebnf §15` gains a new reserved keyword,
+- **SC-003**: When `lang.ebnf §15` gains a new reserved keyword,
   the same PR that adds the keyword adds a fixture assertion and a
   grammar entry; the scope tests pass before the PR merges. (This
   is enforceable via CI — when the spec changes without a grammar

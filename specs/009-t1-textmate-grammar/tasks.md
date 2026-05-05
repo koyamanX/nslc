@@ -74,7 +74,7 @@ script.
 
 ## Phase 3: User Story 1 — NSL author opens a file and sees structure (Priority: P1) 🎯 MVP
 
-**Goal**: Every reserved keyword from `nsl_lang.ebnf §15`, every
+**Goal**: Every reserved keyword from `lang.ebnf §15`, every
 numeric form from §13, every comment / string form from §14, and
 every operator from `nsl_tooling_design.md §4.1` highlights with
 the correct TextMate scope. No comment-shadowed or string-shadowed
@@ -83,12 +83,13 @@ readable in any TextMate-compatible viewer.
 
 **Independent Test**: Run `./scripts/ci.sh tooling-textmate`
 locally (or `npx vscode-tmgrammar-test ...` directly per
-`quickstart §3`); all assertions in `all-keywords.spec`,
-`all-numbers.spec`, `comments-and-strings.spec`, and
-`all-operators.spec` pass. Open `rv32x_dev/main.nsl` (or hand-
-written equivalent if P-VEN not yet landed — see spec Assumptions)
-in VS Code with the T1 extension loaded; the Inspect-Tokens panel
-shows expected scopes on representative tokens.
+`quickstart §3`); all inline `// <-` and `// ^^^` assertions in
+`fixtures/all-keywords.nsl`, `fixtures/all-numbers.nsl`,
+`fixtures/comments-and-strings.nsl`, and `fixtures/all-operators.nsl`
+pass. Open `rv32x_dev/main.nsl` (or hand-written equivalent if
+P-VEN not yet landed — see spec Assumptions) in VS Code with
+the T1 extension loaded; the Inspect-Tokens panel shows expected
+scopes on representative tokens.
 
 ### Tests for User Story 1 (MANDATORY per Constitution Principle VIII) ⚠️
 
@@ -157,8 +158,9 @@ colours correctly AND VS Code provides editor affordances.
 all carry distinct scopes from NSL-language keywords; readers
 see the preprocessor seam (P12) at a glance.
 
-**Independent Test**: Run `npx vscode-tmgrammar-test --tests "scope-tests/all-directives.spec"`
-and `…/macro-references.spec`; all assertions pass. Visually
+**Independent Test**: Run `npx vscode-tmgrammar-test --grammar ../../../grammars/textmate/nsl.tmLanguage.json 'fixtures/all-directives.nsl' 'fixtures/macro-references.nsl'`
+from `test/tooling/textmate/`; all inline `// <-` and `// ^^^`
+assertions pass. Visually
 inspect the rendered fixture in VS Code with a colour theme that
 distinguishes `keyword.directive.preprocessor.nsl` from
 `keyword.declaration.nsl`; confirm the difference.
@@ -184,7 +186,7 @@ seam visible.
 
 ## Phase 6: User Story 4 — Drift gate (CI integration) (Priority: P3)
 
-**Goal**: When `nsl_lang.ebnf §15` (and therefore
+**Goal**: When `lang.ebnf §15` (and therefore
 `include/nsl/Lex/KeywordSet.def`) gains a keyword and the
 contributor forgets to regenerate the grammar, CI fails the PR
 with a localised error. When the grammar is regenerated and
@@ -355,10 +357,12 @@ The three streams converge before US4 (Phase 6) and Polish
 - [Story] labels enable traceability from a task back to the spec
   user story and from there to the FRs.
 - Each user story is independently testable via its own subset of
-  scope-test specs (US1 → all-keywords.spec / all-numbers.spec /
-  comments-and-strings.spec / all-operators.spec; US2 → manual VS
-  Code installation; US3 → all-directives.spec / macro-
-  references.spec; US4 → empirical drift-gate test in T039).
+  fixture subsets (US1 → fixtures/{all-keywords,all-numbers,
+  comments-and-strings,all-operators}.nsl; US2 → manual VS Code
+  installation; US3 → fixtures/{all-directives,macro-references}.nsl;
+  US4 → empirical drift-gate test in T039). All assertions are
+  inline within their fixture files per
+  `contracts/scope-test-format.contract.md §1.1`.
 - Verify red-state-before-green per Principle VIII: capture both
   outputs in the PR description so the no-retrofitted-tests clause
   is satisfied even under squash-merge.

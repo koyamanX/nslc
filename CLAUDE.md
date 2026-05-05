@@ -171,8 +171,8 @@ rules) and a scope-test fixture corpus under
 `test/tooling/textmate/` consumed by `vscode-tmgrammar-test` in
 `./scripts/ci.sh` stage 3. The grammar's keyword block is
 **generated** from `include/nsl/Lex/KeywordSet.def` (the established
-single-source-of-truth) via a new `scripts/gen_textmate_grammar.py`
-+ `scripts/gen_textmate_fixtures.py` pair, mirroring the existing
+single-source-of-truth) via the new `scripts/gen_textmate_grammar.py`
+and `scripts/gen_textmate_fixtures.py` pair, mirroring the existing
 `gen_keyword_fixtures.py` precedent; CI gates regenerate-and-diff
 so spec ↔ grammar drift is mechanically impossible (Principle VII
 coupling). T1 is the only T-track milestone with no compiler

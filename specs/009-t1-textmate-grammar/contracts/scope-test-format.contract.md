@@ -22,8 +22,10 @@ Each fixture is an `.nsl` file under
 
 1. **Real NSL surface syntax** — at least one occurrence of every
    token under test in that file's category.
-2. **Inline assertion comments** prefixed with `// >` (and
-   variant `// <-`) per the `vscode-tmgrammar-test` DSL.
+2. **Inline assertion comments** using the markers `// <-`
+   (single-character assertion at column 1 of the previous line)
+   and `// ^^^` (range assertion across the carets' span on the
+   previous line) per the `vscode-tmgrammar-test` DSL.
 3. **No** runtime / executable behaviour — these files are *not*
    compiled by `nslc`. The grammar runs over the raw bytes.
 
@@ -207,7 +209,7 @@ NSL spec amendment:
 
 - **Tree-sitter parse-tree assertions** — T8's analogous file
   format is the `tree-sitter` corpus format (`test/highlight/`),
-  not the `vscode-tmgrammar-test` `// >` form. T8 may borrow
+  not the `vscode-tmgrammar-test` `// <-` / `// ^^^` form. T8 may borrow
   this contract's structure but will introduce its own
   `*-tree-sitter.contract.md`.
 - **LSP semantic-token assertions** — T4's analogous test layer
