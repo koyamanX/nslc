@@ -40,6 +40,8 @@
 #include "CSTBuilder.h"
 #include "Diff.h"
 #include "DirectiveSplitter.h"
+#include "LayoutPlanner.h"
+#include "LayoutRenderer.h"
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
@@ -81,30 +83,45 @@ FormatResult format_buffer(llvm::StringRef sourceBuffer,
   DirectiveSplitter splitter;
   auto slices = splitter.split(sourceBuffer, fileID);
 
-  // T2 Phase 3-parse (T059) — per-fragment parse with atomic
-  // refusal per research §10.
+  // T2 Phase 3-skeleton — per-fragment parse + LayoutPlanner +
+  // LayoutRenderer pipeline (research §10 + §11 + §12).
   //
-  // Each NSLFragment slice is parsed as a standalone CompilationUnit
-  // through a fresh SourceManager + Lexer + DiagnosticEngine. If
-  // ANY fragment fails to lex+parse, the WHOLE format_buffer call
-  // returns Status::Refused — no partial output (FR-012 atomic
-  // refusal as clarified Session 2026-05-05 — Q1).
+  // Per slice:
+  //   * Directive → emit rawText verbatim (FR-012a opaque tokens)
+  //   * Whitespace-only NSLFragment → emit rawText verbatim
+  //     (parsing is vacuous; would mint an empty CompilationUnit)
+  //   * NSLFragment with content → parse as standalone
+  //     CompilationUnit; on parse error → ATOMIC REFUSAL of the
+  //     whole format_buffer call (FR-012 + Q1 strict refusal).
+  //     On success → LayoutPlanner.build(cu) → LayoutRenderer.render().
   //
-  // Documented limitation (research §10): NSL fragments split mid-
-  // body by `#ifdef`/`#endif` are NOT well-formed standalone
-  // CompilationUnits and WILL refuse. Same trade-off as
-  // `clang-format`'s preprocessor model.
-  //
-  // Phase 3+ replaces the byte-passthrough emission below with
-  // `LayoutPlanner(cu).buildDoc()` + LayoutRenderer. For now,
-  // successful parse → emit slice.rawText verbatim (idempotent by
-  // construction).
+  // At Phase 3-skeleton the LayoutPlanner uses a verbatim fallback
+  // for every AST node kind (emit `Doc::text(<node's source bytes>)`).
+  // Total output equals input concatenation — same byte-passthrough
+  // as Phase 3-parse. Phase 3-rules incrementally replaces the
+  // per-NodeKind handlers with canonical Doc construction (T049-T055).
+
+  // Map Configuration::Indent → LayoutRenderer indent-spaces value.
+  // Tab mode uses negative-1 sentinel per LayoutRenderer.h doc.
+  int indent_spaces = 4;
+  switch (config.indent) {
+    case Configuration::Indent::Spaces2: indent_spaces = 2;  break;
+    case Configuration::Indent::Spaces4: indent_spaces = 4;  break;
+    case Configuration::Indent::Tab:     indent_spaces = -1; break;
+  }
+  LayoutRenderer renderer;
+
+  std::string out;
+  out.reserve(sourceBuffer.size());
+
   for (const Slice &s : slices) {
-    if (s.kind != Slice::Kind::NSLFragment) {
-      continue; // Directives are opaque; no parse needed.
+    if (s.kind == Slice::Kind::Directive) {
+      // FR-012a: opaque pass-through.
+      out.append(s.rawText.data(), s.rawText.size());
+      continue;
     }
-    // Skip whitespace-only fragments (parsing them is vacuous and
-    // wastes a SourceManager construction).
+
+    // NSL fragment. Detect whitespace-only to skip the parse.
     bool only_whitespace = true;
     for (char c : s.rawText) {
       if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
@@ -113,9 +130,11 @@ FormatResult format_buffer(llvm::StringRef sourceBuffer,
       }
     }
     if (only_whitespace) {
+      out.append(s.rawText.data(), s.rawText.size());
       continue;
     }
 
+    // Parse the fragment as a standalone CompilationUnit.
     ::nsl::SourceManager fragment_sm;
     std::vector<char> bytes(s.rawText.begin(), s.rawText.end());
     ::nsl::FileID fragment_fid =
@@ -126,28 +145,19 @@ FormatResult format_buffer(llvm::StringRef sourceBuffer,
         ::nsl::parse::parseCompilationUnit(fragment_lex, fragment_diag);
 
     if (cu == nullptr || fragment_diag.hasError()) {
-      // Atomic refusal: copy diagnostics + return Refused. SourceLocation
-      // values reference the per-fragment private FileID (caller's
-      // CLI surfaces the message text; full file:line:col mapping
-      // is a Phase 3+ refinement).
+      // Atomic refusal — drop everything emitted so far + return.
       result.status = FormatResult::Status::Refused;
       for (const ::nsl::Diagnostic &d : fragment_diag.diagnostics()) {
         result.diagnostics.push_back(d);
       }
       return result;
     }
-    // Parse succeeded — fragment is well-formed. Phase 3+ will
-    // layout it via the LayoutPlanner; for now just continue to
-    // verbatim emission below.
-  }
 
-  // Byte-passthrough emission (still — the LayoutPlanner replaces
-  // this in Phase 3+). The DirectiveSplitter guarantees no-byte-
-  // loss; concatenating slice rawText reproduces the source.
-  std::string out;
-  out.reserve(sourceBuffer.size());
-  for (const Slice &s : slices) {
-    out.append(s.rawText.data(), s.rawText.size());
+    // Build Doc + render. At Phase 3-skeleton this is byte-identical
+    // to s.rawText (verbatim fallback for every AST node kind).
+    LayoutPlanner planner(s.rawText, config);
+    DocPtr doc = planner.build(*cu);
+    out.append(renderer.render(doc, config.max_line_length, indent_spaces));
   }
 
   // T061 — CRLF → LF normalization (per spec edge case + R7

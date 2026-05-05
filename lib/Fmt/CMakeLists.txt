@@ -46,6 +46,7 @@ add_library(NslFmt STATIC
   CSTBuilder.cpp
   Doc.cpp                # T2 Phase 2c — Wadler-Leijen IR (T024)
   LayoutRenderer.cpp     # T2 Phase 2c — ribbon-fitter (T025)
+  LayoutPlanner.cpp      # T2 Phase 3-skeleton — AST → Doc IR visitor
   Config.cpp             # T2 Phase 2c → 6 — Configuration + parse_config_file (T088/T089/T087/T103/T104/T105)
   ConfigDiscovery.cpp    # T2 Phase 6 — discover_config upward walk (T106)
   Format.cpp             # T2 Phase 2c — format_buffer skeleton (T026/T027)
@@ -64,6 +65,7 @@ target_link_libraries(NslFmt
     nsl-basic
     nsl-lex      # T2 Phase 2c — Lexer + Token (used by future Format.cpp paths)
     nsl-parse    # T2 Phase 2b — CSTSink interface in Parser.h
+    nsl-ast      # T2 Phase 3-skeleton — AST visitor in LayoutPlanner
   PRIVATE
     tomlpp)      # T2 Phase 6 (T103) — TOML config parsing in Config.cpp
 
