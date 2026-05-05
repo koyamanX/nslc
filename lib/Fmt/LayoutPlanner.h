@@ -40,6 +40,7 @@
 #include "Doc.h"
 
 #include "nsl/AST/ASTVisitor.h"
+#include "nsl/AST/AltBlock.h"   // for the shared `CondCase` struct
 #include "nsl/AST/BinaryExpr.h" // for nested `BinaryExpr::Op`
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/UnaryExpr.h"  // for nested `UnaryExpr::Op`
@@ -110,6 +111,11 @@ protected:
   DocPtr formatNode(const ::nsl::ast::RegDecl &node);
   DocPtr formatNode(const ::nsl::ast::WireDecl &node);
   DocPtr formatNode(const ::nsl::ast::StructDecl &node);
+  DocPtr formatNode(const ::nsl::ast::FuncDefn &node);
+  DocPtr formatNode(const ::nsl::ast::SeqBlock &node);
+  DocPtr formatNode(const ::nsl::ast::ParallelBlock &node);
+  DocPtr formatNode(const ::nsl::ast::AltBlock &node);
+  DocPtr formatNode(const ::nsl::ast::AnyBlock &node);
   DocPtr formatNode(const ::nsl::ast::BinaryExpr &node);
   DocPtr formatNode(const ::nsl::ast::UnaryExpr &node);
   DocPtr formatNode(const ::nsl::ast::SliceExpr &node);
@@ -131,6 +137,16 @@ protected:
 
   /// Spelling table for `UnaryExpr::Op`. Same lifetime guarantee.
   static llvm::StringRef unaryOpSpelling(::nsl::ast::UnaryExpr::Op op);
+
+  /// Shared body of `formatNode(AltBlock)` / `formatNode(AnyBlock)`.
+  /// `AltBlock` and `AnyBlock` carry the same `CondCase` arms (per
+  /// `AltBlock.h`'s shared struct) and the same R1 alignment rule —
+  /// only the leading keyword differs. Pass it via `keyword` ("alt"
+  /// or "any"). Returns the canonical Doc for the block.
+  DocPtr formatCondCaseBlock(
+      const std::vector<::nsl::ast::CondCase> &cases,
+      const ::nsl::ast::Stmt *elseCase,
+      llvm::StringRef keyword);
 
   /// Visit a single child node and return its Doc representation.
   /// Future Phase 3-rules overrides (T049-T055) use this to recurse

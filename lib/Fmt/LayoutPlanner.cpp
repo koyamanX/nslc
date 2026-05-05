@@ -388,6 +388,134 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::StructDecl &node) {
   return Doc::concat(std::move(top_parts));
 }
 
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::FuncDefn &node) {
+  // Recursion-only override: `func <name> ` prefix and ` }` suffix
+  // are emitted by the parent's verbatim gap; we only need to make
+  // sure the body Stmt (which may transitively contain an
+  // `AltBlock` / `AnyBlock` whose canonical R1 layout we need to
+  // fire) is *visited* rather than swallowed by the FuncDefn's own
+  // verbatim fallback.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  if (node.body() != nullptr) {
+    children.push_back(node.body());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::SeqBlock &node) {
+  // Recursion-only override. Items + decls merge into a single
+  // source-position-sorted child list (mirrors the four-vector
+  // merge in `formatNode(ModuleBlock)`); the wrapping `seq { ... }`
+  // is preserved by the gap-emit logic in `interleaveChildren`.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(node.items().size() + node.decls().size());
+  for (const auto &n : node.items()) {
+    children.push_back(n.get());
+  }
+  for (const auto &n : node.decls()) {
+    children.push_back(n.get());
+  }
+  std::sort(children.begin(), children.end(),
+            [](const ::nsl::ast::ASTNode *a, const ::nsl::ast::ASTNode *b) {
+              return a->loc().begin().offset() < b->loc().begin().offset();
+            });
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ParallelBlock &node) {
+  // Recursion-only override paralleling `formatNode(SeqBlock)`. The
+  // anonymous `{ ... }` block parsed as a function body
+  // (`func f { ... }`) lands here as a `ParallelBlock` (per the
+  // NSL `parallel_block_item` shape — multiple statements inside a
+  // function body execute in parallel within one cycle). Same
+  // items+decls merge logic as SeqBlock.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(node.items().size() + node.decls().size());
+  for (const auto &n : node.items()) {
+    children.push_back(n.get());
+  }
+  for (const auto &n : node.decls()) {
+    children.push_back(n.get());
+  }
+  std::sort(children.begin(), children.end(),
+            [](const ::nsl::ast::ASTNode *a, const ::nsl::ast::ASTNode *b) {
+              return a->loc().begin().offset() < b->loc().begin().offset();
+            });
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::AltBlock &node) {
+  return formatCondCaseBlock(node.cases(), node.elseCase(),
+                              llvm::StringRef("alt"));
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::AnyBlock &node) {
+  return formatCondCaseBlock(node.cases(), node.elseCase(),
+                              llvm::StringRef("any"));
+}
+
+DocPtr LayoutPlanner::formatCondCaseBlock(
+    const std::vector<::nsl::ast::CondCase> &cases,
+    const ::nsl::ast::Stmt *elseCase, llvm::StringRef keyword) {
+  // R1 §1: in `<keyword> { cond : body; ... }` the `:` separators
+  // align in the same source column. The column is anchored on the
+  // longest condition expression — one space follows the longest
+  // condition; shorter conditions are padded.
+  //
+  // Width measurement uses the source-byte span of `cond->loc()`
+  // as a proxy for the canonical-rendered width. This is exact
+  // when the source already carries canonical spacing (the case
+  // for the T033 fixture and the audited NSL corpus); for inputs
+  // with non-canonical spacing in conditions the alignment can be
+  // off by the spacing-delta. A future revision should render each
+  // cond Doc to a flat string and measure that — `flatWidth` in
+  // LayoutRenderer.cpp is the natural extension point.
+  std::size_t max_cond = 0;
+  for (const auto &c : cases) {
+    if (c.cond) {
+      auto cr = c.cond->loc();
+      std::size_t w = cr.end().offset() - cr.begin().offset();
+      if (w > max_cond) {
+        max_cond = w;
+      }
+    }
+  }
+
+  std::vector<DocPtr> body_parts;
+  body_parts.reserve(cases.size() * 6 + (elseCase ? 4 : 0));
+  for (const auto &c : cases) {
+    body_parts.push_back(Doc::hardline());
+    body_parts.push_back(c.cond ? visitNode(*c.cond)
+                                  : Doc::text(llvm::StringRef{}));
+    const std::size_t cond_w =
+        c.cond ? (c.cond->loc().end().offset() - c.cond->loc().begin().offset())
+               : std::size_t{0};
+    const std::size_t pad = cfg_.align_case_arrows
+                                ? ((max_cond + 1) - cond_w)
+                                : std::size_t{1};
+    const std::string padding(pad, ' ');
+    body_parts.push_back(Doc::text(llvm::StringRef(padding)));
+    body_parts.push_back(Doc::text(llvm::StringRef(": ")));
+    body_parts.push_back(c.body ? visitNode(*c.body)
+                                  : Doc::text(llvm::StringRef{}));
+  }
+  if (elseCase != nullptr) {
+    body_parts.push_back(Doc::hardline());
+    body_parts.push_back(Doc::text(llvm::StringRef("else: ")));
+    body_parts.push_back(visitNode(*elseCase));
+  }
+
+  std::vector<DocPtr> top_parts;
+  top_parts.reserve(5);
+  top_parts.push_back(Doc::text(keyword));
+  top_parts.push_back(Doc::text(llvm::StringRef(" {")));
+  top_parts.push_back(
+      Doc::nest(indentStep(), Doc::concat(std::move(body_parts))));
+  top_parts.push_back(Doc::hardline());
+  top_parts.push_back(Doc::text(llvm::StringRef("}")));
+  return Doc::concat(std::move(top_parts));
+}
+
 DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ConcatExpr &node) {
   // R4 §4: concatenation is `{<part>, <part>, ...}` — one space
   // after each `,`, no spaces inside `{` / `}` UNLESS the active
