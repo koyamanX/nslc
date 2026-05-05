@@ -69,6 +69,19 @@ void TUScheduler::open(llvm::StringRef uri) {
 void TUScheduler::update(llvm::StringRef uri, int version,
                           std::string contents,
                           const IncludeSearchPath &includes) {
+  // Synchronously bump the TU's `latest_received_` atomic before
+  // enqueueing the worker. Stale-drop on completion compares the
+  // worker's diagnosed version against this — catches the case
+  // where v=N completes AFTER v=N+1 has already published.
+  {
+    std::lock_guard<std::mutex> guard(tus_mtx_);
+    auto it = tus_.find(uri);
+    if (it == tus_.end()) {
+      tus_[uri] = std::make_unique<NslTU>();
+      it = tus_.find(uri);
+    }
+    it->second->noteReceived(version);
+  }
   schedule(uri.str(), version, std::move(contents), &includes);
 }
 
@@ -117,9 +130,14 @@ void TUScheduler::schedule(std::string uri, int version,
     int diagnosed = tu->reparse(version, std::move(contents),
                                   includes ? *includes : IncludeSearchPath());
 
-    // Stale-drop per FR-008: if a newer version has arrived while
-    // we were running, do NOT publish.
-    if (diagnosed < tu->latestVersion()) return;
+    // Stale-drop per FR-008: if a newer version was received via
+    // update() at any point (even if its reparse hasn't completed
+    // yet), do NOT publish — the newer worker will publish when
+    // it finishes. Compare against `latestReceivedVersion()`
+    // (synchronously updated in update()) rather than
+    // `latestVersion()` (the most-recently-completed reparse,
+    // which doesn't anticipate queued newer work).
+    if (diagnosed < tu->latestReceivedVersion()) return;
 
     if (cb) {
       tu->withState([&](const NslTU::State &st) {

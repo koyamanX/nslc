@@ -48,6 +48,7 @@ RECIPES_BY_EXT: dict[str, tuple[str, Optional[str]]] = {
     ".bash":   ("#",    None),
     ".ebnf":   ("(*",   "*)"),
     ".nsl":    ("//",   None),
+    ".nslh":   ("//",   None),
     ".yml":    ("#",    None),
     ".yaml":   ("#",    None),
     ".toml":   ("#",    None),

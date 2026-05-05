@@ -15,6 +15,8 @@
 
 #include "llvm/ADT/StringRef.h"
 
+#include <atomic>
+
 // Heavy includes pulled in here so consumers of `NslTU::State`
 // (e.g., TUScheduler instantiating std::unique_ptr<NslTU>'s
 // inline destructor) don't need to repeat them. The cost is
@@ -71,11 +73,31 @@ public:
   }
 
   /// Accessor for the diagnostics-publication callback path.
+  /// Returns the version of the most recently *completed* reparse
+  /// (i.e., state_.version).
   int latestVersion() const;
+
+  /// Track the latest version *received* via update(), even if its
+  /// reparse hasn't yet started or completed. Used by TUScheduler
+  /// to drop stale publishes that completed AFTER a newer worker
+  /// has already published — see the FR-008 stale-drop logic.
+  /// Atomic so writes from update() and reads from worker
+  /// completion don't need the per-TU mutex.
+  void noteReceived(int version) {
+    int prev = latest_received_.load(std::memory_order_relaxed);
+    while (version > prev &&
+           !latest_received_.compare_exchange_weak(
+               prev, version, std::memory_order_release,
+               std::memory_order_relaxed)) {}
+  }
+  int latestReceivedVersion() const {
+    return latest_received_.load(std::memory_order_acquire);
+  }
 
 private:
   mutable std::mutex mtx_;
   State state_;
+  std::atomic<int> latest_received_{-1};
 };
 
 } // namespace lsp

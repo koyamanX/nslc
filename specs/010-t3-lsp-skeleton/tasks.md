@@ -151,7 +151,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 - [X] T052 [P] [US1] Author `test/lsp/fixtures/parse_error_missing_brace.nsl` — a module with an unterminated `{` block; surfaces a parser-level diagnostic (FR-017 in spec; `source = "nsl-parse"` in mapping)
 - [X] T053 [P] [US1] Author `test/lsp/fixtures/preprocess_unresolved_include.nsl` containing `#include "nonexistent_file.nslh"`; surfaces a preprocessor-level diagnostic (FR-020c; `source = "nsl-preprocess"`)
 - [X] T054 [P] [US1] Author `test/lsp/fixtures/utf8_comment.nsl` — a module with one S1 violation on a line that also contains a UTF-8 multi-byte comment string (e.g., `// 日本語 comment`); exercises the UTF-16 column conversion path
-- [ ] T055 [P] [US1] Author `test/lsp/fixtures/include_chain_main.nsl` + `test/lsp/fixtures/include_chain_helper.nslh` where `main.nsl` `#include`s `helper.nslh` and the diagnostic originates inside `helper.nslh`; exercises the `relatedInformation` include-from-notes path
+- [X] T055 [P] [US1] Author `test/lsp/fixtures/include_chain_main.nsl` + `test/lsp/fixtures/include_chain_helper.nslh` where `main.nsl` `#include`s `helper.nslh` and the diagnostic originates inside `helper.nslh`; exercises the `relatedInformation` include-from-notes path
 - [X] T056 [P] [US1] Author `test/lsp/fixtures/two_errors_same_line.nsl` and `test/lsp/fixtures/two_errors_same_position.nsl` for the diagnostic-mapping sort-order tests
 
 ### Tests for User Story 1 (test-first)

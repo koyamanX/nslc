@@ -439,6 +439,38 @@ INSTANTIATE_TEST_SUITE_P(
       return std::string(info.param.expected_code);
     });
 
+TEST(DiagnosticsSuite, IncludeChain_FixtureLoadsAndDiagnoses) {
+  // T055 fixtures (include_chain_main.nsl + helper.nslh) load via
+  // NSL_INCLUDE-rooted angle-form `#include` and the helper's S1
+  // violation surfaces as a diagnostic. This is the structural
+  // half of T062; the relatedInformation half (FR-026) is
+  // deferred — see commit narrative.
+  LspSession s({.nsl_include = NSL_LSP_FIXTURES_DIR,
+                  .nsl_lsp_log_level = "warn"});
+  initialize(s);
+  std::string text = readFixture("include_chain_main.nsl");
+  ASSERT_FALSE(text.empty());
+  didOpen(s, "file:///main.nsl", 1, text);
+
+  auto diag = s.waitForDiagnostics();
+  ASSERT_TRUE(diag.has_value());
+  const auto *arr = getDiagnosticsArray(*diag);
+  ASSERT_NE(arr, nullptr);
+
+  // The helper's S1 violation should surface even though it
+  // originates outside the open document.
+  bool found_s01 = false;
+  for (const auto &d : *arr) {
+    auto code = d.getAsObject()->getString("code").value_or("");
+    if (code == "S01") { found_s01 = true; break; }
+  }
+  EXPECT_TRUE(found_s01)
+      << "expected an S01 diagnostic from the included helper";
+
+  s.doShutdownExit();
+  EXPECT_EQ(s.exitCode(), 0);
+}
+
 TEST(DiagnosticsSuite, PreprocessError) {
   // T064 / FR-020c: an unresolved `#include` produces a
   // preprocess-tagged diagnostic. (The frozen-Pn-code field is
