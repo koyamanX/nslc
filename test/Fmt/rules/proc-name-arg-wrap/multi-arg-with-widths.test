@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T035 — R3 proc_name argument-list wrapping per formatting-rules.contract.md §3.
+//
+// Frozen invariants:
+//   * if ANY argument has a `[N]` width, every argument is on its
+//     own line, indented one step past the opening `(`
+//   * within the multi-line form, the `[N]` widths align (rule R2
+//     applied to the argument names)
+//   * the closing `);` goes on a new line at the original indent
+//
+//     proc_name exec(
+//         pc   [32],
+//         inst [32],
+//         src1 [32],
+//         src2 [32]
+//     );
+//
+// AUTHORED RED — XFAIL until T054 implements R3.
+
+// XFAIL: *
+// RUN: echo 'module m { proc_name exec(pc[32], inst[32], src1[32], src2[32]); }' | nsl-fmt --stdin | FileCheck %s
+// CHECK: proc_name exec(
+// CHECK-NEXT: pc   [32],
+// CHECK-NEXT: inst [32],
+// CHECK-NEXT: src1 [32],
+// CHECK-NEXT: src2 [32]
+// CHECK-NEXT: );

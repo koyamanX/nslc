@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T030 — R5 operator spacing per formatting-rules.contract.md §5.
+//
+// Frozen invariants:
+//   * binary operators get one space on each side
+//   * unary operators get no space between operator and operand
+//   * conditional `?` `:` operators get one space around each
+//
+// AUTHORED RED per Principle VIII TDD discipline; expected-fail
+// marker below until T049 implements R5 in lib/Fmt/LayoutPlanner.cpp.
+// Today's byte-passthrough formatter emits the input as-is; the
+// CHECK pattern below expects canonical spacing. When the rule
+// implementation lands, the test must turn GREEN and the
+// expected-fail marker must be REMOVED in the same change.
+
+// `reg` (not `wire`) is used for the initialized declarations
+// because S2 forbids `wire <name> = <init>` (use `reg` instead).
+// XFAIL: *
+// RUN: echo 'module m { reg x[8] = a+b; reg y[8] = ~c; }' | nsl-fmt --stdin | FileCheck %s
+// CHECK: reg x[8] = a + b;
+// CHECK: reg y[8] = ~c;

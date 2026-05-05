@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T034 — R2 struct member-bracket alignment per formatting-rules.contract.md §2.
+//
+// Frozen invariant: in a struct, the `[N]` bit-width brackets all
+// align to ONE SPACE past the longest member name's last char:
+//
+//     struct csr_t {
+//         mstatus  [32];
+//         mcause   [32];
+//         mtvec    [30];
+//         mepc     [32];
+//     };
+//
+// AUTHORED RED — XFAIL until T053 implements R2.
+
+// XFAIL: *
+// RUN: echo 'struct csr_t { mstatus[32]; mcause[32]; mtvec[30]; mepc[32]; };' | nsl-fmt --stdin | FileCheck %s
+// CHECK: mstatus  [32];
+// CHECK: mcause   [32];
+// CHECK: mtvec    [30];
+// CHECK: mepc     [32];

@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T031 — R4 bit-slice and concat spacing per formatting-rules.contract.md §4.
+//
+// Frozen invariants:
+//   * bit slice: `a[7:0]` — no spaces inside `[`, `]`, around `:`
+//   * concat:    `{a, b, c}` — one space after each `,`, no spaces
+//                 inside `{`, `}` (unless `spaces_inside_braces=true`)
+//
+// AUTHORED RED — XFAIL until T050 implements R4. Removing XFAIL
+// is a checkpoint of the implementation's correctness.
+
+// XFAIL: *
+// RUN: echo 'module m { wire d = a[ 7 : 0 ]; wire e = {a , b , c}; }' | nsl-fmt --stdin | FileCheck %s
+// CHECK: a[7:0]
+// CHECK-SAME: {a, b, c}

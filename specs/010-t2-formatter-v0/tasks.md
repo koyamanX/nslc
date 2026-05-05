@@ -103,12 +103,12 @@ diff. Verified by ninja `check-fmt-lit` passing the
 
 ### Tests for User Story 1 (TDD — write FAILING first)
 
-- [ ] T030 [P] [US1] Author lit fixture `test/Fmt/rules/operator-spacing/binary-and-unary.test` per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §5 (R5); paired pre.nsl + post.nsl + idempotence.nsl — observe FAILING
-- [ ] T031 [P] [US1] Author lit fixture `test/Fmt/rules/bit-slice-spacing/slice-and-concat.test` per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §4 (R4) — observe FAILING
-- [ ] T032 [P] [US1] Author lit fixture `test/Fmt/rules/attached-comments/leading-trailing-block.test` per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §6 (R6) — observe FAILING
-- [ ] T033 [P] [US1] Author lit fixture `test/Fmt/rules/alt-case-alignment/three-cases.test` per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §1 (R1) — observe FAILING
-- [ ] T034 [P] [US1] Author lit fixture `test/Fmt/rules/struct-member-alignment/mixed-name-lengths.test` per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §2 (R2) — observe FAILING
-- [ ] T035 [P] [US1] Author lit fixture `test/Fmt/rules/proc-name-arg-wrap/multi-arg-with-widths.test` per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §3 (R3) — observe FAILING
+- [X] T030 [P] [US1] Author lit fixture `test/Fmt/rules/operator-spacing/binary-and-unary.test` per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §5 (R5); paired pre.nsl + post.nsl + idempotence.nsl — observe FAILING
+- [X] T031 [P] [US1] Author lit fixture `test/Fmt/rules/bit-slice-spacing/slice-and-concat.test` per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §4 (R4) — observe FAILING
+- [X] T032 [P] [US1] Author lit fixture `test/Fmt/rules/attached-comments/leading-trailing-block.test` per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §6 (R6) — observe FAILING
+- [X] T033 [P] [US1] Author lit fixture `test/Fmt/rules/alt-case-alignment/three-cases.test` per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §1 (R1) — observe FAILING
+- [X] T034 [P] [US1] Author lit fixture `test/Fmt/rules/struct-member-alignment/mixed-name-lengths.test` per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §2 (R2) — observe FAILING
+- [X] T035 [P] [US1] Author lit fixture `test/Fmt/rules/proc-name-arg-wrap/multi-arg-with-widths.test` per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §3 (R3) — observe FAILING
 - [X] T036 [P] [US1] Author lit fixture `test/Fmt/cli/stdin/basic-roundtrip.test` asserting `RUN: cat %s | nsl-fmt --stdin | FileCheck %s` for a tiny `module foo {}` — observe FAILING
 - [X] T037 [P] [US1] Author lit fixture `test/Fmt/cli/in-place/atomic-rewrite.test` asserting `RUN: nsl-fmt -i %t/scratch.nsl && FileCheck %s < %t/scratch.nsl` — observe FAILING
 - [X] T038 [P] [US1] Author lit fixture `test/Fmt/edge/empty-input/zero-bytes.test` (empty file → exit 0, empty output) — observe FAILING

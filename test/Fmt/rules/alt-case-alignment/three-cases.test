@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T033 — R1 alt/any case-arrow alignment per formatting-rules.contract.md §1.
+//
+// Frozen invariant: in an `alt` block with N cases, the `:`
+// separators all align to the column ONE SPACE past the longest
+// condition's last char. With three cases of varying width:
+//
+//     alt {
+//         state == IDLE    : reg := 0;
+//         state == RUNNING : reg := 1;
+//         state == DONE    : reg := 2;
+//     }
+//
+// AUTHORED RED — XFAIL until T052 implements R1.
+
+// XFAIL: *
+// RUN: echo 'module m { func f { alt { state == IDLE : reg := 0; state == RUNNING : reg := 1; state == DONE : reg := 2; } } }' | nsl-fmt --stdin | FileCheck %s
+// CHECK: state == IDLE    :
+// CHECK: state == RUNNING :
+// CHECK: state == DONE    :
