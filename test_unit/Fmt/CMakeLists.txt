@@ -145,3 +145,37 @@ gtest_discover_tests(config_parser_test
 
 set_property(GLOBAL APPEND PROPERTY _NSL_FMT_GTEST_BINARIES
   config_parser_test)
+
+# -----------------------------------------------------------------------------
+# Phase 5 — CLI ↔ library parity + external-link smoke (T081, T082, T083)
+# -----------------------------------------------------------------------------
+add_executable(format_parity_test
+  format_parity_test.cpp)
+
+target_link_libraries(format_parity_test
+  PRIVATE
+    nsl-basic
+    NslFmt
+    GTest::gtest_main)
+
+# T081 needs to invoke the built nsl-fmt binary via popen. The path
+# is injected at compile time via a macro (matches the project's
+# NSLC_VERSION_STRING pattern). The binary is built into
+# `${CMAKE_BINARY_DIR}/bin/nsl-fmt` per tools/nsl-fmt/CMakeLists.txt.
+target_compile_definitions(format_parity_test
+  PRIVATE
+    NSL_FMT_BINARY_PATH="${CMAKE_BINARY_DIR}/bin/nsl-fmt")
+
+# Build dependency: format_parity_test needs the nsl-fmt binary to
+# exist BEFORE the test runs (the CLIMatchesLibrary case popen()s
+# it). Standard ctest doesn't auto-build referenced binaries, so we
+# add an explicit add_dependencies edge.
+add_dependencies(format_parity_test nsl-fmt)
+
+gtest_discover_tests(format_parity_test
+  PROPERTIES
+    TIMEOUT 30
+    LABELS Fmt)
+
+set_property(GLOBAL APPEND PROPERTY _NSL_FMT_GTEST_BINARIES
+  format_parity_test)

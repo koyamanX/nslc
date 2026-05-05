@@ -209,9 +209,9 @@ Library can be linked from a synthetic external translation unit
 
 ### Tests for User Story 3 (TDD)
 
-- [ ] T081 [P] [US3] Author gtest `test_unit/Fmt/format_parity_test.cc::CLIMatchesLibrary` invoking `nsl-fmt --stdin` via subprocess and `format_buffer()` directly on the same buffer; assert byte-identical output for 5 representative fixtures — observe FAILING
-- [ ] T082 [P] [US3] Author gtest `test_unit/Fmt/format_parity_test.cc::IdempotencePostCondition` asserting `format_buffer(format_buffer(s, c, f).formattedText, c, f).formattedText == format_buffer(s, c, f).formattedText` for the same 5 fixtures — observe FAILING
-- [ ] T083 [P] [US3] Author gtest `test_unit/Fmt/format_parity_test.cc::ExternalLinkSmoke` linking against `libNslFmt.a` from an external translation unit (`#include "nsl/Fmt/Fmt.h"`); assert one call to `format_buffer()` returns `Status::Success` for empty input — observe FAILING
+- [X] T081 [P] [US3] Author gtest `test_unit/Fmt/format_parity_test.cc::CLIMatchesLibrary` invoking `nsl-fmt --stdin` via subprocess and `format_buffer()` directly on the same buffer; assert byte-identical output for 5 representative fixtures — observe FAILING
+- [X] T082 [P] [US3] Author gtest `test_unit/Fmt/format_parity_test.cc::IdempotencePostCondition` asserting `format_buffer(format_buffer(s, c, f).formattedText, c, f).formattedText == format_buffer(s, c, f).formattedText` for the same 5 fixtures — observe FAILING
+- [X] T083 [P] [US3] Author gtest `test_unit/Fmt/format_parity_test.cc::ExternalLinkSmoke` linking against `libNslFmt.a` from an external translation unit (`#include "nsl/Fmt/Fmt.h"`); assert one call to `format_buffer()` returns `Status::Success` for empty input — observe FAILING
 - [ ] T084 [P] [US3] Author lit fixture `test/Fmt/cli/range/inside-alt-block.test` asserting `nsl-fmt --range 5:7 file.nsl` reformats only lines 5–7 (lines outside range emitted byte-identical) — observe FAILING
 - [ ] T085 [P] [US3] Author lit fixture `test/Fmt/cli/range/out-of-bounds.test` asserting `--range 100:200` on a 50-line file → exit 2 + frozen string from [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §7 — observe FAILING
 
@@ -224,7 +224,7 @@ Library can be linked from a synthetic external translation unit
 - [ ] T090 [US3] Implement `--range LINE:LINE` parsing in `tools/nsl-fmt/main.cpp` and threading through to `format_buffer(..., LineRange{...})` per [`contracts/cli-surface.contract.md`](./contracts/cli-surface.contract.md) §1; T084/T085 turn green
 - [ ] T091 [US3] Extend `lib/Fmt/LayoutPlanner.cpp` to honor `LineRange` — emit lines outside the range from raw source bytes, only re-layout within the range
 - [X] T092 [US3] Wire `audit_fmt_api.sh` into `scripts/ci.sh` stage 2 (static checks) so symbol-count drift fails CI; T086 verification gate
-- [ ] T093 [US3] Verify T081/T082/T083 turn green (no new implementation expected; CLI and library both call into the same `format_buffer()`)
+- [X] T093 [US3] Verify T081/T082/T083 turn green (no new implementation expected; CLI and library both call into the same `format_buffer()`)
 
 **Phase 5 checkpoint**: All US3 fixtures green;
 `audit_fmt_api.sh` reports 10 symbols. T5 has a stable, parity-
