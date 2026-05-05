@@ -12,8 +12,23 @@
 // declare-body op for ports); `mlir::UnknownLoc` is never introduced.
 //
 // Constitutional anchor: Principle IV (Source-Locating Diagnostics).
+//
+// **Implementation note (PR #14 review #6 fix)**: `nslc -emit=hw` uses
+// MLIR's default printer with default OpPrintingFlags (per
+// `driver-emit-hw.contract.md` section 4 — the printer-flag freeze),
+// which SUPPRESSES `loc(...)` annotations. A naive
+// `%nslc -emit=hw %s | %FileCheck %s` pipeline would print no
+// `loc(...)` whatsoever and a "no-unknown-loc" assertion would
+// trivially pass even if every op carried `UnknownLoc`. To actually
+// assert no UnknownLoc, the output is round-tripped through
+// `nsl-opt --mlir-print-debuginfo` which re-prints WITH explicit
+// location annotations; the FileCheck then has real `loc(...)` text
+// to match against. Both a positive (must-appear) and a negative
+// (must-not-appear) directive are exercised: at least one
+// `loc(...)` MUST appear (proving the printer ran with debug info
+// on); zero of those may be `loc(unknown)`.
 
-// RUN: %nslc -emit=hw %s | %FileCheck %s
+// RUN: %nslc -emit=hw %s | nsl-opt --mlir-print-debuginfo - | %FileCheck %s
 
 declare M {
   input a[8];
@@ -25,4 +40,5 @@ module M {
 }
 
 // CHECK-LABEL: hw.module @M
+// CHECK: loc(
 // CHECK-NOT: loc(unknown)

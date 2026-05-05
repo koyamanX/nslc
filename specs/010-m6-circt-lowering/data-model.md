@@ -127,13 +127,52 @@ private:
 
 ---
 
-## 3. `mlir::OpConversionPattern<nsl::*>` subclasses
+## 3. Lowering helpers (`OpConversionPattern<nsl::*>` design + actual inline structural pre-pass)
 
-**Layer**: 8b (private — one `.cpp` per family under
-`lib/Lower/CIRCTPatterns/`).
+**Layer**: 8b (private — file paths under `lib/Lower/Pass/`).
 
-**Family taxonomy** (one file per family, totaling 9 files,
-~40 patterns total — one per design-§10 mapping-table row):
+**Architectural-deviation note (PR #14 review #14 fix, 2026-05-05)**:
+this section's table originally described the design-time intent — a
+fleet of `mlir::OpConversionPattern<T>` subclasses, one per family file
+under `lib/Lower/Pass/CIRCTPatterns/`, registered through each
+`populate*Patterns()` helper. The **actual M6 implementation** (Phase
+4–6 commits `265c3d2` / `34827c1` / `9097f96`) places the lowering
+bodies INLINE inside two structural pre-pass functions invoked from
+`NSLToCIRCTPass::runOnOperation` BEFORE `applyFullConversion`:
+
+- `lowerNSLModulesToHWModules` (in `lib/Lower/Pass/CIRCTPatterns/ModulePatterns.cpp`)
+  — owns the bulk: arith / bit-op / state / control / sim / param / port
+  rewrites are inline helpers (`lowerArithOp`, `lowerBitOp`, `lowerRegOp`,
+  `lowerWireOp`, `lowerMemOp`, `lowerTransferOp`, `lowerClockedTransferOp`,
+  `lowerIfOp`, `lowerAltOp`, `lowerAnyOp`, `lowerCallOp`, `lowerSimDisplayOp`,
+  `lowerSimFinishOp`, `lowerSimDelayOp`, `lowerSimInitOp`, plus the S29
+  `_init` block).
+- `lowerNSLProcsToFSMMachines` (in `lib/Lower/Pass/CIRCTPatterns/FSMPatterns.cpp`)
+  — owns proc / state / seq / goto / finish / call lowering for the FSM
+  family.
+
+The `populate*Patterns()` family-file functions are intentionally
+empty bodies (with file-header documentation explaining the inline
+design). Rationale: MLIR's standard DialectConversion worklist
+interleaves badly with the dual-placement port-info-op design (M4
+amendment #9) — the framework would attempt to legalize the in-
+module port-info ops independently before the parent ModuleOp
+pattern got a chance to consume them. A custom structural pre-pass
+sidesteps this by walking each `nsl::ModuleOp` body in source order
+and materialising CIRCT ops directly. Per Constitution Principle III:
+zero hand-rolled CIRCT-equivalent passes — the helper functions
+*create* stock `circt::*` ops, they don't reimplement them.
+
+**Frozen-by-contract**: the family→fixture-directory mapping below
+(documented in `coverage_guard.cmake`) and the design-§10 row coverage
+in `contracts/circt-lowering.contract.md` §1. The original-design
+"`OpConversionPattern<T>` per family" idea is preserved as
+documentation of the intended high-level shape; the actual call sites
+are the inline helpers named above.
+
+**Family taxonomy** — historical "one file per family, ~42 design-§10
+rows total" view (drives fixture-directory mapping, NOT the
+implementation grain):
 
 | Family file | Pattern count | Source ops |
 |---|---|---|

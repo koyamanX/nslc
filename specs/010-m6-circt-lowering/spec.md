@@ -290,13 +290,23 @@ lowering is its own US).
 ### User Story 5 — Lowered IR survives stock CIRCT passes (round-trip determinism gate) (Priority: P2)
 
 A contributor takes the output of `nslc -emit=hw input.nsl -o
-output.mlir`, then invokes `circt-opt --convert-fsm-to-seq
---lower-seq-to-sv --prepare-for-emission output.mlir` (the four
-stock CIRCT passes named in design §10 lines 1262–1264, minus
-`circt::exportVerilog` which is the M7 emission step). The pass
-sequence terminates without diagnostics, every CIRCT op verifier
-returns success, and re-running `nslc -emit=hw input.nsl` produces
-byte-identical output (the determinism gate).
+output.mlir`, then invokes `circt-opt --convert-fsm-to-sv
+--lower-seq-to-sv output.mlir` (the two stock CIRCT passes
+applicable at the M6 boundary). **PR #14 review-#15 fix
+(2026-05-05)**: this section originally specified
+`--convert-fsm-to-seq --lower-seq-to-sv --prepare-for-emission`
+to match design §10 lines 1262–1264; the actual M6 round-trip
+uses the corrected recipe because (a) the vendored CIRCT in the
+dev container ships `--convert-fsm-to-sv` (FSM lowers directly
+to SV) but not `--convert-fsm-to-seq`, and (b)
+`--prepare-for-emission` requires its input root to be
+`hw.module`, but `nslc -emit=hw` emits a `builtin.module` with
+`hw.module` children — `prepare-for-emission` is therefore M7
+territory (where `circt::ExportVerilog` performs the root-op
+extraction implicitly). The pass sequence terminates without
+diagnostics, every CIRCT op verifier returns success, and
+re-running `nslc -emit=hw input.nsl` produces byte-identical
+output (the determinism gate).
 
 **Why this priority**: This **is** the second clause of the
 README's M6 test gate ("**round-trip through stock CIRCT passes**").
@@ -310,10 +320,12 @@ survival property an explicit testable observable.
 
 **Independent Test**: Ship `test/Lower/circt/round_trip/`
 fixtures consisting of `.nsl` + `.expected.v` pairs. The lit
-recipe runs `nslc -emit=hw %s | circt-opt --convert-fsm-to-seq
---lower-seq-to-sv --prepare-for-emission`, asserts zero
-diagnostics on stderr, and asserts byte-identical output across
-two consecutive `nslc -emit=hw %s` invocations. Determinism
+recipe runs `nslc -emit=hw %s | circt-opt --convert-fsm-to-sv
+--lower-seq-to-sv` (corrected from the design-§10-derived
+"`--convert-fsm-to-seq … --prepare-for-emission`" recipe per
+review-#15 fix above), asserts zero diagnostics on stderr, and
+asserts byte-identical output across two consecutive
+`nslc -emit=hw %s` invocations. Determinism
 applies to: file-list permutation invariance (within a single
 input), include-search-path order independence, and time / ASLR /
 PID independence (Constitution Principle V). Independent of US1–
@@ -322,7 +334,7 @@ US4 in that the gate is on overall output, not per-op.
 **Acceptance Scenarios**:
 
 1. **Given** any `.nsl` file in `test/Lower/circt/round_trip/`, **When** `nslc -emit=hw %s` runs twice in succession, **Then** the two outputs are byte-identical (`diff` returns empty).
-2. **Given** the output of `nslc -emit=hw input.nsl`, **When** that output is piped to `circt-opt --convert-fsm-to-seq --lower-seq-to-sv --prepare-for-emission`, **Then** every named pass terminates with `mlir::success()` and produces output free of `unrealized_conversion_cast` ops.
+2. **Given** the output of `nslc -emit=hw input.nsl`, **When** that output is piped to `circt-opt --convert-fsm-to-sv --lower-seq-to-sv` (corrected recipe per review-#15 fix; dropped `--convert-fsm-to-seq` and `--prepare-for-emission`), **Then** every named pass terminates with `mlir::success()` and produces output free of `unrealized_conversion_cast` ops.
 3. **Given** a file-list containing the same N inputs in two different orders, **When** `nslc -emit=hw input1.nsl input2.nsl ...` runs in each order, **Then** the per-module outputs (when sorted by module name) are byte-identical (file-list permutation invariance per the M5 determinism contract).
 4. **Given** an environment with randomized ASLR / process ID, **When** `nslc -emit=hw` runs, **Then** no `loc(...)` attribute, no MLIR-internal pointer value, no random component leaks into the printer output (already inherited from M5's determinism gate; M6 does not regress).
 
@@ -353,7 +365,7 @@ US4 in that the gate is on overall output, not per-op.
 
 #### Per-op coverage (design §10 mapping table)
 
-- **FR-006**: For every row of design §10's mapping table (lines 1206–1258), one corresponding `mlir::ConversionPattern` MUST exist in `NSLToCIRCTPass`'s pattern set. The CI guard mechanically enumerates registered patterns and asserts coverage of every row.
+- **FR-006**: For every row of design §10's mapping table (lines 1206–1258), one corresponding lowering MUST exist in `NSLToCIRCTPass`. **PR #14 review-#16 fix (2026-05-05)**: the original wording specified "`mlir::ConversionPattern` subclass per row, registered in the pattern set" — the actual M6 implementation (Phase 4–6) places the lowering bodies INLINE inside two structural pre-pass functions (`lowerNSLModulesToHWModules` in `lib/Lower/Pass/CIRCTPatterns/ModulePatterns.cpp` and `lowerNSLProcsToFSMMachines` in `lib/Lower/Pass/CIRCTPatterns/FSMPatterns.cpp`) invoked from `NSLToCIRCTPass::runOnOperation` BEFORE `applyFullConversion` runs. Family-file `populate*Patterns` bodies are intentionally empty. Rationale + per-helper file-path map: `data-model.md` §3 architectural-deviation note. The bijection invariant (every design-§10 row has a lowering AND a fixture) is preserved; only the *grain* of "lowering" shifted from `OpConversionPattern<T>` records to inline helpers (`lowerArithOp`, `lowerBitOp`, etc.). Coverage guard refined per review-#17 fix (`coverage_guard.cmake`) to enforce per-family-directory fixture presence rather than per-`OpConversionPattern<` text grep.
 - **FR-007**: `nsl.module` MUST lower to `hw.HWModuleOp` whose port list is derived from the paired `nsl.declare` block per design line 1208.
 - **FR-008**: `nsl.reg` MUST lower to `seq.firreg` by default with **async, active-HIGH reset** (Q2 → C, PR #14 Round-1 review correction; previously specified active-LOW). The implicit reset port is `p_reset` (NSL-reserved per `nsl_lang.ebnf` §15 line 820); the FirRegOp's reset operand is the raw `%p_reset` block-arg with no `comb.icmp` adapter. The reset value is the `nsl.reg` initializer (`reg r[8] = K;` → reset value `K`; bare `reg r[8];` → reset value zero per S2/S23). When the enclosing module declares the `interface` modifier (S20), `nsl.reg` MUST lower to `seq.compreg` with explicit clock/reset operands derived from the user's declared interface names + polarities (design line 1209).
 - **FR-009**: `nsl.wire` MUST lower to `hw.wire` (design line 1210).
@@ -389,7 +401,7 @@ US4 in that the gate is on overall output, not per-op.
 
 - **FR-031**: The `lib/Lower/CMakeLists.txt` `add_nsl_library` call MUST add `CIRCTFSM` to `LINK_LIBS` (Q1 → A: no `CIRCTHwArith` is added). Other CIRCT link deps remain as M5 left them. No host-system `find_package` for CIRCT — the project's vendored CIRCT/MLIR continues to satisfy the link.
 - **FR-032**: Test fixtures MUST be organized under `test/Lower/circt/<family>/` where families are: `module/` (US2), `fsm/` (US3), `arith/`, `state/`, `control/`, `sim/` (US4 sub-families), `round_trip/` (US5). One `<op>.nsl` + one `<op>.mlir.expected` golden per design §10 row, plus axis fixtures per US.
-- **FR-033**: A CI guard (`test/Lower/circt/coverage_guard.cmake` or equivalent) MUST mechanically enumerate registered conversion patterns and assert each has at least one matching fixture. Adding a new pattern without a fixture MUST fail CI (Principle VI test discipline).
+- **FR-033**: A CI guard (`test/Lower/circt/coverage_guard.cmake`) MUST enforce per-family-directory fixture presence: every family in the 9-row family→fixture-directory map (frozen by data-model.md §3) MUST contain at least one `*.nsl` or `*.mlir` fixture under its mapped `test/Lower/circt/<dir>/`. Adding a new family OR removing a family's last fixture MUST fail CI (Principle VI test discipline). **PR #14 review-#17 fix (2026-05-05)**: original wording specified "mechanically enumerate registered conversion patterns" via `OpConversionPattern<` text grep on family files — that approach was rendered ineffective by the inline-lowering deviation (every family file has an empty `populate*Patterns` body, so the grep reports zero hits and the bijection trivially passes even when a family's lowering is missing). The directory-presence rule is stricter: every family is unconditionally required to have a fixture. Future hardening (post-PR-#14): a per-family `lower<X>Op` helper-function regex over `ModulePatterns.cpp` + `FSMPatterns.cpp` to assert the inline-lowering helper exists. Naming convention is documented in each family-file header.
 - **FR-034**: The M5 dialect surface (`dialect-api.contract.md` §2 freeze list) MUST stay byte-stable through M6 — adding a new `nsl::*` op means amending the M4 contract, not stealth-introducing it under the M6 banner. The M5 pass-pipeline contract similarly stays byte-stable.
 
 ### Key Entities *(include if feature involves data)*
@@ -406,7 +418,7 @@ US4 in that the gate is on overall output, not per-op.
 
 - **SC-001**: A contributor can run `nslc -emit=hw <any-M5-clean-input.nsl>` and observe a non-empty `.mlir` output containing zero ops in the `nsl` dialect within the same wall-clock budget as `nslc -emit=mlir` for the same input + 25% (the conversion is bounded; no quadratic blowup).
 - **SC-002**: 100% of design §10's mapping-table rows (currently ~40 rows, lines 1206–1258) have a registered conversion pattern AND a matching FileCheck fixture under `test/Lower/circt/`. The CI coverage guard reports zero gaps.
-- **SC-003**: For every fixture in `test/Lower/circt/round_trip/`, two consecutive `nslc -emit=hw` invocations produce byte-identical output (`diff` returns empty); `circt-opt --convert-fsm-to-seq --lower-seq-to-sv --prepare-for-emission` over the output exits zero with no diagnostics.
+- **SC-003**: For every fixture in `test/Lower/circt/round_trip/`, two consecutive `nslc -emit=hw` invocations produce byte-identical output (`diff` returns empty); `circt-opt --convert-fsm-to-sv --lower-seq-to-sv` (corrected recipe per review-#15 fix) over the output exits zero with no diagnostics.
 - **SC-004**: For every fixture, every CIRCT op in the output carries an `mlir::Location` resolvable to a `.nsl:line:col` (no `UnknownLoc`); a lit grep guard asserts this.
 - **SC-005**: Adding a new `nsl::*` op to the M4 dialect (post-amendment) requires (a) one new conversion pattern in `NSLToCIRCTPass`, (b) one new fixture pair under `test/Lower/circt/`, (c) one row added to design §10's mapping table — and the CI coverage guard enforces (a)+(b) consistency. No silent additions.
 - **SC-006**: A contributor running `nsl-opt -nsl-to-circt input.mlir` standalone on a hand-authored `.mlir` fixture (no `nslc` driver involved) produces the same output as `nslc -emit=hw <equivalent>.nsl` for the same input shape — the pass is well-isolated and reusable.

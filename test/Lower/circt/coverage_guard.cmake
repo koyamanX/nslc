@@ -69,19 +69,41 @@ foreach(_pair ${_NSLC_M6_FAMILY_DIRS})
     continue()
   endif()
 
-  # A pattern file is "active" if it contains at least one
-  # `OpConversionPattern<` token. Empty-populator scaffolds (Phase 2)
-  # do not.
-  file(STRINGS "${_pattern_file}" _hits REGEX "OpConversionPattern<")
-  list(LENGTH _hits _hit_count)
-  if(_hit_count GREATER 0)
-    file(GLOB _fixtures "${_NSLC_M6_FIXTURE_BASEDIR}/${_dir}/*.nsl")
-    list(LENGTH _fixtures _fixture_count)
-    if(_fixture_count EQUAL 0)
-      list(APPEND _NSLC_M6_GAPS
-           "${_family} declares ${_hit_count} OpConversionPattern(s) "
-           "but ${_NSLC_M6_FIXTURE_BASEDIR}/${_dir}/ has zero *.nsl fixtures")
-    endif()
+  # PR #14 review #17 (coverage-guard refinement): the original guard
+  # grep'd for `OpConversionPattern<` in family files to detect "active"
+  # families. M6's actual lowering architecture (Phase 4–6) places the
+  # lowering bodies inline inside ModulePatterns.cpp + FSMPatterns.cpp
+  # via custom structural pre-passes; the family files (Arith/BitOp/
+  # State/Control/Sim/Param/Port/PatternsCpp) are documentation only —
+  # their populate*Patterns bodies are intentionally empty. A grep for
+  # `OpConversionPattern<` therefore reports ZERO hits for every
+  # family, and the original bijection rule trivially passed even when
+  # a family's lowering was missing.
+  #
+  # The refined rule: every family that owns design-§10 mapping rows
+  # MUST have at least one matching fixture under its mapped
+  # test/Lower/circt/<dir>/. The "ownership" is hard-coded in the
+  # _NSLC_M6_FAMILY_DIRS list above (frozen by data-model.md §3 +
+  # tasks.md §Phase 6 grouping); we no longer infer it from the file
+  # content. This is a STRICTER check than the previous grep because
+  # every family is now unconditionally subject to the fixture-
+  # presence requirement (no false-pass via empty populator body).
+  #
+  # Future hardening (Round-2+ work, post-PR-#14): add a per-family
+  # helper-function regex (lowerArithOp / lowerBitOp / lowerSimDisplayOp
+  # / etc.) over ModulePatterns.cpp + FSMPatterns.cpp to assert the
+  # actual lowering helper exists. The helper-function naming
+  # convention is documented in each family-file header; mechanizing
+  # it requires a per-family regex map.
+  file(GLOB _fixtures
+       "${_NSLC_M6_FIXTURE_BASEDIR}/${_dir}/*.nsl"
+       "${_NSLC_M6_FIXTURE_BASEDIR}/${_dir}/*.mlir")
+  list(LENGTH _fixtures _fixture_count)
+  if(_fixture_count EQUAL 0)
+    list(APPEND _NSLC_M6_GAPS
+         "${_family} owns design-§10 rows mapped to "
+         "${_NSLC_M6_FIXTURE_BASEDIR}/${_dir}/ but that directory has zero "
+         "*.nsl or *.mlir fixtures")
   endif()
 endforeach()
 

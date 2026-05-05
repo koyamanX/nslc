@@ -83,9 +83,17 @@ deferred-work catalogue.
   empty or absent. The `-o` file is NOT created on failure (no
   partial-output leakage).
 - On M6-specific conversion failure (FR-028): one diagnostic of
-  the form `error: nsl→CIRCT conversion failed for op
-  '<dialect.opname>'` at the offending op's `mlir::Location`;
-  exit code non-zero.
+  the form `error: failed to legalize operation '<dialect.opname>'`
+  at the offending op's `mlir::Location`; exit code non-zero. **This
+  is MLIR's standard `applyFullConversion` failure-message shape**,
+  routed through `DiagnosticBridge` to `basic::DiagnosticEngine` —
+  not a custom-formatted "nsl→CIRCT conversion failed" string. The
+  contract was authored assuming a custom message; the implementation
+  inherits MLIR's. The standard form is preserved as the contract
+  freeze; consumers should match `failed to legalize operation
+  'nsl\.[a-z_]+'` in their FileCheck assertions (see
+  `test/Lower/circt/round_trip/conversion_failure_exits_nonzero.nsl`
+  for the canonical regex). PR #14 review-#5 fix.
 
 ---
 
@@ -104,11 +112,22 @@ fixtures inherit M5's golden-comparison form.
 
 ## §5. Stdin / stdout / pipe support
 
-- `nslc -emit=hw -` reads NSL source from stdin (matches
-  `-emit=tokens` / `-emit=ast` / `-emit=mlir` from M3/M5).
-- Output goes to stdout when `-o` is not specified.
-- `cat input.nsl | nslc -emit=hw - | circt-opt …` is a supported
-  invocation (the US5 round-trip gate uses it).
+- **Stdin (`nslc -emit=hw -`)**: **DEFERRED at M6** to a follow-on
+  driver patch. The original contract claimed stdin support to
+  match `-emit=tokens` / `-emit=ast` / `-emit=mlir` from M3/M5,
+  but `tools/nslc/main.cpp` does not yet recognise `-` as a
+  stdin marker for `-emit=hw`. The corresponding test fixture
+  `test/Lower/circt/round_trip/stdin_pipe.test` (T139) is
+  XFAIL'd until the driver-side patch lands. Full stdin support
+  is M7 scope (where `nsl-driver` wraps `nslc` and standardises
+  pipeline-shape behaviours); a smaller post-M6 PR may close the
+  gap earlier. PR #14 review-#4 fix: contract aligned with
+  current behaviour.
+- Output goes to stdout when `-o` is not specified (this works
+  today and is exercised by every Phase-4–7 fixture).
+- `cat input.nsl | nslc -emit=hw - | circt-opt …` is the
+  intended-but-not-yet-supported invocation; until stdin support
+  lands, the round-trip gate uses an explicit input path.
 
 ---
 

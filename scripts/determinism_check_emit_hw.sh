@@ -85,11 +85,31 @@ esac
 # -----------------------------------------------------------------------------
 
 readonly TMPROOT="${TMPDIR:-/tmp}"
-readonly WORK_A="${TMPROOT}/nslc-det-hw-a-$$"
-readonly WORK_B="${TMPROOT}/nslc-det-hw-bbb-$$"
+
+# Path-naming policy (PR #14 review #13 fix): when SKIP_BUILD is set,
+# WORK_A/WORK_B MUST be stable across invocations so a follow-on
+# `--skip-build` run can reach the trees the prior build step
+# produced. We use a STABLE suffix (no `$$`) when SKIP_BUILD is in
+# effect; the caller can override via NSLC_DET_HW_SUFFIX. The non-
+# skip mode keeps `$$` to avoid concurrent-run collisions on the
+# same host. The OUT_DIR (per-run output capture) always uses `$$`
+# since it's discarded after each run.
+if (( SKIP_BUILD == 1 )); then
+  readonly WORK_SUFFIX="${NSLC_DET_HW_SUFFIX:-stable}"
+else
+  readonly WORK_SUFFIX="$$"
+fi
+readonly WORK_A="${TMPROOT}/nslc-det-hw-a-${WORK_SUFFIX}"
+readonly WORK_B="${TMPROOT}/nslc-det-hw-bbb-${WORK_SUFFIX}"
 readonly OUT_DIR="${TMPROOT}/nslc-det-hw-outs-$$"
 
 cleanup() {
+  # Tier-2 invariant: in non-skip mode the trees are owned by THIS
+  # run and cleaned up. In skip-build mode the trees are caller-
+  # provided (or built by an earlier invocation that didn't pass
+  # --skip-build), so cleanup() preserves them — they're the input
+  # to the next --skip-build invocation. OUT_DIR is always cleaned
+  # since it's per-invocation by design.
   if (( SKIP_BUILD == 0 )); then
     rm -rf "${WORK_A}" "${WORK_B}"
   fi

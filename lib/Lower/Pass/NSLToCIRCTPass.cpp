@@ -49,7 +49,9 @@ public:
   llvm::StringRef getArgument() const final { return "nsl-to-circt"; }
 
   llvm::StringRef getDescription() const final {
-    return "M6: lower nsl::* dialect ops to CIRCT (hw/comb/seq/fsm/sv).";
+    // Frozen text per
+    // specs/010-m6-circt-lowering/contracts/lower-api.contract.md §4.
+    return "Lower nsl::* dialect ops to CIRCT (hw/comb/seq/fsm/sv)";
   }
 
   void getDependentDialects(mlir::DialectRegistry &registry) const final {

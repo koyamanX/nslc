@@ -264,7 +264,7 @@ mlir::LogicalResult DeclareOp::verify() {
   // for the full rationale). Defensive empty-name reject mirrors
   // `ModuleOp::verify()`'s shape.
   if (getPairName().empty()) {
-    return emitOpError() << "requires a non-empty 'sym_name' attribute";
+    return emitOpError() << "requires a non-empty 'pair_name' attribute";
   }
   // Body children MUST be one of `nsl.input_port` / `nsl.output_port`
   // / `nsl.inout_port`. Any other op kind is rejected — this keeps

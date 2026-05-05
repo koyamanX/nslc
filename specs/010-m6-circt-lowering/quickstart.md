@@ -94,14 +94,15 @@ The first fixture to author: `test/Lower/circt/arith/add.nsl`
 
 ```nsl
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-// RUN: nslc -emit=hw %s | FileCheck %s
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  input b[8];
+  output q[8];
+}
 
 module M {
-  declare M {
-    input a[8];
-    input b[8];
-    output q[8];
-  }
   q = a + b;
 }
 
@@ -110,7 +111,7 @@ module M {
 // CHECK-NOT:   nsl.add
 ```
 
-Running `lit -v test/Lower/circt/arith/add.test` should fail with
+Running `lit -v test/Lower/circt/arith/add.nsl` should fail with
 "command not found: -emit=hw" (the flag does not yet exist).
 
 **Implementation order** (TDD-driven):
