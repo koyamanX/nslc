@@ -439,6 +439,41 @@ INSTANTIATE_TEST_SUITE_P(
       return std::string(info.param.expected_code);
     });
 
+TEST(DiagnosticsSuite, PreprocessError) {
+  // T064 / FR-020c: an unresolved `#include` produces a
+  // preprocess-tagged diagnostic. (The frozen-Pn-code field is
+  // not asserted because the preprocessor's diagnostic strings
+  // don't currently carry `(P<NN>)` suffixes; the source-tag is
+  // the load-bearing assertion.)
+  LspSession s({.nsl_lsp_log_level = "warn"});
+  initialize(s);
+  std::string text = readFixture("preprocess_unresolved_include.nsl");
+  ASSERT_FALSE(text.empty());
+  didOpen(s, "file:///pp.nsl", 1, text);
+
+  auto diag = s.waitForDiagnostics();
+  ASSERT_TRUE(diag.has_value());
+  const auto *arr = getDiagnosticsArray(*diag);
+  ASSERT_NE(arr, nullptr);
+  ASSERT_GE(arr->size(), 1u);
+
+  bool found_pp = false;
+  for (const auto &d : *arr) {
+    auto src = d.getAsObject()->getString("source").value_or("");
+    auto msg = d.getAsObject()->getString("message").value_or("");
+    if (src == "nsl-preprocess" && msg.contains("include")) {
+      found_pp = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(found_pp)
+      << "expected at least one diagnostic with source=nsl-preprocess "
+         "mentioning the unresolved include";
+
+  s.doShutdownExit();
+  EXPECT_EQ(s.exitCode(), 0);
+}
+
 TEST(DiagnosticsSuite, UTF8Comment) {
   // T065 / FR-013: a fixture with a multi-byte UTF-8 comment on
   // the same line as an S1 violation. The diagnostic's
@@ -546,12 +581,24 @@ TEST(DiagnosticsSuite, RapidEdits_LatestVersionPublished) {
   didChange(s, "file:///r.nsl", 5, clean);
   didChange(s, "file:///r.nsl", 6, clean);
 
-  // Drain publishes; the LAST one must be for version 6 with empty
-  // diagnostics.
+  // Drain publishes until we see version=6, OR until a longer
+  // overall deadline passes. The TUScheduler may drop intermediate
+  // versions per FR-008, but the version-6 publish must eventually
+  // arrive (it's the latest seen). Drain takes a few hundred ms in
+  // practice with a 4-wide worker pool; the 5-second deadline is
+  // generous for slow runners.
   llvm::json::Value final_pub = llvm::json::Value(nullptr);
-  while (true) {
+  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+  while (std::chrono::steady_clock::now() < deadline) {
     auto pub = s.waitForDiagnostics(std::chrono::milliseconds(500));
-    if (!pub.has_value()) break;
+    if (!pub.has_value()) {
+      // No publish in 500 ms; if we already have version=6, done.
+      if (final_pub.kind() != llvm::json::Value::Null) {
+        auto *p = final_pub.getAsObject()->getObject("params");
+        if (p && p->getInteger("version").value_or(-1) == 6) break;
+      }
+      continue;
+    }
     final_pub = std::move(*pub);
   }
   auto *params = final_pub.getAsObject()->getObject("params");

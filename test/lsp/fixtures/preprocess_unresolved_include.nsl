@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/preprocess_unresolved_include.nsl — T053.
+// Triggers a preprocessor-level diagnostic by `#include`-ing a
+// path that doesn't exist. Surfaces through the LSP via the
+// shared DiagnosticEngine accumulated in NslTU::reparse.
+
+#include "definitely_does_not_exist_2026_05_05.nslh"
+
+module m { }

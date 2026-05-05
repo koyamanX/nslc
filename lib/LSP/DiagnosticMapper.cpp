@@ -82,11 +82,14 @@ llvm::StringRef inferSource(llvm::StringRef msg, llvm::StringRef code) {
     if (code.starts_with("P")) return "nsl-preprocess";
   }
   // Fall back on message-content heuristic. Preprocessor diagnostics
-  // commonly mention `#`-directives or `%IDENT%` macros; parser
-  // diagnostics commonly start with `expected` / `unexpected`.
+  // commonly mention `#`-directives, `%IDENT%` macros, or include-
+  // resolution failures (`could not find include: '...'`).
   if (msg.contains("#include") || msg.contains("#define") ||
       msg.contains("#if") || msg.contains("%") ||
-      msg.contains("preprocessor"))
+      msg.contains("preprocessor") ||
+      msg.contains("could not find include") ||
+      msg.contains("include:") ||
+      msg.contains("macro"))
     return "nsl-preprocess";
   if (msg.contains("expected") || msg.contains("unexpected") ||
       msg.contains("missing"))
