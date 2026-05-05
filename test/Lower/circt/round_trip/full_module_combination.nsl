@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/round_trip/full_module_combination.nsl — M6
+// Phase 7 (US5) round-trip fixture (T131). The "kitchen-sink"
+// fixture: as many of the ~40 op patterns in one module as a single
+// NSL grammatical structure permits.
+//
+// Op coverage pragmatically combined here:
+//
+//   Storage (US1)         : nsl.reg, nsl.wire, nsl.mem
+//   Arith (Phase 6)       : nsl.add → comb.add
+//   Bit-ops (Phase 6)     : nsl.and / nsl.or / nsl.xor → comb.{and,or,xor}
+//   Slice + Concat        : nsl.slice → comb.extract; nsl.concat → comb.concat
+//   Control (Phase 6)     : nsl.if (reg-LHS variant) → comb.mux + seq.firreg
+//                           nsl.alt (with else) → comb.mux chain
+//   FSM (Phase 5)         : nsl.proc / nsl.state / nsl.first_state →
+//                           fsm.machine + fsm.state
+//   Module skeleton       : nsl.declare + nsl.module + ports +
+//                           implicit clock/reset
+//
+// Mutually exclusive combinations intentionally NOT included here
+// (each is exercised by its own dedicated round-trip fixture):
+//
+//   - sim ops (`_init`, `_finish`, etc.): require `simulation`-
+//     modifier on the declare; covered by sim_only.nsl (T130).
+//   - func_in + call (handshake): the `<func>_valid` wire shape is
+//     covered by handshake_pattern.nsl (T128).
+//   - mem-only kitchen variants: covered by memory_array.nsl (T129).
+//
+// Round-trip pipeline: `--convert-fsm-to-sv --lower-seq-to-sv`.
+// Asserts no unrealized_conversion_cast survives. This is the densest
+// per-fixture coverage in the round_trip/ family.
+
+// RUN: %nslc -emit=hw %s > %t.hw
+// RUN: %FileCheck %s --input-file=%t.hw
+// RUN: circt-opt --convert-fsm-to-sv --lower-seq-to-sv %t.hw -o %t.rt.mlir
+// RUN: %FileCheck %s --input-file=%t.rt.mlir --check-prefix=ROUNDTRIP
+// RUN: not grep "unrealized_conversion_cast" %t.rt.mlir
+
+declare M {
+  input a[8];
+  input b[8];
+  input c[1];
+  input d[1];
+  output q[8];
+  output qa[8];
+  output qx[8];
+  output qcat[8];
+}
+
+module M {
+  // Storage decls.
+  reg r[8] = 0;
+  wire w[8];
+  mem ram[16][8];
+
+  // Combinational arith + logical + concat + slice.
+  w = a + b;
+  qa = a & b;
+  qx = a ^ b;
+  qcat = {a[3:0], b[3:0]};
+
+  // Conditional clocked transfer (chained-if-reg per Q3 → A:
+  // ONE seq.firreg, nested comb.mux on its data input).
+  if(c) r := w;
+  if(d) r := a;
+
+  // alt with else (priority mux chain).
+  alt {
+    c: q = r;
+    d: q = a;
+    else: q = b;
+  }
+
+  // FSM with single state.
+  proc_name p;
+  proc p {
+    state_name s0;
+    first_state s0;
+    state s0 {
+    }
+  }
+}
+
+// Pre-round-trip: every per-op family represented at the hw / comb /
+// seq / fsm level; zero residual `nsl::*` ops (FR-022).
+// CHECK-LABEL: hw.module @M
+// CHECK-DAG: comb.add %a, %b
+// CHECK-DAG: comb.and %a, %b
+// CHECK-DAG: comb.xor %a, %b
+// CHECK-DAG: comb.concat
+// CHECK-DAG: comb.extract
+// CHECK-DAG: comb.mux
+// CHECK-DAG: seq.firreg
+// CHECK-DAG: seq.firmem
+// CHECK-DAG: hw.wire
+// CHECK-LABEL: fsm.machine @p
+// CHECK-NOT: nsl.
+
+// Post-round-trip shape: fsm.machine becomes a sibling hw.module;
+// firreg + firmem expand to sv.always + sv.passign + hw.module.generated
+// stubs; comb ops survive untouched.
+// ROUNDTRIP-DAG: hw.module @M
+// ROUNDTRIP-DAG: hw.module @p
+// ROUNDTRIP-DAG: hw.module.generated
+// ROUNDTRIP-DAG: sv.always
+// ROUNDTRIP-DAG: sv.passign
+// ROUNDTRIP-NOT: fsm.
+// ROUNDTRIP-NOT: seq.firmem
+// ROUNDTRIP-NOT: nsl.
