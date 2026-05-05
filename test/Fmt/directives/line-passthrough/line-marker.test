@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T047: `#line N "F"` survives byte-for-byte. The line directive
+// is the only preprocessor directive that crosses the seam into
+// the parser (Constitution Principle IV); the formatter MUST NOT
+// disturb it.
+
+// RUN: printf '#line 42 "elsewhere.nsl"\nmodule m {}\n' | nsl-fmt --stdin | FileCheck %s
+// CHECK: #line 42 "elsewhere.nsl"
+// CHECK-NEXT: module m {}

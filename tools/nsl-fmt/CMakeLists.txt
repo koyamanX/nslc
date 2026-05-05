@@ -19,9 +19,14 @@ add_executable(nsl-fmt main.cpp)
 # archive is `libNslFmt.a` per spec FR-017; see lib/Fmt/CMakeLists.txt
 # for the rationale (avoids collision with this `nsl-fmt` executable
 # target).
+#
+# T2 Phase 3a-CLI adds direct LLVMSupport dependency for
+# `MemoryBuffer::getFile` / `getSTDIN` and `raw_ostream`. nsl-basic
+# is pulled in transitively via NslFmt for `SourceManager`.
 target_link_libraries(nsl-fmt
   PRIVATE
-    NslFmt)
+    NslFmt
+    LLVMSupport)
 
 # Place alongside `nslc` and `nsl-opt` in `bin/` so contributors
 # invoking from `build/bin/` find every project binary side-by-side.

@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T048: `%IDENT%` macro splices are byte-preserved — the lexer's
+// existing token-byte fidelity (cst-shape contract §3) carries
+// them through the CST, and the byte-passthrough formatter at
+// Phase 2c emits them verbatim. Phase 3+ retains this property
+// because the LayoutPlanner treats `IdentSplice` tokens as
+// `Doc::Text` leaves (research §7).
+
+// RUN: printf 'module %%FOO%% {}\n' | nsl-fmt --stdin | FileCheck %s
+// CHECK: module %FOO% {}

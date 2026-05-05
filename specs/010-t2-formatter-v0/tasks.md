@@ -109,19 +109,19 @@ diff. Verified by ninja `check-fmt-lit` passing the
 - [ ] T033 [P] [US1] Author lit fixture `test/Fmt/rules/alt-case-alignment/three-cases.test` per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §1 (R1) — observe FAILING
 - [ ] T034 [P] [US1] Author lit fixture `test/Fmt/rules/struct-member-alignment/mixed-name-lengths.test` per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §2 (R2) — observe FAILING
 - [ ] T035 [P] [US1] Author lit fixture `test/Fmt/rules/proc-name-arg-wrap/multi-arg-with-widths.test` per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §3 (R3) — observe FAILING
-- [ ] T036 [P] [US1] Author lit fixture `test/Fmt/cli/stdin/basic-roundtrip.test` asserting `RUN: cat %s | nsl-fmt --stdin | FileCheck %s` for a tiny `module foo {}` — observe FAILING
-- [ ] T037 [P] [US1] Author lit fixture `test/Fmt/cli/in-place/atomic-rewrite.test` asserting `RUN: nsl-fmt -i %t/scratch.nsl && FileCheck %s < %t/scratch.nsl` — observe FAILING
-- [ ] T038 [P] [US1] Author lit fixture `test/Fmt/edge/empty-input/zero-bytes.test` (empty file → exit 0, empty output) — observe FAILING
+- [X] T036 [P] [US1] Author lit fixture `test/Fmt/cli/stdin/basic-roundtrip.test` asserting `RUN: cat %s | nsl-fmt --stdin | FileCheck %s` for a tiny `module foo {}` — observe FAILING
+- [X] T037 [P] [US1] Author lit fixture `test/Fmt/cli/in-place/atomic-rewrite.test` asserting `RUN: nsl-fmt -i %t/scratch.nsl && FileCheck %s < %t/scratch.nsl` — observe FAILING
+- [X] T038 [P] [US1] Author lit fixture `test/Fmt/edge/empty-input/zero-bytes.test` (empty file → exit 0, empty output) — observe FAILING
 - [ ] T039 [P] [US1] Author lit fixture `test/Fmt/edge/parse-error-refusal/syntax-error.test` asserting parse-error → exit non-zero + stderr matches frozen string from [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §7 — observe FAILING
 - [ ] T040 [P] [US1] Author lit fixture `test/Fmt/edge/crlf-normalization/mixed-endings.test` asserting CRLF input is normalized to LF on output — observe FAILING
-- [ ] T041 [P] [US1] Author lit fixture `test/Fmt/edge/bom-preserve/utf8-bom.test` asserting BOM at file start is preserved on output — observe FAILING
-- [ ] T042 [P] [US1] Author lit fixture `test/Fmt/edge/over-long-line/string-no-break-point.test` asserting a 200-char `_display(...)` line is emitted as-is (no corruption) — observe FAILING
+- [X] T041 [P] [US1] Author lit fixture `test/Fmt/edge/bom-preserve/utf8-bom.test` asserting BOM at file start is preserved on output — observe FAILING
+- [X] T042 [P] [US1] Author lit fixture `test/Fmt/edge/over-long-line/string-no-break-point.test` asserting a 200-char `_display(...)` line is emitted as-is (no corruption) — observe FAILING
 - [ ] T043 [P] [US1] Author lit fixture `test/Fmt/idempotence/synthetic/round-trip-five-cases.test` running `nsl-fmt | nsl-fmt | diff -q -` on five constructed inputs — observe FAILING
-- [ ] T044 [P] [US1] Author lit fixture `test/Fmt/directives/include-passthrough/quote-and-angle.test` asserting both `#include "x.nsl"` and `#include <x.nsl>` survive the round-trip byte-for-byte — observe FAILING
-- [ ] T045 [P] [US1] Author lit fixture `test/Fmt/directives/ifdef-island/nested-conditional.test` asserting `#ifdef`/`#endif` blocks with NSL fragments inside survive — observe FAILING
-- [ ] T046 [P] [US1] Author lit fixture `test/Fmt/directives/define-passthrough/macro-with-args.test` asserting `#define FOO(x,y)` is emitted byte-for-byte — observe FAILING
-- [ ] T047 [P] [US1] Author lit fixture `test/Fmt/directives/line-passthrough/line-marker.test` asserting `#line 42 "elsewhere.nsl"` survives — observe FAILING
-- [ ] T048 [P] [US1] Author lit fixture `test/Fmt/directives/ident-splice-passthrough/percent-ident.test` asserting `%FOO%` splices are byte-preserved (research §7) — observe FAILING
+- [X] T044 [P] [US1] Author lit fixture `test/Fmt/directives/include-passthrough/quote-and-angle.test` asserting both `#include "x.nsl"` and `#include <x.nsl>` survive the round-trip byte-for-byte — observe FAILING
+- [X] T045 [P] [US1] Author lit fixture `test/Fmt/directives/ifdef-island/nested-conditional.test` asserting `#ifdef`/`#endif` blocks with NSL fragments inside survive — observe FAILING
+- [X] T046 [P] [US1] Author lit fixture `test/Fmt/directives/define-passthrough/macro-with-args.test` asserting `#define FOO(x,y)` is emitted byte-for-byte — observe FAILING
+- [X] T047 [P] [US1] Author lit fixture `test/Fmt/directives/line-passthrough/line-marker.test` asserting `#line 42 "elsewhere.nsl"` survives — observe FAILING
+- [X] T048 [P] [US1] Author lit fixture `test/Fmt/directives/ident-splice-passthrough/percent-ident.test` asserting `%FOO%` splices are byte-preserved (research §7) — observe FAILING
 
 ### Implementation for User Story 1
 
@@ -132,16 +132,16 @@ diff. Verified by ninja `check-fmt-lit` passing the
 - [ ] T053 [US1] Implement R2 (struct member-bracket alignment) in `lib/Fmt/LayoutPlanner.cpp` `visitStructDecl`; T034 turns green
 - [ ] T054 [US1] Implement R3 (proc_name argument-list wrapping) in `lib/Fmt/LayoutPlanner.cpp` `visitProcNameDecl` — single-line vs multi-line decision per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §3; T035 turns green
 - [ ] T055 [US1] Implement remaining `LayoutPlanner::visit*()` overrides (~25 NSL CST node categories — declare/module/internal-structure/action statements/atomic actions/expressions per the AST taxonomy in `nsl_compiler_design.md` §5)
-- [ ] T056 [US1] Implement CLI default mode in `tools/nsl-fmt/main.cpp` — for each positional file, read → `format_buffer()` → write to stdout; T036 turns green
-- [ ] T057 [US1] Implement CLI `-i` / `--in-place` mode in `tools/nsl-fmt/main.cpp` — write to temp file in same directory + atomic rename; T037 turns green
-- [ ] T058 [US1] Implement CLI `--stdin` mode in `tools/nsl-fmt/main.cpp` — `MemoryBuffer::getSTDIN()` → `format_buffer()` → stdout
+- [X] T056 [US1] Implement CLI default mode in `tools/nsl-fmt/main.cpp` — for each positional file, read → `format_buffer()` → write to stdout; T036 turns green
+- [X] T057 [US1] Implement CLI `-i` / `--in-place` mode in `tools/nsl-fmt/main.cpp` — write to temp file in same directory + atomic rename; T037 turns green
+- [X] T058 [US1] Implement CLI `--stdin` mode in `tools/nsl-fmt/main.cpp` — `MemoryBuffer::getSTDIN()` → `format_buffer()` → stdout
 - [ ] T059 [US1] Implement parse-error refusal path in `lib/Fmt/Format.cpp` per [`contracts/format-api.contract.md`](./contracts/format-api.contract.md) §4 (`Status::Refused`); T039 turns green
-- [ ] T060 [US1] Implement empty-input handling in `lib/Fmt/Format.cpp` (early-return Success with empty output); T038 turns green
+- [X] T060 [US1] Implement empty-input handling in `lib/Fmt/Format.cpp` (early-return Success with empty output); T038 turns green
 - [ ] T061 [US1] Implement CRLF normalization in `lib/Fmt/LayoutRenderer.cpp` (always emit LF); T040 turns green
-- [ ] T062 [US1] Implement BOM preservation in `lib/Fmt/DirectiveSplitter.cpp` (BOM byte sequence retained as leading trivia of first slice); T041 turns green
-- [ ] T063 [US1] Implement over-long-line "best effort" in `lib/Fmt/LayoutRenderer.cpp` (emit the un-breakable line and continue); T042 turns green
+- [X] T062 [US1] Implement BOM preservation in `lib/Fmt/DirectiveSplitter.cpp` (BOM byte sequence retained as leading trivia of first slice); T041 turns green
+- [X] T063 [US1] Implement over-long-line "best effort" in `lib/Fmt/LayoutRenderer.cpp` (emit the un-breakable line and continue); T042 turns green
 - [ ] T064 [US1] Implement idempotence — by construction, T030–T035 having idempotence.nsl golden files already exercises this; T043 turns green once the planner is stable
-- [ ] T065 [US1] Verify directive pass-through fixtures T044–T048 turn green against the implemented DirectiveSplitter + LayoutPlanner (no new code expected; this task is the verification step)
+- [X] T065 [US1] Verify directive pass-through fixtures T044–T048 turn green against the implemented DirectiveSplitter + LayoutPlanner (no new code expected; this task is the verification step)
 
 ### Additional tests (added during /speckit-analyze remediation, finding C4)
 
@@ -172,12 +172,12 @@ M7).
 ### Tests for User Story 2 (TDD)
 
 - [ ] T066 [P] [US2] Author lit fixture `test/Fmt/cli/check-mode/dirty-file.test` asserting `RUN: nsl-fmt --check %s; CHECK: <diff>; CHECK: exit 1` — observe FAILING
-- [ ] T067 [P] [US2] Author lit fixture `test/Fmt/cli/check-mode/clean-file.test` asserting clean file → exit 0 + empty stdout — observe FAILING
+- [X] T067 [P] [US2] Author lit fixture `test/Fmt/cli/check-mode/clean-file.test` asserting clean file → exit 0 + empty stdout — observe FAILING
 - [ ] T068 [P] [US2] Author lit fixture `test/Fmt/cli/multi-file/one-bad-one-good.test` asserting one parse-error file + one clean file → both processed, exit 1, only the bad file's diagnostic on stderr (FR-003a continue-on-error) — observe FAILING
 - [ ] T069 [P] [US2] Author lit fixture `test/Fmt/cli/multi-file/all-clean.test` asserting `--check` over 3 already-canonical files → exit 0 — observe FAILING
-- [ ] T070 [P] [US2] Author lit fixture `test/Fmt/cli/mutually-exclusive/check-and-in-place.test` asserting `nsl-fmt -c -i x.nsl` produces frozen string from [`contracts/cli-surface.contract.md`](./contracts/cli-surface.contract.md) §2 + exit 2 — observe FAILING
-- [ ] T071 [P] [US2] Author lit fixture `test/Fmt/cli/mutually-exclusive/stdin-and-positional.test` per `cli-surface.contract.md` §2 — observe FAILING
-- [ ] T072 [P] [US2] Author lit fixture `test/Fmt/cli/mutually-exclusive/check-without-input.test` per `cli-surface.contract.md` §2 — observe FAILING
+- [X] T070 [P] [US2] Author lit fixture `test/Fmt/cli/mutually-exclusive/check-and-in-place.test` asserting `nsl-fmt -c -i x.nsl` produces frozen string from [`contracts/cli-surface.contract.md`](./contracts/cli-surface.contract.md) §2 + exit 2 — observe FAILING
+- [X] T071 [P] [US2] Author lit fixture `test/Fmt/cli/mutually-exclusive/stdin-and-positional.test` per `cli-surface.contract.md` §2 — observe FAILING
+- [X] T072 [P] [US2] Author lit fixture `test/Fmt/cli/mutually-exclusive/check-without-input.test` per `cli-surface.contract.md` §2 — observe FAILING
 - [ ] T073 [P] [US2] Author gtest `test_unit/Fmt/diff_emitter_test.cc::EmptyOnIdentical` asserting `emit_unified_diff(s, s, "a", "b") == ""` — observe FAILING
 - [ ] T074 [P] [US2] Author gtest `test_unit/Fmt/diff_emitter_test.cc::HunkFormat` asserting one-hunk output matches `--- a\n+++ b\n@@ -1,1 +1,1 @@\n-old\n+new\n` — observe FAILING
 - [ ] T075 [P] [US2] Author gtest `test_unit/Fmt/diff_emitter_test.cc::Determinism` asserting two `emit_unified_diff()` calls on the same inputs produce byte-identical output — observe FAILING
@@ -185,9 +185,9 @@ M7).
 ### Implementation for User Story 2
 
 - [ ] T076 [US2] Implement `lib/Fmt/Diff.{h,cpp}` Myers-diff-based unified-diff emitter per [`research.md`](./research.md) §5 + [`data-model.md`](./data-model.md) §7; T073/T074/T075 turn green
-- [ ] T077 [US2] Implement CLI `--check` / `-c` mode in `tools/nsl-fmt/main.cpp` — for each file: format → compare → if differ, print unified diff via `emit_unified_diff()`; track aggregate failure flag; T066/T067 turn green
+- [X] T077 [US2] Implement CLI `--check` / `-c` mode in `tools/nsl-fmt/main.cpp` — for each file: format → compare → if differ, print unified diff via `emit_unified_diff()`; track aggregate failure flag; T066/T067 turn green
 - [ ] T078 [US2] Implement multi-file continue-on-error loop in `tools/nsl-fmt/main.cpp` per [`contracts/cli-surface.contract.md`](./contracts/cli-surface.contract.md) §4 — per-file try/catch; aggregate failure flag; final exit code reflects aggregate; T068/T069 turn green
-- [ ] T079 [US2] Implement mutually-exclusive flag rejection in `tools/nsl-fmt/main.cpp` after `cl::ParseCommandLineOptions()` — emit each of the five frozen strings from [`contracts/cli-surface.contract.md`](./contracts/cli-surface.contract.md) §2; T070/T071/T072 turn green
+- [X] T079 [US2] Implement mutually-exclusive flag rejection in `tools/nsl-fmt/main.cpp` after `cl::ParseCommandLineOptions()` — emit each of the five frozen strings from [`contracts/cli-surface.contract.md`](./contracts/cli-surface.contract.md) §2; T070/T071/T072 turn green
 - [ ] T080 [P] [US2] Add `nsl-fmt --check test/audited/**/*.nsl || true` step to `scripts/ci.sh` per [`quickstart.md`](./quickstart.md) §10 (the `|| true` guard becomes a hard gate at M7 in a one-line follow-up commit)
 
 **Phase 4 checkpoint**: All US2 fixtures green; CI step exists.

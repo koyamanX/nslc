@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T046: `#define MACRO(x,y) ...` is emitted byte-for-byte —
+// payload whitespace and parenthesisation preserved per FR-012a
+// (formatter MUST NOT reorder, deduplicate, or syntactically
+// rewrite directives).
+
+// RUN: printf '#define FOO(x,y) ((x)+(y))\n' | nsl-fmt --stdin | FileCheck %s
+// CHECK: #define FOO(x,y) ((x)+(y))

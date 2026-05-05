@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T037: `nsl-fmt -i` rewrites the file in place (atomic write-to-
+// temp + rename per FR-002). Verifies the file's bytes after the
+// operation. At Phase 3a-CLI the formatter is byte-passthrough so
+// the file content is unchanged; the test still proves the rename
+// path executes.
+
+// RUN: printf 'module foo {}\n' > %t.nsl
+// RUN: nsl-fmt -i %t.nsl
+// RUN: FileCheck %s < %t.nsl
+// CHECK: module foo {}

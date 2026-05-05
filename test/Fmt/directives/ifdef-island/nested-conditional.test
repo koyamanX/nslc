@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T045: `#ifdef`/`#endif` blocks with NSL fragments inside
+// survive byte-for-byte. The directive lines are opaque tokens;
+// the inter-directive NSL fragment is a separate Slice whose
+// rawText is also preserved verbatim at Phase 2c.
+
+// RUN: printf '#ifdef DEBUG\nmodule dbg {}\n#endif\n' | nsl-fmt --stdin | FileCheck %s
+// CHECK: #ifdef DEBUG
+// CHECK-NEXT: module dbg {}
+// CHECK-NEXT: #endif

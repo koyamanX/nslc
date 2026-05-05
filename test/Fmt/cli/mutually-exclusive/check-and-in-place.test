@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T070: `-c` + `-i` is mutually exclusive. The frozen diagnostic
+// string from cli-surface.contract.md §2 lands on stderr and the
+// process exits non-zero (lit `not` inverts).
+
+// RUN: not nsl-fmt -c -i %t.nsl 2>&1 | FileCheck %s
+// CHECK: error: --check and --in-place are mutually exclusive

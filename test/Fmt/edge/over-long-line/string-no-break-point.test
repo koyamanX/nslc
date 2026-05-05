@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T042: a 200-char line with no break-point candidate is emitted
+// as-is rather than corrupted by an unsafe break. At Phase 3a-CLI
+// the formatter is byte-passthrough, so this is satisfied
+// trivially; once the LayoutPlanner lands in Phase 3, this
+// fixture gates against the planner ever inserting an unsafe
+// break in `_display(...)`-like constructs.
+
+// RUN: printf '_display("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");\n' | nsl-fmt --stdin | FileCheck %s
+// CHECK: _display("x{{x+}}");

@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T036: `nsl-fmt --stdin` on a tiny `module foo {}` input.
+// At T2 Phase 3a-CLI the formatter is still byte-passthrough
+// (Phase 3 wires the LayoutPlanner) — output equals input.
+
+// RUN: printf 'module foo {}\n' | nsl-fmt --stdin | FileCheck %s
+// CHECK: module foo {}
