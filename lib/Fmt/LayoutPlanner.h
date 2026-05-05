@@ -109,10 +109,21 @@ protected:
   DocPtr formatNode(const ::nsl::ast::ModuleBlock &node);
   DocPtr formatNode(const ::nsl::ast::RegDecl &node);
   DocPtr formatNode(const ::nsl::ast::WireDecl &node);
+  DocPtr formatNode(const ::nsl::ast::StructDecl &node);
   DocPtr formatNode(const ::nsl::ast::BinaryExpr &node);
   DocPtr formatNode(const ::nsl::ast::UnaryExpr &node);
   DocPtr formatNode(const ::nsl::ast::SliceExpr &node);
   DocPtr formatNode(const ::nsl::ast::ConcatExpr &node);
+
+  /// Per-level indent step in column-equivalents. Maps the active
+  /// `Configuration::Indent` enum to the integer the renderer's
+  /// `Doc::nest(N, ...)` and `emitIndent` machinery expects:
+  ///   * `Spaces2` ⇒ 2 columns per level (= 2 spaces emitted);
+  ///   * `Spaces4` ⇒ 4 columns per level (= 4 spaces emitted);
+  ///   * `Tab`     ⇒ 1 column per level (the renderer emits one
+  ///                 literal `\t` whenever `columnIndent > 0`,
+  ///                 regardless of the count).
+  [[nodiscard]] int indentStep() const noexcept;
 
   /// Spelling table for `BinaryExpr::Op`. Returns a static-storage
   /// `StringRef` so the result outlives any Doc tree built from it.

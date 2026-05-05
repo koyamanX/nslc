@@ -165,6 +165,23 @@ DocPtr LayoutPlanner::interleaveChildren(
 #include "nsl/AST/NodeKind.def"
 #undef NSL_NODE_KIND
 
+// ---- Indent-step helper -------------------------------------------------
+
+int LayoutPlanner::indentStep() const noexcept {
+  switch (cfg_.indent) {
+  case Configuration::Indent::Spaces2:
+    return 2;
+  case Configuration::Indent::Spaces4:
+    return 4;
+  case Configuration::Indent::Tab:
+    // Any positive count works in tab mode — `emitIndent` emits a
+    // single `\t` whenever `columnIndent > 0`. Use 1 to keep the
+    // numeric reasoning honest for any future spaces-mode renderer.
+    return 1;
+  }
+  return 4;
+}
+
 // ---- Default verbatim-fallback ------------------------------------------
 
 DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ASTNode &node) {
@@ -295,6 +312,80 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::SliceExpr &node) {
   }
   parts.push_back(Doc::text(llvm::StringRef("]")));
   return Doc::concat(std::move(parts));
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::StructDecl &node) {
+  // R2 §2: in `struct <name> { <members> };` the `[N]` bit-width
+  // brackets all align to one space past the longest member name's
+  // alignment column. The canonical example in
+  // `formatting-rules.contract.md` §2 puts TWO physical spaces
+  // between the longest name and its `[` (not one — the contract
+  // text "one space follows the longest name" describes the gap
+  // between the longest name and the alignment column, not the
+  // brackets themselves):
+  //
+  //   struct csr_t {
+  //       mstatus  [32];   <-- 2 spaces  (`[` at offset 9 from name start)
+  //       mcause   [32];   <-- 3 spaces  (offset 9: 6 + 3 = 9)
+  //       mtvec    [30];   <-- 4 spaces  (offset 9: 5 + 4 = 9)
+  //       mepc     [32];   <-- 5 spaces  (offset 9: 4 + 5 = 9)
+  //   };
+  //
+  // So the brace column lands at `max_name + 2` characters from the
+  // start of the (post-indent) name; per-member padding is
+  // `(max_name + 2) - name.size()`.
+  //
+  // When `align_struct_members = false` the toggle suppresses the
+  // alignment: every member emits exactly one space between name
+  // and `[`. Members without a width slot just emit `<name>;` (no
+  // `[`, so they don't sit on the alignment column — but if their
+  // name happens to be the longest, they DO push the column
+  // further out: alignment is anchored on the longest *name*, not
+  // the longest *width-bearing* name).
+
+  // Compute longest member-name length over ALL members (not just
+  // those with widths) so a width-less member with a long name
+  // still anchors the alignment column.
+  std::size_t max_name = 0;
+  for (const auto &m : node.members()) {
+    if (m.name.size() > max_name) {
+      max_name = m.name.size();
+    }
+  }
+
+  std::vector<DocPtr> body_parts;
+  body_parts.reserve(node.members().size() * 7);
+  for (const auto &m : node.members()) {
+    body_parts.push_back(Doc::hardline());
+    body_parts.push_back(Doc::text(m.name));
+    if (m.width != nullptr) {
+      // Per the canonical example, the `[` lands at column
+      // `max_name + 2` from the name's start; pad accordingly.
+      // With `align_struct_members=false` collapse every member to
+      // a single-space separator (the rule's documented
+      // suppression mode).
+      const std::size_t pad = cfg_.align_struct_members
+                                  ? (max_name + 2) - m.name.size()
+                                  : std::size_t{1};
+      const std::string padding(pad, ' ');
+      body_parts.push_back(Doc::text(llvm::StringRef(padding)));
+      body_parts.push_back(Doc::text(llvm::StringRef("[")));
+      body_parts.push_back(visitNode(*m.width));
+      body_parts.push_back(Doc::text(llvm::StringRef("]")));
+    }
+    body_parts.push_back(Doc::text(llvm::StringRef(";")));
+  }
+
+  std::vector<DocPtr> top_parts;
+  top_parts.reserve(6);
+  top_parts.push_back(Doc::text(llvm::StringRef("struct ")));
+  top_parts.push_back(Doc::text(node.name()));
+  top_parts.push_back(Doc::text(llvm::StringRef(" {")));
+  top_parts.push_back(
+      Doc::nest(indentStep(), Doc::concat(std::move(body_parts))));
+  top_parts.push_back(Doc::hardline());
+  top_parts.push_back(Doc::text(llvm::StringRef("};")));
+  return Doc::concat(std::move(top_parts));
 }
 
 DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ConcatExpr &node) {
