@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T119 — non-default config: `indent = "tab"` emits a literal `\t`
+// at every indent level (rather than spaces). The struct shape is
+// the simplest body that exercises an indented context — its
+// members live inside a `Doc::nest(indentStep(), ...)` so a config
+// that maps `indent` → tab flows through the existing
+// `LayoutPlanner::indentStep()` helper into the renderer's
+// `emitIndent` machinery.
+//
+// `LayoutPlanner::indentStep()` returns 1 for `Indent::Tab`; the
+// renderer's `emitIndent` checks `columnIndent > 0` and emits a
+// single `\t` regardless of count, so the per-line prefix is
+// exactly one tab character.
+
+// RUN: rm -rf %t.tab && mkdir -p %t.tab
+// RUN: printf 'indent = "tab"\n' > %t.tab/.nsl-fmt.toml
+// RUN: printf 'struct s { aaa[8]; bb[16]; };\n' > %t.tab/s.nsl
+// RUN: cd %t.tab && nsl-fmt s.nsl | FileCheck %s
+//
+// FileCheck patterns: each member line begins with a literal tab
+// character, followed by the member name. Use `{{^	}}` to match
+// the literal tab at start-of-line (FileCheck regex syntax).
+//
+// CHECK: struct s {
+// CHECK-NEXT: {{^	aaa}}
+// CHECK-NEXT: {{^	bb}}
+// CHECK-NEXT: };
