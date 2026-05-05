@@ -376,11 +376,23 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::StructDecl &node) {
     body_parts.push_back(Doc::text(llvm::StringRef(";")));
   }
 
+  // K&R (default): `struct <name> {` on one line, body indented
+  //                below. Matches the canonical example in
+  //                `formatting-rules.contract.md` §2.
+  // Allman:        `struct <name>` then a newline then `{` on its
+  //                own line at the outer indent (one indent
+  //                level less than the body).
+  const bool allman = cfg_.brace_style == Configuration::BraceStyle::Allman;
   std::vector<DocPtr> top_parts;
-  top_parts.reserve(6);
+  top_parts.reserve(7);
   top_parts.push_back(Doc::text(llvm::StringRef("struct ")));
   top_parts.push_back(Doc::text(node.name()));
-  top_parts.push_back(Doc::text(llvm::StringRef(" {")));
+  if (allman) {
+    top_parts.push_back(Doc::hardline());
+    top_parts.push_back(Doc::text(llvm::StringRef("{")));
+  } else {
+    top_parts.push_back(Doc::text(llvm::StringRef(" {")));
+  }
   top_parts.push_back(
       Doc::nest(indentStep(), Doc::concat(std::move(body_parts))));
   top_parts.push_back(Doc::hardline());
@@ -505,10 +517,19 @@ DocPtr LayoutPlanner::formatCondCaseBlock(
     body_parts.push_back(visitNode(*elseCase));
   }
 
+  // K&R (default) vs Allman: same toggle as `formatNode(StructDecl)`.
+  // K&R puts the `{` on the same line as the keyword; Allman puts
+  // it on its own line at the same indent as the keyword.
+  const bool allman = cfg_.brace_style == Configuration::BraceStyle::Allman;
   std::vector<DocPtr> top_parts;
-  top_parts.reserve(5);
+  top_parts.reserve(6);
   top_parts.push_back(Doc::text(keyword));
-  top_parts.push_back(Doc::text(llvm::StringRef(" {")));
+  if (allman) {
+    top_parts.push_back(Doc::hardline());
+    top_parts.push_back(Doc::text(llvm::StringRef("{")));
+  } else {
+    top_parts.push_back(Doc::text(llvm::StringRef(" {")));
+  }
   top_parts.push_back(
       Doc::nest(indentStep(), Doc::concat(std::move(body_parts))));
   top_parts.push_back(Doc::hardline());
