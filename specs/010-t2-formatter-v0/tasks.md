@@ -261,7 +261,7 @@ edge cases.
 - [X] T105 [US4] Implement out-of-range / wrong-type error path in `lib/Fmt/Config.cpp` (per-key range check, frozen diagnostic strings); T097/T101 turn green
 - [X] T106 [US4] Implement `lib/Fmt/ConfigDiscovery.{h,cpp}` upward-walk for `.nsl-fmt.toml` per [`contracts/format-api.contract.md`](./contracts/format-api.contract.md) §4 (the explicit non-pure-function carve-out); T098 turns green
 - [X] T107 [US4] Implement CLI `--config PATH` flag in `tools/nsl-fmt/main.cpp` — when set, suppress `discover_config()`; T099 turns green
-- [ ] T108 [US4] Wire `Configuration` through `format_buffer()` so every `LayoutPlanner` decision honors the active config; verify R1–R6 fixtures still green with non-default configs (regression sweep)
+- [X] T108 [US4] Wire `Configuration` through `format_buffer()` so every `LayoutPlanner` decision honors the active config; verify R1–R6 fixtures still green with non-default configs. `Format.cpp` constructs `LayoutPlanner(src, config)`; the planner consults `cfg_` in `formatNode(ConcatExpr)` (`spaces_inside_braces`), `formatCondCaseBlock` (`align_case_arrows`), `formatNode(StructDecl)` (`align_struct_members`), and `indentStep()` (the `Indent` enum). Regression sweep: R1/R2/R4/R5 default-config fixtures (T030/T031/T033/T034) remain GREEN; non-default fixtures T119 (tab), T120 (spaces2), T123 (spaces_inside_braces=true) authored GREEN — the active-config path is exercised end-to-end. R3 / R6 still XFAIL pending their respective parser/CST blockers.
 
 ### Additional tests (added during /speckit-analyze remediation, finding C3)
 
