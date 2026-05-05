@@ -157,34 +157,45 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `009-t1-textmate-grammar` — land tooling-track
-milestone **T1**: the first NSL tooling deliverable, gating only
-on the spec (no compiler dependency). Ships
-`grammars/textmate/nsl.tmLanguage.json` (covering every reserved
-keyword from `nsl_lang.ebnf §15`, every numeric form from §13,
-every operator + comment + string from §14 / `nsl_tooling_design.md
-§4.1`, every preprocessor directive from `nsl_pp.ebnf §2`, and the
-`%IDENT%` macro form from §4) plus
-`editors/vscode/language-configuration.json` (comment toggles,
-bracket pairs, autoclose / surround pairs, word pattern, indent
-rules) and a scope-test fixture corpus under
-`test/tooling/textmate/` consumed by `vscode-tmgrammar-test` in
-`./scripts/ci.sh` stage 3. The grammar's keyword block is
-**generated** from `include/nsl/Lex/KeywordSet.def` (the established
-single-source-of-truth) via the new `scripts/gen_textmate_grammar.py`
-and `scripts/gen_textmate_fixtures.py` pair, mirroring the existing
-`gen_keyword_fixtures.py` precedent; CI gates regenerate-and-diff
-so spec ↔ grammar drift is mechanically impossible (Principle VII
-coupling). T1 is the only T-track milestone with no compiler
-dependency. Marketplace publication and a `github-linguist/linguist`
-PR are explicitly deferred per `README.md §Roadmap` T1 deferral
-note. For technologies, project structure, entity catalog,
-contracts, and quickstart, read the current plan:
-[`specs/009-t1-textmate-grammar/plan.md`](./specs/009-t1-textmate-grammar/plan.md).
+**Active feature**: `010-t3-lsp-skeleton` — land tooling-track
+milestone **T3**: the first user-visible LSP deliverable and the
+architectural seam every later LSP-track milestone (T4, T5, T9,
+T10, T11) builds on. Ships `tools/nsl-lsp/main.cpp` (thin entry
+point ≤ 70 lines), `lib/LSP/` (`libNSLLSP.a` — JSON-RPC framing,
+LSP-protocol layer, language-logic layer, TUScheduler + per-`NslTU`
+threading + cache, diagnostic-mapping + folding-range seams,
+position-encoding + cancellation-token + stderr-logger utilities),
+single public header at `include/nsl/LSP/Server.h` (per the
+Principle II single-public-header rule), and a new test layer at
+`test/lsp/` (four gtest binaries — `lifecycle_test`,
+`diagnostics_test`, `folding_test`, `cancellation_test` — driven
+by an in-tree `LspSession` harness that spawns `nsl-lsp` over
+stdio). Implements LSP methods `initialize` / `initialized` /
+`shutdown` / `exit` / `textDocument/{didOpen,didChange,didClose}` /
+`publishDiagnostics` / `textDocument/foldingRange` /
+`$/cancelRequest`. Per Clarifications session 2026-05-05: LSP 3.16
+floor (UTF-16 unconditionally; no `positionEncodings`); `Full`
+text sync only on `didChange`; `NSL_INCLUDE` env var read once at
+server startup for include-path discovery; stderr-only plain-text
+logging gated by `NSL_LSP_LOG_LEVEL`; **real** cancellation for
+`foldingRange` (the only cancellable T3 request). Reuses
+`libNSLFrontend.a` per Principle II — Sema diagnostics flow
+through the `DiagnosticEngine` → LSP `Diagnostic` mapper; folding
+ranges come from an `ASTVisitor` walk over the M2 parse tree. The
+test gate is the literal materialization of
+[`README.md`](./README.md) §Roadmap row T3: open a file with a
+Sema error, observe diagnostic; edit, observe re-diagnose. SC-003
+(determinism), SC-004 (250 ms didOpen→diagnostic), SC-007 (30 s
+combined CI), SC-008 (exact capability advertisement, asserted
+byte-equal against the frozen contract), SC-010 (200 ms
+cancellation budget) are the load-bearing measurable outcomes.
+For technologies, project structure, entity catalog, contracts,
+and quickstart, read the current plan:
+[`specs/010-t3-lsp-skeleton/plan.md`](./specs/010-t3-lsp-skeleton/plan.md).
 Companion artifacts:
-[`spec.md`](./specs/009-t1-textmate-grammar/spec.md),
-[`research.md`](./specs/009-t1-textmate-grammar/research.md),
-[`data-model.md`](./specs/009-t1-textmate-grammar/data-model.md),
-[`contracts/`](./specs/009-t1-textmate-grammar/contracts/),
-[`quickstart.md`](./specs/009-t1-textmate-grammar/quickstart.md).
+[`spec.md`](./specs/010-t3-lsp-skeleton/spec.md),
+[`research.md`](./specs/010-t3-lsp-skeleton/research.md),
+[`data-model.md`](./specs/010-t3-lsp-skeleton/data-model.md),
+[`contracts/`](./specs/010-t3-lsp-skeleton/contracts/),
+[`quickstart.md`](./specs/010-t3-lsp-skeleton/quickstart.md).
 <!-- SPECKIT END -->
