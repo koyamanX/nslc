@@ -13,6 +13,7 @@
 // (Phase 2c skeleton) — `nsl-fmt foo.nsl` reproduces foo.nsl on
 // stdout. Phase 3 lands the LayoutPlanner that actually reformats.
 
+#include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceManager.h"
 #include "nsl/Fmt/Fmt.h"
 
@@ -136,11 +137,20 @@ int processInput(llvm::StringRef name, llvm::StringRef content,
       nsl::fmt::format_buffer(content, cfg, fid, /*range=*/std::nullopt);
 
   // Render any diagnostics carried out of format_buffer to stderr.
+  // Full source-locating renderer (file:line:col) is wired in
+  // Phase 3 proper when the SourceManager is plumbed through; for
+  // now we emit `nsl-fmt: <severity>: <message>` per Diagnostic,
+  // which is sufficient to surface "parse error" / "config
+  // malformed" / etc. to the user.
   for (const nsl::Diagnostic &d : res.diagnostics) {
-    // Phase 2c: just dump the message; full source-locating
-    // renderer is wired in Phase 3+ with the layout planner. The
-    // basic::Diagnostic::message() accessor exists per nsl-basic.
-    (void)d; // suppress unused if Diagnostic ever lacks message accessor
+    const char *sev = "note";
+    switch (d.severity) {
+      case nsl::Severity::Error:   sev = "error";   break;
+      case nsl::Severity::Warning: sev = "warning"; break;
+      case nsl::Severity::Note:    sev = "note";    break;
+    }
+    llvm::errs() << "nsl-fmt: " << name << ": " << sev << ": " << d.message
+                 << "\n";
   }
 
   if (res.status == nsl::fmt::FormatResult::Status::Refused ||

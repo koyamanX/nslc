@@ -105,3 +105,23 @@ gtest_discover_tests(diff_emitter_test
 
 set_property(GLOBAL APPEND PROPERTY _NSL_FMT_GTEST_BINARIES
   diff_emitter_test)
+
+# -----------------------------------------------------------------------------
+# Phase 3c — SC-003 perf-budget gate (T118)
+# -----------------------------------------------------------------------------
+add_executable(perf_smoke_test
+  perf_smoke_test.cpp)
+
+target_link_libraries(perf_smoke_test
+  PRIVATE
+    nsl-basic
+    NslFmt
+    GTest::gtest_main)
+
+gtest_discover_tests(perf_smoke_test
+  PROPERTIES
+    TIMEOUT 60
+    LABELS Fmt)
+
+set_property(GLOBAL APPEND PROPERTY _NSL_FMT_GTEST_BINARIES
+  perf_smoke_test)

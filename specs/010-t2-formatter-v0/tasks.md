@@ -296,7 +296,7 @@ determinism gate, pre-merge checklist sweep.
 
 ### Additional task (added during /speckit-analyze remediation, finding C2 — SC-003 perf gate)
 
-- [ ] T118 [P] Author gtest `test_unit/Fmt/perf_smoke_test.cc::Check1000LineUnder250ms` constructing a synthetic 1000-line NSL file (e.g. 1000 `wire foo_<n> [8];` declarations under one `module`), invoking `format_buffer()` from a `--check`-equivalent code path, measuring wall-clock with `std::chrono::steady_clock`, and asserting elapsed < 500 ms (2× SC-003's 250 ms target to absorb CI hardware variance) — gates SC-003. Keep this test in the `check-fmt-unit` ninja target so CI stage 3 catches regressions.
+- [X] T118 [P] Author gtest `test_unit/Fmt/perf_smoke_test.cc::Check1000LineUnder250ms` constructing a synthetic 1000-line NSL file (e.g. 1000 `wire foo_<n> [8];` declarations under one `module`), invoking `format_buffer()` from a `--check`-equivalent code path, measuring wall-clock with `std::chrono::steady_clock`, and asserting elapsed < 500 ms (2× SC-003's 250 ms target to absorb CI hardware variance) — gates SC-003. Keep this test in the `check-fmt-unit` ninja target so CI stage 3 catches regressions.
 
 **Phase 7 checkpoint**: PR is mergeable per Principle IX merge
 gate (CI green, CodeRabbit review clean, Linear issue referenced).

@@ -79,9 +79,30 @@ FormatResult format_buffer(llvm::StringRef sourceBuffer,
   DirectiveSplitter splitter;
   auto slices = splitter.split(sourceBuffer, fileID);
 
-  // Phase 2c: emit each slice's bytes verbatim. The DirectiveSplitter
-  // guarantees no-byte-loss (every input byte covered by exactly one
-  // slice); concatenating their rawText reproduces the source.
+  // **Parse step deferred to Phase 3 proper** (T059 + T039). At
+  // Phase 3c the formatter is still byte-passthrough — we cannot
+  // safely run the parser at this layer because:
+  //
+  //   * The lexer does not handle BOM bytes / `%IDENT%` splices /
+  //     top-level system-task expressions in the way an
+  //     interactive editor would, leading to false-positive parse
+  //     failures on inputs the existing test corpus expects to
+  //     round-trip cleanly (BOM-preserve, %IDENT%-passthrough,
+  //     over-long-line tests would all flip RED).
+  //   * Per-fragment parsing (the right architecture given Q1's
+  //     directive-aware design) requires either a fragment-aware
+  //     Lexer mode or a per-fragment private SourceManager — both
+  //     non-trivial extensions to the M1/M2 layers.
+  //
+  // The full parse + LayoutPlanner integration lands when the
+  // per-fragment parse infrastructure is designed. Until then,
+  // `result.diagnostics` stays empty and the caller's CLI
+  // (tools/nsl-fmt/main.cpp) skips the diagnostic-rendering loop
+  // (no warnings flooded to stderr).
+
+  // Byte-passthrough emission. The DirectiveSplitter guarantees
+  // no-byte-loss (every input byte covered by exactly one slice);
+  // concatenating slice rawText reproduces the source.
   std::string out;
   out.reserve(sourceBuffer.size());
   for (const Slice &s : slices) {
