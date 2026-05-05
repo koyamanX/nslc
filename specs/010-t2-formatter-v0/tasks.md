@@ -188,7 +188,7 @@ M7).
 - [X] T077 [US2] Implement CLI `--check` / `-c` mode in `tools/nsl-fmt/main.cpp` — for each file: format → compare → if differ, print unified diff via `emit_unified_diff()`; track aggregate failure flag; T066/T067 turn green
 - [X] T078 [US2] Implement multi-file continue-on-error loop in `tools/nsl-fmt/main.cpp` per [`contracts/cli-surface.contract.md`](./contracts/cli-surface.contract.md) §4 — per-file try/catch; aggregate failure flag; final exit code reflects aggregate; T068/T069 turn green
 - [X] T079 [US2] Implement mutually-exclusive flag rejection in `tools/nsl-fmt/main.cpp` after `cl::ParseCommandLineOptions()` — emit each of the five frozen strings from [`contracts/cli-surface.contract.md`](./contracts/cli-surface.contract.md) §2; T070/T071/T072 turn green
-- [ ] T080 [P] [US2] Add `nsl-fmt --check test/audited/**/*.nsl || true` step to `scripts/ci.sh` per [`quickstart.md`](./quickstart.md) §10 (the `|| true` guard becomes a hard gate at M7 in a one-line follow-up commit)
+- [X] T080 [P] [US2] Add `nsl-fmt --check test/audited/**/*.nsl || true` step to `scripts/ci.sh` per [`quickstart.md`](./quickstart.md) §10 (the `|| true` guard becomes a hard gate at M7 in a one-line follow-up commit)
 
 **Phase 4 checkpoint**: All US2 fixtures green; CI step exists.
 A CI maintainer can wire `nsl-fmt --check` into a GitHub Actions
@@ -218,12 +218,12 @@ Library can be linked from a synthetic external translation unit
 ### Implementation for User Story 3
 
 - [X] T086 [US3] Freeze `include/nsl/Fmt/Fmt.h` public surface to exactly the 10 symbols in [`contracts/format-api.contract.md`](./contracts/format-api.contract.md) §3 — declarations only; bodies live in `lib/Fmt/`
-- [ ] T087 [US3] Implement `nsl::fmt::version_string()` in `lib/Fmt/Format.cpp` reading from CMake-defined `NSL_PROJECT_VERSION` and `LLVM_PROJECT_VERSION` symbols
+- [X] T087 [US3] Implement `nsl::fmt::version_string()` in `lib/Fmt/Format.cpp` reading from CMake-defined `NSL_PROJECT_VERSION` and `LLVM_PROJECT_VERSION` symbols
 - [X] T088 [US3] Implement `nsl::fmt::config_key_names()` in `lib/Fmt/Config.cpp` returning a static `ArrayRef<StringRef>` of the 10 Configuration keys in declaration order
 - [X] T089 [US3] Implement `nsl::fmt::default_configuration()` as `constexpr` in `lib/Fmt/Config.cpp` returning the §5.1 defaults
 - [ ] T090 [US3] Implement `--range LINE:LINE` parsing in `tools/nsl-fmt/main.cpp` and threading through to `format_buffer(..., LineRange{...})` per [`contracts/cli-surface.contract.md`](./contracts/cli-surface.contract.md) §1; T084/T085 turn green
 - [ ] T091 [US3] Extend `lib/Fmt/LayoutPlanner.cpp` to honor `LineRange` — emit lines outside the range from raw source bytes, only re-layout within the range
-- [ ] T092 [US3] Wire `audit_fmt_api.sh` into `scripts/ci.sh` stage 2 (static checks) so symbol-count drift fails CI; T086 verification gate
+- [X] T092 [US3] Wire `audit_fmt_api.sh` into `scripts/ci.sh` stage 2 (static checks) so symbol-count drift fails CI; T086 verification gate
 - [ ] T093 [US3] Verify T081/T082/T083 turn green (no new implementation expected; CLI and library both call into the same `format_buffer()`)
 
 **Phase 5 checkpoint**: All US3 fixtures green;
@@ -285,14 +285,14 @@ Per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.cont
 determinism gate, pre-merge checklist sweep.
 
 - [ ] T109 [P] Author lit fixtures `test/Fmt/idempotence/audited/<project>.test` for each of the seven audited projects (rv32x_dev, turboV, mmcspi, SDRAM_Controler, mips32_single_cycle, ahb_lite_nsl, cpu16) — initially marked `UNSUPPORTED:` until M7 vendors `test/audited/<project>/`; auto-activate when paths exist (per [`research.md`](./research.md) §6)
-- [ ] T110 [P] Amend `docs/design/nsl_tooling_design.md` §5.2 architecture diagram to show the directive-aware pre-pass per [`quickstart.md`](./quickstart.md) §9 step 2
-- [ ] T111 [P] Amend project-root `CLAUDE.md` §2.3 footnote (under "Formatter v0") with a one-line note about the directive-aware pre-pass scope decision per [`quickstart.md`](./quickstart.md) §9 step 1
-- [ ] T112 [P] Amend `docs/CLAUDE.md` §7 line-range table for `nsl_tooling_design.md` if §5.2 amendment shifts boundaries (re-grep `^### \|^## ` after T110)
+- [X] T110 [P] Amend `docs/design/nsl_tooling_design.md` §5.2 architecture diagram to show the directive-aware pre-pass per [`quickstart.md`](./quickstart.md) §9 step 2
+- [X] T111 [P] Amend project-root `CLAUDE.md` §2.3 footnote (under "Formatter v0") with a one-line note about the directive-aware pre-pass scope decision per [`quickstart.md`](./quickstart.md) §9 step 1
+- [X] T112 [P] Amend `docs/CLAUDE.md` §7 line-range table for `nsl_tooling_design.md` if §5.2 amendment shifts boundaries (re-grep `^### \|^## ` after T110)
 - [ ] T113 Run two-build determinism check per [`quickstart.md`](./quickstart.md) §5 — `ninja nsl-fmt` in two distinct build paths; assert byte-identical binary
-- [ ] T114 Run synthetic-corpus idempotence sweep per [`quickstart.md`](./quickstart.md) §5 — `for f in test/Fmt/idempotence/synthetic/*.nsl; do format-twice-diff; done`
+- [X] T114 Run synthetic-corpus idempotence sweep per [`quickstart.md`](./quickstart.md) §5 — `for f in test/Fmt/idempotence/synthetic/*.nsl; do format-twice-diff; done`
 - [ ] T115 Verify pre-merge checklist from [`quickstart.md`](./quickstart.md) §7 — every box ticked
-- [ ] T116 [P] Run `clang-format` and `clang-tidy` (project profile) on every new file in `lib/Fmt/`, `include/nsl/Fmt/`, `tools/nsl-fmt/`, `test_unit/Fmt/`
-- [ ] T117 [P] Verify SPDX header presence on every new file (per Constitution "Build, Code, and Licensing Standards")
+- [X] T116 [P] Run `clang-format` and `clang-tidy` (project profile) on every new file in `lib/Fmt/`, `include/nsl/Fmt/`, `tools/nsl-fmt/`, `test_unit/Fmt/`
+- [X] T117 [P] Verify SPDX header presence on every new file (per Constitution "Build, Code, and Licensing Standards")
 
 ### Additional task (added during /speckit-analyze remediation, finding C2 — SC-003 perf gate)
 

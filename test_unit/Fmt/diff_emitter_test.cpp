@@ -20,7 +20,6 @@
 #include "llvm/ADT/StringRef.h"
 
 #include "gtest/gtest.h"
-
 #include <string>
 
 using llvm::StringRef;
@@ -32,8 +31,8 @@ namespace {
 // T073 — EmptyOnIdentical
 // -----------------------------------------------------------------------------
 TEST(DiffEmitterTest, EmptyOnIdentical) {
-  EXPECT_EQ(computeUnifiedDiff(StringRef("a\nb\nc\n"),
-                               StringRef("a\nb\nc\n"), "x", "y"),
+  EXPECT_EQ(computeUnifiedDiff(StringRef("a\nb\nc\n"), StringRef("a\nb\nc\n"),
+                               "x", "y"),
             std::string{});
 }
 
@@ -59,16 +58,14 @@ TEST(DiffEmitterTest, HunkFormatSingleLineReplacement) {
 
 TEST(DiffEmitterTest, HunkFormatPureAddition) {
   // Empty -> 2 lines: hunk shows +<line> for each.
-  std::string out =
-      computeUnifiedDiff(StringRef(""), StringRef("hello\nworld\n"),
-                         "empty.txt", "filled.txt");
+  std::string out = computeUnifiedDiff(
+      StringRef(""), StringRef("hello\nworld\n"), "empty.txt", "filled.txt");
   // Old is empty (0 lines); new has 2 lines. Hunk:
   //   @@ -0,0 +1,2 @@
   //   +hello
   //   +world
-  EXPECT_EQ(out,
-            std::string("--- empty.txt\n+++ filled.txt\n"
-                        "@@ -0,0 +1,2 @@\n+hello\n+world\n"));
+  EXPECT_EQ(out, std::string("--- empty.txt\n+++ filled.txt\n"
+                             "@@ -0,0 +1,2 @@\n+hello\n+world\n"));
 }
 
 TEST(DiffEmitterTest, HunkFormatContextLinesEmitted) {
@@ -79,10 +76,9 @@ TEST(DiffEmitterTest, HunkFormatContextLinesEmitted) {
   StringRef newText = "1\n2\n3\n4\n5\n6X\n7\n8\n9\n10\n11\n";
   std::string out = computeUnifiedDiff(oldText, newText, "x", "y");
   // Header + hunk header + 7 lines.
-  EXPECT_EQ(out,
-            std::string("--- x\n+++ y\n"
-                        "@@ -3,7 +3,7 @@\n"
-                        " 3\n 4\n 5\n-6\n+6X\n 7\n 8\n 9\n"));
+  EXPECT_EQ(out, std::string("--- x\n+++ y\n"
+                             "@@ -3,7 +3,7 @@\n"
+                             " 3\n 4\n 5\n-6\n+6X\n 7\n 8\n 9\n"));
 }
 
 // -----------------------------------------------------------------------------
@@ -108,8 +104,7 @@ TEST(DiffEmitterTest, DeterminismRepeatedCalls) {
 TEST(DiffEmitterTest, PublicAPIParityWithInternalImpl) {
   StringRef oldText = "a\nb\nc\n";
   StringRef newText = "a\nB\nc\n";
-  std::string viaInternal =
-      computeUnifiedDiff(oldText, newText, "x", "y");
+  std::string viaInternal = computeUnifiedDiff(oldText, newText, "x", "y");
   std::string viaPublic =
       nsl::fmt::emit_unified_diff(oldText, newText, "x", "y");
   EXPECT_EQ(viaInternal, viaPublic);

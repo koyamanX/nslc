@@ -19,7 +19,7 @@ void CSTBuilder::beginNode(llvm::StringRef kindName,
                            const ::nsl::SourceLocation &start) {
   Frame f;
   f.kindName = kindName.str();
-  f.start    = start;
+  f.start = start;
   // `end` is filled in by the matching `endNode()`.
   openStack_.push_back(std::move(f));
 }
@@ -36,7 +36,7 @@ void CSTBuilder::endNode(const ::nsl::SourceLocation &end) {
     return;
   }
   Frame f = openStack_.pop_back_val();
-  f.end   = end;
+  f.end = end;
   completedNodes_.push_back(std::move(f));
 }
 
@@ -47,7 +47,7 @@ std::string CSTBuilder::serialize() const {
   std::uint32_t cursor = 0;
   for (const ::nsl::Token &t : tokens_) {
     std::uint32_t tokBegin = t.range().begin().offset();
-    std::uint32_t tokEnd   = t.range().end().offset();
+    std::uint32_t tokEnd = t.range().end().offset();
 
     // Emit any inter-token trivia (whitespace, comments) the lexer
     // skipped between the previous token's end and this token's

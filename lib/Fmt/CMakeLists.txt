@@ -64,4 +64,13 @@ target_link_libraries(NslFmt
     nsl-lex      # T2 Phase 2c — Lexer + Token (used by future Format.cpp paths)
     nsl-parse)   # T2 Phase 2b — CSTSink interface in Parser.h
 
+# T2 Phase 5 (T087) — bake the configure-time version string into
+# `version_string()`. `NSLC_GIT_DESCRIBE` is set by
+# `cmake/NSLVersion.cmake` (the same source as nslc's own version
+# banner). The "nsl-fmt " prefix is added here so the macro is
+# fully-formed at the call site.
+target_compile_definitions(NslFmt
+  PRIVATE
+    NSL_FMT_VERSION_STRING="nsl-fmt ${NSLC_GIT_DESCRIBE}")
+
 target_compile_features(NslFmt PUBLIC cxx_std_17)

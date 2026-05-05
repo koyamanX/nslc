@@ -58,21 +58,21 @@ namespace nsl::fmt {
 // -----------------------------------------------------------------------------
 
 struct Configuration {
-  enum class Indent          { Spaces2, Spaces4, Tab };
-  enum class BraceStyle      { KAndR, Allman };
-  enum class TrailingCommas  { Preserve, Add, Remove };
-  enum class CommentMode     { All, LeadingOnly, None };
+  enum class Indent { Spaces2, Spaces4, Tab };
+  enum class BraceStyle { KAndR, Allman };
+  enum class TrailingCommas { Preserve, Add, Remove };
+  enum class CommentMode { All, LeadingOnly, None };
 
-  Indent          indent                       = Indent::Spaces4;
-  int             max_line_length              = 100;
-  bool            spaces_around_binary_ops     = true;
-  bool            spaces_inside_braces         = false;
-  bool            align_struct_members         = true;
-  bool            align_case_arrows            = true;
-  BraceStyle      brace_style                  = BraceStyle::KAndR;
-  TrailingCommas  trailing_commas              = TrailingCommas::Preserve;
-  int             blank_lines_between_modules  = 2;
-  CommentMode     preserve_comments            = CommentMode::All;
+  Indent indent = Indent::Spaces4;
+  int max_line_length = 100;
+  bool spaces_around_binary_ops = true;
+  bool spaces_inside_braces = false;
+  bool align_struct_members = true;
+  bool align_case_arrows = true;
+  BraceStyle brace_style = BraceStyle::KAndR;
+  TrailingCommas trailing_commas = TrailingCommas::Preserve;
+  int blank_lines_between_modules = 2;
+  CommentMode preserve_comments = CommentMode::All;
 };
 
 // -----------------------------------------------------------------------------
@@ -80,8 +80,8 @@ struct Configuration {
 // -----------------------------------------------------------------------------
 
 struct LineRange {
-  int firstLine;   // 1-indexed, inclusive
-  int lastLine;    // 1-indexed, inclusive; >= firstLine
+  int firstLine; // 1-indexed, inclusive
+  int lastLine;  // 1-indexed, inclusive; >= firstLine
 };
 
 // -----------------------------------------------------------------------------
@@ -91,9 +91,9 @@ struct LineRange {
 struct FormatResult {
   enum class Status { Success, Refused, Error };
 
-  Status                              status;
-  std::string                         formattedText;   // valid iff status == Success
-  std::vector<::nsl::Diagnostic>      diagnostics;     // always populated
+  Status status;
+  std::string formattedText;                  // valid iff status == Success
+  std::vector<::nsl::Diagnostic> diagnostics; // always populated
 };
 
 // -----------------------------------------------------------------------------
@@ -110,9 +110,8 @@ struct FormatResult {
 // through the Wadler-Leijen renderer; Phase 4 wires in `--range`
 // support per FR-007.
 
-FormatResult format_buffer(llvm::StringRef        sourceBuffer,
-                           const Configuration   &config,
-                           ::nsl::FileID          fileID,
+FormatResult format_buffer(llvm::StringRef sourceBuffer,
+                           const Configuration &config, ::nsl::FileID fileID,
                            std::optional<LineRange> range = std::nullopt);
 
 // -----------------------------------------------------------------------------
@@ -123,7 +122,7 @@ FormatResult format_buffer(llvm::StringRef        sourceBuffer,
 // diagnostic. Phase 6 (T103) wires toml++ for the real parser.
 
 FormatResult parse_config_file(llvm::StringRef tomlBuffer,
-                               ::nsl::FileID   fileID);
+                               ::nsl::FileID fileID);
 
 // -----------------------------------------------------------------------------
 // 6. discover_config — upward .nsl-fmt.toml walk (Phase 6 — T106)
@@ -142,10 +141,8 @@ std::optional<std::string> discover_config(llvm::StringRef startDir);
 // newText, otherwise a single-line "(diff not yet implemented)"
 // marker. Phase 4 (T076) wires the Myers-diff implementation.
 
-std::string emit_unified_diff(llvm::StringRef oldText,
-                              llvm::StringRef newText,
-                              llvm::StringRef oldName,
-                              llvm::StringRef newName);
+std::string emit_unified_diff(llvm::StringRef oldText, llvm::StringRef newText,
+                              llvm::StringRef oldName, llvm::StringRef newName);
 
 // -----------------------------------------------------------------------------
 // 8. default_configuration — built-in defaults (T089)

@@ -56,8 +56,7 @@ inline constexpr int kContextLines = 3;
 
 /// Compute the unified-diff representation of `(oldText -> newText)`.
 /// Pure function. Returns the empty string when `oldText == newText`.
-std::string computeUnifiedDiff(llvm::StringRef oldText,
-                               llvm::StringRef newText,
+std::string computeUnifiedDiff(llvm::StringRef oldText, llvm::StringRef newText,
                                llvm::StringRef oldName,
                                llvm::StringRef newName);
 

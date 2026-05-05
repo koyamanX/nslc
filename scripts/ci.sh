@@ -221,6 +221,18 @@ stage_static_checks() {
     log "  (skipping determinism source-audit: scripts/audit_determinism.sh not yet present)"
   fi
 
+  # T2 T092 — `audit_fmt_api.sh` enforces the 10-symbol freeze on
+  # `include/nsl/Fmt/Fmt.h` per format-api.contract.md §5. Adding
+  # an 11th public symbol to nsl-fmt's umbrella header without
+  # amending the contract fails CI here.
+  if [[ -x "${REPO_ROOT}/scripts/audit_fmt_api.sh" ]]; then
+    log "  bash scripts/audit_fmt_api.sh"
+    bash "${REPO_ROOT}/scripts/audit_fmt_api.sh" \
+      || rc=$?
+  else
+    log "  (skipping nsl-fmt API audit: scripts/audit_fmt_api.sh not yet present)"
+  fi
+
   # 7. M5 US5 / T101 cross-host-path determinism check
   # (FR-025 + FR-026 + FR-029 + driver-emit-mlir.contract.md §3).
   # Builds the toolchain twice in distinct host paths, runs
@@ -312,6 +324,30 @@ stage_lowering_tests() {
 
 stage_e2e() {
   log "stage 5 (end-to-end): wired but empty until M7 — see roadmap M7."
+
+  # T2 T080 — nsl-fmt audited-corpus idempotence soft-gate.
+  # `test/audited/<project>/*.nsl` is populated by M7 P-VEN
+  # (the seven-NSL-projects vendoring milestone). Until that
+  # ships, the audited corpus is empty and this check is a
+  # no-op. The `|| true` guard is removed in a one-line
+  # follow-up commit at M7, at which point any drift between
+  # `nsl-fmt`'s canonical output and the vendored sources
+  # fails CI.
+  local build_dir
+  build_dir="$(_resolve_build_dir "${1:-}" 2>/dev/null)" || build_dir=""
+  if [[ -n "${build_dir}" && -x "${build_dir}/bin/nsl-fmt" ]]; then
+    shopt -s nullglob globstar
+    local audited_files=("${REPO_ROOT}"/test/audited/**/*.nsl)
+    shopt -u nullglob globstar
+    if (( ${#audited_files[@]} > 0 )); then
+      log "  bin/nsl-fmt --check ${#audited_files[@]} audited NSL files (|| true until M7)"
+      "${build_dir}/bin/nsl-fmt" --check "${audited_files[@]}" || true
+    else
+      log "  (skipping audited-corpus idempotence: M7 P-VEN not yet vendored — test/audited/ is empty)"
+    fi
+  else
+    log "  (skipping audited-corpus idempotence: nsl-fmt not built yet — run \`./scripts/ci.sh build-matrix\` first)"
+  fi
   exit 0
 }
 

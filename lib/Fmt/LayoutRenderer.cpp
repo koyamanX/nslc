@@ -22,6 +22,7 @@
 // break mode by construction.
 
 #include "LayoutRenderer.h"
+
 #include "Doc.h"
 
 #include <cstddef>
@@ -65,15 +66,18 @@ int flatWidth(const Doc &d, int budget) {
         } else if constexpr (std::is_same_v<T, doc_detail::DocLine>) {
           return p.isHard ? -1 : 1; // soft Line == single space
         } else if constexpr (std::is_same_v<T, doc_detail::DocNest>) {
-          if (!p.inner) return 0;
+          if (!p.inner)
+            return 0;
           return flatWidth(*p.inner, budget);
         } else if constexpr (std::is_same_v<T, doc_detail::DocGroup>) {
-          if (!p.inner) return 0;
+          if (!p.inner)
+            return 0;
           return flatWidth(*p.inner, budget);
         } else if constexpr (std::is_same_v<T, doc_detail::DocConcat>) {
           int total = 0;
           for (const DocPtr &item : p.items) {
-            if (!item) continue;
+            if (!item)
+              continue;
             int w = flatWidth(*item, budget - total);
             if (w < 0 || total + w > budget) {
               return -1;
@@ -82,9 +86,10 @@ int flatWidth(const Doc &d, int budget) {
           }
           return total;
         } else if constexpr (std::is_same_v<T, doc_detail::DocAlign>) {
-          if (!p.inner) return 0;
+          if (!p.inner)
+            return 0;
           return flatWidth(*p.inner, budget);
-        } else {  // DocComment
+        } else { // DocComment
           return static_cast<int>(p.text.size());
         }
       },
@@ -100,9 +105,8 @@ bool fits(const Doc &d, int budget) {
 // `mode == false` means break (soft Line → "\n" + indent). `column`
 // tracks the current emit column; `indent` tracks the current
 // indent level (column-equivalent).
-void renderInto(std::string &out, const Doc &d, int maxWidth,
-                int indentSpaces, int indent, int &column,
-                bool flatMode) {
+void renderInto(std::string &out, const Doc &d, int maxWidth, int indentSpaces,
+                int indent, int &column, bool flatMode) {
   std::visit(
       [&](const auto &p) {
         using T = std::decay_t<decltype(p)>;
@@ -121,28 +125,29 @@ void renderInto(std::string &out, const Doc &d, int maxWidth,
         } else if constexpr (std::is_same_v<T, doc_detail::DocNest>) {
           if (p.inner) {
             int newIndent = indent + p.indent;
-            renderInto(out, *p.inner, maxWidth, indentSpaces, newIndent,
-                       column, flatMode);
+            renderInto(out, *p.inner, maxWidth, indentSpaces, newIndent, column,
+                       flatMode);
           }
         } else if constexpr (std::is_same_v<T, doc_detail::DocGroup>) {
-          if (!p.inner) return;
+          if (!p.inner)
+            return;
           int budget = maxWidth - column;
           bool inner_flat = fits(*p.inner, budget);
-          renderInto(out, *p.inner, maxWidth, indentSpaces, indent,
-                     column, inner_flat);
+          renderInto(out, *p.inner, maxWidth, indentSpaces, indent, column,
+                     inner_flat);
         } else if constexpr (std::is_same_v<T, doc_detail::DocConcat>) {
           for (const DocPtr &item : p.items) {
             if (item) {
-              renderInto(out, *item, maxWidth, indentSpaces, indent,
-                         column, flatMode);
+              renderInto(out, *item, maxWidth, indentSpaces, indent, column,
+                         flatMode);
             }
           }
         } else if constexpr (std::is_same_v<T, doc_detail::DocAlign>) {
           if (p.inner) {
-            renderInto(out, *p.inner, maxWidth, indentSpaces, column,
-                       column, flatMode);
+            renderInto(out, *p.inner, maxWidth, indentSpaces, column, column,
+                       flatMode);
           }
-        } else {  // DocComment
+        } else { // DocComment
           out.append(p.text);
           column += static_cast<int>(p.text.size());
         }
@@ -162,8 +167,8 @@ std::string LayoutRenderer::render(const DocPtr &doc, int maxLineLength,
   // Top-level always renders in break mode so that any unguarded
   // Line at the root produces an actual newline. Groups in the tree
   // re-enable flat mode where they fit.
-  renderInto(out, *doc, maxLineLength, indentSpaces, /*indent=*/0,
-             column, /*flatMode=*/false);
+  renderInto(out, *doc, maxLineLength, indentSpaces, /*indent=*/0, column,
+             /*flatMode=*/false);
   return out;
 }
 

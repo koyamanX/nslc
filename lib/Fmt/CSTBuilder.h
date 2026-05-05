@@ -40,7 +40,6 @@
 #define NSL_FMT_LIB_CST_BUILDER_H
 
 #include "CST.h"
-
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Lex/Token.h"
 #include "nsl/Parse/Parser.h"
@@ -99,7 +98,7 @@ public:
   // ---- Frame data (one per beginNode/endNode pair) --------------
 
   struct Frame {
-    std::string         kindName;  // owns the kind string
+    std::string kindName; // owns the kind string
     ::nsl::SourceLocation start;
     ::nsl::SourceLocation end;
   };
@@ -113,10 +112,10 @@ public:
   }
 
 private:
-  llvm::StringRef                  src_;
-  llvm::SmallVector<Frame, 4>      openStack_;
-  std::vector<Frame>               completedNodes_;
-  std::vector<::nsl::Token>        tokens_;
+  llvm::StringRef src_;
+  llvm::SmallVector<Frame, 4> openStack_;
+  std::vector<Frame> completedNodes_;
+  std::vector<::nsl::Token> tokens_;
 };
 
 } // namespace nsl::fmt

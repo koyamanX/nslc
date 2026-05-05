@@ -31,7 +31,6 @@
 #define NSL_FMT_LIB_DIRECTIVE_SPLITTER_H
 
 #include "CST.h"
-
 #include "nsl/Basic/SourceLocation.h"
 
 #include "llvm/ADT/StringRef.h"
@@ -56,7 +55,7 @@ public:
   ///     preservation is in spec edge cases).
   ///   * Determinism: pure function of `sourceBuffer` (Principle V).
   std::vector<Slice> split(llvm::StringRef sourceBuffer,
-                           ::nsl::FileID   fileID) const;
+                           ::nsl::FileID fileID) const;
 };
 
 } // namespace nsl::fmt

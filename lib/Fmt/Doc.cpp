@@ -16,8 +16,7 @@
 namespace nsl::fmt {
 
 DocPtr Doc::text(llvm::StringRef s) {
-  return std::make_shared<const Doc>(
-      doc_detail::DocText{std::string(s)});
+  return std::make_shared<const Doc>(doc_detail::DocText{std::string(s)});
 }
 
 DocPtr Doc::line() {
@@ -34,8 +33,7 @@ DocPtr Doc::nest(int indent, DocPtr inner) {
 }
 
 DocPtr Doc::group(DocPtr inner) {
-  return std::make_shared<const Doc>(
-      doc_detail::DocGroup{std::move(inner)});
+  return std::make_shared<const Doc>(doc_detail::DocGroup{std::move(inner)});
 }
 
 DocPtr Doc::concat(std::initializer_list<DocPtr> items) {
@@ -44,13 +42,11 @@ DocPtr Doc::concat(std::initializer_list<DocPtr> items) {
 }
 
 DocPtr Doc::concat(std::vector<DocPtr> items) {
-  return std::make_shared<const Doc>(
-      doc_detail::DocConcat{std::move(items)});
+  return std::make_shared<const Doc>(doc_detail::DocConcat{std::move(items)});
 }
 
 DocPtr Doc::align(DocPtr inner) {
-  return std::make_shared<const Doc>(
-      doc_detail::DocAlign{std::move(inner)});
+  return std::make_shared<const Doc>(doc_detail::DocAlign{std::move(inner)});
 }
 
 DocPtr Doc::comment(llvm::StringRef text, bool leading, bool trailing) {

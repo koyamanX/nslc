@@ -16,13 +16,12 @@
 // magnitude, so the 2× slack catches regressions without false-
 // positive flake.
 
-#include "nsl/Fmt/Fmt.h"
 #include "nsl/Basic/SourceLocation.h"
+#include "nsl/Fmt/Fmt.h"
 
 #include "llvm/ADT/StringRef.h"
 
 #include "gtest/gtest.h"
-
 #include <chrono>
 #include <cstdint>
 #include <string>

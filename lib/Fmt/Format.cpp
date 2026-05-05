@@ -35,15 +35,13 @@
 // with `LayoutPlanner(cstBuilder).buildDoc()` followed by
 // `LayoutRenderer().render(doc, config.max_line_length, indent)`.
 
-#include "nsl/Fmt/Fmt.h"
-
 #include "CST.h"
 #include "CSTBuilder.h"
 #include "Diff.h"
 #include "DirectiveSplitter.h"
-
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
+#include "nsl/Fmt/Fmt.h"
 #include "nsl/Lex/Lexer.h"
 #include "nsl/Parse/Parser.h"
 
@@ -56,8 +54,7 @@
 namespace nsl::fmt {
 
 FormatResult format_buffer(llvm::StringRef sourceBuffer,
-                           const Configuration &config,
-                           ::nsl::FileID fileID,
+                           const Configuration &config, ::nsl::FileID fileID,
                            std::optional<LineRange> range) {
   // `range` is parsed but not yet honored at Phase 2c — Phase 5
   // (T090/T091) wires it through to the LayoutPlanner. Touch the
@@ -109,14 +106,14 @@ FormatResult format_buffer(llvm::StringRef sourceBuffer,
     out.append(s.rawText.data(), s.rawText.size());
   }
 
-  result.status        = FormatResult::Status::Success;
+  result.status = FormatResult::Status::Success;
   result.formattedText = std::move(out);
   return result;
 }
 
 // -----------------------------------------------------------------------------
-// Phase 2c skeletons for parse_config_file / discover_config / emit_unified_diff
-// — the real bodies arrive in Phases 4 / 6.
+// Phase 2c skeletons for parse_config_file / discover_config /
+// emit_unified_diff — the real bodies arrive in Phases 4 / 6.
 // -----------------------------------------------------------------------------
 
 FormatResult parse_config_file(llvm::StringRef /*tomlBuffer*/,
@@ -139,8 +136,7 @@ std::optional<std::string> discover_config(llvm::StringRef /*startDir*/) {
   return std::nullopt;
 }
 
-std::string emit_unified_diff(llvm::StringRef oldText,
-                              llvm::StringRef newText,
+std::string emit_unified_diff(llvm::StringRef oldText, llvm::StringRef newText,
                               llvm::StringRef oldName,
                               llvm::StringRef newName) {
   // T076 (Phase 3b) delegates to the LCS-based unified-diff

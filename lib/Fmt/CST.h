@@ -41,8 +41,8 @@ using NodeID = std::uint64_t;
 struct Trivia {
   enum class Kind { Whitespace, LineComment, BlockComment, Newline };
 
-  Kind             kind;
-  llvm::StringRef  text;   // Byte-for-byte from source buffer.
+  Kind kind;
+  llvm::StringRef text; // Byte-for-byte from source buffer.
   ::nsl::SourceLocation loc;
 };
 
@@ -50,42 +50,43 @@ struct Trivia {
 /// formatter (FR-012a). Per cst-shape contract §5.
 struct DirectiveTok {
   enum class Opcode {
-    Include,    // `#include "foo.nsl"` or `#include <foo.nsl>`
-    Define,     // `#define FOO ...`
-    Undef,      // `#undef FOO`
-    Ifdef,      // `#ifdef FOO`
-    Ifndef,     // `#ifndef FOO`
-    If,         // `#if EXPR`
-    Else,       // `#else`
-    Endif,      // `#endif`
-    Line,       // `#line N "file"` (the only directive that survives the seam — Principle IV)
+    Include, // `#include "foo.nsl"` or `#include <foo.nsl>`
+    Define,  // `#define FOO ...`
+    Undef,   // `#undef FOO`
+    Ifdef,   // `#ifdef FOO`
+    Ifndef,  // `#ifndef FOO`
+    If,      // `#if EXPR`
+    Else,    // `#else`
+    Endif,   // `#endif`
+    Line,    // `#line N "file"` (the only directive that survives the seam —
+             // Principle IV)
   };
 
-  Opcode               opcode;
-  ::nsl::SourceRange   range;
-  llvm::StringRef      rawText; // Entire directive line(s), byte-for-byte.
+  Opcode opcode;
+  ::nsl::SourceRange range;
+  llvm::StringRef rawText; // Entire directive line(s), byte-for-byte.
 };
 
 /// Top-level slice produced by the directive splitter — a 1:1 partition
 /// of the source-buffer bytes (no gaps, no overlaps; cst-shape §1).
 struct Slice {
   enum class Kind {
-    Directive,    // A complete directive line; `directive` carries its details.
-    NSLFragment,  // A range of NSL source between directives.
+    Directive,   // A complete directive line; `directive` carries its details.
+    NSLFragment, // A range of NSL source between directives.
   };
 
-  Kind                 kind;
-  ::nsl::SourceRange   range;
-  llvm::StringRef      rawText;
-  DirectiveTok         directive; // Valid iff kind == Directive.
+  Kind kind;
+  ::nsl::SourceRange range;
+  llvm::StringRef rawText;
+  DirectiveTok directive; // Valid iff kind == Directive.
 };
 
 /// One source token (lexer emits these). Phase 2b populates the
 /// CSTBuilder which records these as leaves of interior nodes.
 struct NSLToken {
-  nsl::TokenKind       kind;
-  llvm::StringRef      lexeme; // Byte-for-byte from source.
-  ::nsl::SourceRange   range;
+  nsl::TokenKind kind;
+  llvm::StringRef lexeme; // Byte-for-byte from source.
+  ::nsl::SourceRange range;
 };
 
 /// Interior CST node — mirrors one AST node 1:1, plus preserved
@@ -93,11 +94,11 @@ struct NSLToken {
 /// is covered either by a child, by a trivia in `leading`/`trailing`,
 /// or by the node's own token (cst-shape §3 no-byte-loss invariant).
 struct CSTNode {
-  NodeID                              id   = 0;
-  ::nsl::SourceRange                  range;
-  llvm::SmallVector<CSTNode *, 4>     children;
-  std::vector<Trivia>                 leadingTrivia;
-  std::vector<Trivia>                 trailingTrivia;
+  NodeID id = 0;
+  ::nsl::SourceRange range;
+  llvm::SmallVector<CSTNode *, 4> children;
+  std::vector<Trivia> leadingTrivia;
+  std::vector<Trivia> trailingTrivia;
 };
 
 /// Root of one parsed file — a sequence of slices in source order.

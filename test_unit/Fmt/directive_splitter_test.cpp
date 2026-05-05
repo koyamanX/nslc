@@ -18,10 +18,9 @@
 // Phase 2b will add CSTRoundTrip + CSTInvariants once CSTBuilder
 // lands (T016, T020).
 
-#include "DirectiveSplitter.h"
 #include "CST.h"
 #include "CSTBuilder.h"
-
+#include "DirectiveSplitter.h"
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
@@ -33,19 +32,18 @@
 #include "llvm/ADT/StringRef.h"
 
 #include "gtest/gtest.h"
-
 #include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
 
+using llvm::StringRef;
 using nsl::FileID;
 using nsl::SourceRange;
 using nsl::fmt::CSTBuilder;
 using nsl::fmt::DirectiveSplitter;
 using nsl::fmt::DirectiveTok;
 using nsl::fmt::Slice;
-using llvm::StringRef;
 
 namespace {
 
@@ -85,8 +83,8 @@ TEST(DirectiveSplitterTest, FullCoverage) {
   for (int i = 0; i < 100; ++i) {
     if (i % 10 == 5) {
       // One directive every ten lines.
-      source += "#define LINE_" + std::to_string(i) + " " +
-                std::to_string(i) + "\n";
+      source +=
+          "#define LINE_" + std::to_string(i) + " " + std::to_string(i) + "\n";
     } else {
       source += "wire x" + std::to_string(i) + "[8];\n";
     }
@@ -188,17 +186,16 @@ std::vector<char> bytesOf(const char *literal) {
 
 TEST(DirectiveSplitterTest, CSTRoundTrip) {
   // 5-line synthetic NSL source per T016 description.
-  const char *kSource =
-      "module hello {\n"
-      "  reg r[8] = 0;\n"
-      "  reg s[8];\n"
-      "  wire w[16];\n"
-      "}\n";
+  const char *kSource = "module hello {\n"
+                        "  reg r[8] = 0;\n"
+                        "  reg s[8];\n"
+                        "  wire w[16];\n"
+                        "}\n";
   StringRef sourceView(kSource);
 
   nsl::SourceManager sm;
-  nsl::FileID fid = sm.addBufferInMemory("/virt/cst-roundtrip.nsl",
-                                         bytesOf(kSource));
+  nsl::FileID fid =
+      sm.addBufferInMemory("/virt/cst-roundtrip.nsl", bytesOf(kSource));
   ASSERT_TRUE(fid.isValid());
   nsl::DiagnosticEngine diag(sm);
   nsl::Lexer lex(sm, fid, diag);
@@ -233,14 +230,13 @@ TEST(DirectiveSplitterTest, CSTRoundTrip) {
 //     verified via serialize()).
 //
 TEST(DirectiveSplitterTest, CSTInvariants) {
-  const char *kSource =
-      "module empty {\n"
-      "}\n";
+  const char *kSource = "module empty {\n"
+                        "}\n";
   StringRef sourceView(kSource);
 
   nsl::SourceManager sm;
-  nsl::FileID fid = sm.addBufferInMemory("/virt/cst-invariants.nsl",
-                                         bytesOf(kSource));
+  nsl::FileID fid =
+      sm.addBufferInMemory("/virt/cst-invariants.nsl", bytesOf(kSource));
   ASSERT_TRUE(fid.isValid());
   nsl::DiagnosticEngine diag(sm);
   nsl::Lexer lex(sm, fid, diag);
@@ -284,18 +280,18 @@ TEST(DirectiveSplitterTest, CSTInvariants) {
 // All nine directive opcodes are recognised.
 TEST(DirectiveSplitterTest, AllNineOpcodesRecognised) {
   struct Case {
-    StringRef            source;
+    StringRef source;
     DirectiveTok::Opcode expected;
   };
   Case cases[] = {
       {"#include \"x\"\n", DirectiveTok::Opcode::Include},
-      {"#define X 1\n",    DirectiveTok::Opcode::Define},
-      {"#undef X\n",       DirectiveTok::Opcode::Undef},
-      {"#ifdef X\n",       DirectiveTok::Opcode::Ifdef},
-      {"#ifndef X\n",      DirectiveTok::Opcode::Ifndef},
-      {"#if X==1\n",       DirectiveTok::Opcode::If},
-      {"#else\n",          DirectiveTok::Opcode::Else},
-      {"#endif\n",         DirectiveTok::Opcode::Endif},
+      {"#define X 1\n", DirectiveTok::Opcode::Define},
+      {"#undef X\n", DirectiveTok::Opcode::Undef},
+      {"#ifdef X\n", DirectiveTok::Opcode::Ifdef},
+      {"#ifndef X\n", DirectiveTok::Opcode::Ifndef},
+      {"#if X==1\n", DirectiveTok::Opcode::If},
+      {"#else\n", DirectiveTok::Opcode::Else},
+      {"#endif\n", DirectiveTok::Opcode::Endif},
       {"#line 42 \"f\"\n", DirectiveTok::Opcode::Line},
   };
   DirectiveSplitter splitter;

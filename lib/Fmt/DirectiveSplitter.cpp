@@ -13,10 +13,10 @@
 #include <cstddef>
 #include <utility>
 
+using llvm::StringRef;
 using ::nsl::FileID;
 using ::nsl::SourceLocation;
 using ::nsl::SourceRange;
-using llvm::StringRef;
 
 namespace nsl::fmt {
 
@@ -27,20 +27,20 @@ namespace {
 // for hot inputs. The matching enum value is `Opcode::<PascalName>`
 // — see `decodeOpcode()` below.
 struct OpcodeEntry {
-  StringRef           name;
+  StringRef name;
   DirectiveTok::Opcode op;
 };
 
 constexpr OpcodeEntry kOpcodeTable[] = {
     {"include", DirectiveTok::Opcode::Include},
-    {"define",  DirectiveTok::Opcode::Define},
-    {"ifdef",   DirectiveTok::Opcode::Ifdef},
-    {"ifndef",  DirectiveTok::Opcode::Ifndef},
-    {"endif",   DirectiveTok::Opcode::Endif},
-    {"if",      DirectiveTok::Opcode::If},     // After `ifdef`/`ifndef`.
-    {"else",    DirectiveTok::Opcode::Else},
-    {"undef",   DirectiveTok::Opcode::Undef},
-    {"line",    DirectiveTok::Opcode::Line},
+    {"define", DirectiveTok::Opcode::Define},
+    {"ifdef", DirectiveTok::Opcode::Ifdef},
+    {"ifndef", DirectiveTok::Opcode::Ifndef},
+    {"endif", DirectiveTok::Opcode::Endif},
+    {"if", DirectiveTok::Opcode::If}, // After `ifdef`/`ifndef`.
+    {"else", DirectiveTok::Opcode::Else},
+    {"undef", DirectiveTok::Opcode::Undef},
+    {"line", DirectiveTok::Opcode::Line},
 };
 
 // Skip horizontal whitespace (space + tab; NOT newlines) starting at
@@ -59,9 +59,9 @@ constexpr std::size_t skipHorizontal(StringRef s, std::size_t pos) {
 // NSLFragment then — but in well-formed NSL this should not
 // happen, since every `#`-led line is a directive).
 struct OpcodeMatch {
-  bool                 matched;
+  bool matched;
   DirectiveTok::Opcode op;
-  std::size_t          afterOpcodeEnd;
+  std::size_t afterOpcodeEnd;
 };
 
 OpcodeMatch decodeOpcode(StringRef s, std::size_t pos) {
@@ -159,28 +159,28 @@ std::size_t findNextDirectiveStart(StringRef s, std::size_t start) {
 // `kMaxOffset = 1U << 24` (16 MiB) — enforced by an `assert` in
 // `make()`. NSL files in the audited corpus are far below this.
 SourceRange makeRange(FileID fid, std::size_t begin, std::size_t end) {
-  SourceLocation b = SourceLocation::make(fid, static_cast<std::uint32_t>(begin));
+  SourceLocation b =
+      SourceLocation::make(fid, static_cast<std::uint32_t>(begin));
   SourceLocation e = SourceLocation::make(fid, static_cast<std::uint32_t>(end));
   return SourceRange(b, e);
 }
 
 } // namespace
 
-std::vector<Slice>
-DirectiveSplitter::split(StringRef sourceBuffer, FileID fileID) const {
+std::vector<Slice> DirectiveSplitter::split(StringRef sourceBuffer,
+                                            FileID fileID) const {
   std::vector<Slice> result;
   std::size_t pos = 0;
 
   while (pos < sourceBuffer.size()) {
     // Find the next directive (or EOF).
-    std::size_t directiveLineStart =
-        findNextDirectiveStart(sourceBuffer, pos);
+    std::size_t directiveLineStart = findNextDirectiveStart(sourceBuffer, pos);
 
     // Emit any NSL fragment before the directive.
     if (directiveLineStart > pos) {
       Slice frag;
-      frag.kind    = Slice::Kind::NSLFragment;
-      frag.range   = makeRange(fileID, pos, directiveLineStart);
+      frag.kind = Slice::Kind::NSLFragment;
+      frag.range = makeRange(fileID, pos, directiveLineStart);
       frag.rawText = sourceBuffer.substr(pos, directiveLineStart - pos);
       result.push_back(std::move(frag));
     }
@@ -191,23 +191,21 @@ DirectiveSplitter::split(StringRef sourceBuffer, FileID fileID) const {
 
     // We're on a `#`-led line. Skip leading whitespace + `#` to
     // decode the opcode.
-    std::size_t hashPos =
-        skipHorizontal(sourceBuffer, directiveLineStart);
+    std::size_t hashPos = skipHorizontal(sourceBuffer, directiveLineStart);
     // Invariant: sourceBuffer[hashPos] == '#'.
     std::size_t afterHash = hashPos + 1;
     OpcodeMatch m = decodeOpcode(sourceBuffer, afterHash);
-    std::size_t lineEnd =
-        findDirectiveLineEnd(sourceBuffer, m.afterOpcodeEnd);
+    std::size_t lineEnd = findDirectiveLineEnd(sourceBuffer, m.afterOpcodeEnd);
 
     Slice slice;
-    slice.kind    = Slice::Kind::Directive;
-    slice.range   = makeRange(fileID, directiveLineStart, lineEnd);
+    slice.kind = Slice::Kind::Directive;
+    slice.range = makeRange(fileID, directiveLineStart, lineEnd);
     slice.rawText =
         sourceBuffer.substr(directiveLineStart, lineEnd - directiveLineStart);
 
     DirectiveTok &tok = slice.directive;
-    tok.opcode  = m.matched ? m.op : DirectiveTok::Opcode::Include;
-    tok.range   = slice.range;
+    tok.opcode = m.matched ? m.op : DirectiveTok::Opcode::Include;
+    tok.range = slice.range;
     tok.rawText = slice.rawText;
 
     result.push_back(std::move(slice));

@@ -135,6 +135,19 @@ editor integration), this section tells you when it lands.
 | LSP `formatting` / `rangeFormatting` integration | T5 |
 | Pre-commit hook recipe | T12 |
 
+> **Note on T2 architecture (per `specs/010-t2-formatter-v0/spec.md`
+> `## Clarifications` Sessions 2026-05-04 and 2026-05-05)**: the
+> formatter operates on **raw source pre-preprocessing** — directive
+> lines (`#include`, `#define`, `%IDENT%` splices, etc.) are
+> preserved as opaque CST tokens by a `DirectiveSplitter` pre-pass
+> (FR-012a); inter-directive NSL fragments are parsed by the
+> existing `libNSLFrontend.a` parser via a new `CSTSink` interface
+> on `Parser.h` (single public header preserved per Principle II).
+> Refusal is **strict and atomic**: any input the lex+parse
+> pipeline rejects causes `format_buffer` to return
+> `Status::Refused` with no partial output (FR-012). Output always
+> ends with exactly one trailing `\n` (R7 per Session 2026-05-05).
+
 ### 2.4 Syntax highlighting (per `nsl_tooling_design.md §4`)
 
 | Capability | Milestone |

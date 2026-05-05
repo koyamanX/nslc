@@ -18,7 +18,6 @@
 #include "LayoutRenderer.h"
 
 #include "gtest/gtest.h"
-
 #include <string>
 
 using nsl::fmt::Doc;
@@ -30,7 +29,7 @@ namespace {
 // Conventional renderer args for tests:
 //   maxLineLength = 100  (matches default Configuration)
 //   indentSpaces  = 4    (matches default Configuration::Indent::Spaces4)
-constexpr int kDefaultWidth  = 100;
+constexpr int kDefaultWidth = 100;
 constexpr int kDefaultIndent = 4;
 
 LayoutRenderer renderer;
@@ -48,8 +47,8 @@ TEST(DocLayoutTest, TextConcatRender) {
 // -----------------------------------------------------------------------------
 TEST(DocLayoutTest, GroupRibbonFittingFitsFlat) {
   // At width 100 the inner trivially fits: "a b" (3 chars) <= 100.
-  DocPtr d = Doc::group(
-      Doc::concat({Doc::text("a"), Doc::line(), Doc::text("b")}));
+  DocPtr d =
+      Doc::group(Doc::concat({Doc::text("a"), Doc::line(), Doc::text("b")}));
   EXPECT_EQ(renderer.render(d, /*maxLineLength=*/100, kDefaultIndent), "a b");
 }
 
@@ -57,8 +56,8 @@ TEST(DocLayoutTest, GroupRibbonFittingBreaks) {
   // At width 1 the flat layout "a b" (3 chars) does NOT fit; the
   // group falls back to break mode: "a\n<indent>b" — at indent 0
   // this is "a\nb".
-  DocPtr d = Doc::group(
-      Doc::concat({Doc::text("a"), Doc::line(), Doc::text("b")}));
+  DocPtr d =
+      Doc::group(Doc::concat({Doc::text("a"), Doc::line(), Doc::text("b")}));
   EXPECT_EQ(renderer.render(d, /*maxLineLength=*/1, kDefaultIndent), "a\nb");
 }
 
@@ -71,8 +70,7 @@ TEST(DocLayoutTest, NestIndentEmitsFourSpaces) {
   //     0 + 4 = 4 spaces.
   //   - "x" follows on the indented line.
   // Expected: "\n    x"
-  DocPtr d = Doc::nest(
-      4, Doc::concat({Doc::hardline(), Doc::text("x")}));
+  DocPtr d = Doc::nest(4, Doc::concat({Doc::hardline(), Doc::text("x")}));
   EXPECT_EQ(renderer.render(d, kDefaultWidth, /*indentSpaces=*/1), "\n    x");
 }
 

@@ -145,9 +145,15 @@ int processInput(llvm::StringRef name, llvm::StringRef content,
   for (const nsl::Diagnostic &d : res.diagnostics) {
     const char *sev = "note";
     switch (d.severity) {
-      case nsl::Severity::Error:   sev = "error";   break;
-      case nsl::Severity::Warning: sev = "warning"; break;
-      case nsl::Severity::Note:    sev = "note";    break;
+    case nsl::Severity::Error:
+      sev = "error";
+      break;
+    case nsl::Severity::Warning:
+      sev = "warning";
+      break;
+    case nsl::Severity::Note:
+      sev = "note";
+      break;
     }
     llvm::errs() << "nsl-fmt: " << name << ": " << sev << ": " << d.message
                  << "\n";
@@ -187,12 +193,12 @@ int processInput(llvm::StringRef name, llvm::StringRef content,
 
 int main(int argc, char **argv) {
   // Parsed flag state.
-  bool useStdin   = false;
-  bool inPlace    = false;
-  bool checkMode  = false;
+  bool useStdin = false;
+  bool inPlace = false;
+  bool checkMode = false;
   std::optional<std::string> rangeArg;
   std::optional<std::string> configPath;
-  std::vector<std::string>   inputs;
+  std::vector<std::string> inputs;
 
   // Parse argv.
   for (int i = 1; i < argc; ++i) {
@@ -207,11 +213,9 @@ int main(int argc, char **argv) {
     }
     if (std::strcmp(a, "--stdin") == 0) {
       useStdin = true;
-    } else if (std::strcmp(a, "-i") == 0 ||
-               std::strcmp(a, "--in-place") == 0) {
+    } else if (std::strcmp(a, "-i") == 0 || std::strcmp(a, "--in-place") == 0) {
       inPlace = true;
-    } else if (std::strcmp(a, "-c") == 0 ||
-               std::strcmp(a, "--check") == 0) {
+    } else if (std::strcmp(a, "-c") == 0 || std::strcmp(a, "--check") == 0) {
       checkMode = true;
     } else if (std::strcmp(a, "--config") == 0 && i + 1 < argc) {
       configPath = std::string(argv[++i]);

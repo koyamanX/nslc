@@ -50,13 +50,18 @@ llvm::ArrayRef<llvm::StringRef> config_key_names() noexcept {
       "blank_lines_between_modules",
       "preserve_comments",
   };
-  return llvm::ArrayRef<llvm::StringRef>(kKeys, sizeof(kKeys) / sizeof(kKeys[0]));
+  return llvm::ArrayRef<llvm::StringRef>(kKeys,
+                                         sizeof(kKeys) / sizeof(kKeys[0]));
 }
 
 llvm::StringRef version_string() noexcept {
-  // T087 Phase 2c stub. Phase 5 (US3) will replace with a string
-  // built from CMake-defined NSL_PROJECT_VERSION + LLVM_PROJECT_VERSION.
-  return llvm::StringRef("nsl-fmt version 0.0.0 (T2 Phase 2c)");
+  // T087 (Phase 5): the macro is injected by lib/Fmt/CMakeLists.txt
+  // via `target_compile_definitions(NslFmt PRIVATE
+  // NSL_FMT_VERSION_STRING="nsl-fmt ${NSLC_GIT_DESCRIBE}")`. The
+  // git-describe value is shared with nslc's own version banner
+  // (cmake/NSLVersion.cmake) — so `nsl-fmt --version` and
+  // `nslc --version` always report the same source revision.
+  return llvm::StringRef(NSL_FMT_VERSION_STRING);
 }
 
 } // namespace nsl::fmt

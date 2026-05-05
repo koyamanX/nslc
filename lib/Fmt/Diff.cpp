@@ -69,9 +69,9 @@ public:
   std::size_t m() const noexcept { return m_; }
 
 private:
-  std::size_t                 n_;
-  std::size_t                 m_;
-  std::vector<std::uint32_t>  data_;
+  std::size_t n_;
+  std::size_t m_;
+  std::vector<std::uint32_t> data_;
 };
 
 void fillLCS(LCSTable &L, const std::vector<llvm::StringRef> &a,
@@ -94,7 +94,7 @@ void fillLCS(LCSTable &L, const std::vector<llvm::StringRef> &a,
 enum class EditKind : std::uint8_t { Context, Removed, Added };
 
 struct Edit {
-  EditKind        kind;
+  EditKind kind;
   llvm::StringRef text;
 };
 
@@ -145,10 +145,10 @@ std::vector<Edit> traceDiff(const LCSTable &L,
 // are merged into one hunk (avoids overlapping context).
 
 struct Hunk {
-  std::size_t       oldStart; // 1-indexed
-  std::size_t       oldCount;
-  std::size_t       newStart; // 1-indexed
-  std::size_t       newCount;
+  std::size_t oldStart; // 1-indexed
+  std::size_t oldCount;
+  std::size_t newStart; // 1-indexed
+  std::size_t newCount;
   std::vector<Edit> edits;
 };
 
@@ -159,15 +159,22 @@ std::vector<Hunk> groupIntoHunks(const std::vector<Edit> &edits) {
   // (start, count) for each hunk.
   std::vector<std::size_t> oldLineAt(edits.size() + 1, 0);
   std::vector<std::size_t> newLineAt(edits.size() + 1, 0);
-  std::size_t              o = 1;
-  std::size_t              n = 1;
+  std::size_t o = 1;
+  std::size_t n = 1;
   for (std::size_t i = 0; i < edits.size(); ++i) {
     oldLineAt[i] = o;
     newLineAt[i] = n;
     switch (edits[i].kind) {
-      case EditKind::Context: ++o; ++n; break;
-      case EditKind::Removed: ++o;       break;
-      case EditKind::Added:         ++n; break;
+    case EditKind::Context:
+      ++o;
+      ++n;
+      break;
+    case EditKind::Removed:
+      ++o;
+      break;
+    case EditKind::Added:
+      ++n;
+      break;
     }
   }
   oldLineAt[edits.size()] = o;
@@ -187,7 +194,7 @@ std::vector<Hunk> groupIntoHunks(const std::vector<Edit> &edits) {
   // Group change indices that are within 2*kContextLines of each
   // other (post-merge would have overlapping context, so merge).
   std::size_t group_start = changeIdx.front();
-  std::size_t group_end   = changeIdx.front();
+  std::size_t group_end = changeIdx.front();
   for (std::size_t k = 1; k < changeIdx.size(); ++k) {
     std::size_t gap = changeIdx[k] - group_end;
     if (gap <= static_cast<std::size_t>(2 * kContextLines)) {
@@ -211,7 +218,7 @@ std::vector<Hunk> groupIntoHunks(const std::vector<Edit> &edits) {
       hunks.push_back(std::move(h));
 
       group_start = changeIdx[k];
-      group_end   = changeIdx[k];
+      group_end = changeIdx[k];
     }
   }
   // Flush the last group.
@@ -219,9 +226,8 @@ std::vector<Hunk> groupIntoHunks(const std::vector<Edit> &edits) {
     std::size_t lo = (group_start >= static_cast<std::size_t>(kContextLines))
                          ? group_start - kContextLines
                          : 0;
-    std::size_t hi =
-        std::min(group_end + static_cast<std::size_t>(kContextLines) + 1,
-                 edits.size());
+    std::size_t hi = std::min(
+        group_end + static_cast<std::size_t>(kContextLines) + 1, edits.size());
     Hunk h;
     h.oldStart = oldLineAt[lo];
     h.newStart = newLineAt[lo];
@@ -260,9 +266,15 @@ void emitHunk(std::string &out, const Hunk &h) {
   for (const Edit &e : h.edits) {
     char prefix = ' ';
     switch (e.kind) {
-      case EditKind::Context: prefix = ' '; break;
-      case EditKind::Removed: prefix = '-'; break;
-      case EditKind::Added:   prefix = '+'; break;
+    case EditKind::Context:
+      prefix = ' ';
+      break;
+    case EditKind::Removed:
+      prefix = '-';
+      break;
+    case EditKind::Added:
+      prefix = '+';
+      break;
     }
     out += prefix;
     out.append(e.text.data(), e.text.size());
@@ -272,8 +284,7 @@ void emitHunk(std::string &out, const Hunk &h) {
 
 } // namespace
 
-std::string computeUnifiedDiff(llvm::StringRef oldText,
-                               llvm::StringRef newText,
+std::string computeUnifiedDiff(llvm::StringRef oldText, llvm::StringRef newText,
                                llvm::StringRef oldName,
                                llvm::StringRef newName) {
   if (oldText == newText) {

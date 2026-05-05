@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception -->
+
 # Specification Quality Checklist: T2 — Formatter v0 (`nsl-fmt`)
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning

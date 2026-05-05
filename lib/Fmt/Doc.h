@@ -53,15 +53,15 @@ using DocPtr = std::shared_ptr<const Doc>;
 namespace doc_detail {
 
 struct DocText {
-  std::string text;        // owns the rendered bytes
+  std::string text; // owns the rendered bytes
 };
 
 struct DocLine {
-  bool isHard;             // hardline() => true; line() => false
+  bool isHard; // hardline() => true; line() => false
 };
 
 struct DocNest {
-  int    indent;
+  int indent;
   DocPtr inner;
 };
 
@@ -79,36 +79,35 @@ struct DocAlign {
 
 struct DocComment {
   std::string text;
-  bool        leading;     // attaches above the next non-trivia
-  bool        trailing;    // attaches to the previous non-trivia line
+  bool leading;  // attaches above the next non-trivia
+  bool trailing; // attaches to the previous non-trivia line
 };
 
 } // namespace doc_detail
 
 class Doc {
 public:
-  using Payload =
-      std::variant<doc_detail::DocText, doc_detail::DocLine,
-                   doc_detail::DocNest, doc_detail::DocGroup,
-                   doc_detail::DocConcat, doc_detail::DocAlign,
-                   doc_detail::DocComment>;
+  using Payload = std::variant<doc_detail::DocText, doc_detail::DocLine,
+                               doc_detail::DocNest, doc_detail::DocGroup,
+                               doc_detail::DocConcat, doc_detail::DocAlign,
+                               doc_detail::DocComment>;
 
   /// Stable kind tag. Matches the variant index 1:1.
   enum class Kind : std::size_t {
-    Text    = 0,
-    Line    = 1,
-    Nest    = 2,
-    Group   = 3,
-    Concat  = 4,
-    Align   = 5,
+    Text = 0,
+    Line = 1,
+    Nest = 2,
+    Group = 3,
+    Concat = 4,
+    Align = 5,
     Comment = 6,
   };
 
   // ---- Factories (data-model §4 names) --------------------------
 
   static DocPtr text(llvm::StringRef s);
-  static DocPtr line();          // soft break
-  static DocPtr hardline();      // always break
+  static DocPtr line();     // soft break
+  static DocPtr hardline(); // always break
   static DocPtr nest(int indent, DocPtr inner);
   static DocPtr group(DocPtr inner);
   static DocPtr concat(std::initializer_list<DocPtr> items);

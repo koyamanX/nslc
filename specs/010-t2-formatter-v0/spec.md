@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception -->
+
 # Feature Specification: T2 — Formatter v0 (`nsl-fmt`)
 
 **Feature Branch**: `010-t2-formatter-v0`

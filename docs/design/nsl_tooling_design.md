@@ -597,34 +597,70 @@ preserve_comments = "all"     # "all" | "leading_only" | "none"
 
 ### 5.2 Architecture
 
+The formatter pipeline follows a directive-aware, parse-then-render
+flow. Per `/speckit-clarify` Q1 (specs/010-t2-formatter-v0/spec.md
+Session 2026-05-04 → Option A), the formatter parses **raw source
+before preprocessing**: each preprocessor directive line is treated
+as an opaque CST token, while NSL fragments between directives are
+parsed by the existing `libNSLFrontend.a` lexer + parser pipeline
+(no parallel parser implementation; Constitution Principle II
+no-duplication rule preserved).
+
 ```
-     Source text
+     Source text (raw, pre-preprocessor)
           │
           ▼
-    ┌──────────┐
-    │  Lexer   │  (from libNSLFrontend)
-    └─────┬────┘
-          │ Token stream + trivia
-          ▼
-    ┌──────────┐
-    │  Parser  │  (CST mode; preserves whitespace + comments)
-    └─────┬────┘
-          │ CST
-          ▼
     ┌──────────────────────┐
-    │   LayoutPlanner      │  decides where lines break, indentation
-    │   – "Wadler-Leijen"  │   depth, alignment groups
-    │   pretty-printer     │
+    │ DirectiveSplitter    │  scans line-oriented directives;
+    │ (T2 — pre-pass)      │  emits Slice = Directive | NSLFragment
     └─────┬────────────────┘
-          │ Doc IR  (typed layout commands)
+          │ Slices: [Directive(opaque) | NSLFragment]+
           ▼
-    ┌──────────────────────┐
-    │   LayoutRenderer     │  ribbon fitting, respects max_line_length
-    └─────┬────────────────┘
+    For each Directive slice  ──► verbatim emit (FR-012a opaque)
+    For each NSLFragment slice ──┐
+                                 ▼
+                         ┌──────────────┐
+                         │  Lexer       │  (from libNSLFrontend.a)
+                         └──────┬───────┘
+                                │ Token stream + trivia
+                                ▼
+                         ┌──────────────┐
+                         │  Parser      │  (CST mode via `CSTSink`
+                         │              │   added to existing
+                         │              │   include/nsl/Parse/Parser.h
+                         │              │   per /speckit-analyze C1
+                         │              │   remediation)
+                         └──────┬───────┘
+                                │ CST
+                                ▼
+                         ┌──────────────────────┐
+                         │   LayoutPlanner      │  decides where lines break,
+                         │   – "Wadler-Leijen"  │  indentation depth,
+                         │   pretty-printer     │  alignment groups
+                         └──────┬───────────────┘
+                                │ Doc IR  (typed layout commands)
+                                ▼
+                         ┌──────────────────────┐
+                         │   LayoutRenderer     │  ribbon fitting,
+                         │                      │  respects max_line_length;
+                         │                      │  emits exactly one trailing
+                         │                      │  `\n` on non-empty output
+                         │                      │  (R7 per Session 2026-05-05)
+                         └──────┬───────────────┘
+          ┌─────────────────────┘
           │
           ▼
    Formatted text
 ```
+
+**Refusal-mode atomic semantics** (per Session 2026-05-05 Q1
+strict refusal): if ANY NSLFragment slice fails to lex+parse,
+`format_buffer` returns `Status::Refused` with the failing
+slice's diagnostics; no partial output is emitted. Tolerated
+pre-parse byte sequences are limited to those named in FR-012a
+(directive lines + `%IDENT%` splices). BOM bytes, vendor
+pragmas, and top-level system-task expressions are all parse
+errors → refused.
 
 The pretty-printer IR follows the Wadler-Leijen algebra:
 
