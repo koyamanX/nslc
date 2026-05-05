@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/round_trip/loc_plumbing.nsl — M6 US1 harness
+// fixture (T027). Asserts FR-005 + FR-030 + SC-004: every CIRCT
+// op produced by the M6 conversion carries an `mlir::Location`
+// resolvable to the originating `.nsl` source position. NO
+// `loc(unknown)` is permitted in the output.
+//
+// **Phase 3 status: XFAIL** — at Phase 3 the M6 pattern set is
+// empty; `nslc -emit=hw` over this fixture observes-fails with
+// `error: failed to legalize operation 'nsl.module'`. The XFAIL
+// flips off in Phase 4 commit landing T038 (ModuleOp pattern).
+//
+// Constitutional anchor: Principle IV (Source-Locating Diagnostics).
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+// XFAIL: *
+
+declare M {
+  input a[8];
+  output q[8];
+}
+
+module M {
+  q = a;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK-NOT: loc(unknown)

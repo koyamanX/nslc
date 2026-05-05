@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/round_trip/conversion_failure_exits_nonzero.nsl
+// — M6 US1 harness fixture (T029). Asserts FR-028 fail-fast
+// behaviour: when the M6 NSLToCIRCTPass cannot legalize a
+// reachable `nsl::*` op, `nslc -emit=hw` exits non-zero AND emits
+// a diagnostic naming the unmatched op.
+//
+// **Phase 3 status: PASSES** — at Phase 3 the M6 pattern set is
+// empty, so EVERY non-trivial input observes-fails. After
+// Phase 4 (US2 ModuleOp pattern lands), this fixture must
+// continue to PASS — by then the input still exercises a leaf
+// op without a registered pattern (e.g., `nsl.transfer` won't
+// have a Phase-4 pattern). Each later phase as patterns close
+// in needs to keep this fixture exercising an op kind whose
+// pattern hasn't shipped yet — OR be retired when the entire
+// pattern set is feature-complete (Phase 7 US5 acceptance).
+//
+// Implementation note: this fixture is INTENTIONALLY simple at
+// Phase 3 (any module body works). Once Phase 7 lands the full
+// pattern set, retire this fixture (or migrate it to use a
+// hand-authored `.mlir` containing a synthetic illegal op
+// pattern + `not nsl-opt -nsl-to-circt` invocation, which never
+// turns green).
+
+// RUN: not %nslc -emit=hw %s 2>&1 | %FileCheck %s
+
+declare M {
+  input a[8];
+  output q[8];
+}
+
+module M {
+  q = a;
+}
+
+// CHECK: error: failed to legalize operation 'nsl.{{[a-z_]+}}'
