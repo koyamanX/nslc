@@ -210,10 +210,13 @@ def NSL_ConnectOp : NSL_Op<"connect", [
 //     `TypeAttrOf<NSL_AnyBits>:$portType`, region-less, results in a
 //     value of `!nsl.bits<W>` so the M5 visitor can register the SSA
 //     result in `nameTable_` for transfer resolution (matches the
-//     `nsl.wire` pattern). The `interface` modifier (S20) is
-//     deferred to a future amendment — at M5 it has no operand-side
-//     consumer; M6's port-list derivation reads the modifier directly
-//     from M3 Sema's symbol table.
+//     `nsl.wire` pattern). Post-merge M4-amendment 2026-05-05 (#10):
+//     the `interface` modifier (S20) is surfaced as an
+//     `OptionalAttr<StrAttr>:$interface_clock` +
+//     `OptionalAttr<StrAttr>:$interface_reset` pair on
+//     `nsl.declare`; M6's port-list derivation reads the attrs to
+//     emit user-named clock + reset ports per
+//     `circt-lowering.contract.md` §3 rule 7.
 
 def NSL_DeclareOp : NSL_Op<"declare", [
     NoTerminator, SingleBlock,
@@ -249,15 +252,29 @@ def NSL_DeclareOp : NSL_Op<"declare", [
     `HasParent<"ModuleOp">`); the M5 visitor splits the AST `PortDecl`
     set by direction at lowering time.
 
-    The `interface` modifier (S20 — explicit clock/reset names) is
-    NOT yet surfaced on this op. M5 emits no diagnostic for it; M6's
-    port-list derivation per `specs/010-m6-circt-lowering/contracts/
-    circt-lowering.contract.md` §3 rule 6 reads the modifier from M3
-    Sema's symbol table directly. A future amendment may add an
-    `interface_clock`/`interface_reset` `OptionalAttr<StrAttr>` pair
-    if S20 surfaces on the dialect.
+    **Post-merge M4-amendment 2026-05-05 (#10).** The S20 `interface`
+    modifier (explicit clock/reset names) is now surfaced as an
+    `OptionalAttr<StrAttr>:$interface_clock` +
+    `OptionalAttr<StrAttr>:$interface_reset` pair. Both ABSENT means
+    no S20 modifier — the implicit `clk` / `rst_n` port path from
+    `firreg-convention.contract.md` §1 (Q2 → C). Both PRESENT means
+    the user has named clock + reset explicitly — M6's port-list
+    derivation per `circt-lowering.contract.md` §3 rule 7 emits
+    user-named `iN` input ports in lieu of the implicit ones, and
+    `nsl.reg` lowers to `seq.compreg` (not `seq.firreg`) per
+    `firreg-convention.contract.md` §2. The reset name preserves the
+    raw S20 syntax (which may include a polarity hint such as a `_n`
+    suffix) verbatim — polarity interpretation is M6's responsibility,
+    not the dialect's. Asymmetric presence (one set, the other unset)
+    is rejected by `DeclareOp::verify()` because S20 mandates BOTH
+    when the modifier appears at all. Closes T033 XFAIL in
+    `test/Lower/circt/module/interface_modifier.nsl` and unblocks
+    M6 Phase 6 (US4 state-family) reg-on-explicit-interface lowering.
   }];
-  let arguments = (ins SymbolNameAttr:$pair_name);
+  let arguments = (ins
+    SymbolNameAttr:$pair_name,
+    OptionalAttr<StrAttr>:$interface_clock,
+    OptionalAttr<StrAttr>:$interface_reset);
   let regions = (region SizedRegion<1>:$body);
   let assemblyFormat = "$pair_name attr-dict-with-keyword $body";
   let hasVerifier = 1;

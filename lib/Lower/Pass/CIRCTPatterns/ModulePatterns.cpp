@@ -86,10 +86,22 @@ mlir::IntegerType bitsToInteger(mlir::Type bitsType) {
 }
 
 /// Build the `hw::ModulePortInfo` from the paired declare body.
-/// Implicit `clk` + `rst_n` input ports (i1) are appended at the end
-/// of the inputs when `addImplicitClkRstn == true`.
+///
+/// Clock + reset port appending follows the S20 / M4-amendment-#10
+/// branching from `circt-lowering.contract.md` §3 rule 6 + rule 7 +
+/// `firreg-convention.contract.md` §1 + §2:
+///
+///   * No paired declare (declareOp == nullptr): no clk/rst_n appended
+///     (the port-less-module shape per T035).
+///   * Paired declare WITHOUT `interface_clock` / `interface_reset`:
+///     append implicit `clk` + `rst_n` (Q2 → C convention).
+///   * Paired declare WITH `interface_clock` + `interface_reset`:
+///     append the user's named clock + reset ports verbatim. This is
+///     the explicit-`interface`-path port-list piece; reg-on-explicit-
+///     interface lowering (`seq::CompRegOp` instead of FirRegOp) is
+///     Phase 6 territory — Phase 4 only plumbs the port-naming half.
 void buildPortInfo(nsl::dialect::DeclareOp declareOp,
-                   bool addImplicitClkRstn, mlir::Location implicitLoc,
+                   mlir::Location implicitLoc,
                    llvm::SmallVectorImpl<circt::hw::PortInfo> &ports) {
   mlir::MLIRContext *ctx = implicitLoc.getContext();
   llvm::SmallVector<circt::hw::PortInfo, 4> inputs;
@@ -123,21 +135,46 @@ void buildPortInfo(nsl::dialect::DeclareOp declareOp,
     }
   }
 
-  if (addImplicitClkRstn) {
+  if (declareOp) {
+    std::optional<llvm::StringRef> ifaceClk = declareOp.getInterfaceClock();
+    std::optional<llvm::StringRef> ifaceRst = declareOp.getInterfaceReset();
+    bool hasInterface = ifaceClk.has_value() && ifaceRst.has_value();
     auto i1 = mlir::IntegerType::get(ctx, 1);
-    circt::hw::PortInfo clkPort;
-    clkPort.name = mlir::StringAttr::get(ctx, "clk");
-    clkPort.type = i1;
-    clkPort.dir = circt::hw::ModulePort::Direction::Input;
-    clkPort.loc = implicitLoc;
-    inputs.push_back(clkPort);
 
-    circt::hw::PortInfo rstnPort;
-    rstnPort.name = mlir::StringAttr::get(ctx, "rst_n");
-    rstnPort.type = i1;
-    rstnPort.dir = circt::hw::ModulePort::Direction::Input;
-    rstnPort.loc = implicitLoc;
-    inputs.push_back(rstnPort);
+    if (hasInterface) {
+      // M4-amendment-#10: explicit S20 `interface` modifier → emit
+      // user-named clock + reset ports (verbatim, including any `_n`
+      // polarity suffix the user wrote). The implicit `clk` / `rst_n`
+      // pair is NOT auto-added on this path.
+      circt::hw::PortInfo clkPort;
+      clkPort.name = mlir::StringAttr::get(ctx, *ifaceClk);
+      clkPort.type = i1;
+      clkPort.dir = circt::hw::ModulePort::Direction::Input;
+      clkPort.loc = declareOp.getLoc();
+      inputs.push_back(clkPort);
+
+      circt::hw::PortInfo rstPort;
+      rstPort.name = mlir::StringAttr::get(ctx, *ifaceRst);
+      rstPort.type = i1;
+      rstPort.dir = circt::hw::ModulePort::Direction::Input;
+      rstPort.loc = declareOp.getLoc();
+      inputs.push_back(rstPort);
+    } else {
+      // No S20 modifier → implicit `clk` / `rst_n` (Q2 → C).
+      circt::hw::PortInfo clkPort;
+      clkPort.name = mlir::StringAttr::get(ctx, "clk");
+      clkPort.type = i1;
+      clkPort.dir = circt::hw::ModulePort::Direction::Input;
+      clkPort.loc = implicitLoc;
+      inputs.push_back(clkPort);
+
+      circt::hw::PortInfo rstnPort;
+      rstnPort.name = mlir::StringAttr::get(ctx, "rst_n");
+      rstnPort.type = i1;
+      rstnPort.dir = circt::hw::ModulePort::Direction::Input;
+      rstnPort.loc = implicitLoc;
+      inputs.push_back(rstnPort);
+    }
   }
 
   unsigned argIdx = 0;
@@ -194,11 +231,14 @@ mlir::LogicalResult lowerOneModule(nsl::dialect::ModuleOp moduleOp,
   mlir::Location loc = moduleOp.getLoc();
   mlir::MLIRContext *ctx = builder.getContext();
 
-  // Step 1: locate paired declare; build port list.
+  // Step 1: locate paired declare; build port list. The clk/rst_n
+  // policy is encapsulated inside `buildPortInfo` per M4-amendment-#10
+  // (no paired declare → no clk/rst_n; paired declare without
+  // `interface_*` attrs → implicit `clk`/`rst_n`; paired declare WITH
+  // attrs → user-named clock + reset).
   nsl::dialect::DeclareOp declareOp = findPairedDeclare(moduleOp);
-  bool addImplicitClkRstn = (declareOp != nullptr);
   llvm::SmallVector<circt::hw::PortInfo, 8> portInfos;
-  buildPortInfo(declareOp, addImplicitClkRstn, loc, portInfos);
+  buildPortInfo(declareOp, loc, portInfos);
   circt::hw::ModulePortInfo ports(portInfos);
 
   // Step 2: create hw::HWModuleOp before the nsl.module.

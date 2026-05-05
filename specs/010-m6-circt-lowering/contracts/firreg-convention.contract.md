@@ -46,25 +46,42 @@ via the explicit S20 `interface` modifier.
 
 ## §2. Explicit `interface` modifier (S20)
 
-**Rule**: When the `nsl::DeclareOp` contains an S20 `interface`
-modifier, the user has named clock(s) and reset(s) explicitly. M6
-honours those names verbatim:
+**Rule**: When the `nsl::DeclareOp` carries the post-merge
+M4-amendment-#10 `interface_clock` + `interface_reset`
+`OptionalAttr<StrAttr>` pair (both PRESENT), the user has named
+clock(s) and reset(s) explicitly. M6 honours those names verbatim:
 
-- Each clock named in `interface` becomes one `i1` input port on
-  the `hw::HWModuleOp`, named per the user's declaration.
-- Each reset named in `interface` becomes one `i1` input port,
-  named per the user's declaration; polarity (active-high or
-  active-low) is per the user's declaration.
+- The IR-level signal is the dialect attribute pair; M6's port-list
+  derivation (`buildPortInfo` in `ModulePatterns.cpp`) reads the
+  attrs directly — no reach-back into Sema's symbol table is needed
+  (Principle II layering; the attrs ARE the IR contract).
+- Each clock named in `interface_clock` becomes one `i1` input port
+  on the `hw::HWModuleOp`, named per the user's declaration.
+- Each reset named in `interface_reset` becomes one `i1` input
+  port, named per the user's declaration; polarity (active-high or
+  active-low) is hinted by the user's chosen suffix (e.g., `_n` for
+  active-low). The dialect attribute preserves the raw S20 syntax;
+  polarity interpretation is owned by the reg-lowering branch
+  (Phase 6 territory).
 - `nsl::RegOp` lowers to **`circt::seq::CompRegOp`** (not
   FirRegOp) with the explicit clock and reset operands wired to
   the user-named ports.
 - The default `(clk, rst_n)` ports from §1 are NOT auto-added in
   this case — the user took ownership of the clock/reset surface.
+- Asymmetric presence (one attr set, the other unset) is rejected
+  by `DeclareOp::verify()` per amendment-#10 since S20 mandates
+  BOTH names whenever the modifier appears.
 
 `seq::CompRegOp` is preferred over `seq::FirRegOp` for this path
 because CompRegOp's clock + reset operands are explicit
 (matching the user's explicit interface declaration), while
 FirRegOp uses implicit module-level clock + reset wires.
+
+**Phase 4 status (M6 amendment-#10 commit)**: only the port-naming
+half of this rule is implemented — `lowerOneModule` reads the attrs
+and emits user-named `i1` clock + reset ports. The `nsl::RegOp` →
+`seq::CompRegOp` reg-lowering branch lands in Phase 6 (US4 state-
+family); Phase 4 doesn't lower `nsl::RegOp` at all.
 
 ---
 

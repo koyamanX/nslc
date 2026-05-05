@@ -390,8 +390,29 @@ void ASTToMLIR::visit(const ast::DeclareBlock &node) {
   // preserve round-trippability.
   auto loc = builder_.getUnknownLoc();
   llvm::StringRef declName = node.name();
+  // Post-merge M4-amendment 2026-05-05 (#10). Surface the S20
+  // `interface(clock=<clk>, reset=<rst>)` modifier as the dialect's
+  // `interface_clock` / `interface_reset` OptionalAttr<StrAttr> pair.
+  // Both names are taken verbatim from the AST (which preserves any
+  // polarity hint such as `_n` suffix). Absent modifier → both attrs
+  // unset (status quo, implicit clk/rst_n path). M6's
+  // `lowerOneModule` reads these attrs to emit user-named clock +
+  // reset ports per `circt-lowering.contract.md` §3 rule 7.
+  mlir::StringAttr ifaceClkAttr;
+  mlir::StringAttr ifaceRstAttr;
+  if (node.modifier() == ast::DeclareBlock::Modifier::Interface) {
+    llvm::StringRef clkName = node.clockName();
+    llvm::StringRef rstName = node.resetName();
+    if (!clkName.empty()) {
+      ifaceClkAttr = builder_.getStringAttr(clkName);
+    }
+    if (!rstName.empty()) {
+      ifaceRstAttr = builder_.getStringAttr(rstName);
+    }
+  }
   auto declare_op = nsl::dialect::DeclareOp::create(
-      builder_, loc, builder_.getStringAttr(declName));
+      builder_, loc, builder_.getStringAttr(declName), ifaceClkAttr,
+      ifaceRstAttr);
   auto &body_block = declare_op.getBody().emplaceBlock();
 
   // Pass 1: emit DATA port-info ops inside the declare body

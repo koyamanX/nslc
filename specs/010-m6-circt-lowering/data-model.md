@@ -137,7 +137,7 @@ private:
 
 | Family file | Pattern count | Source ops |
 |---|---|---|
-| `ModulePatterns.cpp` | 2 | `nsl::ModuleOp`, `nsl::DeclareOp` (port wiring on the module's signature; both ops added by post-merge M4-amendment #9, 2026-05-05). The ModuleOp pattern walks the paired `nsl::DeclareOp`'s body for the port-list shape and rewrites the in-module port-info ops as block-arg substitutions / output wiring. |
+| `ModulePatterns.cpp` | 2 | `nsl::ModuleOp`, `nsl::DeclareOp` (port wiring on the module's signature; both ops added by post-merge M4-amendment #9, 2026-05-05). The ModuleOp pattern walks the paired `nsl::DeclareOp`'s body for the port-list shape and rewrites the in-module port-info ops as block-arg substitutions / output wiring. Post-merge M4-amendment #10 (2026-05-05) adds the `interface_clock` / `interface_reset` `OptionalAttr<StrAttr>` pair on `nsl::DeclareOp`; `lowerOneModule` reads them to emit user-named clock + reset ports per `circt-lowering.contract.md` §3 rule 7 (closes T033 XFAIL). |
 | `PortPatterns.cpp` | 3 | `nsl::InputPortOp`, `nsl::OutputPortOp`, `nsl::InoutPortOp` (post-merge M4-amendment #9). Per-port-direction signature legalisation. The dual-placement design (declare-body = metadata; module-body = SSA-Value-bearing) means the ModulePatterns/PortPatterns pair walks both surfaces — see `contracts/circt-lowering.contract.md` §3 for the rewrite rules. |
 | `StatePatterns.cpp` | 5 | `nsl::RegOp`, `nsl::WireOp`, `nsl::MemOp`, `nsl::TransferOp`, `nsl::ClockedTransferOp` |
 | `ControlPatterns.cpp` | 4 | `nsl::AltOp`, `nsl::AnyOp`, `nsl::IfOp`, `nsl::CallOp` (func_in variant) |

@@ -279,6 +279,29 @@ mlir::LogicalResult DeclareOp::verify() {
              << child.getName().getStringRef() << "'";
     }
   }
+  // Post-merge M4-amendment 2026-05-05 (#10) — S20 modifier surface.
+  // Both `interface_clock` and `interface_reset` are independently
+  // optional, but they MUST appear together: S20 mandates that an
+  // `interface(...)` clause names BOTH a clock and a reset. Reject
+  // asymmetric presence + reject empty StrAttr values when present.
+  std::optional<llvm::StringRef> ifaceClk = getInterfaceClock();
+  std::optional<llvm::StringRef> ifaceRst = getInterfaceReset();
+  if (ifaceClk.has_value() != ifaceRst.has_value()) {
+    return emitOpError()
+           << "S20 'interface' modifier requires both 'interface_clock' "
+              "and 'interface_reset' attributes to be set together (got "
+              "only "
+           << (ifaceClk.has_value() ? "'interface_clock'" : "'interface_reset'")
+           << ")";
+  }
+  if (ifaceClk.has_value() && ifaceClk->empty()) {
+    return emitOpError()
+           << "'interface_clock' attribute must be a non-empty string";
+  }
+  if (ifaceRst.has_value() && ifaceRst->empty()) {
+    return emitOpError()
+           << "'interface_reset' attribute must be a non-empty string";
+  }
   return mlir::success();
 }
 

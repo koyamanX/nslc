@@ -167,16 +167,21 @@ routed to a single `hw::OutputOp` at the end of the body);
    clock to `clk` and reset to a `comb::ICmpOp eq %rst_n, 0`-
    derived condition.
 7. **Explicit `interface` (S20)**: the user names clock(s) and
-   reset(s) directly in the `interface` clause. Per amendment-#9
-   §1 note, the modifier is NOT yet surfaced on `nsl::DeclareOp`
-   at M4 (the dialect carries no `interface_clock` /
-   `interface_reset` attribute; a future amendment may add one
-   if S20 surfaces on the dialect). M6's port-list derivation
-   reads the modifier from M3 Sema's symbol table directly via
-   the AST `DeclareBlock::modifier()` introspection observable.
-   The corresponding input ports are added with the user's
-   exact names and (for reset) polarity; `seq::CompRegOp` is
-   used in lieu of `FirRegOp`.
+   reset(s) directly in the `interface` clause. Per post-merge
+   M4-amendment 2026-05-05 (#10), the modifier IS surfaced on
+   `nsl::DeclareOp` as a pair of `OptionalAttr<StrAttr>` —
+   `interface_clock` + `interface_reset`. Both ABSENT means rule 6
+   applies (implicit `clk` / `rst_n`); both PRESENT means rule 7
+   applies — M6's `lowerOneModule` (`ModulePatterns.cpp`) reads the
+   attrs and emits two `i1` input ports named exactly per the user's
+   declaration (clock first, then reset), in lieu of the implicit
+   pair. The reset name preserves the user's polarity-hint suffix
+   verbatim (e.g., `_n`); polarity interpretation belongs to the
+   reg-lowering branch (Phase 6 territory). `nsl::RegOp` lowers to
+   `seq::CompRegOp` on this path (per `firreg-convention.contract.md`
+   §2). Asymmetric presence (one attr set, the other unset) is
+   rejected by `DeclareOp::verify()`. Closes T033 fixture XFAIL in
+   `test/Lower/circt/module/interface_modifier.nsl`.
 
 **Body region**: the conversion of the `nsl::ModuleOp`'s body,
 performed via standard `OpConversionPattern` recursion — every

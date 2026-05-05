@@ -912,10 +912,24 @@ nsl.connect %sub.port, %sig          # structural wiring
 # for M6; module-body = SSA-Value-bearing port reference used by
 # transfers — SSA-dominance forces the dual emission per the M5
 # visitor contract).
+# Post-merge M4-amendment 2026-05-05 (#10): nsl.declare grows two
+# OptionalAttr<StrAttr> — interface_clock + interface_reset — that
+# surface the S20 `interface(clock=<clk>, reset=<rst>)` modifier as
+# IR-level signal. Both ABSENT means no S20 (implicit clk/rst_n
+# path); both PRESENT means user-named clock + reset (M6 emits
+# user-named iN ports verbatim and lowers nsl.reg to seq.compreg).
+# DeclareOp::verify rejects asymmetric presence. Closes T033 XFAIL.
 nsl.declare @M {
   nsl.input_port "a"  : !nsl.bits<8>     # `input a[8];`
   nsl.output_port "q" : !nsl.bits<8>     # `output q[8];`
   nsl.inout_port "io" : !nsl.bits<4>     # `inout io[4];`
+}
+# With S20 interface modifier (amendment #10):
+nsl.declare @N attributes {
+  interface_clock = "my_clk", interface_reset = "my_rst_n"
+} {
+  nsl.input_port  "a" : !nsl.bits<8>
+  nsl.output_port "q" : !nsl.bits<8>
 }
 
 # Top-level integer / string parameters (per S16 + grammar §3.1)
@@ -1178,7 +1192,7 @@ Every MLIR op created carries the AST node's `SourceRange` as an `mlir::Location
 | AST node | `nsl`-dialect op | Notes |
 |---|---|---|
 | `ModuleBlock` | `nsl.module @name { ... }` | port list built from associated `DeclareBlock` |
-| `DeclareBlock` | `nsl.declare @name { nsl.input_port / nsl.output_port / nsl.inout_port ... }` (port-list metadata) + sibling-of-module port-info ops inside `nsl.module`'s body (SSA-Value-bearing port references) | Post-merge M4-amendment #9 (2026-05-05): dual-placement (declare body for M6 port-list derivation; module body for SSA dominance of transfer LHS/RHS). Control terminals (`func_in` / `func_out` / `func_self`) continue to lower into `nsl.module`'s body. `Wire`-direction dummy args inside a declare are skipped per N4 (no `nsl.wire_port`) |
+| `DeclareBlock` | `nsl.declare @name { nsl.input_port / nsl.output_port / nsl.inout_port ... }` (port-list metadata) + sibling-of-module port-info ops inside `nsl.module`'s body (SSA-Value-bearing port references) | Post-merge M4-amendment #9 (2026-05-05): dual-placement (declare body for M6 port-list derivation; module body for SSA dominance of transfer LHS/RHS). Control terminals (`func_in` / `func_out` / `func_self`) continue to lower into `nsl.module`'s body. `Wire`-direction dummy args inside a declare are skipped per N4 (no `nsl.wire_port`). Post-merge M4-amendment #10 (2026-05-05): the M5 visitor populates `nsl.declare`'s `interface_clock` / `interface_reset` `OptionalAttr<StrAttr>` from `ast::DeclareBlock::clockName()` / `resetName()` when `modifier() == Modifier::Interface`. |
 | `RegDecl` | `nsl.reg "n" : !nsl.bits<W> = <init>` | init is an attribute, not an SSA value |
 | `WireDecl` | `nsl.wire "n" : !nsl.bits<W>` | reads return the last assigned value within the cycle |
 | `MemDecl` | `nsl.mem "n" [D x T] = <init>` | |
@@ -1225,7 +1239,7 @@ The main lowering into CIRCT core dialects is done by a conversion pass (`NSLToC
 | `nsl` op | CIRCT equivalent |
 |---|---|
 | `nsl.module` | `hw.module` |
-| `nsl.declare` (M4-amendment #9, 2026-05-05) | (consumed during `hw.module` lowering — destructured for port-list derivation per `specs/010-m6-circt-lowering/contracts/circt-lowering.contract.md` §3) |
+| `nsl.declare` (M4-amendment #9, 2026-05-05; field-level amendment #10, 2026-05-05) | (consumed during `hw.module` lowering — destructured for port-list derivation per `specs/010-m6-circt-lowering/contracts/circt-lowering.contract.md` §3. Amendment-#10 adds `interface_clock` + `interface_reset` `OptionalAttr<StrAttr>` driving rule 7 — user-named clock + reset ports in lieu of implicit `clk`/`rst_n`.) |
 | `nsl.input_port` (M4-amendment #9) | (declare-body form: consumed during `hw.module` port-list derivation; module-body form: rewritten as `hw.module` block-arg substitution) |
 | `nsl.output_port` (M4-amendment #9) | (declare-body form: consumed during `hw.module` port-list derivation; module-body form: rewritten as output-port wiring of the resulting `hw.module`) |
 | `nsl.inout_port` (M4-amendment #9) | (declare-body form: consumed during `hw.module` port-list derivation; module-body form: rewritten as bidirectional-port wiring) |

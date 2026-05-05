@@ -2,30 +2,22 @@
 //
 // test/Lower/circt/module/interface_modifier.nsl — M6 Phase 4 (US2)
 // fixture (T033). The S20 `interface` modifier on a declare block
-// names clock(s) and reset(s) explicitly; downstream `nsl.reg` must
-// lower to `seq.compreg` (not `seq.firreg`) with user-named
-// clock/reset operands per `firreg-convention.contract.md` §2.
+// names clock(s) and reset(s) explicitly; M6 emits user-named input
+// ports (typed `i1`) verbatim from the modifier in lieu of the
+// implicit `clk` / `rst_n` pair (per `circt-lowering.contract.md` §3
+// rule 7 + `firreg-convention.contract.md` §2). The reg-on-explicit-
+// interface lowering (`seq.compreg` instead of FirRegOp) is Phase 6
+// territory; this fixture only verifies the port-naming half of the
+// explicit-`interface` path (Phase 4 doesn't lower `nsl.reg` anyway).
 //
-// **DEFERRED to a future M4 amendment-#10**. At amendment-#9 the
-// `interface` modifier is NOT surfaced on `nsl::DeclareOp` (the
-// dialect carries no `interface_clock` / `interface_reset` attribute
-// pair). The circt-lowering contract §3 rule 7 documents that M6
-// would read the modifier from M3 Sema's introspection observable —
-// but Sema results are not plumbed through `Compilation::lowerToCIRCT`
-// at Phase 4 (would be significant scope creep). The fixture is
-// authored here so it surfaces in `coverage_guard.cmake`'s scan, but
-// XFAIL'd until amendment-#10 lands the dialect attribute (plus the
-// M5 visitor wiring) needed to materialise the user's named clock
-// and reset ports.
-//
-// Resolution path: amendment-#10 adds `OptionalAttr<StrAttr>` for
-// `interface_clock` and `interface_reset` on `nsl::DeclareOp`; M5
-// visitor populates them from `ast::DeclareBlock::modifier()`; M6
-// reads the attrs in `ModulePatterns.cpp` and emits user-named ports
-// via `seq.compreg`. The XFAIL annotation drops in that PR.
+// **Closes M4-amendment-#10 deferral.** Pre-amendment-#10 this
+// fixture was XFAIL'd because `nsl::DeclareOp` carried no
+// `interface_clock` / `interface_reset` attrs. Amendment-#10 adds the
+// optional StrAttr pair on `nsl::DeclareOp`, the M5 visitor populates
+// them from `ast::DeclareBlock::clockName()` / `resetName()`, and M6's
+// `lowerOneModule` reads them to drive the port-list shape.
 
 // RUN: %nslc -emit=hw %s | %FileCheck %s
-// XFAIL: *
 
 declare interface(clock=my_clk, reset=my_rst_n) M {
   input a[8];
@@ -37,8 +29,10 @@ module M {
 }
 
 // CHECK-LABEL: hw.module @M
+// CHECK-SAME: in %a : i8
 // CHECK-SAME: in %my_clk : i1
 // CHECK-SAME: in %my_rst_n : i1
-// CHECK-NOT: in %clk
-// CHECK-NOT: in %rst_n
+// CHECK-SAME: out q : i8
+// CHECK-NOT: in %clk : i1
+// CHECK-NOT: in %rst_n : i1
 // CHECK-NOT: nsl.
