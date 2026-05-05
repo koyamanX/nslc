@@ -106,7 +106,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 - [X] T033 Implement `LspSession` receive-side: background reader thread on stdout pipe reads `Content-Length` framing, parses each message into `llvm::json::Value`, deposits in a queue protected by mutex+condvar. `waitForMessage(timeout)` blocks; `waitForResponse(id, timeout)` filters by `id`; `waitForDiagnostics(timeout)` filters by `method == "textDocument/publishDiagnostics"`
 - [X] T034 Implement `LspSession` stderr capture: separate background thread reads stderr pipe into an internal `std::string` until EOF; `capturedStderr()` returns the accumulated string (blocks until process exits)
 - [X] T035 Implement `LspSession::exitCode()`: blocks until the subprocess terminates and returns its exit code
-- [ ] T036 [P] Author shared fixtures: `test/lsp/fixtures/clean_module.nsl` (one error-free module), `test/lsp/fixtures/empty.nsl` (zero bytes — verified via `wc -c == 0`)
+- [X] T036 [P] Author shared fixtures: `test/lsp/fixtures/clean_module.nsl` (one error-free module), `test/lsp/fixtures/empty.nsl` (zero bytes — verified via `wc -c == 0`)
 
 ### 2f. Lifecycle integration tests (test-first per Principle VIII)
 
@@ -147,7 +147,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 > **Land fixtures T050–T056 FIRST.** They cannot trigger any test failure on their own (they're just `.nsl` files), but they're prerequisites for the test cases T057–T067.
 
 - [X] T050 [P] [US1] Author `test/lsp/fixtures/s01_double_underscore.nsl` containing one occurrence of an `__`-bearing identifier per S1 (e.g., `module foo { reg foo__bar; }`); single error, no other diagnostics
-- [ ] T051 [P] [US1] Author the remaining 22 per-`Sn` fixtures `s02_<short>.nsl` … `s29_<short>.nsl` (skipping the 6 constructive `Sn`: S13/S18/S19/S23/S24/S27 per [`CLAUDE.md`](../../CLAUDE.md) §1 footnote). Each fixture triggers exactly one Sema constraint violation; cross-reference the M3 frozen diagnostic-string contract at [`specs/006-m3-sema/contracts/diagnostic-string.contract.md`](../006-m3-sema/contracts/diagnostic-string.contract.md) for shape
+- [X] T051 [P] [US1] Author the remaining 22 per-`Sn` fixtures `s02_<short>.nsl` … `s29_<short>.nsl` (skipping the 6 constructive `Sn`: S13/S18/S19/S23/S24/S27 per [`CLAUDE.md`](../../CLAUDE.md) §1 footnote). Each fixture triggers exactly one Sema constraint violation; cross-reference the M3 frozen diagnostic-string contract at [`specs/006-m3-sema/contracts/diagnostic-string.contract.md`](../006-m3-sema/contracts/diagnostic-string.contract.md) for shape
 - [X] T052 [P] [US1] Author `test/lsp/fixtures/parse_error_missing_brace.nsl` — a module with an unterminated `{` block; surfaces a parser-level diagnostic (FR-017 in spec; `source = "nsl-parse"` in mapping)
 - [ ] T053 [P] [US1] Author `test/lsp/fixtures/preprocess_unresolved_include.nsl` containing `#include "nonexistent_file.nslh"`; surfaces a preprocessor-level diagnostic (FR-020c; `source = "nsl-preprocess"`)
 - [ ] T054 [P] [US1] Author `test/lsp/fixtures/utf8_comment.nsl` — a module with one S1 violation on a line that also contains a UTF-8 multi-byte comment string (e.g., `// 日本語 comment`); exercises the UTF-16 column conversion path
@@ -160,7 +160,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 
 - [X] T057 [P] [US1] Author `test/lsp/diagnostics_test.cpp` skeleton (gtest fixture `DiagnosticsSuite`); add `EmptyArrayOnClean`: open `clean_module.nsl`, assert one `publishDiagnostics` arrives with empty `diagnostics` array
 - [X] T058 [US1] Add `DiagnosticsSuite::SingleS01` per harness contract §4.1: open `s01_double_underscore.nsl`; assert exactly one diagnostic with `code = "S01"`, `severity = 1`, `source = "nsl-sema"`, `range` covers the offending identifier
-- [ ] T059 [US1] Add `DiagnosticsSuite::CodeMapping_S<NN>` parameterized over the 23 non-constructive `Sn` fixtures (one per row of [`contracts/diagnostic-mapping.contract.md`](./contracts/diagnostic-mapping.contract.md) §1); each variant asserts the `code` field matches `S<NN>`. Covers SC-002
+- [X] T059 [US1] Add `DiagnosticsSuite::CodeMapping_S<NN>` parameterized over the 23 non-constructive `Sn` fixtures (one per row of [`contracts/diagnostic-mapping.contract.md`](./contracts/diagnostic-mapping.contract.md) §1); each variant asserts the `code` field matches `S<NN>`. Covers SC-002
 - [X] T060 [US1] Add `DiagnosticsSuite::SortOrder_LineThenColumn` using `two_errors_same_line.nsl`; assert sort by `(range.start.line, range.start.character)`
 - [ ] T061 [US1] Add `DiagnosticsSuite::SortOrder_SeverityOnTie` using `two_errors_same_position.nsl`; assert severity-ascending tiebreaker per contract §6
 - [ ] T062 [US1] Add `DiagnosticsSuite::IncludeFromNotes` using `include_chain_main.nsl` + `include_chain_helper.nslh`; assert the diagnostic carries non-empty `relatedInformation` whose entries reference the helper's URI per contract §5

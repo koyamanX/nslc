@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s09_for_var_reg.nsl — T051 (US1).
+// S9: for-loop var must be 'reg'.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// here violates S9.
+
+
+module m_fail {
+  integer i;
+  proc_name p;
+  proc p {
+    seq {
+      for (i := 0; i < 8; i++) { }
+    }
+  }
+}

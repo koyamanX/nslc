@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s04_funcin_dummy_dir.nsl — T051 (US1).
+// S4: func_in dummy arg must be 'input'.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// `func_in` dummy args must be `input` terminals; an `output` here
+// violates S4.
+
+
+declare d {
+  output b;
+  func_in start(b);
+}

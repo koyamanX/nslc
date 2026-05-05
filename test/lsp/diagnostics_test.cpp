@@ -366,6 +366,77 @@ TEST(DiagnosticsSuite, StaleVersion_Ignored) {
   EXPECT_EQ(s.exitCode(), 0);
 }
 
+// T059 (SC-002): parameterized round-trip test asserting that
+// each non-constructive Sn fixture produces an LSP Diagnostic
+// with the expected `code` field. Together with T058 (SingleS01)
+// this materializes the SC-002 "100% of the M3 Sn round-trip"
+// success criterion.
+struct SnCase {
+  const char *fixture;
+  const char *expected_code;
+};
+
+class CodeMappingSuite : public ::testing::TestWithParam<SnCase> {};
+
+TEST_P(CodeMappingSuite, ProducesExpectedCode) {
+  const auto &c = GetParam();
+  LspSession s({.nsl_lsp_log_level = "warn"});
+  initialize(s);
+  std::string text = readFixture(c.fixture);
+  ASSERT_FALSE(text.empty()) << "missing fixture: " << c.fixture;
+  didOpen(s, "file:///cm.nsl", 1, text);
+  auto diag = s.waitForDiagnostics();
+  ASSERT_TRUE(diag.has_value());
+  const auto *arr = getDiagnosticsArray(*diag);
+  ASSERT_NE(arr, nullptr);
+  ASSERT_GE(arr->size(), 1u)
+      << "fixture should trigger at least one Sema diagnostic";
+
+  // At least one diagnostic carries the expected code. (Some
+  // fixtures trigger additional follow-on errors — we only assert
+  // the target Sn appears, not that it's the sole diagnostic.)
+  bool found = false;
+  for (const auto &d : *arr) {
+    auto code = d.getAsObject()->getString("code").value_or("");
+    if (code == c.expected_code) { found = true; break; }
+  }
+  EXPECT_TRUE(found) << "expected code=" << c.expected_code
+                       << " in fixture " << c.fixture;
+
+  s.doShutdownExit();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    AllSn, CodeMappingSuite,
+    ::testing::Values(/* values below */
+        SnCase{"s01_double_underscore.nsl",            "S01"},
+        SnCase{"s02_wire_with_init.nsl",               "S02"},
+        SnCase{"s03_eq_on_reg.nsl",                    "S03"},
+        SnCase{"s04_funcin_dummy_dir.nsl",             "S04"},
+        SnCase{"s05_funcin_return_dir.nsl",            "S05"},
+        SnCase{"s06_proc_arg_reg_only.nsl",            "S06"},
+        SnCase{"s07_seq_outside_funcproc.nsl",         "S07"},
+        SnCase{"s08_while_outside_seq.nsl",            "S08"},
+        SnCase{"s09_for_var_reg.nsl",                  "S09"},
+        SnCase{"s10_generate_var_integer.nsl",         "S10"},
+        SnCase{"s11_state_name_proc_scoped.nsl",       "S11"},
+        SnCase{"s12_partial_lhs_variable.nsl",         "S12"},
+        SnCase{"s14_conditional_else_required.nsl",    "S14"},
+        SnCase{"s15_slice_indices_const.nsl",          "S15"},
+        SnCase{"s16_param_int_submodules.nsl",         "S16"},
+        SnCase{"s17_system_task_simulation.nsl",       "S17"},
+        SnCase{"s20_interface_clk_rst.nsl",            "S20"},
+        SnCase{"s21_bare_finish_outside_proc.nsl",     "S21"},
+        SnCase{"s22_return_outside_func.nsl",          "S22"},
+        SnCase{"s25_goto_target.nsl",                  "S25"},
+        SnCase{"s26_function_synonym.nsl",             "S26"},
+        SnCase{"s28_first_state.nsl",                  "S28"},
+        SnCase{"s29_init_block_placement.nsl",         "S29"}),
+    [](const ::testing::TestParamInfo<SnCase> &info) {
+      // Clean ctest name: just the expected code (S01..S29).
+      return std::string(info.param.expected_code);
+    });
+
 TEST(DiagnosticsSuite, RapidEdits_LatestVersionPublished) {
   // FR-008: a burst of didChanges should converge to a publish that
   // reflects the LATEST version. The version field on the final

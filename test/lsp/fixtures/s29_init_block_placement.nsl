@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s29_init_block_placement.nsl — T051 (US1).
+// S29: _init block placement.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// modified module. A non-simulation module containing `_init`
+// violates S29.
+
+
+module m_fail {
+  _init { }
+}

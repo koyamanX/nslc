@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s03_eq_on_reg.nsl — T051 (US1).
+// S3: '=' on a reg should be ':='.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// `=` LHS resolved to a `reg` is forbidden — must use `:=`.
+// table (T040): replaceRange = TransferStmt::eqOpRange,
+// replacement = `:=`.
+
+
+module m_fail {
+  reg r;
+  func clk {
+    r = 0;
+  }
+}

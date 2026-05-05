@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s08_while_outside_seq.nsl — T051 (US1).
+// S8: while only inside seq.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// A `while` directly inside a proc body but NOT inside a `seq`
+// block violates S8.
+
+
+module m_fail {
+  wire c;
+  proc_name p;
+  proc p {
+    while (c) { }
+  }
+}
