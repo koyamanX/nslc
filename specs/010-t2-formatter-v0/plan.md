@@ -331,6 +331,86 @@ pre-research gate; it is not a violation, and the same precedent
 applies to the existing `nsl-opt` tool (also not a compilation
 pipeline stage).
 
+## Plan Revisions
+
+### Session 2026-05-05 — fold in three /speckit-clarify clarifications
+
+Three clarifications landed in [`spec.md`](./spec.md) `## Clarifications`
+Session 2026-05-05; this section records the plan-level adjustments
+each one implies. Constitution Check is re-evaluated below — no
+new violations surfaced.
+
+**Q1 — strict refusal per FR-012**: Any input the M1 lex + M2
+parse pipeline rejects is a parse error → `Status::Refused`. The
+only tolerated pre-parse byte sequences are the directive lines +
+`%IDENT%` splices already named in FR-012a. BOM, vendor pragmas,
+top-level system-task expressions, etc. are all parse errors.
+
+  Affected artifacts:
+  * [`research.md`](./research.md) §10 — new D/R/A entry on the
+    fragment-parse strategy (parse the fragment as if it were a
+    standalone CompilationUnit; reject any fragment that does not).
+  * [`data-model.md`](./data-model.md) §6 — `Status::Refused`
+    semantics tightened: invoked when ANY NSLFragment slice's parse
+    produces an error.
+  * [`contracts/format-api.contract.md`](./contracts/format-api.contract.md)
+    §4 — `format_buffer` post-conditions for `Status::Refused`
+    expanded.
+  * [`contracts/cst-shape.contract.md`](./contracts/cst-shape.contract.md)
+    §1 — clarification that BOM bytes are NOT part of the CST
+    taxonomy (the lexer would not tokenise them; the slice
+    splitter would not isolate them as a directive).
+  * Test corpus follow-up (recorded in `tasks.md`, not enforced by
+    this plan): `test/Fmt/edge/bom-preserve/utf8-bom.test` must be
+    deleted when T059 lands; `test/Fmt/edge/over-long-line/string-no-break-point.test`
+    must be rewritten with `_display(...)` inside a `func` body.
+
+**Q2 — inline-comment preservation**: Comments BETWEEN tokens of a
+single statement (e.g., `reg /* width 8 */ q[8];`) are preserved
+byte-for-byte at the same token-relative position. The formatter
+MAY normalize whitespace AROUND the comment but MUST NOT hoist it
+to a leading or trailing line position.
+
+  Affected artifacts:
+  * [`contracts/cst-shape.contract.md`](./contracts/cst-shape.contract.md)
+    §4 — new attachment rule for inter-token trivia inside a
+    single statement.
+  * [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md)
+    §6 (R6) — extended to cover inline comments.
+  * [`data-model.md`](./data-model.md) §1 (Trivia) — note the
+    inline-trivia attachment variant.
+
+**Q3 — always emit one trailing `\n`**: Output ALWAYS ends with
+exactly one `\n` (gofmt / rustfmt / black convention). If input
+lacks one, formatter ADDS it. If input has multiple trailing blank
+lines, formatter NORMALIZES to one.
+
+  Affected artifacts:
+  * [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md)
+    new §9 (Rule R7 — trailing newline normalization).
+  * [`data-model.md`](./data-model.md) §6 — `FormatResult.formattedText`
+    invariant: when `Status::Success` and non-empty, always ends
+    with exactly one `\n`.
+  * [`contracts/format-api.contract.md`](./contracts/format-api.contract.md)
+    §4 — `format_buffer` Success post-condition: trailing `\n`.
+
+### Constitution Check re-evaluation post-revision
+
+| Principle | Status | Notes |
+|---|---|---|
+| I. Spec Is Authoritative | **Pass (confirmed)** | No new `Sn`/`Nn`/`Pn`. Q1 tightens the formatter's interpretation of FR-012 but introduces no new spec constructs. |
+| II. Layered Library Architecture | **Pass (confirmed)** | All three Q's are user-visible behaviour decisions; no library-shape change. |
+| III. Stock CIRCT Below | **Pass (vacuous)** | T2 still far from the dialect/CIRCT seam. |
+| IV. Source-Locating Diagnostics | **Pass (confirmed)** | Q1's strict-refusal reinforces Principle IV — every refusal carries a `Diagnostic` with `SourceRange`. |
+| V. Inspectable, Deterministic Pipeline | **Pass (confirmed)** | Q3's "always one trailing `\n`" tightens determinism (output bit-pattern is fully a function of inputs, no input-dependent branch on trailing-newline presence). |
+| VI. Layered Test Discipline | **Pass (confirmed)** | Test corpus follow-up (BOM fixture deletion, over-long-line fixture rewrite) is recorded; landing the rewrites is part of T059's PR. |
+| VII. Spec ↔ Design Coupling | **Pass (confirmed)** | This Plan Revisions section IS the spec-to-design propagation for Session 2026-05-05. |
+| VIII. Test-First Development | **Pass (confirmed)** | T059's Red→Green discipline is unchanged; the rewritten fixtures land RED, then T059's parse-and-refuse code turns them green. |
+| IX. Continuous Integration & Delivery | **Pass (confirmed)** | No CI-stage shape change. |
+
+✅ All nine principles still pass post-revision. Complexity Tracking
+section remains empty.
+
 ## Phase Cross-References
 
 - **Phase 0 (research)**: [`research.md`](./research.md) §§1–9 —

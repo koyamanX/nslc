@@ -176,13 +176,24 @@ ships at T2 (the layout engine already operates on subtrees,
 defining the full CLI surface now avoids retrofit at T5); Q3 —
 multi-file invocations continue past per-file errors, collect and
 report ALL offending files (gofmt / black --check style; CI logs
-surface the complete fix list in one round trip). Public umbrella
-header `Fmt.h` exports 10 frozen symbols (3 types + 7 free
-functions); CST shape is internal but contractually frozen. T5
-(LSP `textDocument/formatting`) is **out of scope** for T2; T2's
-`libNslFmt.a` is the API T5 will wrap. For technologies, project
-structure, entity catalog, contracts, and quickstart, read the
-current plan:
+surface the complete fix list in one round trip). **Session
+2026-05-05** adds three further clarifications: Q1 — strict
+refusal per FR-012 (any input the lex+parse pipeline rejects →
+exit non-zero; only directive lines + `%IDENT%` splices are
+tolerated pre-parse byte sequences; BOM + vendor pragmas + top-
+level system-task expressions are all parse errors); Q2 — inline
+comments between two tokens of a single statement are preserved
+byte-for-byte at the same token-relative position (no hoisting
+to leading/trailing); Q3 — output ALWAYS ends with exactly one
+trailing `\n` (gofmt / rustfmt / black convention; idempotent by
+construction). Public umbrella header `Fmt.h` exports 10 frozen
+symbols (3 types + 7 free functions); CST shape is internal but
+contractually frozen. T5 (LSP `textDocument/formatting`) is
+**out of scope** for T2; T2's `libNslFmt.a` is the API T5 will
+wrap. For technologies, project structure, entity catalog,
+contracts, and quickstart, read the current plan (which
+includes a Plan Revisions section logging the Session 2026-05-05
+amendments):
 [`specs/010-t2-formatter-v0/plan.md`](./specs/010-t2-formatter-v0/plan.md).
 Companion artifacts:
 [`spec.md`](./specs/010-t2-formatter-v0/spec.md),

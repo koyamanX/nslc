@@ -34,6 +34,17 @@ SourceFile
 - `NSLFragmentRoot` slices are interior — they wrap a
   `CSTNode` produced by the CST-mode parser pass on the
   fragment.
+- **BOM bytes are NOT a Slice variant** (clarified Session
+  2026-05-05 — Q1 strict refusal). The DirectiveSplitter
+  treats BOM bytes as part of the leading NSLFragment slice
+  (no special-case isolation); the lexer then fails to
+  tokenise them and `format_buffer` returns `Status::Refused`
+  per FR-012. Users with BOM-prefixed source must strip the
+  BOM before formatting. The Phase-2a DirectiveSplitter
+  comment about "BOM-prefix retention" is now PARTIAL:
+  retention only happens via the leading-fragment rawText
+  pass-through, which the LayoutRenderer never reaches in
+  the Refused case.
 
 ---
 
@@ -94,6 +105,21 @@ and `b` (following):
    `b.leadingTrivia` so the formatter can decide blank-line
    policy (`blank_lines_between_modules` from §5.1) at planner
    time.
+5. **Inline-comment carve-out** (clarified Session 2026-05-05 —
+   Q2): if `t` is a `BlockComment` whose surrounding tokens `a`
+   and `b` BOTH belong to the SAME statement (i.e., the
+   parser's current production has not yet ended), tag the
+   trivia as `Trivia::kind = InlineBlockComment` rather than
+   the rule-3 default `BlockComment`. Same logic for inline
+   `//` comments (rare, only valid if `t` is followed by a
+   newline AND the next non-trivia token is on the next line
+   continuing the same statement) → `InlineLineComment`. The
+   LayoutPlanner emits `Inline*` trivia byte-for-byte at the
+   same token-relative position rather than hoisting to
+   leading/trailing line position. **Rationale**: hoisting
+   loses the per-token semantic association (e.g., in
+   `wire a + /* trace */ b` the `/* trace */` refers to the
+   `+` operator, not the surrounding declaration).
 
 **These rules are frozen for FR-009 / FR-010.** Every
 `test/Fmt/rules/attached-comments/` fixture asserts the

@@ -32,7 +32,7 @@ CSTNode (class)
 | `CSTNode::range` | `basic::SourceRange` | NEVER `{}` — every node has a precise byte range (Principle IV) |
 | `CSTNode::children` | `llvm::SmallVector<CSTNode*, 4>` | child order matches source order; no dropped children (Principle I — no silent AST drops; CST extends this rule) |
 | `CSTNode::leadingTrivia` / `trailingTrivia` | `std::vector<Trivia>` | empty vector is allowed (no trivia present); never `nullptr` |
-| `Trivia::kind` | `enum class { Whitespace, LineComment, BlockComment, Newline }` | one variant per source character category |
+| `Trivia::kind` | `enum class { Whitespace, LineComment, BlockComment, Newline, InlineLineComment, InlineBlockComment }` | one variant per source character category. `Inline*` variants (added Session 2026-05-05 — Q2) tag a comment that appears BETWEEN two tokens of a single statement (e.g., `reg /* width 8 */ q[8];`); LayoutPlanner preserves these byte-for-byte at the same token-relative position rather than hoisting to leading/trailing line. |
 | `Trivia::text` | `llvm::StringRef` | byte-for-byte copy from source buffer; lifetime tied to the `MemoryBuffer` |
 | `DirectiveTok::opcode` | `enum class { Include, Define, Undef, Ifdef, Ifndef, If, Else, Endif, Line }` | one of the nine `pp.ebnf` §2 directive kinds |
 | `DirectiveTok::rawText` | `llvm::StringRef` | the entire directive line (or multi-line `\`-continued span) byte-for-byte |
@@ -225,12 +225,19 @@ FormatResult format_buffer(llvm::StringRef        sourceBuffer,
 - `format_buffer()` is a pure function of `(sourceBuffer, config,
   fileID, range)`; no environment reads (Principle V byte-
   stability).
-- `Status::Success` ⇒ `formattedText` is the canonical formatting;
-  `formattedText.empty()` only if input was empty.
-- `Status::Refused` ⇒ input is syntactically invalid (parse error
-  or directive-splitter error); `diagnostics` carries the user-
-  visible reason. NOT an internal error — it's the explicit
-  refusal in FR-012.
+- `Status::Success` ⇒ `formattedText` is the canonical formatting.
+  `formattedText.empty()` only if input was empty. **When input
+  is non-empty, `formattedText` ALWAYS ends with exactly one `\n`**
+  (clarified Session 2026-05-05 — Q3 trailing-newline policy);
+  the LayoutRenderer's final emission step appends `\n` if absent
+  and collapses runs of trailing blank lines to a single `\n`.
+- `Status::Refused` ⇒ at least one NSLFragment slice failed to
+  parse against the M1 lex + M2 parse pipeline (clarified
+  Session 2026-05-05 — Q1 strict refusal). The refusal is atomic:
+  no partial output is emitted regardless of how many other
+  fragments parsed cleanly. `diagnostics` carries the failing
+  fragment's diagnostics (SourceLocations reference per-fragment
+  private FileIDs — see research §10).
 - `Status::Error` ⇒ internal error (config malformed, range out
   of bounds, IO failure); `diagnostics` carries the cause.
 - For every input that returns `Status::Success`,

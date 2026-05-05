@@ -25,6 +25,12 @@
 - Q: Is `--range LINE:LINE` part of T2 or deferred to T5? → A: Ship `--range` at T2 (the layout engine already operates on subtrees; defining the full CLI surface now avoids retrofit at T5).
 - Q: How should `nsl-fmt` handle errors when invoked on multiple files? → A: Continue past parse errors and check-mismatches; collect and report ALL offending files; exit non-zero if any failed (gofmt / black --check behavior).
 
+### Session 2026-05-05
+
+- Q: How should the formatter handle inputs that don't fully parse against the M1/M2 NSL grammar (BOM bytes, `%IDENT%` in identifier position, top-level system-task expressions)? → A: Strict refusal per FR-012 — any input the lex+parse pipeline rejects → exit non-zero. Tolerated cases are limited to those explicitly named in FR-012a (directive lines + `%IDENT%` splices treated as opaque CST tokens). BOM at file start is NOT tolerated. Test fixtures depending on byte-passthrough of unparseable input must be rewritten with valid NSL.
+- Q: When the formatter reformats code containing inline comments BETWEEN tokens of a single statement (e.g., `reg /* width 8 */ q[8];`), what happens to those comments? → A: Preserve inline byte-for-byte — keep the comment between the same two tokens. The formatter normalizes spacing AROUND the comment (one space before + one space after, unless suppressed). No hoisting to leading/trailing position; no refusal. This protects FR-008 idempotence.
+- Q: What's the policy for the trailing newline at end of output? → A: Always emit exactly one trailing `\n` (gofmt / rustfmt / black convention). If input lacks one, formatter adds it. If input has multiple trailing blank lines, formatter normalizes to one. Idempotent by construction.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — Canonical formatting on demand (Priority: P1)
@@ -193,20 +199,26 @@ observe the default 4-space indentation.
   This matches `clang-format`'s preprocessor model and ensures
   every audited corpus file (all of which use `#include`) survives
   the round-trip.
-- **Files exceeding `max_line_length` after formatting** (e.g., a
-  100-char `_display(...)` argument string with no break point): the
-  formatter MUST emit the over-long line rather than corrupt the
-  source by inserting line breaks at unsafe positions. This matches
+- **Well-formed NSL with lines exceeding `max_line_length` after
+  formatting** (e.g., a 100-char `_display(...)` argument string
+  inside a `func` body, with no break point): the formatter MUST
+  emit the over-long line rather than corrupt the source by
+  inserting line breaks at unsafe positions. This matches
   `rustfmt`'s "best effort" stance for un-breakable constructs.
+  Note: the input must be well-formed NSL — top-level
+  `_display(...)` outside any `func`/`proc` body is a parse error
+  per FR-012 (clarified Session 2026-05-05).
 - **Empty input** (zero-byte file or whitespace-only file): MUST
   succeed with exit code 0 and emit canonical output (empty file or
   trailing newline only, per project convention).
 - **Mixed line endings** (CRLF in the middle of an LF file): MUST
   normalize to LF on output (the project is Linux-first per
   `ghcr.io/koyamanx/nsl-nslc:dev` build environment).
-- **BOM at start of file**: MUST be preserved through formatting if
-  present (some Windows editors emit BOM; preserving avoids
-  surprise diffs).
+- **BOM at start of file**: NOT tolerated per FR-012 (clarified
+  Session 2026-05-05). The lexer does not recognise a leading
+  UTF-8 BOM byte sequence; a BOM-prefixed input is a parse error
+  → refused. Users with BOM-bearing source must strip the BOM
+  before formatting (e.g., `sed -i '1s/^\xef\xbb\xbf//' foo.nsl`).
 
 ## Requirements *(mandatory)*
 
@@ -262,13 +274,26 @@ observe the default 4-space indentation.
   spacing, attached-comment preservation).
 - **FR-010**: The formatter MUST preserve all comments (line and
   block) in their semantic position relative to the surrounding
-  declaration, per §5.3 rule 6.
+  declaration, per §5.3 rule 6. **Inline comments between two
+  tokens of a single statement** (clarified Session 2026-05-05)
+  MUST be preserved byte-for-byte at the same token-relative
+  position. The formatter MAY normalize whitespace AROUND the
+  comment (one space before + one space after), but MUST NOT
+  hoist the comment to a leading or trailing line position. This
+  protects FR-008 idempotence.
 - **FR-011**: The formatter MUST preserve numeric literal forms
   (decimal, hex `0x`, binary `0b`, NSL value literals with `Z`/`X`/
   `U`) byte-for-byte; it MUST NOT canonicalize between bases.
 - **FR-012**: The formatter MUST refuse on parse error: print the
   diagnostic on stderr, leave any `-i` target untouched, and exit
-  non-zero. No partial output is written.
+  non-zero. No partial output is written. **"Parse error" means
+  any input that the M1 lexer + M2 parser pipeline rejects**
+  (clarified Session 2026-05-05). The only tolerated cases of
+  pre-parse byte sequences are those explicitly named in FR-012a
+  (preprocessor directive lines, `%IDENT%` splices) — which the
+  directive-aware pre-pass handles before lex/parse runs. Any
+  other byte sequence the lexer cannot tokenise (BOM, vendor
+  pragmas, etc.) is a parse error.
 - **FR-012a**: The formatter MUST parse raw source *before*
   preprocessing. It MUST emit a directive-aware CST that preserves
   each preprocessor directive line (`#include`, `#define`,
@@ -410,9 +435,13 @@ observe the default 4-space indentation.
   `8'b1010`, `Z`/`X`/`U` value literals) are byte-preserved (FR-011);
   the design doc §5.3 lists no toggle for canonicalization, so
   preservation is the conservative default.
-- **Trailing newline** at end of file is enforced (POSIX text-file
-  convention; matches the rest of the project — every file in
-  `lib/` and `include/nsl/` has a trailing newline).
+- **Trailing newline** at end of file: output ALWAYS ends with
+  exactly one `\n` (clarified Session 2026-05-05). If input lacks
+  one, formatter ADDS it. If input has multiple trailing blank
+  lines, formatter NORMALIZES to a single `\n`. Matches gofmt /
+  rustfmt / black convention; idempotent by construction. Aligns
+  with the project convention (every file in `lib/` and
+  `include/nsl/` has exactly one trailing newline).
 - **Tab character handling**: `indent = "tab"` in `.nsl-fmt.toml`
   emits literal `\t` for indentation; mixed tab/space indent in
   input is normalized to the configured indent.

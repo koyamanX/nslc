@@ -387,6 +387,124 @@ stderr via the engine's existing renderer.
 
 ---
 
+## §10. Per-fragment parse strategy (Session 2026-05-05 — Q1 strict refusal)
+
+**Decision**: Each `NSLFragment` slice produced by the
+DirectiveSplitter (§1) is parsed as a **standalone CompilationUnit**
+through a fresh `nsl::SourceManager` + `nsl::Lexer` +
+`nsl::parse::parseCompilationUnit()` invocation, with the fragment's
+bytes copied into a private in-memory buffer. If `parseCompilationUnit`
+returns `nullptr` OR the per-fragment `DiagnosticEngine.hasError()`
+is true, `format_buffer` returns `Status::Refused` and copies the
+fragment's diagnostics into `FormatResult::diagnostics`. ALL other
+fragments and directives are NOT processed further (the file is
+refused atomically — no partial output).
+
+**Rationale**:
+- Spec FR-012 (clarified Session 2026-05-05) mandates strict refusal:
+  any input the lex+parse pipeline rejects → exit non-zero. Per-
+  fragment parsing makes this granular: a single bad fragment
+  refuses the whole file.
+- The "fresh SourceManager per fragment" model avoids polluting
+  the caller's SourceManager with the formatter's transient state.
+  It does mean diagnostic SourceLocations reference the PRIVATE
+  per-fragment FileID — the CLI renderer translates to "byte
+  offset N within fragment K" rather than "file:line:col" against
+  the original input. Full source-mapping is a Phase 3+ refinement.
+- Fragments that AREN'T well-formed top-level NSL (e.g., the body
+  of a `module` block split mid-way by `#ifdef`/`#endif`) WILL
+  fail to parse as a standalone CompilationUnit. This is the
+  expected, acceptable cost of the directive-aware strategy:
+  `clang-format`'s preprocessor model has the same limitation —
+  some valid C/C++ source with directive-split bodies cannot be
+  formatted by clang-format and must be reformatted manually.
+
+**Alternatives considered**:
+- **Wrap each fragment in a synthetic `module __wrapper__ { ... }`
+  before parsing**: rejected — would silently re-classify
+  top-level declarations as internal-structure declarations
+  (RegDecl inside a module body is parsed differently from a
+  `param_int` at top level), breaking the layout rules.
+- **Add a "lex this byte range only" mode to the M1 lexer**:
+  rejected for T2 — would require modifying the M2-frozen Lexer
+  with a sub-buffer construction path. Defer to a future M-track
+  amendment if directive-split fragments become a common pain
+  point.
+- **Parse the entire raw source as one CompilationUnit (ignoring
+  directives)**: rejected — directive lines aren't valid NSL
+  tokens; the parser would error immediately on the first `#`.
+  This was the Phase-3c attempt that broke the BOM/`%IDENT%`/over-
+  long-line fixtures.
+
+**Test fixtures gating this decision**:
+- T039 (parse-error refusal) lit fixture exercises the refusal
+  path with a single-fragment input.
+- A new fixture under `test/Fmt/edge/parse-error-refusal/`
+  exercises the "one good fragment + one bad fragment → atomic
+  refusal" case (added when T059 lands).
+
+**Impact on existing fixtures (T2 milestone follow-up)**:
+- `test/Fmt/edge/bom-preserve/utf8-bom.test` — DELETE (BOM input
+  is refused per Q1; the fixture's premise is invalidated).
+- `test/Fmt/edge/over-long-line/string-no-break-point.test` —
+  REWRITE the input as `module m { func f() { _display("xxx…"); } }`
+  so the `_display(...);` lives inside a `func` body (legal NSL).
+  The over-long-line preservation still gets tested.
+
+## §11. Inline-comment preservation (Session 2026-05-05 — Q2)
+
+**Decision**: Comments BETWEEN tokens of a single statement (e.g.,
+`reg /* width 8 */ q[8];`) are recorded by the CSTBuilder as a
+new `Trivia.kind = InlineBlock` (or `InlineLine`) variant attached
+to the FOLLOWING token's `leadingTrivia`. The LayoutPlanner emits
+the comment between the same two tokens in the canonical output;
+the spaces before + after the comment are normalized to one space
+each (unless `preserve_comments != All`).
+
+**Rationale**:
+- FR-010 (clarified Session 2026-05-05) requires preservation of
+  inline comments at the same token-relative position.
+- Hoisting comments to leading or trailing line position would
+  lose semantic information (e.g., `wire a + /* trace */ b` —
+  the `/* trace */` refers to the `+` operation, not the
+  surrounding declaration).
+- Idempotence (FR-008) is preserved by construction: the
+  canonical form has exactly one space on each side of the
+  comment, so re-parsing → re-emitting yields the same bytes.
+
+**Alternatives considered**:
+- **Hoist to leading position**: rejected (loses semantic
+  position; can mislead the reader).
+- **Refuse to format any declaration containing inline
+  comments**: rejected (breaks reformatting on real code that
+  uses inline annotations).
+
+## §12. Trailing-newline normalization (Session 2026-05-05 — Q3)
+
+**Decision**: `format_buffer`'s `Status::Success` output ALWAYS
+ends with exactly one `\n`. When non-empty, the LayoutRenderer's
+final emission step appends `\n` if the last byte is not already
+`\n`; sequences of trailing blank lines (multiple consecutive
+`\n` at the end) are collapsed to one. Empty input → empty output
+(no spurious `\n`).
+
+**Rationale**:
+- FR-008 idempotence is preserved by construction: canonical form
+  has exactly one trailing `\n`, and re-running on it produces
+  the same byte sequence.
+- Matches gofmt / rustfmt / black convention.
+- Aligns with project-wide convention (every file in `lib/` and
+  `include/nsl/` has exactly one trailing newline).
+
+**Alternatives considered**:
+- **Preserve as-is**: rejected — creates two equivalence classes
+  of canonical output (with/without trailing `\n`), conceptually
+  noisier and slightly harder to gate in CI (`--check` would have
+  to compare byte-for-byte rather than semantically).
+- **Refuse if missing**: rejected — POSIX-strict but unfriendly,
+  especially for files generated by tools that don't add trailing
+  newlines.
+
 ## Cross-references
 
 - `Q1` / `Q2` / `Q3`: see [`spec.md`](./spec.md) `## Clarifications`.

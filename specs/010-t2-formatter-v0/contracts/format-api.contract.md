@@ -117,13 +117,22 @@ equals 10.
   satisfy `1 <= firstLine <= lastLine <= LineCount(sourceBuffer)`.
 - **Post (Success)**: `formattedText` is the canonical
   formatting under `config`; `diagnostics` may carry
-  warnings (e.g., over-long line). Idempotence:
+  warnings (e.g., over-long line). **When `formattedText` is
+  non-empty, it ends with exactly one `\n`** (clarified
+  Session 2026-05-05 — Q3 trailing-newline policy). Idempotence:
   `format_buffer(format_buffer(s, c, f).formattedText, c, f)`
   returns `Success` with the same `formattedText`.
 - **Post (Refused)**: `formattedText` is empty;
   `diagnostics` carries at least one `Error`-level
   diagnostic naming the parse-error location. Caller MUST
-  NOT consume `formattedText`.
+  NOT consume `formattedText`. **The refusal is atomic** —
+  if ANY of the input's NSLFragment slices fails to lex+parse,
+  the whole `format_buffer` call refuses; partial output is
+  never emitted (clarified Session 2026-05-05 — Q1 strict
+  refusal). Tolerated pre-parse byte sequences are limited to
+  those named in FR-012a (directive lines + `%IDENT%` splices);
+  any other byte sequence the lexer cannot tokenise (BOM,
+  vendor pragmas, etc.) triggers refusal.
 - **Post (Error)**: `formattedText` is empty; `diagnostics`
   carries the internal failure cause (range-out-of-bounds,
   config malformed, IO failure). Caller MUST NOT consume

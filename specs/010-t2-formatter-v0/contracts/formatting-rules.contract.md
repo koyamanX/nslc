@@ -204,6 +204,15 @@ reg baz[8];
   immediately above the declaration.
 - A `BlockComment` between two same-line tokens MUST be
   emitted on the same line in the same position.
+- **Inline comments** (clarified Session 2026-05-05 — Q2):
+  a `BlockComment` between two tokens of a SINGLE statement
+  (e.g., `reg /* width 8 */ q[8];`, `wire a + /* trace */ b;`)
+  MUST be preserved byte-for-byte at the same token-relative
+  position. The formatter MAY normalize whitespace AROUND the
+  comment to one space on each side, but MUST NOT hoist the
+  comment to a leading or trailing line position. Idempotent
+  by construction (the canonical form is itself the
+  fixed point).
 - If `preserve_comments = leading_only`, trailing
   `LineComment`s are dropped (rare; some projects); if
   `preserve_comments = none`, all comments are dropped (very
@@ -217,7 +226,39 @@ reg baz[8];
 
 ---
 
-## §7. Refusal-mode frozen diagnostic strings
+## §7. Rule R7: trailing-newline normalization (Session 2026-05-05 — Q3)
+
+**Source (canonical post-format)**: every non-empty output ends
+with EXACTLY one `\n` byte. Empty input → empty output (no
+spurious `\n`).
+
+```nsl
+module foo {}
+[end-of-file at this position; one trailing `\n` byte preceded the position]
+```
+
+**Frozen invariants**:
+- If the input ends with no `\n`, the formatter ADDS one.
+- If the input ends with multiple consecutive `\n` bytes
+  (trailing blank lines), the formatter NORMALIZES to a
+  single trailing `\n`.
+- If the input ends with exactly one `\n`, the formatter
+  preserves it.
+- Empty input → empty output (no spurious `\n` added).
+- Idempotence: the canonical form (one trailing `\n` for
+  non-empty, zero for empty) is a fixed point — re-running on
+  any canonical output produces byte-identical output.
+- Matches gofmt / rustfmt / black convention; aligns with
+  project convention (every file in `lib/` and `include/nsl/`
+  has exactly one trailing `\n`).
+
+**Test fixture**: `test/Fmt/rules/trailing-newline/` (added
+when LayoutPlanner work lands; the fixture has paired pre/post
+goldens for the three cases above).
+
+---
+
+## §8. Refusal-mode frozen diagnostic strings
 
 The following diagnostic strings are frozen for the Principle
 VIII string-stability rule. Renaming any of them later requires
@@ -239,7 +280,7 @@ Renaming a string later: amend the fixture in the same change.
 
 ---
 
-## §8. Rule-vs-config interaction matrix
+## §9. Rule-vs-config interaction matrix
 
 | Rule | Affected by config keys |
 |---|---|
@@ -249,6 +290,7 @@ Renaming a string later: amend the fixture in the same change.
 | R4 (bit-slice / concat spacing) | `spaces_inside_braces` |
 | R5 (operator spacing) | `spaces_around_binary_ops` |
 | R6 (attached-comment preservation) | `preserve_comments`, `blank_lines_between_modules` |
+| R7 (trailing-newline normalization) | (none — unconditional) |
 
 `brace_style` (`KAndR` vs `Allman`) affects every rule that
 emits a `{` (R1, R2, R3, control-flow blocks, module bodies);
@@ -260,10 +302,11 @@ its effect is global to the renderer rather than per-rule.
 
 | Spec FR / SC | This contract section |
 |---|---|
-| FR-008 (idempotence) | All rules have an `idempotence.nsl` fixture |
+| FR-008 (idempotence) | All rules have an `idempotence.nsl` fixture; §7 (R7 trailing newline) is itself a fixed-point rule |
 | FR-009 (apply six §5.3 rules) | §1–§6 (one section per rule) |
-| FR-010 (preserve comments) | §6 |
+| FR-010 (preserve comments, incl. inline per Q2) | §6 (incl. inline-comment invariant added Session 2026-05-05) |
 | FR-011 (preserve numeric literals) | §4 (literal preservation in slices) + R5 |
-| FR-012 (refuse on parse error) | §7 (frozen diagnostic string) |
-| FR-014 (10 config keys) | §8 (rule ↔ key interaction matrix) |
-| Principle VIII (string stability) | §7 |
+| FR-012 (refuse on parse error, strict per Q1) | §8 (frozen diagnostic strings) |
+| FR-014 (10 config keys) | §9 (rule ↔ key interaction matrix) |
+| Principle VIII (string stability) | §8 |
+| Q3 (always one trailing `\n`) | §7 (R7) — new in Session 2026-05-05 |

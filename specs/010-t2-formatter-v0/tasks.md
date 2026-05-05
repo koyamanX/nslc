@@ -186,7 +186,7 @@ M7).
 
 - [X] T076 [US2] Implement `lib/Fmt/Diff.{h,cpp}` Myers-diff-based unified-diff emitter per [`research.md`](./research.md) §5 + [`data-model.md`](./data-model.md) §7; T073/T074/T075 turn green
 - [X] T077 [US2] Implement CLI `--check` / `-c` mode in `tools/nsl-fmt/main.cpp` — for each file: format → compare → if differ, print unified diff via `emit_unified_diff()`; track aggregate failure flag; T066/T067 turn green
-- [ ] T078 [US2] Implement multi-file continue-on-error loop in `tools/nsl-fmt/main.cpp` per [`contracts/cli-surface.contract.md`](./contracts/cli-surface.contract.md) §4 — per-file try/catch; aggregate failure flag; final exit code reflects aggregate; T068/T069 turn green
+- [X] T078 [US2] Implement multi-file continue-on-error loop in `tools/nsl-fmt/main.cpp` per [`contracts/cli-surface.contract.md`](./contracts/cli-surface.contract.md) §4 — per-file try/catch; aggregate failure flag; final exit code reflects aggregate; T068/T069 turn green
 - [X] T079 [US2] Implement mutually-exclusive flag rejection in `tools/nsl-fmt/main.cpp` after `cl::ParseCommandLineOptions()` — emit each of the five frozen strings from [`contracts/cli-surface.contract.md`](./contracts/cli-surface.contract.md) §2; T070/T071/T072 turn green
 - [ ] T080 [P] [US2] Add `nsl-fmt --check test/audited/**/*.nsl || true` step to `scripts/ci.sh` per [`quickstart.md`](./quickstart.md) §10 (the `|| true` guard becomes a hard gate at M7 in a one-line follow-up commit)
 
@@ -217,10 +217,10 @@ Library can be linked from a synthetic external translation unit
 
 ### Implementation for User Story 3
 
-- [ ] T086 [US3] Freeze `include/nsl/Fmt/Fmt.h` public surface to exactly the 10 symbols in [`contracts/format-api.contract.md`](./contracts/format-api.contract.md) §3 — declarations only; bodies live in `lib/Fmt/`
+- [X] T086 [US3] Freeze `include/nsl/Fmt/Fmt.h` public surface to exactly the 10 symbols in [`contracts/format-api.contract.md`](./contracts/format-api.contract.md) §3 — declarations only; bodies live in `lib/Fmt/`
 - [ ] T087 [US3] Implement `nsl::fmt::version_string()` in `lib/Fmt/Format.cpp` reading from CMake-defined `NSL_PROJECT_VERSION` and `LLVM_PROJECT_VERSION` symbols
-- [ ] T088 [US3] Implement `nsl::fmt::config_key_names()` in `lib/Fmt/Config.cpp` returning a static `ArrayRef<StringRef>` of the 10 Configuration keys in declaration order
-- [ ] T089 [US3] Implement `nsl::fmt::default_configuration()` as `constexpr` in `lib/Fmt/Config.cpp` returning the §5.1 defaults
+- [X] T088 [US3] Implement `nsl::fmt::config_key_names()` in `lib/Fmt/Config.cpp` returning a static `ArrayRef<StringRef>` of the 10 Configuration keys in declaration order
+- [X] T089 [US3] Implement `nsl::fmt::default_configuration()` as `constexpr` in `lib/Fmt/Config.cpp` returning the §5.1 defaults
 - [ ] T090 [US3] Implement `--range LINE:LINE` parsing in `tools/nsl-fmt/main.cpp` and threading through to `format_buffer(..., LineRange{...})` per [`contracts/cli-surface.contract.md`](./contracts/cli-surface.contract.md) §1; T084/T085 turn green
 - [ ] T091 [US3] Extend `lib/Fmt/LayoutPlanner.cpp` to honor `LineRange` — emit lines outside the range from raw source bytes, only re-layout within the range
 - [ ] T092 [US3] Wire `audit_fmt_api.sh` into `scripts/ci.sh` stage 2 (static checks) so symbol-count drift fails CI; T086 verification gate
