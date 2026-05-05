@@ -58,10 +58,13 @@ schema). Generator scripts in Python 3 (matches existing
 `scripts/gen_*_fixtures.py` precedent).
 
 **Primary Dependencies**:
-- **`vscode-tmgrammar-test`** — Node.js npm package; the de-facto
-  standard scope-test runner for TextMate grammars (used by
-  Microsoft's own `vscode/extensions/*-basics` packages). See
-  research.md §1 for the rejected alternatives.
+- **`vscode-tmgrammar-test`** `0.1.3` — Node.js npm package; the
+  de-facto standard scope-test runner for TextMate grammars (used
+  by Microsoft's own `vscode/extensions/*-basics` packages). The
+  exact version is pinned in `test/tooling/textmate/package.json`
+  + `package-lock.json` per Constitution Principle V determinism;
+  see `tasks.md` T002. See research.md §1 for the rejected
+  alternatives.
 - **Python 3** — already required by the project per existing
   `scripts/gen_*_fixtures.py` and `scripts/check_spdx.py` precedent;
   no new dependency.
@@ -180,15 +183,16 @@ editors/                                        # NEW directory
     ├── package.json                           # minimal VS Code extension manifest
     ├── language-configuration.json            # comment / brackets / autoclose / indent
     └── syntaxes/
-        └── nsl.tmLanguage.json                # symlink → ../../../grammars/textmate/nsl.tmLanguage.json
+        └── nsl.tmLanguage.json                # materialised copy of grammars/textmate/nsl.tmLanguage.json (gen_textmate_grammar.py writes both paths in lockstep; CI stage-2 byte-equality check enforces sync)
 
 scripts/
-├── gen_textmate_grammar.py                    # NEW — generates grammar from KeywordSet.def + category map
+├── gen_textmate_grammar.py                    # NEW — generates grammar (and mirror) from KeywordSet.def + category map
 ├── gen_textmate_fixtures.py                   # NEW — generates scope-test fixtures from KeywordSet.def
-└── ci.sh                                       # AMEND — stage 3 gains a tooling-tests sub-step
+└── ci.sh                                       # AMEND — stage 2 gains tooling-grammar regen + mirror byte-equality sub-steps; stage 3 gains tooling-textmate runner sub-step
 
 test/
 └── tooling/                                    # NEW directory tree
+    ├── lit.local.cfg.py                       # disables lit suffix discovery — T1 fixtures are consumed by vscode-tmgrammar-test, not lit
     └── textmate/
         ├── fixtures/
         │   ├── all-keywords.nsl                # generated; line-1 `// SYNTAX TEST "source.nsl"` header + inline `// <-` / `// ^^^` assertions
@@ -205,16 +209,27 @@ include/nsl/Lex/KeywordSet.def                 # EXISTING — single source of t
 
 **Structure Decision**: `nsl_tooling_design.md §8` shared directory
 layout names `grammars/textmate/` and `editors/vscode/` as the
-canonical homes; this plan honours that. Symlink-vs-copy in
-`editors/vscode/syntaxes/` is resolved as **symlink** with a
-`scripts/ci.sh` build-step fallback that materialises a copy in
-non-symlink-friendly environments (Windows zip extraction); see
-research.md §5 for the alternatives evaluated. The
-`test/tooling/` tree is new — it parallels existing
+canonical homes; this plan honours that. Canonical-vs-mirror in
+`editors/vscode/syntaxes/` is resolved as **materialised copy**
+(originally planned as a symlink with build-step fallback for
+non-symlink environments; CodeRabbit review on PR #13 surfaced
+that the symlink became a literal path string on Windows /
+zip-archive extraction, breaking VS Code, so the design switched
+to a checked-in copy). Both paths are written in lockstep by
+`scripts/gen_textmate_grammar.py`; CI stage 2's
+`tooling-grammar-mirror` sub-step asserts byte-equality and
+fails the build if either is missing or stale. See
+research.md §5 for the full alternatives evaluation.
+
+The `test/tooling/` tree is new — it parallels existing
 `test/lex/keywords/` (per `gen_keyword_fixtures.py` output) but
 does NOT live under `test/lex/` because TextMate scope assertion
 is not lexer testing — different driver, different artefact under
-test, different CI cell.
+test, different CI cell. The `lit.local.cfg.py` at the
+`test/tooling/` root disables lit's suffix-based discovery for
+this subtree; without it, lit picks up the `.nsl` fixtures and
+fails them with "no RUN line" (the fixtures are consumed by
+`vscode-tmgrammar-test`, not lit).
 
 ## Complexity Tracking
 

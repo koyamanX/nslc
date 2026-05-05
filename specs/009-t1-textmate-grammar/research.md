@@ -186,10 +186,22 @@ sub-step that runs after compiler unit / layer tests.
 ## 5. Grammar file layout — `grammars/textmate/` vs `editors/vscode/syntaxes/`
 
 **Decision**: Canonical artefact lives at
-`grammars/textmate/nsl.tmLanguage.json`; **symlink** at
-`editors/vscode/syntaxes/nsl.tmLanguage.json` points to it.
-Build-step fallback materialises a copy in non-symlink
-environments.
+`grammars/textmate/nsl.tmLanguage.json`; a **materialised copy**
+at `editors/vscode/syntaxes/nsl.tmLanguage.json` is written in
+lockstep by `scripts/gen_textmate_grammar.py` and verified by
+the CI stage-2 `tooling-grammar-mirror` byte-equality sub-step.
+
+> **Amendment note (PR #13 CodeRabbit review).** This decision
+> originally landed as "**symlink** at the mirror path with a
+> build-step fallback for non-symlink environments". CodeRabbit
+> review on PR #13 surfaced that the symlink became a literal
+> path string when the repository was extracted from a zip
+> archive on Windows (or any host without admin / Developer-Mode
+> privileges), breaking VS Code at install-time — VS Code would
+> read the file's contents (the symlink-target path) instead of
+> the actual grammar JSON. The materialised-copy design replaces
+> the symlink unconditionally; both paths now contain the same
+> bytes and the byte-equality check enforces sync.
 
 **Rationale**:
 - `nsl_tooling_design.md §8` shared directory layout names
@@ -198,19 +210,25 @@ environments.
   Atom, GitHub web). VS Code's `package.json` schema requires the
   grammar path to be inside the extension folder
   (`editors/vscode/`) — hence the second copy.
-- A symlink is the minimal divergence: one canonical file, one
-  pointer. Git tracks symlinks portably.
-- Symlinks fail on Windows zip-archive extraction (no symlink
-  support without admin privileges). The build-step fallback
-  resolves this: a `cmake -P` script (or a Python equivalent run
-  by `./scripts/ci.sh`) detects whether the path is a symlink and
-  if not, copies the file. Idempotent and cheap (≤ 50 KB).
-- The CI matrix runs Linux only (Constitution Principle IX) so
-  the symlink works in CI without the fallback. The fallback is
-  for local dev on Windows hosts and downstream consumers who
-  zip-extract a release tarball.
+- Materialising a copy at the mirror path eliminates the
+  Windows-zip-extraction failure mode by construction.
+- The single-source-of-truth invariant is preserved by funneling
+  all writes through the generator: contributors do NOT edit
+  either file by hand. `scripts/gen_textmate_grammar.py` writes
+  both paths from the same in-memory `rendered` string; the CI
+  stage-2 `tooling-grammar-mirror` sub-step `cmp`s them and fails
+  the build on drift OR on a missing mirror.
+- Cost is negligible: ≤ 8 KB extra in the working tree, written
+  once per regeneration.
 
 **Alternatives considered**:
+- **Symlink with build-step copy fallback** (the original design)
+  — rejected per the PR #13 amendment note above. The fallback
+  step (a `cmake -P` script that detected symlink-vs-file and
+  copied the target if needed) would have run only at build
+  time, not at git-checkout time, leaving downstream consumers
+  who zip-extract the repo with a broken `~/.vscode/extensions/`
+  install.
 - **Single canonical at `editors/vscode/syntaxes/`, no top-level
   `grammars/`** — rejected: violates `nsl_tooling_design.md §8`
   layout. Cross-editor consumers (Sublime, Atom) would have to
@@ -220,12 +238,11 @@ environments.
   check** — rejected: doubles the surface area for keyword drift
   bugs. The single-source-of-truth invariant from `KeywordSet.def`
   consumption already constrains the canonical artefact; adding a
-  second hand-edit point reintroduces the drift the X-macro
-  approach was designed to prevent.
-- **Build-time generated copy only (no symlink)** — rejected: a
-  source-tree symlink is more obvious to readers than a
-  build-step output. CI fallback is fine; symlink-when-possible
-  is the minimum-surprise default.
+  second hand-edit point would reintroduce the drift the X-macro
+  approach was designed to prevent. (The materialised-copy
+  decision keeps editing concentrated in the generator script;
+  the mirror file is regenerator output, not a hand-edit
+  surface.)
 
 ---
 
