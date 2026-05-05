@@ -80,6 +80,24 @@ nsl_add_lsp_test(diagnostics_test diagnostics_test.cpp)
 nsl_add_lsp_test(folding_test folding_test.cpp)
 nsl_add_lsp_test(cancellation_test cancellation_test.cpp)
 
+# Phase 2 deferred: dedicated JSONTransport unit test (T019).
+# In-process; no subprocess. Doesn't go through nsl_add_lsp_test
+# because it doesn't depend on the nsl-lsp binary.
+add_executable(JSONTransport_test JSONTransport_test.cpp
+  ${CMAKE_SOURCE_DIR}/lib/LSP/JSONTransport.cpp
+  ${CMAKE_SOURCE_DIR}/lib/LSP/Logger.cpp)
+target_compile_features(JSONTransport_test PRIVATE cxx_std_17)
+target_compile_options(JSONTransport_test PRIVATE -fno-rtti)
+target_include_directories(JSONTransport_test PRIVATE
+  ${CMAKE_SOURCE_DIR}/lib/LSP
+  ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(JSONTransport_test PRIVATE
+  GTest::gtest GTest::gtest_main LLVMSupport)
+set_target_properties(JSONTransport_test PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  CXX_EXTENSIONS OFF)
+gtest_discover_tests(JSONTransport_test TEST_PREFIX "lsp_")
+
 # Phase 6 / US4 architectural verification (T102, T104).
 nsl_add_lsp_test(architecture_test architecture_test.cpp)
 target_compile_definitions(architecture_test PRIVATE

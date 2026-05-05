@@ -102,10 +102,11 @@ std::optional<llvm::json::Value> JSONTransport::readMessage() {
 
   llvm::Expected<llvm::json::Value> parsed = llvm::json::parse(body);
   if (!parsed) {
-    std::string err;
-    llvm::raw_string_ostream os(err);
-    os << parsed.takeError();
-    os.flush();
+    // Consume the Error explicitly. `os << err` streams the
+    // diagnostic but in LLVM 18 doesn't always mark the Error
+    // as handled — the destructor of an unhandled Error aborts
+    // the process. `toString` is the canonical consume path.
+    std::string err = llvm::toString(parsed.takeError());
     NSL_LSP_LOG_ERROR(llvm::formatv("JSONTransport: malformed JSON "
                                       "body: {0}", err).str());
     return std::nullopt;

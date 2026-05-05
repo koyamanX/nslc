@@ -80,7 +80,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 ### 2b. Transport
 
 - [X] T018 Implement `lib/LSP/JSONTransport.{h,cpp}` per data-model §2.1 / R1: `Content-Length:`-framed reader using a state machine that handles the four edge cases — incomplete header (block until more bytes), malformed JSON (log ERROR, skip message), partial body (block), EOF (return std::nullopt). `writeMessage` is mutex-protected per data-model §2.1
-- [ ] T019 Author a JSONTransport unit test (gtest) under `test/lsp/JSONTransport_test.cpp`: round-trip simple message, round-trip nested object, malformed-header rejection, malformed-JSON rejection, EOF detection. Lives in `test/lsp/CMakeLists.txt`'s test list
+- [X] T019 Author a JSONTransport unit test (gtest) under `test/lsp/JSONTransport_test.cpp`: round-trip simple message, round-trip nested object, malformed-header rejection, malformed-JSON rejection, EOF detection. Lives in `test/lsp/CMakeLists.txt`'s test list
 
 ### 2c. Per-document state
 
@@ -150,7 +150,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 - [X] T051 [P] [US1] Author the remaining 22 per-`Sn` fixtures `s02_<short>.nsl` … `s29_<short>.nsl` (skipping the 6 constructive `Sn`: S13/S18/S19/S23/S24/S27 per [`CLAUDE.md`](../../CLAUDE.md) §1 footnote). Each fixture triggers exactly one Sema constraint violation; cross-reference the M3 frozen diagnostic-string contract at [`specs/006-m3-sema/contracts/diagnostic-string.contract.md`](../006-m3-sema/contracts/diagnostic-string.contract.md) for shape
 - [X] T052 [P] [US1] Author `test/lsp/fixtures/parse_error_missing_brace.nsl` — a module with an unterminated `{` block; surfaces a parser-level diagnostic (FR-017 in spec; `source = "nsl-parse"` in mapping)
 - [ ] T053 [P] [US1] Author `test/lsp/fixtures/preprocess_unresolved_include.nsl` containing `#include "nonexistent_file.nslh"`; surfaces a preprocessor-level diagnostic (FR-020c; `source = "nsl-preprocess"`)
-- [ ] T054 [P] [US1] Author `test/lsp/fixtures/utf8_comment.nsl` — a module with one S1 violation on a line that also contains a UTF-8 multi-byte comment string (e.g., `// 日本語 comment`); exercises the UTF-16 column conversion path
+- [X] T054 [P] [US1] Author `test/lsp/fixtures/utf8_comment.nsl` — a module with one S1 violation on a line that also contains a UTF-8 multi-byte comment string (e.g., `// 日本語 comment`); exercises the UTF-16 column conversion path
 - [ ] T055 [P] [US1] Author `test/lsp/fixtures/include_chain_main.nsl` + `test/lsp/fixtures/include_chain_helper.nslh` where `main.nsl` `#include`s `helper.nslh` and the diagnostic originates inside `helper.nslh`; exercises the `relatedInformation` include-from-notes path
 - [X] T056 [P] [US1] Author `test/lsp/fixtures/two_errors_same_line.nsl` and `test/lsp/fixtures/two_errors_same_position.nsl` for the diagnostic-mapping sort-order tests
 
@@ -166,7 +166,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 - [ ] T062 [US1] Add `DiagnosticsSuite::IncludeFromNotes` using `include_chain_main.nsl` + `include_chain_helper.nslh`; assert the diagnostic carries non-empty `relatedInformation` whose entries reference the helper's URI per contract §5
 - [X] T063 [US1] Add `DiagnosticsSuite::ParseError` using `parse_error_missing_brace.nsl`; assert `source = "nsl-parse"`
 - [ ] T064 [US1] Add `DiagnosticsSuite::PreprocessError` using `preprocess_unresolved_include.nsl`; assert `source = "nsl-preprocess"` and `code` is the preprocessor's frozen ID for unresolved include (per FR-020c)
-- [ ] T065 [US1] Add `DiagnosticsSuite::UTF8Comment` using `utf8_comment.nsl`; assert the `range.start.character` is computed as a UTF-16 code-unit offset (verifies the conversion path in T012)
+- [X] T065 [US1] Add `DiagnosticsSuite::UTF8Comment` using `utf8_comment.nsl`; assert the `range.start.character` is computed as a UTF-16 code-unit offset (verifies the conversion path in T012)
 - [X] T066 [US1] Add `DiagnosticsSuite::Determinism_TwoRunsByteIdentical` per harness §4.2: spawn-and-drive the same fixture twice, capture both `publishDiagnostics` payloads as canonical JSON byte strings, assert byte-equal. Covers SC-003
 - [X] T067 [US1] Run `ctest -R "lsp_diagnostics_test"` and observe ALL US1 tests FAILING; capture output to `${TMPDIR:-/tmp}/t3-us1-red.txt`
 
@@ -284,7 +284,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 - [ ] T113 Walk through `quickstart.md` §1–§9 verbatim inside the dev container; record which sections pass and any divergences between contract and implementation. Update quickstart and the relevant contract in lockstep if a divergence is found (Principle VII)
 - [X] T114 Verify SC-007 30-second combined budget: `time ctest --test-dir build -R "^lsp_"`; record actual wall-clock; fail the merge gate if > 30 s
 - [X] T115 [P] Verify no source-content blacklist violation per logging contract §7.5: grep `lib/LSP/` for any `Logger::log` call site that could pass `didOpen.text` or `didChange.contentChanges[0].text` as the message argument; assert none. Authored as a one-shot `scripts/check_lsp_log_content.sh` if static analysis warrants
-- [ ] T116 [P] Capture the binary size of `build/bin/nsl-lsp` for posterity (informational; no SC budget at T3) and record in PR description
+- [X] T116 [P] Capture the binary size of `build/bin/nsl-lsp` for posterity (informational; no SC budget at T3) and record in PR description
 - [X] T117 Author the PR per Constitution external-integrations + Principle VIII no-retrofitted-tests clause: include the failing-state commit hashes from `${TMPDIR:-/tmp}/t3-{lifecycle,us1,us2,us3}-red.txt` in the PR body to establish red→green progression
 
 **Checkpoint**: T3 ready to merge.

@@ -439,6 +439,55 @@ INSTANTIATE_TEST_SUITE_P(
       return std::string(info.param.expected_code);
     });
 
+TEST(DiagnosticsSuite, UTF8Comment) {
+  // T065 / FR-013: a fixture with a multi-byte UTF-8 comment on
+  // the same line as an S1 violation. The diagnostic's
+  // `range.start.character` MUST be a UTF-16 code-unit offset,
+  // not a byte offset — exercises the byteToUtf16Column path
+  // in DiagnosticMapper.
+  LspSession s({.nsl_lsp_log_level = "warn"});
+  initialize(s);
+  std::string text = readFixture("utf8_comment.nsl");
+  ASSERT_FALSE(text.empty());
+  didOpen(s, "file:///utf.nsl", 1, text);
+
+  auto diag = s.waitForDiagnostics();
+  ASSERT_TRUE(diag.has_value());
+  const auto *arr = getDiagnosticsArray(*diag);
+  ASSERT_NE(arr, nullptr);
+  ASSERT_GE(arr->size(), 1u);
+
+  // Find the S01 diagnostic; assert its column reflects UTF-16
+  // code-unit offset, not byte offset. S1 reports at the start
+  // of the declaration (the `reg` keyword), per
+  // lib/Sema/Constraints/S01_NoDoubleUnderscore.cpp using
+  // `n.loc().begin()`. The fixture line is:
+  //   "  /* 日本語 */ reg bad__id;"
+  // Byte offsets:
+  //   "  "          0..1   ( 2 bytes,  2 utf16 units)
+  //   "/* "         2..4   ( 3 bytes,  3 utf16 units)
+  //   "日本語"       5..13  ( 9 bytes,  3 utf16 units)  ← divergence
+  //   " */ "       14..17  ( 4 bytes,  4 utf16 units)
+  //   "reg" starts at byte 18 / utf16 12
+  // A byte-offset bug would yield character=18; the UTF-16
+  // path yields 12.
+  for (const auto &d : *arr) {
+    auto *o = d.getAsObject();
+    auto code = o->getString("code").value_or("");
+    if (code != "S01") continue;
+    auto *start =
+        o->getObject("range")->getObject("start");
+    auto col = start->getInteger("character").value_or(-1);
+    EXPECT_EQ(col, 12)
+        << "expected UTF-16 code-unit column 12; got " << col
+        << " (a byte-offset bug would yield 18)";
+    break;
+  }
+
+  s.doShutdownExit();
+  EXPECT_EQ(s.exitCode(), 0);
+}
+
 TEST(DiagnosticsSuite, OpenLatency_Under250ms_For1500Lines) {
   // SC-004 budget: didOpen → publishDiagnostics under 250 ms for
   // a 1500-line fixture (the audited-corpus-sized envelope).
