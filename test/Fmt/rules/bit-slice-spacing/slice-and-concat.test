@@ -7,10 +7,16 @@
 //   * concat:    `{a, b, c}` — one space after each `,`, no spaces
 //                 inside `{`, `}` (unless `spaces_inside_braces=true`)
 //
-// AUTHORED RED — XFAIL until T050 implements R4. Removing XFAIL
-// is a checkpoint of the implementation's correctness.
-
-// XFAIL: *
-// RUN: echo 'module m { wire d = a[ 7 : 0 ]; wire e = {a , b , c}; }' | nsl-fmt --stdin | FileCheck %s
+// T050 (R4) made this GREEN: `lib/Fmt/LayoutPlanner.cpp` adds
+// canonical-layout overrides for `SliceExpr` (`<sub>[<hi>:<lo>]`,
+// no spaces inside the brackets or around the colon) and
+// `ConcatExpr` (`{<p>, <p>, ...}`, one space after each comma, no
+// spaces inside the braces unless `spaces_inside_braces=true`).
+//
+// `reg` (not `wire`) is used for the initialized declarations
+// because S2 forbids `wire <name> = <init>` (use `reg` instead);
+// the formatter's strict refusal pipeline rejects the parse before
+// any layout work can run.
+// RUN: echo 'module m { reg d[8] = a[ 7 : 0 ]; reg e[24] = {a , b , c}; }' | nsl-fmt --stdin | FileCheck %s
 // CHECK: a[7:0]
 // CHECK-SAME: {a, b, c}

@@ -230,6 +230,19 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::RegDecl &node) {
   return interleaveChildren(node.loc(), children);
 }
 
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::WireDecl &node) {
+  // `wire <name>[<width>];` — no init slot (S2 forbids
+  // `wire <name> = <init>`; that's parser-rejected before we get
+  // here). Recurse only into `width` so any nested SliceExpr /
+  // ConcatExpr / BinaryExpr inside the width gets the canonical
+  // R4 / R5 treatment.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  if (node.width() != nullptr) {
+    children.push_back(node.width());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
 DocPtr LayoutPlanner::formatNode(const ::nsl::ast::BinaryExpr &node) {
   // R5: one space on each side of the binary operator. Recurse into
   // lhs/rhs via `visitNode` so nested binary/unary subtrees get the
@@ -257,6 +270,56 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::UnaryExpr &node) {
   parts.reserve(2);
   parts.push_back(Doc::text(unaryOpSpelling(node.op())));
   parts.push_back(std::move(sub_doc));
+  return Doc::concat(std::move(parts));
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::SliceExpr &node) {
+  // R4 §4: bit slice has no spaces inside `[`, `]`, around `:`.
+  //   `<sub>[<hi>]`            for the single-index form
+  //   `<sub>[<hi>:<lo>]`       for the two-index form
+  // Recurse into each Expr child so nested operators / slices /
+  // concats / unary forms inside any index get the canonical
+  // treatment too.
+  DocPtr sub_doc = node.sub() != nullptr ? visitNode(*node.sub())
+                                          : Doc::text(llvm::StringRef{});
+  DocPtr hi_doc = node.hi() != nullptr ? visitNode(*node.hi())
+                                        : Doc::text(llvm::StringRef{});
+  std::vector<DocPtr> parts;
+  parts.reserve(6);
+  parts.push_back(std::move(sub_doc));
+  parts.push_back(Doc::text(llvm::StringRef("[")));
+  parts.push_back(std::move(hi_doc));
+  if (node.lo() != nullptr) {
+    parts.push_back(Doc::text(llvm::StringRef(":")));
+    parts.push_back(visitNode(*node.lo()));
+  }
+  parts.push_back(Doc::text(llvm::StringRef("]")));
+  return Doc::concat(std::move(parts));
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ConcatExpr &node) {
+  // R4 §4: concatenation is `{<part>, <part>, ...}` — one space
+  // after each `,`, no spaces inside `{` / `}` UNLESS the active
+  // configuration has `spaces_inside_braces=true`, in which case
+  // an extra space pads each side of the brace pair.
+  const bool inside = cfg_.spaces_inside_braces;
+  llvm::StringRef open_brace = inside ? llvm::StringRef("{ ")
+                                       : llvm::StringRef("{");
+  llvm::StringRef close_brace = inside ? llvm::StringRef(" }")
+                                        : llvm::StringRef("}");
+  std::vector<DocPtr> parts;
+  // worst case: 1 (open) + 2*N - 1 (parts + separators) + 1 (close)
+  parts.reserve(2 + 2 * node.parts().size());
+  parts.push_back(Doc::text(open_brace));
+  bool first = true;
+  for (const auto &p : node.parts()) {
+    if (!first) {
+      parts.push_back(Doc::text(llvm::StringRef(", ")));
+    }
+    parts.push_back(p ? visitNode(*p) : Doc::text(llvm::StringRef{}));
+    first = false;
+  }
+  parts.push_back(Doc::text(close_brace));
   return Doc::concat(std::move(parts));
 }
 

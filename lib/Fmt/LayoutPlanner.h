@@ -44,6 +44,12 @@
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/AST/UnaryExpr.h"  // for nested `UnaryExpr::Op`
 #include "nsl/Fmt/Fmt.h"
+// `SliceExpr`, `ConcatExpr`, `WireDecl`, etc. are forward-declared by
+// `ASTVisitor.h`'s NodeKind.def expansion above — no extra includes
+// needed in this header. The full definitions are pulled in by
+// `LayoutPlanner.cpp` (which already includes every per-NodeKind
+// header so the macro-generated `visit()` bodies can call
+// `node.loc()`).
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
@@ -102,8 +108,11 @@ protected:
   DocPtr formatNode(const ::nsl::ast::CompilationUnit &node);
   DocPtr formatNode(const ::nsl::ast::ModuleBlock &node);
   DocPtr formatNode(const ::nsl::ast::RegDecl &node);
+  DocPtr formatNode(const ::nsl::ast::WireDecl &node);
   DocPtr formatNode(const ::nsl::ast::BinaryExpr &node);
   DocPtr formatNode(const ::nsl::ast::UnaryExpr &node);
+  DocPtr formatNode(const ::nsl::ast::SliceExpr &node);
+  DocPtr formatNode(const ::nsl::ast::ConcatExpr &node);
 
   /// Spelling table for `BinaryExpr::Op`. Returns a static-storage
   /// `StringRef` so the result outlives any Doc tree built from it.
