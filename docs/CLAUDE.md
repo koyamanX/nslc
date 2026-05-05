@@ -75,7 +75,7 @@ Rule of thumb: a typical task needs **2–4 sections totaling 200–600 lines**,
   - 236–310 (compile-time math sub-grammar)
   - 312–343 (`%IDENT%` macro references)
   - 391–559 (preprocessor notes P1–P13 — semantics not in the EBNF)
-- `design/nsl_compiler_design.md` lines **132–148, 1102–1157** (driver wires the preprocessor)
+- `design/nsl_compiler_design.md` lines **132–148, 1294–1351** (driver wires the preprocessor)
 
 ### Implementing the parser
 - `spec/nsl_lang.ebnf` lines **65–712** (the grammar productions)
@@ -86,15 +86,15 @@ Rule of thumb: a typical task needs **2–4 sections totaling 200–600 lines**,
 ### Implementing semantic analysis (Sema)
 - `spec/nsl_lang.ebnf` lines **826–1015** (semantic constraints S1–S29 — the entire Sema spec)
 - `design/nsl_compiler_design.md` lines **688–857** (SymbolTable + TypeSystem)
-- `design/nsl_compiler_design.md` lines **1260–1270** (testing strategy: one test per S1–S29)
+- `design/nsl_compiler_design.md` lines **1452–1464** (testing strategy: one test per S1–S29)
 
 ### Adding an MLIR `nsl` dialect op
-- `design/nsl_compiler_design.md` lines **878–997** (§7 dialect overview, op summary incl. M4 marker / lowering-helper consolidation, TableGen skeleton)
-- `design/nsl_compiler_design.md` lines **1001–1079** (§8 AST → nsl-dialect lowering rules)
-- `design/nsl_compiler_design.md` lines **1099–1132** (§10 nsl → CIRCT lowering — your op needs a target)
+- `design/nsl_compiler_design.md` lines **878–1118** (§7 dialect overview, op summary incl. M4 marker / lowering-helper consolidation, TableGen skeleton)
+- `design/nsl_compiler_design.md` lines **1122–1202** (§8 AST → nsl-dialect lowering rules)
+- `design/nsl_compiler_design.md` lines **1221–1290** (§10 nsl → CIRCT lowering — your op needs a target)
 
 ### Writing a structural-expansion pass (generate-loop unroll, etc.)
-- `design/nsl_compiler_design.md` lines **1163–1178** (§9 pass list)
+- `design/nsl_compiler_design.md` lines **1204–1219** (§9 pass list)
 - `spec/nsl_lang.ebnf` — search for `generate` / structural-expansion clauses (§§ around 8)
 - M5 contract: `specs/008-m5-structural-passes/contracts/pass-pipeline.contract.md` §2 freezes the 6-slot pipeline (`nsl-resolve-params` → `nsl-expand-generate` → `nsl-expand-variables` → `nsl-explode-submod-array` → `nsl-inline-internal-func` (no-op slot per Q3 → Option B) → `nsl-check-semantics`)
 
@@ -125,8 +125,8 @@ Rule of thumb: a typical task needs **2–4 sections totaling 200–600 lines**,
 - All Pn (preprocessor): `spec/nsl_pp.ebnf` lines **391–559**
 
 ### Driver / build / CLI flags
-- `design/nsl_compiler_design.md` lines **1136–1191** (§11 Compilation class, `-emit=` flags)
-- `design/nsl_compiler_design.md` lines **1233–1290** (§13 CMake layout, dependencies)
+- `design/nsl_compiler_design.md` lines **1294–1351** (§11 Compilation class, `-emit=` flags)
+- `design/nsl_compiler_design.md` lines **1391–1450** (§13 CMake layout, dependencies)
 
 ### Testing / CI
 - `design/nsl_compiler_design.md` lines **1260–1270** (compiler testing strategy)
@@ -252,16 +252,16 @@ The 6-phase workflow (Linear → plan → implement → CodeRabbit self-review �
 | 617–682 | §5.x AST node skeleton (C++17 code) |
 | 688–817 | §6 Symbol Table — Symbol class hierarchy + scopes table (incl. constructive-`Sn` carve-out note) |
 | 820–875 | §6.x Type System — TypeSystem code |
-| 878–997 | §7 The `nsl` MLIR Dialect (op summary incl. M4 marker / lowering-helper consolidation, rationale, TableGen) |
-| 1001–1079 | §8 Lowering: AST → `nsl` dialect (visitor + per-node rule table) |
-| 1082–1095 | §9 Structural Expansion Passes (NSL-dialect local) |
-| 1099–1132 | §10 Lowering: `nsl` → CIRCT (per-op mapping table) |
-| 1136–1191 | §11 Driver / Compilation Object (CompileOptions, run loop) |
-| 1195–1229 | §12 Error Handling and Diagnostics (DiagnosticEngine, FixItHint) |
-| 1233–1290 | §13 Build System and Dependencies (CMake, repo layout) |
-| 1294–1307 | §14 Testing Strategy (lexer→e2e+formal layers) |
-| 1308–1324 | §14.5 Milestone Plan (routing pointer to `../../README.md` §Roadmap, `../../CLAUDE.md` §1, and the Constitution; do not duplicate the table) |
-| 1329–1337 | §15 Extension Points (verif, LSP, alternate backends) |
+| 878–1118 | §7 The `nsl` MLIR Dialect (op summary incl. M4 marker / lowering-helper consolidation, rationale, TableGen) |
+| 1122–1202 | §8 Lowering: AST → `nsl` dialect (visitor + per-node rule table) |
+| 1204–1219 | §9 Structural Expansion Passes (NSL-dialect local) |
+| 1221–1290 | §10 Lowering: `nsl` → CIRCT (per-op mapping table) |
+| 1294–1351 | §11 Driver / Compilation Object (CompileOptions, run loop) |
+| 1353–1389 | §12 Error Handling and Diagnostics (DiagnosticEngine, FixItHint) |
+| 1391–1450 | §13 Build System and Dependencies (CMake, repo layout) |
+| 1452–1465 | §14 Testing Strategy (lexer→e2e+formal layers) |
+| 1466–1485 | §14.5 Milestone Plan (routing pointer to `../../README.md` §Roadmap, `../../CLAUDE.md` §1, and the Constitution; do not duplicate the table) |
+| 1487–1495 | §15 Extension Points (verif, LSP, alternate backends) |
 
 ---
 
@@ -326,7 +326,7 @@ When you touch one of these areas, both sides are involved:
 The full contributor-facing protocol — including AI-assistant attribution rules — is in [`../CONTRIBUTING.md`](../CONTRIBUTING.md). The essentials, restated for quick reference:
 
 1. **Spec changes are load-bearing.** Edit `spec/*.ebnf` only when adding/removing a real language feature. Note the change in the file's header comment with date.
-2. **When you change the spec, update `design/nsl_compiler_design.md`** wherever the cross-reference table in §8 lists a corresponding section. The compiler test suite (§14, lines 1260–1270) should grow a regression for the new behaviour.
+2. **When you change the spec, update `design/nsl_compiler_design.md`** wherever the cross-reference table in §8 lists a corresponding section. The compiler test suite (§14, lines 1452–1464) should grow a regression for the new behaviour.
 3. **`design/` changes alone** are common (a new pass, a refactored class). They don't trigger spec changes — but check §8 to confirm you're not contradicting the spec.
 4. **Adding a Sn / Nn / Pn note**: keep numbering monotonic; never reuse a retired number — add e.g. `(S30)` and update §5 of this file.
 5. **PDF reference manuals** (`NSL_Language_Reference_ver1.4E.pdf`, `NSLTUT20151006_E.pdf`, `NSL_Tutorial20160121.pdf`) are external sources cited in `spec/*.ebnf` headers. They are **not** in this directory by design — `docs/` distills them. If the PDFs and `docs/` disagree, this directory's interpretation (with audited open-source NSL projects as ground truth) wins.

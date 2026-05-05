@@ -46,7 +46,7 @@ References to `lang.ebnf §X` are sections in
 | Compile-time helpers `_int`/`_pow`/`_sin`/… | pp.ebnf §3 | M1 (preprocessor parse + eval per pp.ebnf P5/P6/P7/P12); M3 separately delivers the NSL-language Sema constant evaluator for `Sn` constraints (S15 bit-slice indices etc.) — that's a different evaluator from the preprocessor's | — | — |
 | Compilation unit + `struct` types | lang.ebnf §§1, 3 | M2; M3 (S18) | M4 (struct layout) | M6 |
 | Top-level parameters | lang.ebnf §3.1; S16 | M2; M3 | M4 (param attrs) | M6 (param propagation) |
-| `declare` block (ports, control terminals, modifiers) | lang.ebnf §4 | M2; M3 (S20 interface modifier) | M4 (`nsl::DeclareOp`) | M6 (HW ports) |
+| `declare` block (ports, control terminals, modifiers) | lang.ebnf §4 | M2; M3 (S20 interface modifier) | M4 (`nsl::DeclareOp` + `nsl::InputPortOp` / `nsl::OutputPortOp` / `nsl::InoutPortOp`; post-merge amendment 2026-05-05 #9) + M5 visitor (`visit(DeclareBlock)`) | M6 (HW ports) |
 | `module` block | lang.ebnf §5 | M2; M3 | M4 (`nsl::ModuleOp`) | M6 (`hw::HWModuleOp`) |
 | Internal-structure: `reg`, `wire`, `mem`, `proc_name`, `state_name` | lang.ebnf §6 | M2; M3 (S2, S6, S11) | M4 | M6 (`seq::CompRegOp`, `seq::FirMemOp`, `hw::WireOp`) |
 | `func` / `proc` / `state` definitions | lang.ebnf §7 | M2; M3 (S6, S11, S21, S22, S26, S28) | M4 (`FuncInOp`, `FuncOutOp`, `ProcOp`, `StateOp`) | M6 (FSM lowering) |

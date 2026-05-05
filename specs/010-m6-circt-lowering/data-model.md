@@ -137,8 +137,8 @@ private:
 
 | Family file | Pattern count | Source ops |
 |---|---|---|
-| `ModulePatterns.cpp` | 2 | `nsl::ModuleOp`, `nsl::DeclareOp` (port wiring on the module's signature) |
-| `PortPatterns.cpp` | 1 | Per-port-direction signature legalisation (`input`, `output`, `func_in` valid signal) |
+| `ModulePatterns.cpp` | 2 | `nsl::ModuleOp`, `nsl::DeclareOp` (port wiring on the module's signature; both ops added by post-merge M4-amendment #9, 2026-05-05). The ModuleOp pattern walks the paired `nsl::DeclareOp`'s body for the port-list shape and rewrites the in-module port-info ops as block-arg substitutions / output wiring. |
+| `PortPatterns.cpp` | 3 | `nsl::InputPortOp`, `nsl::OutputPortOp`, `nsl::InoutPortOp` (post-merge M4-amendment #9). Per-port-direction signature legalisation. The dual-placement design (declare-body = metadata; module-body = SSA-Value-bearing) means the ModulePatterns/PortPatterns pair walks both surfaces — see `contracts/circt-lowering.contract.md` §3 for the rewrite rules. |
 | `StatePatterns.cpp` | 5 | `nsl::RegOp`, `nsl::WireOp`, `nsl::MemOp`, `nsl::TransferOp`, `nsl::ClockedTransferOp` |
 | `ControlPatterns.cpp` | 4 | `nsl::AltOp`, `nsl::AnyOp`, `nsl::IfOp`, `nsl::CallOp` (func_in variant) |
 | `FSMPatterns.cpp` | 7 | `nsl::ProcOp`, `nsl::StateOp`, `nsl::SeqOp`, `nsl::FirstStateOp`, `nsl::GotoOp` (state form), `nsl::GotoOp` (label form), `nsl::FinishOp`, `nsl::CallOp` (proc_name variant) |
@@ -147,8 +147,10 @@ private:
 | `SimPatterns.cpp` | 4 + S29 | `nsl::SimDisplayOp`, `SimFinishOp`, `SimInitOp`, `SimDelayOp`, plus the S29 `_init` block lowering |
 | `ParamPatterns.cpp` | 3 | `nsl::ParamIntOp`, `ParamStrOp`, `SubmoduleOp` |
 
-(Pattern counts above are the per-op count, totaling **40** patterns
-across the 9 family files. The design-§10 mapping-table rows are the
+(Pattern counts above are the per-op count, totaling **42** patterns
+across the 9 family files (post-merge M4-amendment #9 adds
+`InputPortOp`/`OutputPortOp`/`InoutPortOp` to PortPatterns, growing
+the row from 1 to 3). The design-§10 mapping-table rows are the
 contract surface — see [`contracts/circt-lowering.contract.md`](../contracts/circt-lowering.contract.md)
 §1 — and they bound the pattern count from below. Adding a new op
 to the M4 dialect adds one new pattern AND one new fixture AND one

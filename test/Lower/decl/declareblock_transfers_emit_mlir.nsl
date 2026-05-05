@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/decl/declareblock_transfers_emit_mlir.nsl — the
+// reproduction fixture from the M4-amendment-9 hand-off. Without
+// the amendment + visitor change, port refs (`a`, `q`) in transfers
+// inside `func clk { ... }` resolve to nothing and the transfers are
+// silently dropped, leaving an empty `nsl.func @clk { }`.
+// Post-amendment-9 the data ports register their SSA results in
+// `nameTable_` and the transfers materialize.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  output q[8];
+  func_in clk;
+}
+module M {
+  reg r[8] = 0;
+  func clk {
+    r := a;
+    q = r;
+  }
+}
+
+// Data ports land under the paired nsl.declare:
+// CHECK: nsl.declare @M
+// CHECK: nsl.input_port "a" : !nsl.bits<8>
+// CHECK: nsl.output_port "q" : !nsl.bits<8>
+//
+// Module body: control-terminal func_in, reg, and the populated func
+// body (clocked_transfer for `:=`, transfer for `=`).
+// CHECK: nsl.module @M
+// CHECK: nsl.func_in "clk"() : () -> ()
+// CHECK: nsl.reg "r" : !nsl.bits<8> = 0
+// CHECK: nsl.func @clk
+// CHECK: nsl.clocked_transfer
+// CHECK: nsl.transfer

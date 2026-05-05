@@ -21,8 +21,14 @@ in one PR.
 
 | `nsl::*` op | CIRCT target | Pattern family | Notes |
 |---|---|---|---|
-| `nsl::ModuleOp` | `circt::hw::HWModuleOp` | ModulePatterns | Port list from paired `nsl::DeclareOp` (§3) |
-| `nsl::DeclareOp` | (consumed during ModuleOp lowering) | ModulePatterns | Not a standalone target — `nsl::DeclareOp` is destructured by the ModulePatterns rewrite |
+| `nsl::ModuleOp` | `circt::hw::HWModuleOp` | ModulePatterns | Port list from paired `nsl::DeclareOp` body (§3); body-region conversion recurses on contents (incl. the in-module `nsl::InputPortOp` / `OutputPortOp` / `InoutPortOp` rewritten as block-arg substitutions / output wiring) |
+| `nsl::DeclareOp` | (consumed during ModuleOp lowering) | ModulePatterns | Not a standalone target — `nsl::DeclareOp`'s `pair_name` matches a sibling `nsl::ModuleOp`'s `sym_name` (post-merge M4-amendment #9; sibling pairing because `sym_name` would collide). The declare body's port-info children are walked to build the `hw::HWModuleOp` port list |
+| `nsl::InputPortOp` (declare-body placement) | (consumed during ModuleOp lowering) | ModulePatterns / PortPatterns | Materialises one input port on the resulting `hw::HWModuleOp`, named `name`, typed `i<W>`. M5 emits this op in TWO places (dual-placement per amendment-#9): the declare-body form is metadata for port-list derivation here |
+| `nsl::InputPortOp` (module-body placement) | `hw::HWModuleOp` block-arg replacement | ModulePatterns / PortPatterns | M5 emits the SSA-Value-bearing form inside `nsl::ModuleOp`'s body so transfers reach the port via SSA. Lowered by replacing every use of the op's result with the `hw::HWModuleOp` block-arg of the corresponding name |
+| `nsl::OutputPortOp` (declare-body placement) | (consumed during ModuleOp lowering) | ModulePatterns / PortPatterns | Materialises one output port on the `hw::HWModuleOp`, named `name`, typed `i<W>` |
+| `nsl::OutputPortOp` (module-body placement) | `hw::OutputOp` operand wiring | ModulePatterns / PortPatterns | M5 emits the in-module form so `nsl::TransferOp` `%dst` operands have a valid SSA Value. Lowered by tracking writes to the op's result and routing them to the `hw::OutputOp` of the resulting `hw::HWModuleOp` |
+| `nsl::InoutPortOp` (declare-body placement) | (consumed during ModuleOp lowering) | ModulePatterns / PortPatterns | Materialises one inout port on the `hw::HWModuleOp`. Direction-marker semantics per CIRCT `hw::ModulePort`'s inout shape |
+| `nsl::InoutPortOp` (module-body placement) | bidirectional `hw` port wiring | ModulePatterns / PortPatterns | Read + write paths both wired through the corresponding inout port of the resulting `hw::HWModuleOp` |
 | `nsl::SubmoduleOp` (singleton form) | `circt::hw::InstanceOp` | ParamPatterns | Array form already exploded by M5's `NSLExplodeSubmodArrayPass` |
 | `nsl::ParamIntOp` | `hw::InstanceOp` parameter wire (i32 typed) | ParamPatterns | S16 — only on HDL-bound `hw::InstanceOp`s |
 | `nsl::ParamStrOp` | `hw::InstanceOp` parameter wire (string typed) | ParamPatterns | S16 — only on HDL-bound `hw::InstanceOp`s |
@@ -94,43 +100,89 @@ contract too).
 ## §3. `nsl::ModuleOp` + `nsl::DeclareOp` → `hw::HWModuleOp`
         port-list derivation
 
-**Source**: pair of `nsl::ModuleOp` and its sibling `nsl::DeclareOp`
-in the same parent `mlir::ModuleOp` (the project-level outer
-module).
+**Source**: pair of `nsl::ModuleOp @M` and its sibling
+`nsl::DeclareOp @M` (matched by literal `pair_name`-equals-`sym_name`)
+in the same parent `mlir::ModuleOp` (the project-level outer module).
+
+> **Pairing mechanism note (post-merge M4-amendment #9)**:
+> `nsl::DeclareOp` carries `pair_name` (a `SymbolNameAttr`), NOT
+> `sym_name`. Using the magic `sym_name` would collide with the
+> sibling `nsl::ModuleOp @M`'s `Symbol`-trait registration in the
+> parent `mlir::ModuleOp`'s SymbolTable (per
+> `mlir/IR/SymbolTable.h`'s "any op carrying a `sym_name`
+> StringAttr is uniqueness-checked, regardless of `Symbol`-trait
+> inheritance" rule). The ModuleOp pattern walks the parent
+> `mlir::ModuleOp`'s direct children and matches by literal name
+> string (`pair_name` vs `sym_name`).
 
 **Target**: single `circt::hw::HWModuleOp` whose port list is
-derived from the `nsl::DeclareOp` content.
+derived from the `nsl::DeclareOp` body's port-info children.
+
+**Source-of-truth**: the declare body's child ops
+(`nsl::InputPortOp` / `nsl::OutputPortOp` / `nsl::InoutPortOp`).
+Each child carries `StrAttr:$name` and a `NSL_AnyBits:$result`
+whose result type IS the port's `!nsl.bits<W>` width. The pattern
+walks the body in source order to preserve port ordering.
+
+**In-module-body counterpart**: M5 emits the SAME port-info ops
+inside `nsl::ModuleOp`'s body too (the dual-placement rule per
+amendment-#9 follow-on; SSA-dominance forces this — a sibling-of-
+module `nsl::DeclareOp`'s body Values can't dominate a transfer
+nested inside `nsl::ModuleOp > nsl::FuncOp > nsl::TransferOp`).
+The ModuleOp pattern rewrites each in-module port-info op:
+`nsl::InputPortOp` → block-arg substitution on the resulting
+`hw::HWModuleOp`'s entry block (every use of the op's result is
+replaced with the corresponding block-arg); `nsl::OutputPortOp`
+→ output-port wiring (writes to the op's result are tracked and
+routed to a single `hw::OutputOp` at the end of the body);
+`nsl::InoutPortOp` → bidirectional-port wiring.
 
 **Port-list rules** (frozen):
 
-1. Each `input` port (`input a[W];`) becomes one input port on the
-   `hw::HWModuleOp`, named `a` and typed `iW`.
-2. Each `output` port (`output q[W];`) becomes one output port,
-   named `q` and typed `iW`.
-3. Each `func_in` declaration's named result (`func_in F : R[W];`
-   where `R` is the return-name) becomes one output port, named
-   `R` and typed `iW`. The function's own arguments become input
-   ports if any. The function's valid signal is materialized as
-   one output port named `F_valid`, typed `i1`.
-4. Each `func_out` declaration's argument list becomes one input
+1. Each `nsl::InputPortOp` in the declare body becomes one input
+   port on the `hw::HWModuleOp`, named per the op's `name` attr
+   and typed `iW` (where `W` = the op's result `!nsl.bits<W>`).
+2. Each `nsl::OutputPortOp` in the declare body becomes one
+   output port, same shape.
+3. Each `nsl::InoutPortOp` in the declare body becomes one
+   inout port, same shape.
+4. Each `func_in` declaration's named result (`func_in F : R[W];`
+   where `R` is the return-name) becomes one output port on the
+   `hw::HWModuleOp`, named `R` and typed `iW`. The function's
+   own arguments become input ports if any. The function's valid
+   signal is materialized as one output port named `F_valid`,
+   typed `i1`. (Source: the `nsl::FuncInOp` ops inside
+   `nsl::ModuleOp`'s body — those carry `HasParent<"ModuleOp">`,
+   not `HasParent<"DeclareOp">`, per the M5 visitor's split-by-
+   direction discipline.)
+5. Each `func_out` declaration's argument list becomes one input
    port per arg, named per declaration; the function's body
    contents (the implementation) lives in the module body, not
-   exposed as ports.
-5. **Implicit port additions** (no `interface` modifier present):
+   exposed as ports. (Source: `nsl::FuncOutOp` ops inside
+   `nsl::ModuleOp`'s body.)
+6. **Implicit port additions** (no `interface` modifier present):
    one `clk` input port (typed `i1`) and one `rst_n` input port
    (typed `i1`) appended at the END of the input port list (Q2
    → C convention). Module body's `seq::FirRegOp`s wire their
    clock to `clk` and reset to a `comb::ICmpOp eq %rst_n, 0`-
    derived condition.
-6. **Explicit `interface` (S20)**: the user names clock(s) and
-   reset(s) directly in the `interface` clause; the corresponding
-   input ports are added with the user's exact names and (for
-   reset) polarity. `seq::CompRegOp` is used in lieu of `FirRegOp`.
+7. **Explicit `interface` (S20)**: the user names clock(s) and
+   reset(s) directly in the `interface` clause. Per amendment-#9
+   §1 note, the modifier is NOT yet surfaced on `nsl::DeclareOp`
+   at M4 (the dialect carries no `interface_clock` /
+   `interface_reset` attribute; a future amendment may add one
+   if S20 surfaces on the dialect). M6's port-list derivation
+   reads the modifier from M3 Sema's symbol table directly via
+   the AST `DeclareBlock::modifier()` introspection observable.
+   The corresponding input ports are added with the user's
+   exact names and (for reset) polarity; `seq::CompRegOp` is
+   used in lieu of `FirRegOp`.
 
 **Body region**: the conversion of the `nsl::ModuleOp`'s body,
 performed via standard `OpConversionPattern` recursion — every
 op inside the module body is rewritten by its corresponding
-pattern.
+pattern (including the in-module port-info ops, replaced with
+block-arg substitutions / output wiring as documented above).
 
 ---
 

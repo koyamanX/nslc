@@ -253,6 +253,65 @@ mlir::LogicalResult ConnectOp::verify() {
 }
 
 // ===========================================================================
+// 2.1ter Declare-block + port-info verifiers
+// (post-merge M4-amendment 2026-05-05 #9)
+// ===========================================================================
+
+mlir::LogicalResult DeclareOp::verify() {
+  // `pair_name` presence — Symbol-trait + magic-`sym_name` were both
+  // dropped to avoid the sibling-collision with `nsl.module @M`
+  // (post-merge M4-amendment 2026-05-05 #9; see TableGen description
+  // for the full rationale). Defensive empty-name reject mirrors
+  // `ModuleOp::verify()`'s shape.
+  if (getPairName().empty()) {
+    return emitOpError() << "requires a non-empty 'sym_name' attribute";
+  }
+  // Body children MUST be one of `nsl.input_port` / `nsl.output_port`
+  // / `nsl.inout_port`. Any other op kind is rejected — this keeps
+  // the M5 visitor's split-by-direction discipline (`func_in`/`func_out`
+  // / `func_self` continue to live inside `nsl.module`'s body, NOT
+  // inside `nsl.declare`'s body).
+  for (mlir::Operation &child : getBody().front()) {
+    if (!mlir::isa<InputPortOp, OutputPortOp, InoutPortOp>(&child)) {
+      return emitOpError()
+             << "body may only contain 'nsl.input_port' / 'nsl.output_port' / "
+                "'nsl.inout_port' ops, got '"
+             << child.getName().getStringRef() << "'";
+    }
+  }
+  return mlir::success();
+}
+
+namespace {
+/// Shared verifier body for the three port-info ops. The TableGen
+/// `outs NSL_AnyBits:$result` constraint already rejects non-bits
+/// results in the printable form; this body closes the defensive
+/// path on the generic-form construction site (`"nsl.input_port"(...)`).
+/// The op's `name` StrAttr is not constrained here — empty names are
+/// admissible (anonymous-port shape), matching `nsl.wire`'s policy.
+mlir::LogicalResult verifyPortInfoOp(mlir::Operation *op,
+                                     mlir::Type resultType) {
+  if (!mlir::isa<BitsType>(resultType)) {
+    return op->emitOpError()
+           << "result type must be '!nsl.bits<N>', got " << resultType;
+  }
+  return mlir::success();
+}
+} // namespace
+
+mlir::LogicalResult InputPortOp::verify() {
+  return verifyPortInfoOp(getOperation(), getResult().getType());
+}
+
+mlir::LogicalResult OutputPortOp::verify() {
+  return verifyPortInfoOp(getOperation(), getResult().getType());
+}
+
+mlir::LogicalResult InoutPortOp::verify() {
+  return verifyPortInfoOp(getOperation(), getResult().getType());
+}
+
+// ===========================================================================
 // 2.2 Storage verifiers
 // ===========================================================================
 

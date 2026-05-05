@@ -182,6 +182,159 @@ def NSL_ConnectOp : NSL_Op<"connect", [
 }
 
 //===----------------------------------------------------------------------===//
+// 2.1ter Declare-block + port-info ops (4): nsl.declare,
+//        nsl.input_port, nsl.output_port, nsl.inout_port
+//===----------------------------------------------------------------------===//
+//
+// Post-merge M4-amendment 2026-05-05 (#9). The M5 visitor STUB at
+// `lib/Lower/ASTToMLIR.cpp:1921` (`STUB(DeclareBlock)`) silently
+// dropped every `declare` block in the AST; the existing
+// `visit(PortDecl)` covered control terminals (`func_in`/`func_out`/
+// `func_self`) but data terminals (`input`/`output`/`inout`) had no
+// dialect target — `nsl.func_in` etc. carry only StrAttr name plus
+// `Variadic<NSL_BitsOrStruct>` args, no port-direction surface.
+// M6's `circt-lowering.contract.md` §1+§3 names `nsl::DeclareOp` as
+// the source of port-list-derivation for `hw::HWModuleOp`, but no
+// such op existed: closing this is the user-authorised four-way
+// decision Option B (amend M4) over (A) skip ahead to CIRCT in M5
+// (Principle III violation), (C) defer to M6 (semantically opaque
+// IR), (D) downgrade to a stub (postpones the cut). Cross-reference:
+// the parent commit body + hand-off notes in M6 Phase 4 (T038).
+//
+// Op shape (mirrors `nsl.struct` + `nsl.field_decl` for symmetry):
+//   * `nsl.declare @M { ... }` — Symbol-bearing carrier, parent =
+//     `mlir::ModuleOp`. Body region holds the data-port surface
+//     (children MUST be `nsl.input_port`/`output_port`/`inout_port`).
+//     Sibling of `nsl.module @M` per NSL grammar `lang.ebnf §1`.
+//   * Each port-info child carries `StrAttr:$name` +
+//     `TypeAttrOf<NSL_AnyBits>:$portType`, region-less, results in a
+//     value of `!nsl.bits<W>` so the M5 visitor can register the SSA
+//     result in `nameTable_` for transfer resolution (matches the
+//     `nsl.wire` pattern). The `interface` modifier (S20) is
+//     deferred to a future amendment — at M5 it has no operand-side
+//     consumer; M6's port-list derivation reads the modifier directly
+//     from M3 Sema's symbol table.
+
+def NSL_DeclareOp : NSL_Op<"declare", [
+    NoTerminator, SingleBlock,
+    HasParent<"::mlir::ModuleOp">]> {
+  let summary = "An NSL declare block (port-list carrier paired with `nsl.module`).";
+  let description = [{
+    `nsl.declare @M { nsl.input_port "a" : !nsl.bits<8> ... }` declares
+    the data-port surface for the sibling `nsl.module @M`. Per NSL
+    grammar `lang.ebnf §1` `declare` blocks sit at compilation-unit
+    top level (sibling of `module B { ... }`); pairing with the
+    matching `nsl.module @M` is by `sym_name` equality (sibling walk
+    of the parent `mlir::ModuleOp`).
+
+    The op carries a `SymbolNameAttr` (`@M`) for printer round-trip
+    and module-pairing lookup, but does NOT participate in the
+    `Symbol` interface and the attribute is named `pair_name` (not
+    the magic `sym_name`) — `mlir::ModuleOp::SymbolTable` enforces
+    uniqueness on every op directly inside it that carries a
+    `sym_name` StringAttr (regardless of `Symbol`-trait inheritance —
+    see `mlir/IR/SymbolTable.h`'s `SymbolTable` trait doc-comment).
+    Using `pair_name` keeps the `@M` print form via
+    `SymbolNameAttr`'s parse/print rules without colliding with the
+    paired `nsl.module @M`'s `sym_name`. M6's port-list derivation
+    walks the parent module's children and matches by literal name
+    string per `specs/010-m6-circt-lowering/contracts/
+    circt-lowering.contract.md` §3.
+
+    Body region's children MUST be `nsl.input_port`,
+    `nsl.output_port`, or `nsl.inout_port` ops.
+
+    Control terminals (`func_in` / `func_out` / `func_self`) continue
+    to live INSIDE the `nsl.module` body (those ops carry
+    `HasParent<"ModuleOp">`); the M5 visitor splits the AST `PortDecl`
+    set by direction at lowering time.
+
+    The `interface` modifier (S20 — explicit clock/reset names) is
+    NOT yet surfaced on this op. M5 emits no diagnostic for it; M6's
+    port-list derivation per `specs/010-m6-circt-lowering/contracts/
+    circt-lowering.contract.md` §3 rule 6 reads the modifier from M3
+    Sema's symbol table directly. A future amendment may add an
+    `interface_clock`/`interface_reset` `OptionalAttr<StrAttr>` pair
+    if S20 surfaces on the dialect.
+  }];
+  let arguments = (ins SymbolNameAttr:$pair_name);
+  let regions = (region SizedRegion<1>:$body);
+  let assemblyFormat = "$pair_name attr-dict-with-keyword $body";
+  let hasVerifier = 1;
+}
+
+// Common shape for the three port-info ops. Result type carries the
+// port's `!nsl.bits<W>` width directly (matches `nsl.wire`'s shape);
+// no redundant `portType` attribute — the result-type IS the type.
+//
+// **Parent set**: `ParentOneOf<["DeclareOp", "ModuleOp"]>`. The op
+// serves a dual role:
+//   1. Inside `nsl.declare`'s body — port-list metadata for M6's
+//      `hw::HWModuleOp` port-list derivation per
+//      `specs/010-m6-circt-lowering/contracts/circt-lowering.contract.md`
+//      §3. The result Value is informational only (never crosses
+//      the declare body's region boundary).
+//   2. Inside `nsl.module`'s body — SSA-Value-bearing port reference.
+//      The M5 visitor registers the result in `nameTable_` so
+//      transfers (`r := a`, `q = r`) resolve via the standard
+//      expression-lowering path. M6's ModuleOp pattern consumes
+//      these in-module port-info ops by replacing each one with a
+//      direct reference to the corresponding `hw::HWModuleOp` block
+//      argument (input ports) or output-port wiring (output/inout).
+//
+// This dual-placement design is the user-authorised follow-on to
+// amendment #9: SSA-dominance forces the in-module materialisation
+// because MLIR regions are isolated, so a sibling-of-module
+// `nsl.declare` body's SSA Values can't be referenced inside a
+// nested `nsl.module > nsl.func > nsl.transfer`. M6's port-list
+// derivation walks the declare body (option 1 above) for the
+// hw-port surface; the in-module port-info ops (option 2) are
+// rewritten by the same pattern as block-arg replacements.
+class NSL_PortInfoOp<string mnemonic> : NSL_Op<mnemonic,
+    [ParentOneOf<["DeclareOp", "ModuleOp"]>]> {
+  let arguments = (ins StrAttr:$name);
+  let results = (outs NSL_AnyBits:$result);
+  let assemblyFormat = "$name `:` type($result) attr-dict";
+  let hasVerifier = 1;
+}
+
+def NSL_InputPortOp : NSL_PortInfoOp<"input_port"> {
+  let summary = "An NSL `input` port (data terminal in `nsl.declare`).";
+  let description = [{
+    `nsl.input_port "a" : !nsl.bits<W>` materialises an `mlir::Value`
+    of type `!nsl.bits<W>` representing the port's current value. The
+    M5 visitor registers the result in its `nameTable_` so transfers
+    referencing the port (`r := a;`) resolve correctly. Verifier
+    asserts the result type matches the `portType` attribute (bit-
+    accurate width / type identity).
+  }];
+}
+
+def NSL_OutputPortOp : NSL_PortInfoOp<"output_port"> {
+  let summary = "An NSL `output` port (data terminal in `nsl.declare`).";
+  let description = [{
+    `nsl.output_port "q" : !nsl.bits<W>`. Same shape as
+    `nsl.input_port`; the result Value is the LHS target of `nsl.transfer`
+    (combinational `=`) inside the paired module body. M6 lowers this
+    op as part of `hw::HWModuleOp` port-list derivation per
+    `specs/010-m6-circt-lowering/contracts/circt-lowering.contract.md`
+    §3 rule 2.
+  }];
+}
+
+def NSL_InoutPortOp : NSL_PortInfoOp<"inout_port"> {
+  let summary = "An NSL `inout` port (data terminal in `nsl.declare`).";
+  let description = [{
+    `nsl.inout_port "io" : !nsl.bits<W>`. Same shape as the other
+    port-info ops; M6 lowers this to a bidirectional `hw` port (the
+    exact `hw` direction marker is M6's responsibility per the
+    circt-lowering contract). At M5 the result Value is usable both
+    as a source operand (combinational read) and as a destination
+    operand of `nsl.transfer`.
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // 2.1bis Top-level parameter ops (2): nsl.param_int, nsl.param_str
 //===----------------------------------------------------------------------===//
 //
