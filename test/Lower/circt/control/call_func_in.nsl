@@ -5,6 +5,15 @@
 // to inline + a `<func>_valid` `hw.wire` (research §8). The Phase
 // 5 FSM pre-pass disambiguates: proc-target → fsm.transition;
 // func_in-target → this Phase 6 path.
+//
+// Coverage: the inline-`func` body (`q = a`) covers the trivial
+// transfer-only path. The richer `<func>_valid` materialisation
+// requires an `nsl.call @F` call-site reachable post-Phase-5 (M5's
+// visitor lowers `F();` inside another `func` body to `nsl.call
+// @F() : () -> ()`); the Phase 6 `lowerCallOp` helper then emits
+// `%F_valid = hw.wire %true : i1`. The `func_self FIRE` provides
+// the call site without dragging an `nsl.proc` into scope (which
+// would route through the FSM pre-pass instead).
 
 // RUN: %nslc -emit=hw %s | %FileCheck %s
 
@@ -12,15 +21,22 @@ declare M {
   input a[8];
   output q[8];
   func_in F();
+  func_self FIRE;
 }
 
 module M {
   func F {
     q = a;
   }
-  // Calling F outside of a state body — Phase 5 leaves it for
-  // Phase 6 (func_in-target variant).
+  // Unconditional, outside-of-state call site — exercises the
+  // full `lowerCallOp` chain (condGate is null; the helper
+  // synthesises `hw.constant true` as the wire's source).
+  func FIRE {
+    F();
+  }
 }
 
 // CHECK-LABEL: hw.module @M
+// CHECK-DAG: %[[T:.*]] = hw.constant true
+// CHECK-DAG: %F_valid = hw.wire %{{.*}}  : i1
 // CHECK-NOT: nsl.
