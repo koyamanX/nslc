@@ -37,16 +37,18 @@ Per plan.md "Project Structure":
 
 **Purpose**: Project initialization — directory scaffolding, toolchain pinning, SPDX bookkeeping. No story-specific work yet.
 
-- [ ] T001 Create `grammars/treesitter/` directory and author `grammars/treesitter/package.json` pinning `tree-sitter-cli@0.22.x` in `devDependencies` and `web-tree-sitter` in `dependencies` (per research.md §1; spec.md Clarifications Q1 → Option B); include `_comment_top` SPDX field
-- [ ] T002 Run `cd grammars/treesitter && npm install` to produce `grammars/treesitter/package-lock.json`; commit the lockfile (the source of truth for the pinned `tree-sitter-cli` patch version per Constitution Principle V determinism)
-- [ ] T003 [P] Create empty directory `grammars/treesitter/queries/` with a `.gitkeep` file (placeholder for `highlights.scm` arriving in US1)
-- [ ] T004 [P] Create empty directory `editors/vscode/treesitter/` with a `.gitkeep` file (extends T1's existing `editors/vscode/`)
-- [ ] T005 [P] Create empty directory tree `test/tooling/treesitter/{smoke,highlights,corpus}/` each with `.gitkeep` (corpus dir is for parser-shape snapshot tests if added post-T8)
-- [ ] T006 [P] Author `grammars/treesitter/SPDX.NOTICE` documenting that `parser.c`, `grammar.json`, and `node-types.json` inherit the project license via the generator (per research.md §9; sibling-NOTICE pattern)
-- [ ] T007 Author `test/tooling/treesitter/lit.local.cfg.py` (copy + adapt T1's `test/tooling/lit.local.cfg.py` to disable lit suffix-based discovery on this subtree — fixtures are consumed by `tree-sitter test`, not lit)
-- [ ] T008 [P] Amend `scripts/spdx_exceptions.txt` to add the three generator-output paths `grammars/treesitter/parser.c`, `grammars/treesitter/grammar.json`, `grammars/treesitter/node-types.json` as SPDX-exempted-via-NOTICE (per research.md §9)
+- [X] T001 Create `grammars/treesitter/` directory and author `grammars/treesitter/package.json` pinning `tree-sitter-cli@^0.22.0` in `devDependencies` and `web-tree-sitter@^0.22.0` in `dependencies` (per research.md §1; spec.md Clarifications Q1 → Option B); include `_comment_top` SPDX field. **Also authored**: `grammars/treesitter/.gitignore` (excludes `node_modules/`, `tree-sitter-nsl.wasm`, `bindings/` per research.md §1/§2)
+- [ ] T002 Run `cd grammars/treesitter && npm install` to produce `grammars/treesitter/package-lock.json`; commit the lockfile (the source of truth for the pinned `tree-sitter-cli` patch version per Constitution Principle V determinism). **DEFERRED IN-SESSION**: requires npm-registry network access (sandbox blocks all but github.com); user runs locally inside the dev container
+- [X] T003 [P] Create empty directory `grammars/treesitter/queries/` with a `.gitkeep` file (placeholder for `highlights.scm` arriving in US1)
+- [X] T004 [P] Create empty directory `editors/vscode/treesitter/` with a `.gitkeep` file (extends T1's existing `editors/vscode/`)
+- [X] T005 [P] Create empty directory tree `test/tooling/treesitter/{smoke,highlights,corpus}/` each with `.gitkeep` (corpus dir is for parser-shape snapshot tests if added post-T8)
+- [X] T006 [P] Author `grammars/treesitter/SPDX.NOTICE` documenting that `parser.c`, `grammar.json`, and `node-types.json` inherit the project license via the generator (per research.md §9; sibling-NOTICE pattern)
+- [X] T007 Author `test/tooling/treesitter/lit.local.cfg.py` (copy + adapt T1's `test/tooling/lit.local.cfg.py` to disable lit suffix-based discovery on this subtree — fixtures are consumed by `tree-sitter test`, not lit)
+- [ ] T008 [P] Amend `scripts/spdx_exceptions.txt` to add the four generator-output paths `grammars/treesitter/parser.c`, `grammars/treesitter/grammar.json`, `grammars/treesitter/node-types.json`, `grammars/treesitter/package-lock.json` as SPDX-exempted-via-NOTICE (per research.md §9). **DEFERRED**: `scripts/check_spdx.py` rejects exception entries for files that do not yet exist (the staleness rule). T008 lands alongside T012 (tree-sitter generate produces the three generator artefacts) and after T002 (npm install produces the lockfile). The original Phase-1 placement was a tasks.md ordering bug surfaced during implementation and should be re-classified as Foundational; T008 is renumbered in spirit as T012a / Phase 2
 
-**Checkpoint**: Directory scaffolding in place; toolchain pinned; SPDX bookkeeping ready. Foundational phase can begin.
+**Checkpoint**: Directory scaffolding in place; toolchain pinned; SPDX bookkeeping deferred to Phase 2 alongside the generator-output that triggers it. Foundational phase can begin.
+
+> **Implementation note (2026-05-05)**: T002 and T008 are deferred in-session due to sandbox network constraints (T002) and the `check_spdx.py` no-forward-looking-entries policy (T008). T002 must run inside the dev container; T008 lands alongside T012. The Phase 1 → Phase 2 boundary is otherwise clean.
 
 ---
 

@@ -83,6 +83,14 @@ AUTO_EXEMPT_BASENAMES = {
     "LICENSE",          # the project license itself
     ".keep",            # placeholder marker for empty dirs
     ".gitkeep",
+    "SPDX.NOTICE",      # T8 — companion NOTICE files documenting
+                        # license inheritance for generator-output
+                        # artefacts that cannot carry per-file SPDX
+                        # headers (per
+                        # specs/010-t8-tree-sitter-grammar/research.md
+                        # §9). The NOTICE itself MAY carry an SPDX
+                        # line on line 1 by convention but is not
+                        # subject to header validation here.
 }
 
 
