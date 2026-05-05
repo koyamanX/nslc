@@ -185,3 +185,224 @@ TEST(DiagnosticsSuite, Determinism_TwoRunsByteIdentical) {
   std::string b = runOnce();
   EXPECT_EQ(a, b);
 }
+
+namespace {
+
+void didChange(LspSession &s, llvm::StringRef uri, int version,
+                llvm::StringRef text) {
+  s.sendNotification("textDocument/didChange",
+                      llvm::json::Object{
+                          {"textDocument", llvm::json::Object{
+                                                {"uri", uri.str()},
+                                                {"version", version},
+                                            }},
+                          {"contentChanges", llvm::json::Array{
+                                                  llvm::json::Object{
+                                                      {"text", text.str()},
+                                                  },
+                                              }},
+                      });
+}
+
+void didClose(LspSession &s, llvm::StringRef uri) {
+  s.sendNotification("textDocument/didClose",
+                      llvm::json::Object{
+                          {"textDocument", llvm::json::Object{
+                                                {"uri", uri.str()},
+                                            }},
+                      });
+}
+
+} // namespace
+
+TEST(DiagnosticsSuite, EditClearsResolvedDiagnostic) {
+  // FR-012 / US2: open with an error → see diagnostic; edit to fix
+  // → next publishDiagnostics has empty array.
+  LspSession s({.nsl_lsp_log_level = "warn"});
+  initialize(s);
+
+  std::string err = readFixture("s01_double_underscore.nsl");
+  std::string clean = readFixture("clean_module.nsl");
+  ASSERT_FALSE(err.empty());
+  ASSERT_FALSE(clean.empty());
+
+  didOpen(s, "file:///e.nsl", 1, err);
+  auto diag1 = s.waitForDiagnostics();
+  ASSERT_TRUE(diag1.has_value());
+  ASSERT_EQ(getDiagnosticsArray(*diag1)->size(), 1u);
+
+  didChange(s, "file:///e.nsl", 2, clean);
+  auto diag2 = s.waitForDiagnostics();
+  ASSERT_TRUE(diag2.has_value());
+  EXPECT_EQ(getDiagnosticsArray(*diag2)->size(), 0u);
+
+  s.doShutdownExit();
+  EXPECT_EQ(s.exitCode(), 0);
+}
+
+TEST(DiagnosticsSuite, EditIntroducesError) {
+  // Inverse of EditClearsResolvedDiagnostic — open clean, edit to
+  // introduce an error.
+  LspSession s({.nsl_lsp_log_level = "warn"});
+  initialize(s);
+
+  std::string clean = readFixture("clean_module.nsl");
+  std::string err = readFixture("s01_double_underscore.nsl");
+
+  didOpen(s, "file:///i.nsl", 1, clean);
+  auto diag1 = s.waitForDiagnostics();
+  ASSERT_TRUE(diag1.has_value());
+  ASSERT_EQ(getDiagnosticsArray(*diag1)->size(), 0u);
+
+  didChange(s, "file:///i.nsl", 2, err);
+  auto diag2 = s.waitForDiagnostics();
+  ASSERT_TRUE(diag2.has_value());
+  ASSERT_EQ(getDiagnosticsArray(*diag2)->size(), 1u);
+  EXPECT_EQ(
+      (*getDiagnosticsArray(*diag2))[0].getAsObject()->getString("code")
+          .value_or(""),
+      "S01");
+
+  s.doShutdownExit();
+  EXPECT_EQ(s.exitCode(), 0);
+}
+
+TEST(DiagnosticsSuite, DidClose_FinalEmptyDiagnostics) {
+  // FR-007 / contract §2.3: didClose triggers one final empty
+  // publishDiagnostics for the URI's last-known version, then
+  // releases the TU.
+  LspSession s({.nsl_lsp_log_level = "warn"});
+  initialize(s);
+
+  std::string err = readFixture("s01_double_underscore.nsl");
+  didOpen(s, "file:///c.nsl", 1, err);
+  auto diag1 = s.waitForDiagnostics();
+  ASSERT_TRUE(diag1.has_value());
+  ASSERT_EQ(getDiagnosticsArray(*diag1)->size(), 1u);
+
+  didClose(s, "file:///c.nsl");
+  auto diag2 = s.waitForDiagnostics();
+  ASSERT_TRUE(diag2.has_value());
+  EXPECT_EQ(getDiagnosticsArray(*diag2)->size(), 0u);
+
+  s.doShutdownExit();
+  EXPECT_EQ(s.exitCode(), 0);
+}
+
+TEST(DiagnosticsSuite, IncrementalChangePayload_Rejected) {
+  // FR-006 / contract §2.2: server advertises Full sync; an
+  // incremental payload carrying `range` is rejected with an
+  // ERROR-level log + no publishDiagnostics emitted.
+  LspSession s({.nsl_lsp_log_level = "warn"});
+  initialize(s);
+
+  std::string clean = readFixture("clean_module.nsl");
+  didOpen(s, "file:///x.nsl", 1, clean);
+  auto diag1 = s.waitForDiagnostics();
+  ASSERT_TRUE(diag1.has_value());
+
+  // Send a malformed didChange with a `range` field (incremental
+  // shape).
+  s.sendNotification(
+      "textDocument/didChange",
+      llvm::json::Object{
+          {"textDocument", llvm::json::Object{
+                                {"uri", "file:///x.nsl"},
+                                {"version", 2},
+                            }},
+          {"contentChanges", llvm::json::Array{
+                                  llvm::json::Object{
+                                      {"range", llvm::json::Object{
+                                                     {"start", llvm::json::Object{
+                                                                    {"line", 0},
+                                                                    {"character", 0},
+                                                                }},
+                                                     {"end", llvm::json::Object{
+                                                                  {"line", 0},
+                                                                  {"character", 0},
+                                                              }},
+                                                 }},
+                                      {"text", "x"},
+                                  },
+                              }},
+      });
+
+  // No publishDiagnostics should arrive within a short window.
+  auto diag2 = s.waitForDiagnostics(std::chrono::milliseconds(300));
+  EXPECT_FALSE(diag2.has_value())
+      << "incremental payload should be rejected; no publish expected";
+
+  s.doShutdownExit();
+  EXPECT_EQ(s.exitCode(), 0);
+
+  // ERROR record must mention the rejection.
+  std::string err_log = s.capturedStderr();
+  EXPECT_NE(err_log.find("range"), std::string::npos)
+      << "stderr should describe the rejection; got: " << err_log;
+}
+
+TEST(DiagnosticsSuite, StaleVersion_Ignored) {
+  // Contract §2.2: didChange with version <= last-known is logged
+  // WARN and ignored.
+  LspSession s({.nsl_lsp_log_level = "warn"});
+  initialize(s);
+
+  std::string clean = readFixture("clean_module.nsl");
+  std::string err = readFixture("s01_double_underscore.nsl");
+
+  didOpen(s, "file:///s.nsl", 5, clean);
+  auto diag1 = s.waitForDiagnostics();
+  ASSERT_TRUE(diag1.has_value());
+
+  // Send a didChange with version 3 (< 5).
+  didChange(s, "file:///s.nsl", 3, err);
+
+  // No publishDiagnostics should arrive (stale dropped).
+  auto diag2 = s.waitForDiagnostics(std::chrono::milliseconds(300));
+  EXPECT_FALSE(diag2.has_value())
+      << "stale version should be ignored";
+
+  s.doShutdownExit();
+  EXPECT_EQ(s.exitCode(), 0);
+}
+
+TEST(DiagnosticsSuite, RapidEdits_LatestVersionPublished) {
+  // FR-008: a burst of didChanges should converge to a publish that
+  // reflects the LATEST version. The version field on the final
+  // publishDiagnostics matches the last didChange's version.
+  LspSession s({.nsl_lsp_log_level = "warn"});
+  initialize(s);
+
+  std::string err = readFixture("s01_double_underscore.nsl");
+  std::string clean = readFixture("clean_module.nsl");
+
+  didOpen(s, "file:///r.nsl", 1, err);
+  // Drain the initial publish.
+  s.waitForDiagnostics();
+
+  // Burst of 5 edits alternating between clean and error states.
+  // The final version (6) is `clean`.
+  didChange(s, "file:///r.nsl", 2, err);
+  didChange(s, "file:///r.nsl", 3, clean);
+  didChange(s, "file:///r.nsl", 4, err);
+  didChange(s, "file:///r.nsl", 5, clean);
+  didChange(s, "file:///r.nsl", 6, clean);
+
+  // Drain publishes; the LAST one must be for version 6 with empty
+  // diagnostics.
+  llvm::json::Value final_pub = llvm::json::Value(nullptr);
+  while (true) {
+    auto pub = s.waitForDiagnostics(std::chrono::milliseconds(500));
+    if (!pub.has_value()) break;
+    final_pub = std::move(*pub);
+  }
+  auto *params = final_pub.getAsObject()->getObject("params");
+  ASSERT_NE(params, nullptr);
+  EXPECT_EQ(params->getInteger("version").value_or(-1), 6)
+      << "latest publish must reflect the latest version received";
+  EXPECT_EQ(params->getArray("diagnostics")->size(), 0u)
+      << "version 6 was 'clean'; diagnostics must be empty";
+
+  s.doShutdownExit();
+  EXPECT_EQ(s.exitCode(), 0);
+}

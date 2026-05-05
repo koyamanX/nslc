@@ -301,6 +301,20 @@ void NslLSPServer::onDidChange(const llvm::json::Value &params) {
                        "rejecting");
     return;
   }
+  // Stale-version check per contract §2.2 / FR-008: ignore
+  // didChange notifications whose version is <= the TU's
+  // last-known version. The check goes through the TU mutex via
+  // withState.
+  int last_known = -1;
+  backend_.scheduler().withState(uri, [&](const NslTU::State &st) {
+    last_known = st.version;
+  });
+  if (last_known >= 0 && version <= last_known) {
+    NSL_LSP_LOG_WARN(llvm::formatv(
+        "didChange: stale version {0} (last-known {1}); ignoring",
+        static_cast<int>(version), last_known).str());
+    return;
+  }
   auto text = change->getString("text").value_or("");
   backend_.openOrUpdate(uri, static_cast<int>(version), text.str());
 }

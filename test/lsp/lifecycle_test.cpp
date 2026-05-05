@@ -160,6 +160,63 @@ TEST(LifecycleSuite, InvalidLogLevel_ExitsNonZero) {
       << "stderr should describe the error; got: " << err;
 }
 
+TEST(LifecycleSuite, README_TestGate_OpenErrorEditFix) {
+  // **The literal README §Roadmap row T3 test gate** (T076 /
+  // FR-021): open a file with a Sema error, observe diagnostic;
+  // edit, observe re-diagnose. When this passes, T3's test gate
+  // is met and the milestone is shippable.
+#ifndef NSL_LSP_FIXTURES_DIR
+#error "NSL_LSP_FIXTURES_DIR must be defined by CMake"
+#endif
+
+  LspSession s({.nsl_lsp_log_level = "warn"});
+
+  int64_t init_id = s.sendRequest("initialize", llvm::json::Object{});
+  ASSERT_TRUE(s.waitForResponse(init_id).has_value());
+  s.sendNotification("initialized", llvm::json::Object{});
+
+  // didOpen with an S1 violation.
+  s.sendNotification(
+      "textDocument/didOpen",
+      llvm::json::Object{
+          {"textDocument", llvm::json::Object{
+                                {"uri", "file:///gate.nsl"},
+                                {"languageId", "nsl"},
+                                {"version", 1},
+                                {"text", "module m { reg foo__bar; }"},
+                            }},
+      });
+  auto first = s.waitForDiagnostics();
+  ASSERT_TRUE(first.has_value());
+  auto *arr1 = first->getAsObject()->getObject("params")->getArray("diagnostics");
+  ASSERT_EQ(arr1->size(), 1u);
+  EXPECT_EQ((*arr1)[0].getAsObject()->getString("code").value_or(""), "S01");
+
+  // didChange — fix the error.
+  s.sendNotification(
+      "textDocument/didChange",
+      llvm::json::Object{
+          {"textDocument", llvm::json::Object{
+                                {"uri", "file:///gate.nsl"},
+                                {"version", 2},
+                            }},
+          {"contentChanges", llvm::json::Array{
+                                  llvm::json::Object{
+                                      {"text", "module m { reg foo_bar; }"},
+                                  },
+                              }},
+      });
+  auto second = s.waitForDiagnostics();
+  ASSERT_TRUE(second.has_value());
+  auto *arr2 = second->getAsObject()->getObject("params")->getArray("diagnostics");
+  EXPECT_EQ(arr2->size(), 0u) << "edit-fix should clear diagnostics";
+
+  int64_t shut_id = s.sendRequest("shutdown", llvm::json::Value(nullptr));
+  ASSERT_TRUE(s.waitForResponse(shut_id).has_value());
+  s.sendNotification("exit", llvm::json::Value(nullptr));
+  EXPECT_EQ(s.exitCode(), 0);
+}
+
 TEST(LifecycleSuite, NSLIncludeLoggedAtStartup) {
   // Per contract §8.4: NSL_INCLUDE resolution emitted at INFO
   // level on startup.
