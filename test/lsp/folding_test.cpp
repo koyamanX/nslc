@@ -174,6 +174,46 @@ TEST(FoldingSuite, ParseErrorRecovery) {
   s.doShutdownExit();
 }
 
+TEST(FoldingSuite, IncludeAdjustsLines) {
+  // T086 / FR-011 / folding contract §1: fold-range line numbers
+  // reflect the physical position in the open document, not any
+  // post-#line virtual coordinates of included content. The
+  // `module mod {` opens at line index 8 (physical line 9) per
+  // the fixture's layout; it closes at line index 11.
+  LspSession s({.nsl_lsp_log_level = "warn"});
+  initialize(s);
+  std::string text = readFixture("include_adjusts_lines.nsl");
+  ASSERT_FALSE(text.empty());
+  didOpen(s, "file:///incadj.nsl", 1, text);
+  s.waitForDiagnostics();
+
+  auto resp = foldingRange(s, "file:///incadj.nsl");
+  const auto *arr = getResultArray(resp);
+  ASSERT_NE(arr, nullptr);
+
+  // Find the fold for the module. The fixture has 9 lines of
+  // header comment (idx 0-8) then a blank line (idx 9), then
+  // `#include` (idx 10), blank (idx 11), `module mod {` (idx 12)
+  // and `}` (idx 15). The walker counts physical source lines,
+  // so the module's fold is startLine=12, endLine=15 regardless
+  // of any post-#line virtual coordinates the preprocessor would
+  // assign to the included content.
+  bool saw_module = false;
+  for (const auto &v : *arr) {
+    auto *o = v.getAsObject();
+    auto start = o->getInteger("startLine").value_or(-1);
+    auto end = o->getInteger("endLine").value_or(-1);
+    if (start == 12 && end == 15) {
+      saw_module = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(saw_module)
+      << "expected fold for module mod at startLine=12 endLine=15";
+
+  s.doShutdownExit();
+}
+
 TEST(FoldingSuite, Determinism_TwoRunsByteIdentical) {
   auto runOnce = [&]() -> std::string {
     LspSession s({.nsl_lsp_log_level = "warn"});

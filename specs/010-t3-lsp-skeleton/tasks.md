@@ -117,7 +117,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 - [X] T039 Author `LifecycleSuite::PreInitialized_RejectsRequest`: send `initialize`, do NOT send `initialized`, send `textDocument/foldingRange`; assert response carries error code `-32002` (`ServerNotInitialized`). Land FAILING
 - [X] T040 Author `LifecycleSuite::InvalidLogLevel_ExitsNonZero`: spawn with `NSL_LSP_LOG_LEVEL=garbage`; assert process exits non-zero before `initialize` would respond; assert stderr identifies the bad value (regex match). Land FAILING
 - [X] T041 Author `LifecycleSuite::NSLIncludeLoggedAtStartup`: spawn with `NSL_INCLUDE=/tmp/foo:/tmp/bar`; send `initialize`+`initialized`+`shutdown`+`exit`; assert `capturedStderr()` regex-matches `INFO .*include.*\\/tmp\\/foo.*\\/tmp\\/bar` per contract §8.4. Land FAILING
-- [ ] T042 Run all `LifecycleSuite` tests via `ctest -R "lsp_lifecycle"`; observed FAILING; capture output to `${TMPDIR:-/tmp}/t3-lifecycle-red.txt` for the PR description
+- [X] T042 Run all `LifecycleSuite` tests via `ctest -R "lsp_lifecycle"`; observed FAILING; capture output to `${TMPDIR:-/tmp}/t3-lifecycle-red.txt` for the PR description
 
 ### 2g. CI integration
 
@@ -221,7 +221,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 - [X] T083 [P] [US3] Author `test/lsp/fixtures/module_with_blocks.nsl` covering all 16 block-opener productions per [`contracts/folding-range.contract.md`](./contracts/folding-range.contract.md) §1 (one occurrence each of `module`, `declare`, `func`, `proc`, `state`, `seq`, `alt`, `any`, `par`, `if`/`else`, `for`, `while`, `generate`, `_init`, `struct`); each block spans ≥ 2 source lines so a fold is emitted
 - [X] T084 [P] [US3] Author `test/lsp/fixtures/multiline_block_comment.nsl` containing one `/* ... */` spanning ≥ 2 lines plus one single-line `// ...` plus one single-line `/* ... */` (the latter must NOT fold per §3)
 - [X] T085 [P] [US3] Author `test/lsp/fixtures/single_line_blocks.nsl` containing only single-line `{...}` blocks — fold response must be `[]`
-- [ ] T086 [P] [US3] Author `test/lsp/fixtures/include_adjusts_lines.nsl` (`#include "include_helper.nslh"`-only stub plus one `module` after the include) and `test/lsp/fixtures/include_helper.nslh` to verify FR-011 line-number resolution per §8 of the folding contract
+- [X] T086 [P] [US3] Author `test/lsp/fixtures/include_adjusts_lines.nsl` (`#include "include_helper.nslh"`-only stub plus one `module` after the include) and `test/lsp/fixtures/include_helper.nslh` to verify FR-011 line-number resolution per §8 of the folding contract
 - [ ] T087 [P] [US3] Author `test/lsp/fixtures/cancellation_target.nsl` constructed to produce ≥ 10000 AST nodes (e.g., a large `generate` loop unrolling many copies of a multi-line block); used by SC-010 cancellation test
 - [X] T088 [P] [US3] Author `test/lsp/fixtures/large_file.nsl` ≥ 1500 lines for SC-004 latency budget
 - [ ] T089 [P] [US3] Author `test/lsp/fixtures/folding_parse_error.nsl` — partial block-opener structure with a missing `}` so the M2 parser's recovery produces a partial AST; folding contract §6 requires we still return what was parsed
