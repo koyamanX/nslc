@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T040 (T061): CRLF line endings in input MUST normalize to LF on
+// output. Spec edge case + LayoutRenderer post-pass.
+//
+// Input: `module a {}\r\nmodule b {}\r\n` (CRLF endings).
+// Expected output: `module a {}\nmodule b {}\n` (LF only).
+
+// RUN: printf 'module a {}\r\nmodule b {}\r\n' | nsl-fmt --stdin > %t.out
+// RUN: printf 'module a {}\nmodule b {}\n' > %t.expected
+// RUN: cmp %t.out %t.expected

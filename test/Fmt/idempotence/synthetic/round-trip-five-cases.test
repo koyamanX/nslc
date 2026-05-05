@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T043 (T064): synthetic-corpus idempotence — `nsl-fmt | nsl-fmt`
+// reproduces the formatter's own output byte-for-byte. Per FR-008
+// the canonical form is a fixed point.
+//
+// Five constructed inputs covering: (1) empty module, (2) module
+// with one decl, (3) #include + module, (4) #ifdef island, (5)
+// inline %IDENT% identifier.
+
+// RUN: printf 'module a {}\n' > %t.1.nsl
+// RUN: printf 'module b {\n  reg q[8];\n}\n' > %t.2.nsl
+// RUN: printf '#include "x.nsl"\nmodule c {}\n' > %t.3.nsl
+// RUN: printf '#ifdef X\nmodule dbg {}\n#endif\n' > %t.4.nsl
+// `echo` (not printf) for the %IDENT% line — printf would parse
+// `%F` as a format specifier; see ident-splice-passthrough fixture.
+// RUN: echo 'module mod_%%FOO%% {}' > %t.5.nsl
+//
+// First pass: nsl-fmt each input → canonical form
+// Second pass: nsl-fmt the canonical form → must equal first pass
+// RUN: for f in %t.1.nsl %t.2.nsl %t.3.nsl %t.4.nsl %t.5.nsl; do \
+// RUN:   nsl-fmt --stdin < $f > $f.once && \
+// RUN:   nsl-fmt --stdin < $f.once > $f.twice && \
+// RUN:   cmp $f.once $f.twice; \
+// RUN: done

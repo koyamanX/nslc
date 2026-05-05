@@ -112,11 +112,11 @@ diff. Verified by ninja `check-fmt-lit` passing the
 - [X] T036 [P] [US1] Author lit fixture `test/Fmt/cli/stdin/basic-roundtrip.test` asserting `RUN: cat %s | nsl-fmt --stdin | FileCheck %s` for a tiny `module foo {}` — observe FAILING
 - [X] T037 [P] [US1] Author lit fixture `test/Fmt/cli/in-place/atomic-rewrite.test` asserting `RUN: nsl-fmt -i %t/scratch.nsl && FileCheck %s < %t/scratch.nsl` — observe FAILING
 - [X] T038 [P] [US1] Author lit fixture `test/Fmt/edge/empty-input/zero-bytes.test` (empty file → exit 0, empty output) — observe FAILING
-- [ ] T039 [P] [US1] Author lit fixture `test/Fmt/edge/parse-error-refusal/syntax-error.test` asserting parse-error → exit non-zero + stderr matches frozen string from [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §7 — observe FAILING
-- [ ] T040 [P] [US1] Author lit fixture `test/Fmt/edge/crlf-normalization/mixed-endings.test` asserting CRLF input is normalized to LF on output — observe FAILING
+- [X] T039 [P] [US1] Author lit fixture `test/Fmt/edge/parse-error-refusal/syntax-error.test` asserting parse-error → exit non-zero + stderr matches frozen string from [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §7 — observe FAILING
+- [X] T040 [P] [US1] Author lit fixture `test/Fmt/edge/crlf-normalization/mixed-endings.test` asserting CRLF input is normalized to LF on output — observe FAILING
 - [X] T041 [P] [US1] Author lit fixture `test/Fmt/edge/bom-preserve/utf8-bom.test` asserting BOM at file start is preserved on output — observe FAILING
 - [X] T042 [P] [US1] Author lit fixture `test/Fmt/edge/over-long-line/string-no-break-point.test` asserting a 200-char `_display(...)` line is emitted as-is (no corruption) — observe FAILING
-- [ ] T043 [P] [US1] Author lit fixture `test/Fmt/idempotence/synthetic/round-trip-five-cases.test` running `nsl-fmt | nsl-fmt | diff -q -` on five constructed inputs — observe FAILING
+- [X] T043 [P] [US1] Author lit fixture `test/Fmt/idempotence/synthetic/round-trip-five-cases.test` running `nsl-fmt | nsl-fmt | diff -q -` on five constructed inputs — observe FAILING
 - [X] T044 [P] [US1] Author lit fixture `test/Fmt/directives/include-passthrough/quote-and-angle.test` asserting both `#include "x.nsl"` and `#include <x.nsl>` survive the round-trip byte-for-byte — observe FAILING
 - [X] T045 [P] [US1] Author lit fixture `test/Fmt/directives/ifdef-island/nested-conditional.test` asserting `#ifdef`/`#endif` blocks with NSL fragments inside survive — observe FAILING
 - [X] T046 [P] [US1] Author lit fixture `test/Fmt/directives/define-passthrough/macro-with-args.test` asserting `#define FOO(x,y)` is emitted byte-for-byte — observe FAILING
@@ -135,17 +135,17 @@ diff. Verified by ninja `check-fmt-lit` passing the
 - [X] T056 [US1] Implement CLI default mode in `tools/nsl-fmt/main.cpp` — for each positional file, read → `format_buffer()` → write to stdout; T036 turns green
 - [X] T057 [US1] Implement CLI `-i` / `--in-place` mode in `tools/nsl-fmt/main.cpp` — write to temp file in same directory + atomic rename; T037 turns green
 - [X] T058 [US1] Implement CLI `--stdin` mode in `tools/nsl-fmt/main.cpp` — `MemoryBuffer::getSTDIN()` → `format_buffer()` → stdout
-- [ ] T059 [US1] Implement parse-error refusal path in `lib/Fmt/Format.cpp` per [`contracts/format-api.contract.md`](./contracts/format-api.contract.md) §4 (`Status::Refused`); T039 turns green
+- [X] T059 [US1] Implement parse-error refusal path in `lib/Fmt/Format.cpp` per [`contracts/format-api.contract.md`](./contracts/format-api.contract.md) §4 (`Status::Refused`); T039 turns green
 - [X] T060 [US1] Implement empty-input handling in `lib/Fmt/Format.cpp` (early-return Success with empty output); T038 turns green
-- [ ] T061 [US1] Implement CRLF normalization in `lib/Fmt/LayoutRenderer.cpp` (always emit LF); T040 turns green
+- [X] T061 [US1] Implement CRLF normalization in `lib/Fmt/LayoutRenderer.cpp` (always emit LF); T040 turns green
 - [X] T062 [US1] Implement BOM preservation in `lib/Fmt/DirectiveSplitter.cpp` (BOM byte sequence retained as leading trivia of first slice); T041 turns green
 - [X] T063 [US1] Implement over-long-line "best effort" in `lib/Fmt/LayoutRenderer.cpp` (emit the un-breakable line and continue); T042 turns green
-- [ ] T064 [US1] Implement idempotence — by construction, T030–T035 having idempotence.nsl golden files already exercises this; T043 turns green once the planner is stable
+- [X] T064 [US1] Implement idempotence — by construction, T030–T035 having idempotence.nsl golden files already exercises this; T043 turns green once the planner is stable
 - [X] T065 [US1] Verify directive pass-through fixtures T044–T048 turn green against the implemented DirectiveSplitter + LayoutPlanner (no new code expected; this task is the verification step)
 
 ### Additional tests (added during /speckit-analyze remediation, finding C4)
 
-- [ ] T125 [P] [US1] Author lit fixture `test/Fmt/edge/literal-preservation/numeric-and-zxu.test` containing each numeric literal form once (decimal `42`, hex `0xFF`, binary `0b1010`, NSL value literal `8'b1010`, Z/X/U value literals like `4'bZZZZ`, `4'bXXXX`, `4'bUUUU`); assert byte-identical round-trip per FR-011 — observe FAILING then green by construction once the lexer's existing byte-fidelity is exercised through CST + LayoutPlanner
+- [X] T125 [P] [US1] Author lit fixture `test/Fmt/edge/literal-preservation/numeric-and-zxu.test` containing each numeric literal form once (decimal `42`, hex `0xFF`, binary `0b1010`, NSL value literal `8'b1010`, Z/X/U value literals like `4'bZZZZ`, `4'bXXXX`, `4'bUUUU`); assert byte-identical round-trip per FR-011 — observe FAILING then green by construction once the lexer's existing byte-fidelity is exercised through CST + LayoutPlanner
 
 **Phase 3 checkpoint**: All US1 fixtures green;
 `ninja check-fmt-lit` passes the `test/Fmt/rules/`,

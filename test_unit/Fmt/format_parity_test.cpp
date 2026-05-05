@@ -54,12 +54,15 @@ namespace {
 
 // Five representative inputs covering directive-free NSL,
 // `#include` directives, `#define`/`#ifdef` islands, %IDENT%
-// splices, and an empty buffer.
+// splices (inline-residue form per Q1 strict-refusal — bare
+// `%BAR%` would now refuse since the M1 lexer only recognises
+// the splice when adjacent to an identifier prefix), and an
+// empty buffer.
 const std::array<std::string, 5> kRepresentativeFixtures = {
     "module foo {}\n",
     "#include \"x.nsl\"\nmodule a {}\n",
     "#define FOO 1\n#ifdef DEBUG\nmodule d {}\n#endif\n",
-    "module %BAR% {}\n",
+    "module mod_%BAR% {}\n",
     "",
 };
 

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // lib/Fmt/Format.cpp — top-level format orchestration entry point
-// `nsl::fmt::format_buffer` (T2 Phase 2c — T026 / T027).
+// `nsl::fmt::format_buffer` (T2 Phase 3-parse — T026/T027/T059/T061).
 //
-// Phase 2c skeleton wiring:
+// Pipeline:
 //
 //        sourceBuffer
 //             │
@@ -11,45 +11,50 @@
 //      DirectiveSplitter
 //             │  Slices: [Directive | NSLFragment]+
 //             ▼
-//   For each NSLFragment slice:
-//       run a CST-mode parse (CSTBuilder records the event stream)
-//       — Phase 2c uses CSTBuilder.serialize() to recover the
-//         fragment byte-for-byte (a no-layout-applied round-trip).
-//   For each Directive slice:
-//       emit slice.rawText verbatim (FR-012a — directives are
-//       opaque, byte-preserved).
+//   For each NSLFragment slice (skip whitespace-only):
+//       construct private SourceManager + Lexer + DiagnosticEngine
+//       parseCompilationUnit; on parse error → ATOMIC REFUSAL
+//       (no partial output) per spec FR-012 + Session 2026-05-05 Q1.
+//   For each Directive slice: opaque pass-through (FR-012a).
 //             │
 //             ▼
-//       LayoutRenderer (NOT YET WIRED at Phase 2c — Phase 3 hooks in
-//       the LayoutPlanner that produces the Doc IR fed to the
-//       renderer. At Phase 2c we skip the planner and emit
-//       byte-for-byte, validating the wiring.)
+//      Byte-passthrough emission (Phase 3-parse): emit slice.rawText
+//      verbatim. Phase 3+ replaces this with a LayoutPlanner walk
+//      over the parsed CompilationUnit that produces a Doc tree
+//      → LayoutRenderer.
+//             │
+//             ▼
+//      Post-pass: CRLF → LF normalization (T061);
+//                 trailing-newline normalization (R7 per Q3 — output
+//                 always ends with exactly one `\n` when non-empty).
+//             │
+//             ▼
+//        formattedText
 //
-// At Phase 2c the formatted output equals the input verbatim for
-// every well-formed input — the formatter is a pass-through. This
-// is the smallest possible non-trivial test of the full pipeline:
-// every component (DirectiveSplitter, CSTBuilder, Parser, Format
-// orchestration) executes, but the final layout step is a no-op.
-//
-// Phase 3 (T049–T055) replaces the byte-for-byte fragment emission
-// with `LayoutPlanner(cstBuilder).buildDoc()` followed by
-// `LayoutRenderer().render(doc, config.max_line_length, indent)`.
+// Documented limitation (research §10): NSL fragments split mid-
+// body by `#ifdef`/`#endif` are NOT well-formed standalone
+// CompilationUnits and WILL refuse. Same trade-off as
+// `clang-format`'s preprocessor model.
 
 #include "CST.h"
 #include "CSTBuilder.h"
 #include "Diff.h"
 #include "DirectiveSplitter.h"
+#include "nsl/AST/CompilationUnit.h"
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
+#include "nsl/Basic/SourceManager.h"
 #include "nsl/Fmt/Fmt.h"
 #include "nsl/Lex/Lexer.h"
 #include "nsl/Parse/Parser.h"
 
 #include "llvm/ADT/StringRef.h"
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace nsl::fmt {
 
@@ -76,34 +81,104 @@ FormatResult format_buffer(llvm::StringRef sourceBuffer,
   DirectiveSplitter splitter;
   auto slices = splitter.split(sourceBuffer, fileID);
 
-  // **Parse step deferred to Phase 3 proper** (T059 + T039). At
-  // Phase 3c the formatter is still byte-passthrough — we cannot
-  // safely run the parser at this layer because:
+  // T2 Phase 3-parse (T059) — per-fragment parse with atomic
+  // refusal per research §10.
   //
-  //   * The lexer does not handle BOM bytes / `%IDENT%` splices /
-  //     top-level system-task expressions in the way an
-  //     interactive editor would, leading to false-positive parse
-  //     failures on inputs the existing test corpus expects to
-  //     round-trip cleanly (BOM-preserve, %IDENT%-passthrough,
-  //     over-long-line tests would all flip RED).
-  //   * Per-fragment parsing (the right architecture given Q1's
-  //     directive-aware design) requires either a fragment-aware
-  //     Lexer mode or a per-fragment private SourceManager — both
-  //     non-trivial extensions to the M1/M2 layers.
+  // Each NSLFragment slice is parsed as a standalone CompilationUnit
+  // through a fresh SourceManager + Lexer + DiagnosticEngine. If
+  // ANY fragment fails to lex+parse, the WHOLE format_buffer call
+  // returns Status::Refused — no partial output (FR-012 atomic
+  // refusal as clarified Session 2026-05-05 — Q1).
   //
-  // The full parse + LayoutPlanner integration lands when the
-  // per-fragment parse infrastructure is designed. Until then,
-  // `result.diagnostics` stays empty and the caller's CLI
-  // (tools/nsl-fmt/main.cpp) skips the diagnostic-rendering loop
-  // (no warnings flooded to stderr).
+  // Documented limitation (research §10): NSL fragments split mid-
+  // body by `#ifdef`/`#endif` are NOT well-formed standalone
+  // CompilationUnits and WILL refuse. Same trade-off as
+  // `clang-format`'s preprocessor model.
+  //
+  // Phase 3+ replaces the byte-passthrough emission below with
+  // `LayoutPlanner(cu).buildDoc()` + LayoutRenderer. For now,
+  // successful parse → emit slice.rawText verbatim (idempotent by
+  // construction).
+  for (const Slice &s : slices) {
+    if (s.kind != Slice::Kind::NSLFragment) {
+      continue; // Directives are opaque; no parse needed.
+    }
+    // Skip whitespace-only fragments (parsing them is vacuous and
+    // wastes a SourceManager construction).
+    bool only_whitespace = true;
+    for (char c : s.rawText) {
+      if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+        only_whitespace = false;
+        break;
+      }
+    }
+    if (only_whitespace) {
+      continue;
+    }
 
-  // Byte-passthrough emission. The DirectiveSplitter guarantees
-  // no-byte-loss (every input byte covered by exactly one slice);
-  // concatenating slice rawText reproduces the source.
+    ::nsl::SourceManager fragment_sm;
+    std::vector<char> bytes(s.rawText.begin(), s.rawText.end());
+    ::nsl::FileID fragment_fid =
+        fragment_sm.addBufferInMemory("<fragment>", std::move(bytes));
+    ::nsl::DiagnosticEngine fragment_diag(fragment_sm);
+    ::nsl::Lexer fragment_lex(fragment_sm, fragment_fid, fragment_diag);
+    std::unique_ptr<::nsl::ast::CompilationUnit> cu =
+        ::nsl::parse::parseCompilationUnit(fragment_lex, fragment_diag);
+
+    if (cu == nullptr || fragment_diag.hasError()) {
+      // Atomic refusal: copy diagnostics + return Refused. SourceLocation
+      // values reference the per-fragment private FileID (caller's
+      // CLI surfaces the message text; full file:line:col mapping
+      // is a Phase 3+ refinement).
+      result.status = FormatResult::Status::Refused;
+      for (const ::nsl::Diagnostic &d : fragment_diag.diagnostics()) {
+        result.diagnostics.push_back(d);
+      }
+      return result;
+    }
+    // Parse succeeded — fragment is well-formed. Phase 3+ will
+    // layout it via the LayoutPlanner; for now just continue to
+    // verbatim emission below.
+  }
+
+  // Byte-passthrough emission (still — the LayoutPlanner replaces
+  // this in Phase 3+). The DirectiveSplitter guarantees no-byte-
+  // loss; concatenating slice rawText reproduces the source.
   std::string out;
   out.reserve(sourceBuffer.size());
   for (const Slice &s : slices) {
     out.append(s.rawText.data(), s.rawText.size());
+  }
+
+  // T061 — CRLF → LF normalization (per spec edge case + R7
+  // adjacent rule). Applied to the FINAL assembled output.
+  {
+    std::string normalized;
+    normalized.reserve(out.size());
+    for (std::size_t i = 0; i < out.size(); ++i) {
+      if (out[i] == '\r' && i + 1 < out.size() && out[i + 1] == '\n') {
+        normalized.push_back('\n');
+        ++i;
+      } else if (out[i] == '\r') {
+        normalized.push_back('\n');
+      } else {
+        normalized.push_back(out[i]);
+      }
+    }
+    out = std::move(normalized);
+  }
+
+  // R7 — trailing-newline normalization (Session 2026-05-05 — Q3):
+  // non-empty output ALWAYS ends with exactly one `\n`. Multiple
+  // trailing `\n` collapse to one; missing trailing `\n` is added.
+  // Empty input → empty output (no spurious `\n`).
+  if (!out.empty()) {
+    while (out.size() > 1 && out.back() == '\n' && out[out.size() - 2] == '\n') {
+      out.pop_back();
+    }
+    if (out.back() != '\n') {
+      out.push_back('\n');
+    }
   }
 
   result.status = FormatResult::Status::Success;

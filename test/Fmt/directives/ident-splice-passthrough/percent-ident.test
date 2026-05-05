@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// T048: `%IDENT%` macro splices are byte-preserved — the lexer's
-// existing token-byte fidelity (cst-shape contract §3) carries
-// them through the CST, and the byte-passthrough formatter at
-// Phase 2c emits them verbatim. Phase 3+ retains this property
-// because the LayoutPlanner treats `IdentSplice` tokens as
-// `Doc::Text` leaves (research §7).
+// T048: `%IDENT%` macro splices are byte-preserved (research §7).
+//
+// The M1 lexer (per `lib/Lex/Lexer.cpp` FR-037 amendment) folds
+// `%IDENT%` into the SURROUNDING identifier when the splice
+// appears INSIDE an identifier body (e.g., `mod_%FOO%`). Bare
+// `%FOO%` not adjacent to an identifier prefix is NOT recognised
+// — that's a parse error per Q1 strict refusal (Session
+// 2026-05-05). So this fixture exercises the inline-residue form
+// which is what the M1 lexer actually supports.
 
-// `echo` is preferred over `printf` here because `printf` would
-// interpret `%F` as a format specifier (uppercase-F float). After
-// lit substitutes `%%FOO%%` -> `%FOO%`, echo emits it literally.
-
-// RUN: echo 'module %%FOO%% {}' | nsl-fmt --stdin | FileCheck %s
-// CHECK: module %FOO% {}
+// RUN: echo 'module mod_%%FOO%% {}' | nsl-fmt --stdin | FileCheck %s
+// CHECK: module mod_%FOO% {}
