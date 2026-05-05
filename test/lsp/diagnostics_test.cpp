@@ -13,11 +13,13 @@
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <algorithm>
 #include <chrono>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <sstream>
 #include <string>
+#include <thread>
 
 using namespace nsl::lsp::test;
 using namespace std::chrono_literals;
@@ -436,6 +438,42 @@ INSTANTIATE_TEST_SUITE_P(
       // Clean ctest name: just the expected code (S01..S29).
       return std::string(info.param.expected_code);
     });
+
+TEST(DiagnosticsSuite, OpenLatency_Under250ms_For1500Lines) {
+  // SC-004 budget: didOpen → publishDiagnostics under 250 ms for
+  // a 1500-line fixture (the audited-corpus-sized envelope).
+  // Hardware-runner-dependent; the test gates the assertion on
+  // a 4+-core x86_64 host and skips on smaller runners (matches
+  // harness §4.4's slow-runner heuristic).
+  unsigned hw = std::thread::hardware_concurrency();
+  if (hw < 4) {
+    GTEST_SKIP() << "slow runner (" << hw
+                  << " cores); SC-004 budget assertion deferred";
+  }
+
+  LspSession s({.nsl_lsp_log_level = "warn"});
+  initialize(s);
+
+  std::string text = readFixture("large_file.nsl");
+  ASSERT_FALSE(text.empty());
+  // Sanity: confirm we're actually testing on a ≥1500-line input.
+  size_t newlines = std::count(text.begin(), text.end(), '\n');
+  ASSERT_GE(newlines, 1500u) << "fixture should be at least 1500 lines";
+
+  auto t0 = std::chrono::steady_clock::now();
+  didOpen(s, "file:///lat.nsl", 1, text);
+  auto diag = s.waitForDiagnostics(std::chrono::milliseconds(2000));
+  auto elapsed = std::chrono::steady_clock::now() - t0;
+  ASSERT_TRUE(diag.has_value());
+
+  auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed)
+                .count();
+  EXPECT_LT(ms, 250) << "didOpen→publishDiagnostics took " << ms
+                       << " ms (SC-004 budget: 250 ms)";
+
+  s.doShutdownExit();
+  EXPECT_EQ(s.exitCode(), 0);
+}
 
 TEST(DiagnosticsSuite, RapidEdits_LatestVersionPublished) {
   // FR-008: a burst of didChanges should converge to a publish that

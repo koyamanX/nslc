@@ -223,7 +223,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 - [X] T085 [P] [US3] Author `test/lsp/fixtures/single_line_blocks.nsl` containing only single-line `{...}` blocks — fold response must be `[]`
 - [ ] T086 [P] [US3] Author `test/lsp/fixtures/include_adjusts_lines.nsl` (`#include "include_helper.nslh"`-only stub plus one `module` after the include) and `test/lsp/fixtures/include_helper.nslh` to verify FR-011 line-number resolution per §8 of the folding contract
 - [ ] T087 [P] [US3] Author `test/lsp/fixtures/cancellation_target.nsl` constructed to produce ≥ 10000 AST nodes (e.g., a large `generate` loop unrolling many copies of a multi-line block); used by SC-010 cancellation test
-- [ ] T088 [P] [US3] Author `test/lsp/fixtures/large_file.nsl` ≥ 1500 lines for SC-004 latency budget
+- [X] T088 [P] [US3] Author `test/lsp/fixtures/large_file.nsl` ≥ 1500 lines for SC-004 latency budget
 - [ ] T089 [P] [US3] Author `test/lsp/fixtures/folding_parse_error.nsl` — partial block-opener structure with a missing `}` so the M2 parser's recovery produces a partial AST; folding contract §6 requires we still return what was parsed
 
 ### Tests for User Story 3 (test-first)
@@ -232,7 +232,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 - [X] T091 [US3] Add `FoldingSuite::SingleLineBlockNotFolded`, `MultiLineBlockComment` (asserts `kind = "comment"` literal), `MultiLineBlockComment_KindFieldExact` (asserts the literal four-character string `"comment"`, not `"Comment"`/`"COMMENT"`), `ZeroBasedLines`, `IncludeAdjustsLines` (post-`#line` per Principle IV), `SortOrder` (response is sorted by `(startLine, endLine)`), `Determinism_TwoRunsByteIdentical` per folding contract §8
 - [X] T092 [US3] Add `FoldingSuite::ParseErrorRecovery` per folding contract §6: opens `folding_parse_error.nsl`; assert response is a valid JSON-RPC `result` (NOT `error`) carrying whatever folds the parser's recovery managed to recognize; assert no crash, no LSP error response
 - [ ] T093 [US3] Add `FoldingSuite::Cancellation_Under200ms` per harness §4.5 and SC-010: open `cancellation_target.nsl`, send `foldingRange`, immediately send `$/cancelRequest`, assert response carries `error.code = -32800`, `error.message = "request cancelled"`, and elapsed time < 200 ms
-- [ ] T094 [US3] Add `DiagnosticsSuite::OpenLatency_Under250ms_For1500Lines` per harness §4.4 and SC-004: opens `large_file.nsl`, measures elapsed time to first `publishDiagnostics`, asserts < 250 ms; gates assertion on Linux x86_64 with ≥ 4 cores via `GTEST_SKIP_("slow runner")` heuristic on smaller hosts
+- [X] T094 [US3] Add `DiagnosticsSuite::OpenLatency_Under250ms_For1500Lines` per harness §4.4 and SC-004: opens `large_file.nsl`, measures elapsed time to first `publishDiagnostics`, asserts < 250 ms; gates assertion on Linux x86_64 with ≥ 4 cores via `GTEST_SKIP_("slow runner")` heuristic on smaller hosts
 - [X] T095 [P] [US3] Author `test/lsp/cancellation_test.cpp` for cancellation edge cases per FR-020j: `CancellationSuite::CancelCompletedRequest` (silently ignored, no log above DEBUG); `CancelNotificationId` (silently ignored — notifications have no id); `CancelNeverSeenRequest` (silently ignored); `CancelDuringFoldingThenNewFoldingSucceeds` (cancel in-flight, immediately re-request, second succeeds)
 - [X] T096 [US3] Run `ctest -R "lsp_(folding|cancellation)_test"` and observe ALL US3 tests FAILING; capture to `${TMPDIR:-/tmp}/t3-us3-red.txt`
 
@@ -285,7 +285,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 - [X] T114 Verify SC-007 30-second combined budget: `time ctest --test-dir build -R "^lsp_"`; record actual wall-clock; fail the merge gate if > 30 s
 - [X] T115 [P] Verify no source-content blacklist violation per logging contract §7.5: grep `lib/LSP/` for any `Logger::log` call site that could pass `didOpen.text` or `didChange.contentChanges[0].text` as the message argument; assert none. Authored as a one-shot `scripts/check_lsp_log_content.sh` if static analysis warrants
 - [ ] T116 [P] Capture the binary size of `build/bin/nsl-lsp` for posterity (informational; no SC budget at T3) and record in PR description
-- [ ] T117 Author the PR per Constitution external-integrations + Principle VIII no-retrofitted-tests clause: include the failing-state commit hashes from `${TMPDIR:-/tmp}/t3-{lifecycle,us1,us2,us3}-red.txt` in the PR body to establish red→green progression
+- [X] T117 Author the PR per Constitution external-integrations + Principle VIII no-retrofitted-tests clause: include the failing-state commit hashes from `${TMPDIR:-/tmp}/t3-{lifecycle,us1,us2,us3}-red.txt` in the PR body to establish red→green progression
 
 **Checkpoint**: T3 ready to merge.
 
