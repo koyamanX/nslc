@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/control/if_reg_lhs.nsl — M6 Phase 6 fixture
+// (T089). Per Q3 → A: `if(c) r := a;` with reg LHS lowers via mux
+// on the FirRegOp's data input (`seq.firreg(comb.mux(c, a, prev))`).
+// ONE `seq.firreg` per `nsl.reg`.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  input c[1];
+  output q[8];
+}
+
+module M {
+  reg r[8] = 0;
+  if(c) r := a;
+  q = r;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK: comb.mux
+// CHECK: seq.firreg
+// CHECK-NOT: nsl.

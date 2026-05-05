@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/sim/sim_init.nsl — M6 Phase 6 fixture (T094).
+// `_init { … }` block → `sv.initial { … }` inside the per-module
+// SIMULATION ifdef. Per spec Q1-specify-time → B; matches S29.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare tb simulation {
+}
+
+module tb {
+  _init {
+    _delay(10);
+  }
+}
+
+// CHECK: sv.macro.decl @SIMULATION
+// CHECK-LABEL: hw.module @tb
+// CHECK: sv.ifdef @SIMULATION
+// CHECK: sv.initial
+// CHECK-NOT: nsl.

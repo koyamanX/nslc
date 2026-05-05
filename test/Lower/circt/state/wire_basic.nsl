@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/state/wire_basic.nsl — M6 Phase 6 fixture (T083).
+// `wire w[8]; w = a + b; q = w;` → `hw.wire` carrying the comb.add
+// result.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  input b[8];
+  output q[8];
+}
+
+module M {
+  wire w[8];
+  w = a + b;
+  q = w;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK: comb.add %a, %b : i8
+// CHECK: hw.wire
+// CHECK-NOT: nsl.

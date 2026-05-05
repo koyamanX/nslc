@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/state/reg_with_init.nsl — M6 Phase 6 fixture (T081).
+// `reg r[8] = 42;` propagates the initialiser as the firreg's
+// reset_value.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  output q[8];
+}
+
+module M {
+  reg r[8] = 42;
+  r := a;
+  q = r;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK-DAG: hw.constant 42 : i8
+// CHECK: seq.firreg
+// CHECK-SAME: reset async
+// CHECK-NOT: nsl.

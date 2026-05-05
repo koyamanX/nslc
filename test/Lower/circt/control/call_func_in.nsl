@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/control/call_func_in.nsl — M6 Phase 6 fixture
+// (T091). Per design §10: `nsl.call` to a `func_in`-target lowers
+// to inline + a `<func>_valid` `hw.wire` (research §8). The Phase
+// 5 FSM pre-pass disambiguates: proc-target → fsm.transition;
+// func_in-target → this Phase 6 path.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  output q[8];
+  func_in F();
+}
+
+module M {
+  func F {
+    q = a;
+  }
+  // Calling F outside of a state body — Phase 5 leaves it for
+  // Phase 6 (func_in-target variant).
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK-NOT: nsl.

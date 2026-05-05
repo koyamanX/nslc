@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/arith/extract_repeat.nsl — M6 Phase 6 fixture (T078).
+// `nsl.extract` → `comb.extract`; `nsl.repeat` → `comb.replicate`.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  output qe[4];
+}
+
+module M {
+  qe = a[3:0];
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK: comb.extract %a from 0 : (i8) -> i4
+// CHECK-NOT: nsl.
+
+// Note: nsl.repeat (NSL `N{a}` per §11 line 700) is not yet emitted
+// by M5's visitor for non-trivial repeat counts as of Phase 6 land;
+// when the visitor is amended, this fixture extends to also assert
+// the `comb.replicate` lowering.

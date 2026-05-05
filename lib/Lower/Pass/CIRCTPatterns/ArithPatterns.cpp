@@ -1,12 +1,33 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // lib/Lower/Pass/CIRCTPatterns/ArithPatterns.cpp — M6 arithmetic
-// conversion patterns (Phase 2 scaffold; pattern bodies land at
-// T098–T100 in Phase 6 US4).
+// conversion patterns family file.
 //
-// **Design §10 rows covered**: nsl.{add,sub,mul,eq,ne,lt,le,gt,ge}
-// → comb.{add,sub,mul,icmp}. Per spec Q1 → A: comb-only (no hwarith).
-// Per data-model.md §3: 9 patterns total.
+// **Phase 6 status (2026-05-04)**: the arithmetic lowering bodies live
+// inline in `lib/Lower/Pass/CIRCTPatterns/ModulePatterns.cpp`'s
+// `lowerArithOp` helper, called from the unified
+// `lowerNSLModulesToHWModules` structural pre-pass per the Phase 4 /
+// Phase 5 precedent (no DialectConversion patterns; the prepass walks
+// each `nsl::ModuleOp` body in source order and materialises CIRCT
+// ops directly). Rationale: the standard DialectConversion worklist
+// would interleave incorrectly with the recursive nsl-region lowering
+// (alt/any/if/case/default bodies hold transfer/arith ops that need
+// outer-anchor insertion of CIRCT replacements). See
+// `ModulePatterns.cpp`'s file-header comment for the full
+// architectural reasoning.
+//
+// **Design §10 rows covered (via `lowerArithOp`)**: nsl.{add,sub,mul,
+// eq,ne,lt,le,gt,ge,land,lor} → comb.{add,sub,mul,icmp <pred>,and,or}.
+// All comparisons use unsigned predicates per the M4 dialect's
+// value-neutral semantics (NSLOps.td §2.2quattuor comment lines
+// 626–630). Per spec Q1 → A: comb-only (no `hwarith`).
+//
+// **Coverage guard**: this file is intentionally devoid of
+// `OpConversionPattern<` tokens — the per-family fixture set under
+// `test/Lower/circt/arith/` covers the design §10 rows mechanically;
+// the `coverage_guard.cmake` bijection check trivially holds because
+// the empty `populateArithPatterns` body emits zero patterns and a
+// directory with at least one `*.nsl` fixture is present.
 
 #include "../NSLToCIRCTPass.h"
 
@@ -14,8 +35,9 @@ namespace nsl::lower {
 
 void populateArithPatterns(mlir::RewritePatternSet & /*patterns*/,
                            CIRCTTypeConverter & /*type_converter*/) {
-  // Phase 2 scaffold — no patterns registered yet. Phase 6 T098–T100
-  // populate this body with the 9 arithmetic conversion patterns.
+  // M6 arithmetic lowering is performed inline in
+  // `ModulePatterns.cpp::lowerArithOp` per the Phase 4 / Phase 5
+  // precedent. See file-header comment.
 }
 
 } // namespace nsl::lower

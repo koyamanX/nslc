@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/control/alt_priority.nsl — M6 Phase 6 fixture
+// (T086). `alt { c1: q = a; c2: q = b; else: q = 0; }` lowers to
+// nested `comb.mux` chain: case A wins over B over default (S13
+// priority).
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  input b[8];
+  input c1[1];
+  input c2[1];
+  output q[8];
+}
+
+module M {
+  alt {
+    c1: q = a;
+    c2: q = b;
+    else: q = 0;
+  }
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK: comb.mux
+// CHECK-NOT: nsl.

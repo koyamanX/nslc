@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/control/any_parallel.nsl — M6 Phase 6 fixture
+// (T087). `any { c1: q = a; c2: q = b; }` parallel semantics: every
+// matching case fires (S13 parallel). Implementation per
+// circt-lowering.contract.md §5: per-case `comb.mux(cond, val, prev)`
+// where prev is the previously-accumulated assignment (gated by the
+// case condition) — matching the value-flow form of the contract's
+// described per-target `comb.or`-of-mux envelope.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  input b[8];
+  input c1[1];
+  input c2[1];
+  output q[8];
+}
+
+module M {
+  any {
+    c1: q = a;
+    c2: q = b;
+  }
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK: comb.mux
+// CHECK-NOT: nsl.

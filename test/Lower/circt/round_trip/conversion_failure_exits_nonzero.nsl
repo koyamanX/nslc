@@ -6,24 +6,28 @@
 // reachable `nsl::*` op, `nslc -emit=hw` exits non-zero AND emits
 // a diagnostic naming the unmatched op.
 //
-// **Phase 5 status: PASSES** — Phase 4 lands the ModuleOp /
-// DeclareOp / Port / Submodule / Param structural rewrites plus
-// inline ConstantOp / TransferOp-to-output-port handling. Phase
-// 5 (US3) lands FSM lowering and refactors Phase 4's per-op
-// fail-fast `else` arm into a "move-and-defer" path — but the
-// fail-fast still fires on a specific Phase-4 limitation: an
-// output-port write whose source is not a Phase-4-materialised
-// value (combinational forward-flow only at Phase 4). The fixture
-// body uses `reg r[8] = 0;` + `r := a;` + `q = r;` to trigger
-// exactly that path: `q = r;` (the third statement) writes to
-// output port `q` from `r` which is a `nsl.reg` (Phase 6
-// territory), so Phase 4's TransferOp arm aborts with the
-// documented diagnostic.
+// **Phase 6 status: retired-as-XFAIL** — Phase 6 leaf-op patterns
+// (T061–T126) closed the previous Phase-4 fail-fast path (output-
+// port writes whose source is a reg now lower cleanly via
+// StatePatterns + the firreg/compreg materialisation chain). Every
+// reachable nsl op produced by the standard `.nsl` source surface
+// has a Phase-6 lowering; consequently no `.nsl`-source-driven
+// fail-fast is exercisable from this fixture's input shape.
 //
-// Once Phase 6 lands the state-family patterns, this fixture must
-// be updated again to exercise some op kind whose pattern hasn't
-// shipped, OR retired in Phase 8 polish.
+// **Where the fail-fast is now exercised**: T138 fixture
+// `structural_generate_fail_fast.test` (a hand-authored `.mlir`
+// containing a residual `nsl.structural_generate` op — an invariant
+// violation that should never escape M5's pass pipeline; M6 is the
+// canary that catches such bugs). That fixture exercises the same
+// `error: failed to legalize operation 'nsl.<X>'` diagnostic from
+// the standard `applyFullConversion` path.
+//
+// This fixture is left in place but XFAIL'd to preserve the audit
+// trail (per Phase-8 polish convention; retire vs XFAIL is the
+// project pattern for fixtures that have outlived their original
+// failure mode but whose history is worth keeping in tree).
 
+// XFAIL: *
 // RUN: not %nslc -emit=hw %s 2>&1 | %FileCheck %s
 
 declare M {
@@ -37,4 +41,4 @@ module M {
   q = r;
 }
 
-// CHECK: error: M6 cannot lower output-port write whose source
+// CHECK: error: M6 cannot lower output-port write

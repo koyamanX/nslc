@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/state/reg_basic.nsl — M6 Phase 6 fixture (T080).
+// Per `firreg-convention.contract.md` §5: bare `reg r[8] = 0; r := a;
+// q = r;` produces `seq.firreg` with async-active-low reset wired
+// through `comb.icmp eq %rst_n, 0`.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  output q[8];
+}
+
+module M {
+  reg r[8] = 0;
+  r := a;
+  q = r;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK-SAME: in %a : i8
+// CHECK-SAME: in %clk : i1
+// CHECK-SAME: in %rst_n : i1
+// CHECK-SAME: out q : i8
+// CHECK: seq.to_clock %clk
+// CHECK: comb.icmp eq %rst_n
+// CHECK: seq.firreg
+// CHECK-SAME: reset async
+// CHECK: hw.output
+// CHECK-NOT: nsl.
