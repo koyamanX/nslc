@@ -41,6 +41,13 @@ public:
     std::unique_ptr<nsl::ast::CompilationUnit> ast;
     std::vector<nsl::Diagnostic> diagnostics;
     std::unique_ptr<nsl::sema::SymbolTable> symbols;
+    /// SourceManager that owns the buffers + line tables for this
+    /// reparse. Held as shared_ptr because the diagnostic-mapping
+    /// seam needs it during the publish callback (which runs on a
+    /// worker thread); shared_ptr keeps it alive for the duration
+    /// of the callback even if a fresh reparse races to replace
+    /// the State.
+    std::shared_ptr<nsl::SourceManager> source_manager;
   };
 
   NslTU();

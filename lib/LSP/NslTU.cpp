@@ -1,10 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// lib/LSP/NslTU.cpp — per-document state impl. Phase 2 stub; the
-// real `Compilation` invocation lands at T069 (Phase 3 / US1).
+// lib/LSP/NslTU.cpp — per-document state impl with real
+// preprocess + lex + parse + sema pipeline (Phase 3 / US1, T069).
+// Mirrors the M3 driver pipeline in `lib/Driver/EmitAST.cpp`
+// step-for-step but operates on an in-memory buffer instead of a
+// file path.
 
 #include "NslTU.h"
 #include "IncludeSearchPath.h"
+
+#include "nsl/AST/CompilationUnit.h"
+#include "nsl/Basic/Diagnostic.h"
+#include "nsl/Basic/SourceLocation.h"
+#include "nsl/Basic/SourceManager.h"
+#include "nsl/Driver/Sema.h"
+#include "nsl/Lex/Lexer.h"
+#include "nsl/Parse/Parser.h"
+#include "nsl/Preprocess/Preprocessor.h"
+#include "nsl/Sema/Sema.h"
+#include "nsl/Sema/SymbolTable.h"
+
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ErrorOr.h"
+
+#include <utility>
+#include <vector>
 
 namespace nsl {
 namespace lsp {
@@ -12,16 +32,80 @@ namespace lsp {
 NslTU::NslTU() = default;
 NslTU::~NslTU() = default;
 
+namespace {
+
+void runPipeline(int version, std::string contents,
+                  const IncludeSearchPath &includes,
+                  NslTU::State *out) {
+  out->version = version;
+  out->contents = std::move(contents);
+  out->ast.reset();
+  out->symbols.reset();
+  out->diagnostics.clear();
+
+  // 1. SourceManager + DiagnosticEngine.
+  auto sm = std::make_shared<nsl::SourceManager>();
+  nsl::DiagnosticEngine diag(*sm);
+
+  // 2. Register the document buffer in the SourceManager.
+  std::vector<char> bytes(out->contents.begin(), out->contents.end());
+  nsl::FileID input_fid =
+      sm->addBufferInMemory(std::string("file:///in-memory.nsl"),
+                              std::move(bytes));
+
+  // 3. Build preprocess::IncludeSearchPath from the LSP-side
+  //    paths (NSL_INCLUDE) plus the document's parent directory
+  //    for quote-form resolution. Phase 3 keeps quote-form
+  //    document-relative resolution implicit (FR-020b is a
+  //    follow-up; quote-form lookups against an in-memory URI
+  //    have nothing useful to resolve to in this Phase).
+  preprocess::IncludeSearchPath search;
+  for (const auto &p : includes.anglePaths()) search.appendAnglePath(p);
+
+  std::vector<std::pair<std::string, std::string>> predefined;
+
+  preprocess::Preprocessor pp(*sm, diag, search, predefined);
+  llvm::ErrorOr<std::string> pp_out = pp.run(input_fid);
+
+  if (pp_out) {
+    // 4. Register the preprocessed buffer + run the lexer + parser.
+    std::vector<char> synth_bytes(pp_out->begin(), pp_out->end());
+    nsl::FileID synth_fid = sm->addBufferInMemory(
+        std::string("file:///in-memory.nsl-pp"), std::move(synth_bytes));
+
+    Lexer lexer(*sm, synth_fid, diag);
+    auto cu = parse::parseCompilationUnit(lexer, diag);
+
+    if (cu) {
+      // 5. Sema.
+      sema::SemaResult sema_res = driver::runSema(*cu, diag);
+      out->symbols = std::move(sema_res.symbols);
+      // (TypeSystem currently moves with sema_res.types but
+      // NslTU::State doesn't expose a types field at T3 — the
+      // post-Sema printer / future LSP features (T4 hover) will
+      // request it. Phase 3 doesn't need it.)
+      out->ast = std::move(cu);
+    }
+  }
+
+  // 6. Capture every diagnostic accumulated across the pipeline.
+  for (const auto &d : diag.diagnostics()) out->diagnostics.push_back(d);
+
+  // 7. Stash the SourceManager alongside the state so the protocol
+  //    layer can resolve diagnostic locations. State doesn't
+  //    declare a sm_ field publicly per the contract; we hold a
+  //    shared_ptr in a side-channel below.
+  // (Adopt the contract field-set strictly: keeping sm_ as a
+  // separate member.)
+  out->source_manager = sm;
+}
+
+} // namespace
+
 int NslTU::reparse(int version, std::string contents,
-                    const IncludeSearchPath & /*includes*/) {
+                    const IncludeSearchPath &includes) {
   std::lock_guard<std::mutex> guard(mtx_);
-  state_.version = version;
-  state_.contents = std::move(contents);
-  // Phase 2 stub: no parse, no sema. T069 (Phase 3) wires the real
-  // `nsl::driver::Compilation` invocation through the includes.
-  state_.ast.reset();
-  state_.symbols.reset();
-  state_.diagnostics.clear();
+  runPipeline(version, std::move(contents), includes, &state_);
   return version;
 }
 

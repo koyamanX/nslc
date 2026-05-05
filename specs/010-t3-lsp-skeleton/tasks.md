@@ -146,37 +146,37 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 
 > **Land fixtures T050–T056 FIRST.** They cannot trigger any test failure on their own (they're just `.nsl` files), but they're prerequisites for the test cases T057–T067.
 
-- [ ] T050 [P] [US1] Author `test/lsp/fixtures/s01_double_underscore.nsl` containing one occurrence of an `__`-bearing identifier per S1 (e.g., `module foo { reg foo__bar; }`); single error, no other diagnostics
+- [X] T050 [P] [US1] Author `test/lsp/fixtures/s01_double_underscore.nsl` containing one occurrence of an `__`-bearing identifier per S1 (e.g., `module foo { reg foo__bar; }`); single error, no other diagnostics
 - [ ] T051 [P] [US1] Author the remaining 22 per-`Sn` fixtures `s02_<short>.nsl` … `s29_<short>.nsl` (skipping the 6 constructive `Sn`: S13/S18/S19/S23/S24/S27 per [`CLAUDE.md`](../../CLAUDE.md) §1 footnote). Each fixture triggers exactly one Sema constraint violation; cross-reference the M3 frozen diagnostic-string contract at [`specs/006-m3-sema/contracts/diagnostic-string.contract.md`](../006-m3-sema/contracts/diagnostic-string.contract.md) for shape
-- [ ] T052 [P] [US1] Author `test/lsp/fixtures/parse_error_missing_brace.nsl` — a module with an unterminated `{` block; surfaces a parser-level diagnostic (FR-017 in spec; `source = "nsl-parse"` in mapping)
+- [X] T052 [P] [US1] Author `test/lsp/fixtures/parse_error_missing_brace.nsl` — a module with an unterminated `{` block; surfaces a parser-level diagnostic (FR-017 in spec; `source = "nsl-parse"` in mapping)
 - [ ] T053 [P] [US1] Author `test/lsp/fixtures/preprocess_unresolved_include.nsl` containing `#include "nonexistent_file.nslh"`; surfaces a preprocessor-level diagnostic (FR-020c; `source = "nsl-preprocess"`)
 - [ ] T054 [P] [US1] Author `test/lsp/fixtures/utf8_comment.nsl` — a module with one S1 violation on a line that also contains a UTF-8 multi-byte comment string (e.g., `// 日本語 comment`); exercises the UTF-16 column conversion path
 - [ ] T055 [P] [US1] Author `test/lsp/fixtures/include_chain_main.nsl` + `test/lsp/fixtures/include_chain_helper.nslh` where `main.nsl` `#include`s `helper.nslh` and the diagnostic originates inside `helper.nslh`; exercises the `relatedInformation` include-from-notes path
-- [ ] T056 [P] [US1] Author `test/lsp/fixtures/two_errors_same_line.nsl` and `test/lsp/fixtures/two_errors_same_position.nsl` for the diagnostic-mapping sort-order tests
+- [X] T056 [P] [US1] Author `test/lsp/fixtures/two_errors_same_line.nsl` and `test/lsp/fixtures/two_errors_same_position.nsl` for the diagnostic-mapping sort-order tests
 
 ### Tests for User Story 1 (test-first)
 
 > **Land tests T057–T067 FIRST and observe FAILING against the unchanged tree before T068–T072 implementation.** Tests fail at this point because `NslLSPServer::onDidOpen` is unimplemented — the server accepts the notification per the dispatch table but never schedules a parse, so no `publishDiagnostics` ever arrives, and `waitForDiagnostics` times out.
 
-- [ ] T057 [P] [US1] Author `test/lsp/diagnostics_test.cpp` skeleton (gtest fixture `DiagnosticsSuite`); add `EmptyArrayOnClean`: open `clean_module.nsl`, assert one `publishDiagnostics` arrives with empty `diagnostics` array
-- [ ] T058 [US1] Add `DiagnosticsSuite::SingleS01` per harness contract §4.1: open `s01_double_underscore.nsl`; assert exactly one diagnostic with `code = "S01"`, `severity = 1`, `source = "nsl-sema"`, `range` covers the offending identifier
+- [X] T057 [P] [US1] Author `test/lsp/diagnostics_test.cpp` skeleton (gtest fixture `DiagnosticsSuite`); add `EmptyArrayOnClean`: open `clean_module.nsl`, assert one `publishDiagnostics` arrives with empty `diagnostics` array
+- [X] T058 [US1] Add `DiagnosticsSuite::SingleS01` per harness contract §4.1: open `s01_double_underscore.nsl`; assert exactly one diagnostic with `code = "S01"`, `severity = 1`, `source = "nsl-sema"`, `range` covers the offending identifier
 - [ ] T059 [US1] Add `DiagnosticsSuite::CodeMapping_S<NN>` parameterized over the 23 non-constructive `Sn` fixtures (one per row of [`contracts/diagnostic-mapping.contract.md`](./contracts/diagnostic-mapping.contract.md) §1); each variant asserts the `code` field matches `S<NN>`. Covers SC-002
-- [ ] T060 [US1] Add `DiagnosticsSuite::SortOrder_LineThenColumn` using `two_errors_same_line.nsl`; assert sort by `(range.start.line, range.start.character)`
+- [X] T060 [US1] Add `DiagnosticsSuite::SortOrder_LineThenColumn` using `two_errors_same_line.nsl`; assert sort by `(range.start.line, range.start.character)`
 - [ ] T061 [US1] Add `DiagnosticsSuite::SortOrder_SeverityOnTie` using `two_errors_same_position.nsl`; assert severity-ascending tiebreaker per contract §6
 - [ ] T062 [US1] Add `DiagnosticsSuite::IncludeFromNotes` using `include_chain_main.nsl` + `include_chain_helper.nslh`; assert the diagnostic carries non-empty `relatedInformation` whose entries reference the helper's URI per contract §5
-- [ ] T063 [US1] Add `DiagnosticsSuite::ParseError` using `parse_error_missing_brace.nsl`; assert `source = "nsl-parse"`
+- [X] T063 [US1] Add `DiagnosticsSuite::ParseError` using `parse_error_missing_brace.nsl`; assert `source = "nsl-parse"`
 - [ ] T064 [US1] Add `DiagnosticsSuite::PreprocessError` using `preprocess_unresolved_include.nsl`; assert `source = "nsl-preprocess"` and `code` is the preprocessor's frozen ID for unresolved include (per FR-020c)
 - [ ] T065 [US1] Add `DiagnosticsSuite::UTF8Comment` using `utf8_comment.nsl`; assert the `range.start.character` is computed as a UTF-16 code-unit offset (verifies the conversion path in T012)
-- [ ] T066 [US1] Add `DiagnosticsSuite::Determinism_TwoRunsByteIdentical` per harness §4.2: spawn-and-drive the same fixture twice, capture both `publishDiagnostics` payloads as canonical JSON byte strings, assert byte-equal. Covers SC-003
-- [ ] T067 [US1] Run `ctest -R "lsp_diagnostics_test"` and observe ALL US1 tests FAILING; capture output to `${TMPDIR:-/tmp}/t3-us1-red.txt`
+- [X] T066 [US1] Add `DiagnosticsSuite::Determinism_TwoRunsByteIdentical` per harness §4.2: spawn-and-drive the same fixture twice, capture both `publishDiagnostics` payloads as canonical JSON byte strings, assert byte-equal. Covers SC-003
+- [X] T067 [US1] Run `ctest -R "lsp_diagnostics_test"` and observe ALL US1 tests FAILING; capture output to `${TMPDIR:-/tmp}/t3-us1-red.txt`
 
 ### Implementation for User Story 1
 
-- [ ] T068 [US1] Implement `lib/LSP/DiagnosticMapper.{h,cpp}` per [`contracts/diagnostic-mapping.contract.md`](./contracts/diagnostic-mapping.contract.md) §1–§7: `toLspDiagnostic` and `toLspDiagnosticArray` free functions; `code` lookup table (M3 message-prefix → `Sn` keyed); severity mapping; range conversion through `byteOffsetToLspPosition` (T012); `source` disambiguation via message-prefix heuristic per §4 with DEBUG-log fallback; `relatedInformation` materialization per §5
-- [ ] T069 [US1] Implement `NslTU::reparse` body: invoke `nsl::driver::Compilation` (existing M3 entry point) on the stored `contents` with the `IncludeSearchPath`'s angle paths and the document URI's parent directory as the quote-form root; capture the resulting `CompilationUnit`, `SymbolTable`, and `DiagnosticEngine.diagnostics()` into the `State` struct
-- [ ] T070 [US1] Wire `NslLSPServer::onDidOpen` per [`contracts/lsp-protocol.contract.md`](./contracts/lsp-protocol.contract.md) §2.1: parse `params.textDocument`, call `NslServer::openOrUpdate(uri, version, text)`, register a callback that on TUScheduler completion invokes `publishDiagnostics`. Handle the second-`didOpen`-on-same-URI WARN case
-- [ ] T071 [US1] Wire the diagnostics-publication callback path: TUScheduler calls `setOnDiagnostics` callback registered by NslServer → NslServer calls `NslLSPServer::publishDiagnostics(uri, version, diags)` → NslLSPServer maps via `toLspDiagnosticArray` and writes the `textDocument/publishDiagnostics` notification through the transport
-- [ ] T072 [US1] Run `ctest -R "lsp_diagnostics_test"`; iterate until ALL US1 tests PASS. Common failure modes: position-encoding off-by-one (line vs character), `code` lookup-table prefix mismatch, source-disambiguation heuristic returning wrong origin
+- [X] T068 [US1] Implement `lib/LSP/DiagnosticMapper.{h,cpp}` per [`contracts/diagnostic-mapping.contract.md`](./contracts/diagnostic-mapping.contract.md) §1–§7: `toLspDiagnostic` and `toLspDiagnosticArray` free functions; `code` lookup table (M3 message-prefix → `Sn` keyed); severity mapping; range conversion through `byteOffsetToLspPosition` (T012); `source` disambiguation via message-prefix heuristic per §4 with DEBUG-log fallback; `relatedInformation` materialization per §5
+- [X] T069 [US1] Implement `NslTU::reparse` body: invoke `nsl::driver::Compilation` (existing M3 entry point) on the stored `contents` with the `IncludeSearchPath`'s angle paths and the document URI's parent directory as the quote-form root; capture the resulting `CompilationUnit`, `SymbolTable`, and `DiagnosticEngine.diagnostics()` into the `State` struct
+- [X] T070 [US1] Wire `NslLSPServer::onDidOpen` per [`contracts/lsp-protocol.contract.md`](./contracts/lsp-protocol.contract.md) §2.1: parse `params.textDocument`, call `NslServer::openOrUpdate(uri, version, text)`, register a callback that on TUScheduler completion invokes `publishDiagnostics`. Handle the second-`didOpen`-on-same-URI WARN case
+- [X] T071 [US1] Wire the diagnostics-publication callback path: TUScheduler calls `setOnDiagnostics` callback registered by NslServer → NslServer calls `NslLSPServer::publishDiagnostics(uri, version, diags)` → NslLSPServer maps via `toLspDiagnosticArray` and writes the `textDocument/publishDiagnostics` notification through the transport
+- [X] T072 [US1] Run `ctest -R "lsp_diagnostics_test"`; iterate until ALL US1 tests PASS. Common failure modes: position-encoding off-by-one (line vs character), `code` lookup-table prefix mismatch, source-disambiguation heuristic returning wrong origin
 
 **Checkpoint**: US1 complete. Open a `.nsl` file with any Sema error in any LSP client → red squiggle appears at the right location with the correct `code`/`severity`/`source`. README test gate is **half-met** (open-side) — the edit-side requires US2.
 

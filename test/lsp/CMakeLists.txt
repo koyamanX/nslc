@@ -55,6 +55,15 @@ function(nsl_add_lsp_test name)
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
     CXX_EXTENSIONS OFF)
   add_dependencies(${name} nsl-lsp)
+  # Compile-time macros avoid the multi-value-ENVIRONMENT issue
+  # with gtest_discover_tests (it serializes a list-valued
+  # ENVIRONMENT into multiple PROPERTIES args, only the last of
+  # which is honored by set_tests_properties). NSL_LSP_BINARY is
+  # passed through ENVIRONMENT (single-valued, works fine);
+  # NSL_LSP_FIXTURES_DIR is baked into the binary as a string
+  # literal.
+  target_compile_definitions(${name} PRIVATE
+    NSL_LSP_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
   gtest_discover_tests(${name}
     TEST_PREFIX "lsp_"
     PROPERTIES
@@ -64,5 +73,8 @@ endfunction()
 # Phase 2 lifecycle tests (T037–T041).
 nsl_add_lsp_test(lifecycle_test lifecycle_test.cpp)
 
-# Phase 3 onwards: diagnostics_test, folding_test, cancellation_test
+# Phase 3 / US1 diagnostic-seam tests (T057–T066).
+nsl_add_lsp_test(diagnostics_test diagnostics_test.cpp)
+
+# Phase 5 / US3 onwards: folding_test, cancellation_test
 # add similar `nsl_add_lsp_test(...)` lines as their tasks land.

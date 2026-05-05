@@ -9,6 +9,7 @@
 // arrives at T071 (Phase 3 / US1) once `DiagnosticMapper` lands.
 
 #include "NslLSPServer.h"
+#include "DiagnosticMapper.h"
 #include "JSONTransport.h"
 #include "Logger.h"
 #include "NslServer.h"
@@ -64,14 +65,23 @@ llvm::json::Object buildInitializeResult() {
 
 NslLSPServer::NslLSPServer(JSONTransport &transport, NslServer &backend)
     : transport_(transport), backend_(backend) {
-  // Wire the diagnostics-publication path. At Phase 2 the
-  // TUScheduler still calls back here, but the diagnostics array
-  // is always empty (NslTU::reparse stub). Phase 3 (T071) replaces
-  // the body of this lambda with the DiagnosticMapper conversion.
+  // Diagnostics-publication path: TUScheduler invokes this callback
+  // once a parse + sema cycle completes. We pull the diagnostics
+  // and SourceManager from the State, run them through the
+  // DiagnosticMapper (T068), and write the resulting LSP
+  // publishDiagnostics envelope. Per the harness contract §3.1,
+  // diagnostics are sorted by (line, character, severity) inside
+  // toLspDiagnosticArray.
   backend_.scheduler().setOnDiagnostics(
       [this](llvm::StringRef uri, int version,
-              const NslTU::State & /*state*/) {
-        publishDiagnostics(uri, version, llvm::json::Array{});
+              const NslTU::State &state) {
+        if (!state.source_manager) {
+          publishDiagnostics(uri, version, llvm::json::Array{});
+          return;
+        }
+        publishDiagnostics(
+            uri, version,
+            toLspDiagnosticArray(state.diagnostics, *state.source_manager));
       });
 }
 

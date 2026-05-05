@@ -29,7 +29,8 @@ add_library(NSLLSP STATIC
   NslTU.cpp
   TUScheduler.cpp
   NslServer.cpp
-  NslLSPServer.cpp)
+  NslLSPServer.cpp
+  DiagnosticMapper.cpp)
 
 target_compile_features(NSLLSP PUBLIC cxx_std_17)
 

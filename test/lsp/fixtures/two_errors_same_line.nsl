@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/two_errors_same_line.nsl — two S1 violations on
+// distinct lines, used by `DiagnosticsSuite::SortOrder_LineThenColumn`
+// (T060). Sort order verifies line-ascending then column-ascending.
+
+module m {
+  reg first__bad;
+  reg second__bad;
+}
