@@ -54,6 +54,20 @@ void populateSimPatterns(mlir::RewritePatternSet &patterns,
 void populateStatePatterns(mlir::RewritePatternSet &patterns,
                            CIRCTTypeConverter &type_converter);
 
+// M6 Phase 4 (US2): structural rewrite that materialises every
+// `nsl::dialect::ModuleOp` into a `circt::hw::HWModuleOp` with the
+// port list derived from the paired `nsl::dialect::DeclareOp`.
+// Implemented in `CIRCTPatterns/ModulePatterns.cpp`; called from
+// `NSLToCIRCTPass::runOnOperation` BEFORE `applyFullConversion`.
+//
+// Per `specs/010-m6-circt-lowering/contracts/circt-lowering.contract.md`
+// §3 the rewrite is non-pattern-driven (a manual walk) because the
+// dual-placement port-info-op design (M4 amendment #9) requires
+// coordinated in-module + in-declare consumption that the standard
+// DialectConversion worklist would interleave incorrectly with
+// attempts to legalize individual port-info ops.
+mlir::LogicalResult lowerNSLModulesToHWModules(mlir::ModuleOp parentModule);
+
 } // namespace nsl::lower
 
 #endif // NSL_LOWER_PASS_NSL_TO_CIRCT_PASS_H

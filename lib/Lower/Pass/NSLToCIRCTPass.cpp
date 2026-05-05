@@ -68,6 +68,19 @@ public:
     mlir::ModuleOp module = getOperation();
     mlir::MLIRContext &ctx = getContext();
 
+    // ---------- Phase 4 (US2) structural pre-pass ----------
+    // Every `nsl::ModuleOp` is rewritten into a `hw::HWModuleOp`
+    // with port list derived from the paired `nsl::DeclareOp`.
+    // The dual-placement in-module port-info ops are consumed
+    // during this walk too — see ModulePatterns.cpp's commentary
+    // for the full rewrite recipe. After this pre-pass, the IR
+    // contains zero `nsl::ModuleOp` / `nsl::DeclareOp` ops; any
+    // remaining `nsl::*` ops belong to leaf-op families (Phase 5+).
+    if (mlir::failed(lowerNSLModulesToHWModules(module))) {
+      signalPassFailure();
+      return;
+    }
+
     // ---------- ConversionTarget ----------
     // Mark `nsl` dialect illegal: every `nsl::*` op MUST be converted
     // away (FR-004). Mark the five CIRCT dialects legal — outputs
@@ -86,8 +99,11 @@ public:
     mlir::RewritePatternSet patterns(&ctx);
 
     // Per research.md §11: alphabetic registration order for
-    // determinism. Each populator is currently a Phase-2 scaffold
-    // (empty body). Phase 4–6 fill them in.
+    // determinism. At Phase 4 most populators are scaffolds (empty
+    // body); the structural ModuleOp/DeclareOp/Port/Submodule/Param
+    // rewrites happen in `lowerNSLModulesToHWModules` above, NOT
+    // through these patterns. Phase 5+ fills in FSM / arith / bit /
+    // state / control / sim leaf-op patterns.
     populateArithPatterns(patterns, type_converter);
     populateBitOpPatterns(patterns, type_converter);
     populateControlPatterns(patterns, type_converter);

@@ -12,14 +12,11 @@
 // arithmetic family) land enough patterns to handle the simple
 // shape exercised below.
 //
-// **Phase 3 status: XFAIL** — at Phase 3 the M6 pattern set is
-// empty; `nslc -emit=hw` over this fixture observes-fails with
-// `error: failed to legalize operation 'nsl.module'` (see Phase
-// 2 commit 427c030 smoke-test verification). The XFAIL annotation
-// is REMOVED in Phase 4 commit landing T038 (ModuleOp pattern).
+// **Phase 4 status: PASS** (XFAIL removed in the same commit that
+// landed T038 — the structural ModuleOp/DeclareOp rewrite in
+// `lowerNSLModulesToHWModules`).
 
 // RUN: %nslc -emit=hw %s | %FileCheck %s
-// XFAIL: *
 
 declare M {
   input a[8];

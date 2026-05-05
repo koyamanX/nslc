@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/module/interface_modifier.nsl — M6 Phase 4 (US2)
+// fixture (T033). The S20 `interface` modifier on a declare block
+// names clock(s) and reset(s) explicitly; downstream `nsl.reg` must
+// lower to `seq.compreg` (not `seq.firreg`) with user-named
+// clock/reset operands per `firreg-convention.contract.md` §2.
+//
+// **DEFERRED to a future M4 amendment-#10**. At amendment-#9 the
+// `interface` modifier is NOT surfaced on `nsl::DeclareOp` (the
+// dialect carries no `interface_clock` / `interface_reset` attribute
+// pair). The circt-lowering contract §3 rule 7 documents that M6
+// would read the modifier from M3 Sema's introspection observable —
+// but Sema results are not plumbed through `Compilation::lowerToCIRCT`
+// at Phase 4 (would be significant scope creep). The fixture is
+// authored here so it surfaces in `coverage_guard.cmake`'s scan, but
+// XFAIL'd until amendment-#10 lands the dialect attribute (plus the
+// M5 visitor wiring) needed to materialise the user's named clock
+// and reset ports.
+//
+// Resolution path: amendment-#10 adds `OptionalAttr<StrAttr>` for
+// `interface_clock` and `interface_reset` on `nsl::DeclareOp`; M5
+// visitor populates them from `ast::DeclareBlock::modifier()`; M6
+// reads the attrs in `ModulePatterns.cpp` and emits user-named ports
+// via `seq.compreg`. The XFAIL annotation drops in that PR.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+// XFAIL: *
+
+declare interface(clock=my_clk, reset=my_rst_n) M {
+  input a[8];
+  output q[8];
+}
+
+module M {
+  q = a;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK-SAME: in %my_clk : i1
+// CHECK-SAME: in %my_rst_n : i1
+// CHECK-NOT: in %clk
+// CHECK-NOT: in %rst_n
+// CHECK-NOT: nsl.

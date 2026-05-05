@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/module/implicit_clk_rstn.nsl — M6 Phase 4 (US2)
+// fixture (T034). Per `firreg-convention.contract.md` §1 + the
+// circt-lowering contract §3 rule 6: a declare block WITHOUT the
+// S20 `interface` modifier triggers the implicit `clk` + `rst_n`
+// port pair, appended at the end of the input port list, in that
+// order. This fixture asserts the ordering: data inputs FIRST, then
+// `clk`, then `rst_n`.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  input b[4];
+  output q[8];
+}
+
+module M {
+  q = a;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK-SAME: in %a : i8
+// CHECK-SAME: in %b : i4
+// CHECK-SAME: in %clk : i1
+// CHECK-SAME: in %rst_n : i1
+// CHECK-SAME: out q : i8
+// CHECK-NOT: nsl.

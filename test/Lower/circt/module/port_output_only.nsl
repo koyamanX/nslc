@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/module/port_output_only.nsl — M6 Phase 4 (US2)
+// fixture (T031). Asserts that an `output`-only declare block lowers
+// to `hw.module @M(...) -> (q: i8)` with the output value sourced
+// from the in-module `nsl.transfer` writes consumed during ModuleOp
+// lowering. Implicit `clk`/`rst_n` are appended on the input side.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  output q[8];
+}
+
+module M {
+  q = 0;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK-SAME: in %clk : i1
+// CHECK-SAME: in %rst_n : i1
+// CHECK-SAME: out q : i8
+// CHECK: hw.output
+// CHECK-NOT: nsl.

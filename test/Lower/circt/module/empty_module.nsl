@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/module/empty_module.nsl — M6 Phase 4 (US2)
+// fixture (T035). Port-less `module M {}` (no paired `nsl.declare`)
+// lowers to `hw.module @M() -> ()` with an empty body. Implicit
+// `clk`/`rst_n` are NOT added when the module has no declared data
+// ports — they're only inserted on modules that have a paired
+// declare block lacking the `interface` modifier.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+module M {
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK-NOT: nsl.
+// CHECK-NOT: %a:
+// CHECK-NOT: %clk:
+// CHECK-NOT: %rst_n:
