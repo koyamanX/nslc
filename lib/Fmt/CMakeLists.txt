@@ -44,6 +44,10 @@
 add_library(NslFmt STATIC
   DirectiveSplitter.cpp
   CSTBuilder.cpp
+  Doc.cpp                # T2 Phase 2c — Wadler-Leijen IR (T024)
+  LayoutRenderer.cpp     # T2 Phase 2c — ribbon-fitter (T025)
+  Config.cpp             # T2 Phase 2c — Configuration + key list (partial T088/T089/T087)
+  Format.cpp             # T2 Phase 2c — format_buffer skeleton (T026/T027)
 )
 
 target_include_directories(NslFmt
@@ -51,13 +55,12 @@ target_include_directories(NslFmt
     "${CMAKE_SOURCE_DIR}/include")
 
 # Eventual deps (uncommented per task as each layer's API gets used):
-#   nsl-lex       # Lexer / TokenKind (Phase 2c — needed by Format.cpp)
 #   nsl-ast       # CST node-kind taxonomy mirrors AST (Phase 3)
 #   tomlpp        # TOML config parsing (Phase 6 — T103)
-#   LLVMSupport   # StringRef, Twine, raw_ostream (Phase 2c)
 target_link_libraries(NslFmt
   PUBLIC
     nsl-basic
+    nsl-lex      # T2 Phase 2c — Lexer + Token (used by future Format.cpp paths)
     nsl-parse)   # T2 Phase 2b — CSTSink interface in Parser.h
 
 target_compile_features(NslFmt PUBLIC cxx_std_17)

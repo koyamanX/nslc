@@ -73,15 +73,15 @@ with a CST-mode flag.
 - [X] T018 Implement `Parser::setEmitCST(CSTSink*)` in the private impl file `lib/Parse/CSTMode.cpp` (NO new public header — Parser.h already declares the symbol); the `nsl-fmt` library's `CSTBuilder` (T019) implements the `CSTSink` interface from above the layer boundary, so dependency direction stays downward (Principle II layer-table rule)
 - [X] T019 Implement `lib/Fmt/CSTBuilder.{h,cpp}` per [`data-model.md`](./data-model.md) §3 — `beginNode()` / `recordToken()` / `endNode()` / `takeRoot()`; T016 turns green
 - [X] T020 [P] Create gtest fixture `test_unit/Fmt/directive_splitter_test.cc::CSTInvariants` asserting every CSTNode has a non-empty `SourceRange`, no overlapping child ranges, no byte-loss (per [`contracts/cst-shape.contract.md`](./contracts/cst-shape.contract.md) §3 invariants table) — observe FAILING then green after T019
-- [ ] T021 [P] Create gtest fixture `test_unit/Fmt/doc_layout_test.cc::TextConcatRender` asserting `Doc::concat({Doc::text("a"), Doc::text("b")})` renders to `"ab"` — observe FAILING
-- [ ] T022 [P] Create gtest fixture `test_unit/Fmt/doc_layout_test.cc::GroupRibbonFitting` asserting `Doc::group(Doc::concat({Doc::text("a"), Doc::line(), Doc::text("b")}))` renders to `"a b"` at width 100 and `"a\nb"` at width 1 — observe FAILING
-- [ ] T023 [P] Create gtest fixture `test_unit/Fmt/doc_layout_test.cc::NestIndent` asserting `Doc::nest(4, Doc::concat({Doc::hardline(), Doc::text("x")}))` renders with 4-space indent — observe FAILING
-- [ ] T024 Implement `lib/Fmt/Doc.{h,cpp}` per [`data-model.md`](./data-model.md) §4 — seven Doc constructors using `std::variant` + `std::shared_ptr`; pure data
-- [ ] T025 Implement `lib/Fmt/LayoutRenderer.{h,cpp}` — ribbon-fitting renderer that consumes a `Doc` and produces the final byte stream; T021/T022/T023 turn green
-- [ ] T026 Implement `lib/Fmt/Format.{h,cpp}` `format_buffer()` skeleton that wires DirectiveSplitter → CSTBuilder (via Parser CST-mode) → empty LayoutPlanner → LayoutRenderer; returns `FormatResult{Status::Success, ...}` per [`contracts/format-api.contract.md`](./contracts/format-api.contract.md) §3
-- [ ] T027 Wire `basic::DiagnosticEngine` integration in `lib/Fmt/Format.cpp` per [`research.md`](./research.md) §9 — every internal diagnostic is appended to `FormatResult::diagnostics`; the CLI's stderr renderer reuses the existing engine
-- [ ] T028 Extend `scripts/audit_determinism.sh` to also scan `lib/Fmt/` for forbidden patterns (`std::unordered_*`, pointer-derived ordering, time sources, env reads) per [`contracts/format-api.contract.md`](./contracts/format-api.contract.md) §6
-- [ ] T029 Create `scripts/audit_fmt_api.sh` that greps `include/nsl/Fmt/Fmt.h` and asserts the public symbol count equals exactly 10 per [`contracts/format-api.contract.md`](./contracts/format-api.contract.md) §5
+- [X] T021 [P] Create gtest fixture `test_unit/Fmt/doc_layout_test.cc::TextConcatRender` asserting `Doc::concat({Doc::text("a"), Doc::text("b")})` renders to `"ab"` — observe FAILING
+- [X] T022 [P] Create gtest fixture `test_unit/Fmt/doc_layout_test.cc::GroupRibbonFitting` asserting `Doc::group(Doc::concat({Doc::text("a"), Doc::line(), Doc::text("b")}))` renders to `"a b"` at width 100 and `"a\nb"` at width 1 — observe FAILING
+- [X] T023 [P] Create gtest fixture `test_unit/Fmt/doc_layout_test.cc::NestIndent` asserting `Doc::nest(4, Doc::concat({Doc::hardline(), Doc::text("x")}))` renders with 4-space indent — observe FAILING
+- [X] T024 Implement `lib/Fmt/Doc.{h,cpp}` per [`data-model.md`](./data-model.md) §4 — seven Doc constructors using `std::variant` + `std::shared_ptr`; pure data
+- [X] T025 Implement `lib/Fmt/LayoutRenderer.{h,cpp}` — ribbon-fitting renderer that consumes a `Doc` and produces the final byte stream; T021/T022/T023 turn green
+- [X] T026 Implement `lib/Fmt/Format.{h,cpp}` `format_buffer()` skeleton that wires DirectiveSplitter → CSTBuilder (via Parser CST-mode) → empty LayoutPlanner → LayoutRenderer; returns `FormatResult{Status::Success, ...}` per [`contracts/format-api.contract.md`](./contracts/format-api.contract.md) §3
+- [X] T027 Wire `basic::DiagnosticEngine` integration in `lib/Fmt/Format.cpp` per [`research.md`](./research.md) §9 — every internal diagnostic is appended to `FormatResult::diagnostics`; the CLI's stderr renderer reuses the existing engine
+- [X] T028 Extend `scripts/audit_determinism.sh` to also scan `lib/Fmt/` for forbidden patterns (`std::unordered_*`, pointer-derived ordering, time sources, env reads) per [`contracts/format-api.contract.md`](./contracts/format-api.contract.md) §6
+- [X] T029 Create `scripts/audit_fmt_api.sh` that greps `include/nsl/Fmt/Fmt.h` and asserts the public symbol count equals exactly 10 per [`contracts/format-api.contract.md`](./contracts/format-api.contract.md) §5
 
 **Phase 2 checkpoint**: `ninja check-fmt-unit` passes the 7
 foundational unit tests (T011, T012, T013, T016, T020, T021, T022,

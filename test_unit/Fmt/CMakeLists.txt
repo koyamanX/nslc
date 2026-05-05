@@ -59,3 +59,26 @@ gtest_discover_tests(directive_splitter_test
 # them up via that property.
 set_property(GLOBAL APPEND PROPERTY _NSL_FMT_GTEST_BINARIES
   directive_splitter_test)
+
+# -----------------------------------------------------------------------------
+# Phase 2c — Wadler-Leijen Doc IR + LayoutRenderer (T021, T022, T023)
+# -----------------------------------------------------------------------------
+add_executable(doc_layout_test
+  doc_layout_test.cpp)
+
+target_link_libraries(doc_layout_test
+  PRIVATE
+    NslFmt
+    GTest::gtest_main)
+
+target_include_directories(doc_layout_test
+  PRIVATE
+    "${CMAKE_SOURCE_DIR}/lib/Fmt")  # private headers Doc.h, LayoutRenderer.h
+
+gtest_discover_tests(doc_layout_test
+  PROPERTIES
+    TIMEOUT 30
+    LABELS Fmt)
+
+set_property(GLOBAL APPEND PROPERTY _NSL_FMT_GTEST_BINARIES
+  doc_layout_test)
