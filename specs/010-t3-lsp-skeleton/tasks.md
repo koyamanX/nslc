@@ -70,67 +70,67 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 
 ### 2a. Core utilities
 
-- [ ] T012 [P] Implement `lib/LSP/PositionEncoding.{h,cpp}` per data-model §2.6 / R6: `byteOffsetToLspPosition(StringRef line, size_t byteOffset)` and `lspPositionToByteOffset(StringRef line, uint32 character)`; ASCII fast-path short-circuit; SPDX headers
-- [ ] T013 [P] Implement `lib/LSP/Logger.{h,cpp}` per contract §7: stderr writer with ISO-8601-timestamp prefix, level filtering via `Logger::level()`, `NSL_LSP_LOG_LEVEL` env-var parser that exits non-zero on invalid value (FR-020e), `NSL_LSP_LOG` macro using `llvm::formatv`. Document-content blacklist per contract §7.5 (no API to log raw `didOpen.text` payloads)
-- [ ] T014 [P] Implement `lib/LSP/IncludeSearchPath.h` declaring the `IncludeSearchPath` struct per data-model §2.6; SPDX header
-- [ ] T015 Implement `lib/LSP/IncludeSearchPath.cpp` providing `IncludeSearchPath::fromEnv()` that reads `NSL_INCLUDE` per contract §8 (POSIX colon, Windows semicolon); empty / unset → empty `angle_paths`; INFO-log the resolved path per contract §8.4
-- [ ] T016 [P] Implement `lib/LSP/CancellationToken.h` per data-model §2.5: shared-pointer + atomic-bool + `isCancelled()`. Header-only (no .cpp); SPDX header
-- [ ] T017 [P] Implement `lib/LSP/RequestId.h` declaring `using RequestId = std::variant<int64_t, std::string>;` and helper hash/equality functors so `llvm::DenseMap<RequestId, …>` works
+- [X] T012 [P] Implement `lib/LSP/PositionEncoding.{h,cpp}` per data-model §2.6 / R6: `byteOffsetToLspPosition(StringRef line, size_t byteOffset)` and `lspPositionToByteOffset(StringRef line, uint32 character)`; ASCII fast-path short-circuit; SPDX headers
+- [X] T013 [P] Implement `lib/LSP/Logger.{h,cpp}` per contract §7: stderr writer with ISO-8601-timestamp prefix, level filtering via `Logger::level()`, `NSL_LSP_LOG_LEVEL` env-var parser that exits non-zero on invalid value (FR-020e), `NSL_LSP_LOG` macro using `llvm::formatv`. Document-content blacklist per contract §7.5 (no API to log raw `didOpen.text` payloads)
+- [X] T014 [P] Implement `lib/LSP/IncludeSearchPath.h` declaring the `IncludeSearchPath` struct per data-model §2.6; SPDX header
+- [X] T015 Implement `lib/LSP/IncludeSearchPath.cpp` providing `IncludeSearchPath::fromEnv()` that reads `NSL_INCLUDE` per contract §8 (POSIX colon, Windows semicolon); empty / unset → empty `angle_paths`; INFO-log the resolved path per contract §8.4
+- [X] T016 [P] Implement `lib/LSP/CancellationToken.h` per data-model §2.5: shared-pointer + atomic-bool + `isCancelled()`. Header-only (no .cpp); SPDX header
+- [X] T017 [P] Implement `lib/LSP/RequestId.h` declaring `using RequestId = std::variant<int64_t, std::string>;` and helper hash/equality functors so `llvm::DenseMap<RequestId, …>` works
 
 ### 2b. Transport
 
-- [ ] T018 Implement `lib/LSP/JSONTransport.{h,cpp}` per data-model §2.1 / R1: `Content-Length:`-framed reader using a state machine that handles the four edge cases — incomplete header (block until more bytes), malformed JSON (log ERROR, skip message), partial body (block), EOF (return std::nullopt). `writeMessage` is mutex-protected per data-model §2.1
+- [X] T018 Implement `lib/LSP/JSONTransport.{h,cpp}` per data-model §2.1 / R1: `Content-Length:`-framed reader using a state machine that handles the four edge cases — incomplete header (block until more bytes), malformed JSON (log ERROR, skip message), partial body (block), EOF (return std::nullopt). `writeMessage` is mutex-protected per data-model §2.1
 - [ ] T019 Author a JSONTransport unit test (gtest) under `test/lsp/JSONTransport_test.cpp`: round-trip simple message, round-trip nested object, malformed-header rejection, malformed-JSON rejection, EOF detection. Lives in `test/lsp/CMakeLists.txt`'s test list
 
 ### 2c. Per-document state
 
-- [ ] T020 Implement `lib/LSP/NslTU.{h,cpp}` skeleton per data-model §2.4: `State` struct (version, contents, ast, diagnostics, symbols), `reparse(version, contents, includes)` stub that stores the inputs without actually parsing yet (real parse wiring in T040), `withState(fn)` accessor, `cancelInFlight()` stub
-- [ ] T021 Implement `lib/LSP/TUScheduler.{h,cpp}` skeleton per data-model §2.4: `llvm::StringMap<std::unique_ptr<NslTU>>` keyed on URI, `open(uri)`, `update(uri, version, contents, includes)`, `close(uri)`, `withState(uri, fn)`, `setOnDiagnostics(cb)`. Owns an `llvm::ThreadPool` constructed from `NSL_LSP_WORKERS` env var (default `min(hwconc, 4)` per R2; out-of-range value exits non-zero per contract §9)
-- [ ] T022 Implement `lib/LSP/NslServer.{h,cpp}` skeleton per data-model §2.3: owns a `TUScheduler` and an `IncludeSearchPath`; provides `openOrUpdate`, `close`, `withDiagnostics`, `foldingRange` (stub returning `{}`)
+- [X] T020 Implement `lib/LSP/NslTU.{h,cpp}` skeleton per data-model §2.4: `State` struct (version, contents, ast, diagnostics, symbols), `reparse(version, contents, includes)` stub that stores the inputs without actually parsing yet (real parse wiring in T040), `withState(fn)` accessor, `cancelInFlight()` stub
+- [X] T021 Implement `lib/LSP/TUScheduler.{h,cpp}` skeleton per data-model §2.4: `llvm::StringMap<std::unique_ptr<NslTU>>` keyed on URI, `open(uri)`, `update(uri, version, contents, includes)`, `close(uri)`, `withState(uri, fn)`, `setOnDiagnostics(cb)`. Owns an `llvm::ThreadPool` constructed from `NSL_LSP_WORKERS` env var (default `min(hwconc, 4)` per R2; out-of-range value exits non-zero per contract §9)
+- [X] T022 Implement `lib/LSP/NslServer.{h,cpp}` skeleton per data-model §2.3: owns a `TUScheduler` and an `IncludeSearchPath`; provides `openOrUpdate`, `close`, `withDiagnostics`, `foldingRange` (stub returning `{}`)
 
 ### 2d. Protocol layer + lifecycle handlers
 
-- [ ] T023 Implement `lib/LSP/NslLSPServer.{h,cpp}` skeleton per data-model §2.2: dispatch table (method-name → handler-fn), in-flight-request table (RequestId → CancellationToken), constructor takes `JSONTransport&` + `NslServer&`. `run()` enters the main read-loop
-- [ ] T024 Wire `NslLSPServer::onInitialize` per contract §1.1–§1.2: log INFO; build the canonical capabilities `llvm::json::Object` matching contract §1.2 byte-for-byte (post-canonicalization); set `initialized_ = false` until `initialized` notification arrives
-- [ ] T025 Wire `NslLSPServer::onInitialized` per contract §1.3: set `initialized_ = true`; log INFO
-- [ ] T026 Wire `NslLSPServer::onShutdown` per contract §5.1: drain pending parse work via TUScheduler; for every still-open document emit one final empty `publishDiagnostics`; respond `null`; mark `shutdown_received_ = true`. Subsequent non-`exit` requests respond with `InvalidRequest` (-32600)
-- [ ] T027 Wire `NslLSPServer::onExit` per contract §5.2: exit 0 if `shutdown_received_`, else exit 1
-- [ ] T028 Wire `NslLSPServer::run` main message loop: `transport_.readMessage()` → parse JSON-RPC envelope → if `id`+`method` route as request, if just `method` route as notification, if `id`+`result|error` (server-side: shouldn't occur at T3); reject pre-`initialized` non-`initialize`/`shutdown`/`exit` requests with `ServerNotInitialized` (-32002) per contract §1.3
-- [ ] T029 Wire `runStdioServer` in `lib/LSP/Server.cpp` to (a) initialize `Logger` from `NSL_LSP_LOG_LEVEL`, (b) build `IncludeSearchPath::fromEnv()`, (c) construct `JSONTransport(std::cin, std::cout)`, (d) construct `NslServer(includes)`, (e) construct `NslLSPServer(transport, server)`, (f) return `server.run()`. Top-level try/catch around the run loop logs ERROR on uncaught exception and returns 1
+- [X] T023 Implement `lib/LSP/NslLSPServer.{h,cpp}` skeleton per data-model §2.2: dispatch table (method-name → handler-fn), in-flight-request table (RequestId → CancellationToken), constructor takes `JSONTransport&` + `NslServer&`. `run()` enters the main read-loop
+- [X] T024 Wire `NslLSPServer::onInitialize` per contract §1.1–§1.2: log INFO; build the canonical capabilities `llvm::json::Object` matching contract §1.2 byte-for-byte (post-canonicalization); set `initialized_ = false` until `initialized` notification arrives
+- [X] T025 Wire `NslLSPServer::onInitialized` per contract §1.3: set `initialized_ = true`; log INFO
+- [X] T026 Wire `NslLSPServer::onShutdown` per contract §5.1: drain pending parse work via TUScheduler; for every still-open document emit one final empty `publishDiagnostics`; respond `null`; mark `shutdown_received_ = true`. Subsequent non-`exit` requests respond with `InvalidRequest` (-32600)
+- [X] T027 Wire `NslLSPServer::onExit` per contract §5.2: exit 0 if `shutdown_received_`, else exit 1
+- [X] T028 Wire `NslLSPServer::run` main message loop: `transport_.readMessage()` → parse JSON-RPC envelope → if `id`+`method` route as request, if just `method` route as notification, if `id`+`result|error` (server-side: shouldn't occur at T3); reject pre-`initialized` non-`initialize`/`shutdown`/`exit` requests with `ServerNotInitialized` (-32002) per contract §1.3
+- [X] T029 Wire `runStdioServer` in `lib/LSP/Server.cpp` to (a) initialize `Logger` from `NSL_LSP_LOG_LEVEL`, (b) build `IncludeSearchPath::fromEnv()`, (c) construct `JSONTransport(std::cin, std::cout)`, (d) construct `NslServer(includes)`, (e) construct `NslLSPServer(transport, server)`, (f) return `server.run()`. Top-level try/catch around the run loop logs ERROR on uncaught exception and returns 1
 
 ### 2e. Test harness
 
-- [ ] T030 Implement `test/lsp/LspSession.h` per harness contract §1: declarations for `LspEnvVars`, `LspSession` (constructor, destructor, sendRequest, sendNotification, waitForMessage/Response/Diagnostics, exitCode, capturedStderr); SPDX header
-- [ ] T031 Implement `test/lsp/LspSession.cpp` constructor + destructor: spawn `nsl-lsp` via `llvm::sys::ExecuteAndWait`-style pipe management or `llvm::sys::Process`; setup stdin/stdout/stderr pipes; pass `LspEnvVars` to child via inherited+override env. Destructor sends `shutdown`+`exit` if not already, waits up to 5 s, SIGKILL otherwise
-- [ ] T032 Implement `LspSession` send-side: `sendRequest(method, params)` allocates fresh int64 id, frames JSON-RPC, writes via stdin pipe, returns id. `sendNotification(method, params)` frames, writes
-- [ ] T033 Implement `LspSession` receive-side: background reader thread on stdout pipe reads `Content-Length` framing, parses each message into `llvm::json::Value`, deposits in a queue protected by mutex+condvar. `waitForMessage(timeout)` blocks; `waitForResponse(id, timeout)` filters by `id`; `waitForDiagnostics(timeout)` filters by `method == "textDocument/publishDiagnostics"`
-- [ ] T034 Implement `LspSession` stderr capture: separate background thread reads stderr pipe into an internal `std::string` until EOF; `capturedStderr()` returns the accumulated string (blocks until process exits)
-- [ ] T035 Implement `LspSession::exitCode()`: blocks until the subprocess terminates and returns its exit code
+- [X] T030 Implement `test/lsp/LspSession.h` per harness contract §1: declarations for `LspEnvVars`, `LspSession` (constructor, destructor, sendRequest, sendNotification, waitForMessage/Response/Diagnostics, exitCode, capturedStderr); SPDX header
+- [X] T031 Implement `test/lsp/LspSession.cpp` constructor + destructor: spawn `nsl-lsp` via `llvm::sys::ExecuteAndWait`-style pipe management or `llvm::sys::Process`; setup stdin/stdout/stderr pipes; pass `LspEnvVars` to child via inherited+override env. Destructor sends `shutdown`+`exit` if not already, waits up to 5 s, SIGKILL otherwise
+- [X] T032 Implement `LspSession` send-side: `sendRequest(method, params)` allocates fresh int64 id, frames JSON-RPC, writes via stdin pipe, returns id. `sendNotification(method, params)` frames, writes
+- [X] T033 Implement `LspSession` receive-side: background reader thread on stdout pipe reads `Content-Length` framing, parses each message into `llvm::json::Value`, deposits in a queue protected by mutex+condvar. `waitForMessage(timeout)` blocks; `waitForResponse(id, timeout)` filters by `id`; `waitForDiagnostics(timeout)` filters by `method == "textDocument/publishDiagnostics"`
+- [X] T034 Implement `LspSession` stderr capture: separate background thread reads stderr pipe into an internal `std::string` until EOF; `capturedStderr()` returns the accumulated string (blocks until process exits)
+- [X] T035 Implement `LspSession::exitCode()`: blocks until the subprocess terminates and returns its exit code
 - [ ] T036 [P] Author shared fixtures: `test/lsp/fixtures/clean_module.nsl` (one error-free module), `test/lsp/fixtures/empty.nsl` (zero bytes — verified via `wc -c == 0`)
 
 ### 2f. Lifecycle integration tests (test-first per Principle VIII)
 
 > **Land tests T037–T041 FIRST and observe FAILING against the unchanged tree before T042–T047 implementation tasks.** Record the failing-state commit hash in the PR description per Principle VIII no-retrofitted-tests clause. (Most lifecycle handlers have stubs after T024–T028; the failure surface is the missing capability JSON, missing exit-code logic, etc.)
 
-- [ ] T037 Author `test/lsp/lifecycle_test.cpp` `LifecycleSuite::CapabilitiesExact`: define `kFrozenCapabilitiesJSON` literal matching contract §1.2 verbatim; spawn session, send `initialize`, assert byte-equal canonical JSON match. Land FAILING (capabilities object likely empty until T024 fully wires)
-- [ ] T038 Author `LifecycleSuite::ShutdownExit_Code0` (initialize → initialized → shutdown → exit → exitCode == 0); `LifecycleSuite::ExitWithoutShutdown_Code1` in same file. Land FAILING
-- [ ] T039 Author `LifecycleSuite::PreInitialized_RejectsRequest`: send `initialize`, do NOT send `initialized`, send `textDocument/foldingRange`; assert response carries error code `-32002` (`ServerNotInitialized`). Land FAILING
-- [ ] T040 Author `LifecycleSuite::InvalidLogLevel_ExitsNonZero`: spawn with `NSL_LSP_LOG_LEVEL=garbage`; assert process exits non-zero before `initialize` would respond; assert stderr identifies the bad value (regex match). Land FAILING
-- [ ] T041 Author `LifecycleSuite::NSLIncludeLoggedAtStartup`: spawn with `NSL_INCLUDE=/tmp/foo:/tmp/bar`; send `initialize`+`initialized`+`shutdown`+`exit`; assert `capturedStderr()` regex-matches `INFO .*include.*\\/tmp\\/foo.*\\/tmp\\/bar` per contract §8.4. Land FAILING
+- [X] T037 Author `test/lsp/lifecycle_test.cpp` `LifecycleSuite::CapabilitiesExact`: define `kFrozenCapabilitiesJSON` literal matching contract §1.2 verbatim; spawn session, send `initialize`, assert byte-equal canonical JSON match. Land FAILING (capabilities object likely empty until T024 fully wires)
+- [X] T038 Author `LifecycleSuite::ShutdownExit_Code0` (initialize → initialized → shutdown → exit → exitCode == 0); `LifecycleSuite::ExitWithoutShutdown_Code1` in same file. Land FAILING
+- [X] T039 Author `LifecycleSuite::PreInitialized_RejectsRequest`: send `initialize`, do NOT send `initialized`, send `textDocument/foldingRange`; assert response carries error code `-32002` (`ServerNotInitialized`). Land FAILING
+- [X] T040 Author `LifecycleSuite::InvalidLogLevel_ExitsNonZero`: spawn with `NSL_LSP_LOG_LEVEL=garbage`; assert process exits non-zero before `initialize` would respond; assert stderr identifies the bad value (regex match). Land FAILING
+- [X] T041 Author `LifecycleSuite::NSLIncludeLoggedAtStartup`: spawn with `NSL_INCLUDE=/tmp/foo:/tmp/bar`; send `initialize`+`initialized`+`shutdown`+`exit`; assert `capturedStderr()` regex-matches `INFO .*include.*\\/tmp\\/foo.*\\/tmp\\/bar` per contract §8.4. Land FAILING
 - [ ] T042 Run all `LifecycleSuite` tests via `ctest -R "lsp_lifecycle"`; observed FAILING; capture output to `${TMPDIR:-/tmp}/t3-lifecycle-red.txt` for the PR description
 
 ### 2g. CI integration
 
-- [ ] T043 Amend `scripts/ci.sh` stage 3 (unit-tests) to invoke `ctest --test-dir "$BUILD_DIR" -R "^lsp_" --output-on-failure` after the existing layer-test invocation; preserve existing exit-on-failure behavior; add a per-stage time-budget warning (informational) if combined wall-clock exceeds 30 s per SC-007
-- [ ] T044 Run `./scripts/ci.sh unit-tests` inside the dev container; verify the new `lsp_*` tests run, fail per T042 expectations, and the stage exits non-zero
+- [X] T043 Amend `scripts/ci.sh` stage 3 (unit-tests) to invoke `ctest --test-dir "$BUILD_DIR" -R "^lsp_" --output-on-failure` after the existing layer-test invocation; preserve existing exit-on-failure behavior; add a per-stage time-budget warning (informational) if combined wall-clock exceeds 30 s per SC-007
+- [X] T044 Run `./scripts/ci.sh unit-tests` inside the dev container; verify the new `lsp_*` tests run, fail per T042 expectations, and the stage exits non-zero
 
 ### 2h. Make foundational tests PASS
 
-- [ ] T045 Make `LifecycleSuite::CapabilitiesExact` PASS — verify `NslLSPServer::onInitialize` produces the contract §1.2 canonical JSON byte-for-byte; canonicalize via `llvm::json::OStream` with `IndentSize = 0` and sorted keys (a small canonicalization helper in `lib/LSP/JsonCanonical.{h,cpp}` if needed)
-- [ ] T046 Make `LifecycleSuite::ShutdownExit_Code0` and `LifecycleSuite::ExitWithoutShutdown_Code1` PASS
-- [ ] T047 Make `LifecycleSuite::PreInitialized_RejectsRequest` PASS
-- [ ] T048 Make `LifecycleSuite::InvalidLogLevel_ExitsNonZero` PASS — `Logger::init` checks the env var, prints to stderr, calls `std::exit(1)` before `runStdioServer` proceeds
-- [ ] T049 Make `LifecycleSuite::NSLIncludeLoggedAtStartup` PASS — `runStdioServer` logs INFO after `IncludeSearchPath::fromEnv()` returns
+- [X] T045 Make `LifecycleSuite::CapabilitiesExact` PASS — verify `NslLSPServer::onInitialize` produces the contract §1.2 canonical JSON byte-for-byte; canonicalize via `llvm::json::OStream` with `IndentSize = 0` and sorted keys (a small canonicalization helper in `lib/LSP/JsonCanonical.{h,cpp}` if needed)
+- [X] T046 Make `LifecycleSuite::ShutdownExit_Code0` and `LifecycleSuite::ExitWithoutShutdown_Code1` PASS
+- [X] T047 Make `LifecycleSuite::PreInitialized_RejectsRequest` PASS
+- [X] T048 Make `LifecycleSuite::InvalidLogLevel_ExitsNonZero` PASS — `Logger::init` checks the env var, prints to stderr, calls `std::exit(1)` before `runStdioServer` proceeds
+- [X] T049 Make `LifecycleSuite::NSLIncludeLoggedAtStartup` PASS — `runStdioServer` logs INFO after `IncludeSearchPath::fromEnv()` returns
 
 **Checkpoint**: Foundation ready — JSON-RPC works, lifecycle tests all PASS, CI integration in place. User-story implementation can now begin.
 

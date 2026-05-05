@@ -21,9 +21,26 @@
 #   ast, parse, sema, dialect, lower).
 
 add_library(NSLLSP STATIC
-  Server.cpp)
+  Server.cpp
+  PositionEncoding.cpp
+  Logger.cpp
+  IncludeSearchPath.cpp
+  JSONTransport.cpp
+  NslTU.cpp
+  TUScheduler.cpp
+  NslServer.cpp
+  NslLSPServer.cpp)
 
 target_compile_features(NSLLSP PUBLIC cxx_std_17)
+
+# Match the LLVM-ecosystem `-fno-rtti` convention (already applied
+# to nsl-driver / nsl-lower / nsl-dialect). NSLLSP consumes
+# `llvm::formatv` and other LLVM Support types whose templates
+# reference RTTI symbols on the upstream side; `libMLIR.a` /
+# `libLLVMSupport.a` are themselves built `-fno-rtti`, so without
+# matching, the linker fails on `typeinfo for
+# llvm::support::detail::format_adapter` and similar templates.
+target_compile_options(NSLLSP PRIVATE -fno-rtti)
 
 set_target_properties(NSLLSP PROPERTIES
   POSITION_INDEPENDENT_CODE ON
