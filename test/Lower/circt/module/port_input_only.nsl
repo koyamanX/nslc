@@ -2,10 +2,11 @@
 //
 // test/Lower/circt/module/port_input_only.nsl — M6 Phase 4 (US2)
 // fixture (T030). Asserts that an `input`-only declare block lowers
-// to `hw.module @M(%a: i8, %clk: i1, %rst_n: i1)` per
-// `circt-lowering.contract.md` §3 rule 6 (implicit clk + rst_n
+// to `hw.module @M(%a: i8, %m_clock: i1, %p_reset: i1)` per
+// `circt-lowering.contract.md` §3 rule 6 (implicit m_clock + p_reset
 // appended at end of input port list when no `interface` modifier
-// is present).
+// is present). Round-1 review correction (PR #14): the implicit
+// auto-synth names come from nsl_lang.ebnf §15 lines 818, 820.
 
 // RUN: %nslc -emit=hw %s | %FileCheck %s
 
@@ -18,6 +19,6 @@ module M {
 
 // CHECK-LABEL: hw.module @M
 // CHECK-SAME: in %a : i8
-// CHECK-SAME: in %clk : i1
-// CHECK-SAME: in %rst_n : i1
+// CHECK-SAME: in %m_clock : i1
+// CHECK-SAME: in %p_reset : i1
 // CHECK-NOT: nsl.

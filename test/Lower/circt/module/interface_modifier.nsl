@@ -33,6 +33,6 @@ module M {
 // CHECK-SAME: in %my_clk : i1
 // CHECK-SAME: in %my_rst_n : i1
 // CHECK-SAME: out q : i8
-// CHECK-NOT: in %clk : i1
-// CHECK-NOT: in %rst_n : i1
+// CHECK-NOT: in %m_clock : i1
+// CHECK-NOT: in %p_reset : i1
 // CHECK-NOT: nsl.

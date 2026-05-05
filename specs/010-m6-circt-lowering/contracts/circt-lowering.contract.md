@@ -32,7 +32,7 @@ in one PR.
 | `nsl::SubmoduleOp` (singleton form) | `circt::hw::InstanceOp` | ParamPatterns | Array form already exploded by M5's `NSLExplodeSubmodArrayPass` |
 | `nsl::ParamIntOp` | `hw::InstanceOp` parameter wire (i32 typed) | ParamPatterns | S16 — only on HDL-bound `hw::InstanceOp`s |
 | `nsl::ParamStrOp` | `hw::InstanceOp` parameter wire (string typed) | ParamPatterns | S16 — only on HDL-bound `hw::InstanceOp`s |
-| `nsl::RegOp` (no `interface`) | `circt::seq::FirRegOp` | StatePatterns | Async, active-low reset (Q2 → C); reset value = `nsl.reg` initializer |
+| `nsl::RegOp` (no `interface`) | `circt::seq::FirRegOp` | StatePatterns | Async, active-HIGH reset (Q2 → C, polarity corrected by PR #14 Round-1 review per `nsl_lang.ebnf` §15 line 820's `p_reset` prefix); reset value = `nsl.reg` initializer |
 | `nsl::RegOp` (with `interface` modifier, S20) | `circt::seq::CompRegOp` | StatePatterns | User-declared clock/reset names + polarities |
 | `nsl::WireOp` | `circt::hw::WireOp` | StatePatterns | |
 | `nsl::MemOp` | `circt::seq::FirMemOp` | StatePatterns | Depth + width preserved; init values per S24 zero-fill |
@@ -166,11 +166,17 @@ routed to a single `hw::OutputOp` at the end of the body);
    exposed as ports. (Source: `nsl::FuncOutOp` ops inside
    `nsl::ModuleOp`'s body.)
 6. **Implicit port additions** (no `interface` modifier present):
-   one `clk` input port (typed `i1`) and one `rst_n` input port
-   (typed `i1`) appended at the END of the input port list (Q2
-   → C convention). Module body's `seq::FirRegOp`s wire their
-   clock to `clk` and reset to a `comb::ICmpOp eq %rst_n, 0`-
-   derived condition.
+   one `m_clock` input port (typed `i1`) and one `p_reset` input
+   port (typed `i1`) appended at the END of the input port list
+   (Q2 → C convention). Module body's `seq::FirRegOp`s wire their
+   clock to `m_clock` (via `seq::ToClockOp`) and the reset operand
+   directly to the `p_reset` block-arg (active-HIGH; no
+   `comb::ICmpOp` adapter). **Round-1 review correction (PR #14,
+   2026-05-04)**: the implicit-port names and reset polarity are
+   sourced from `nsl_lang.ebnf` §15 lines 818, 820 (`m_clock` =
+   auto-synthesized clock, `p_reset` = auto-synthesized reset
+   with `p_` indicating active-HIGH). The previous active-LOW
+   `clk` / `rst_n` convention violated the spec.
 7. **Explicit `interface` (S20)**: the user names clock(s) and
    reset(s) directly in the `interface` clause. Per post-merge
    M4-amendment 2026-05-05 (#10), the modifier IS surfaced on
@@ -229,6 +235,13 @@ If no `default` is present, the fallback is:
 
 ## §5. `nsl::AnyOp` parallel encoding
 
+**Round-1 review correction (PR #14, 2026-05-04)**: the M6
+`lowerAnyOp` previously funnelled cases through the same priority
+chain as `lowerAltOp`, producing nested `comb::MuxOp` updates that
+violated S13 parallel semantics (last-case-wins for shared targets
+when multiple cases matched). The corrected implementation builds
+per-target accumulators and emits the parallel-OR shape below.
+
 **Pattern**: per-target `comb::OrOp` of `comb::MuxOp` envelopes.
 For each target wire/reg LHS in the `nsl::AnyOp`'s region:
 
@@ -243,6 +256,8 @@ For each target wire/reg LHS in the `nsl::AnyOp`'s region:
 
 S13 parallel semantics: every matching case fires; non-matching
 cases contribute zero (which, OR'd with anything, is identity).
+The fixture `test/Lower/circt/control/any_parallel.nsl` is the
+canonical regression for this rule.
 
 ---
 

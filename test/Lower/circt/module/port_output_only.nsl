@@ -17,8 +17,8 @@ module M {
 }
 
 // CHECK-LABEL: hw.module @M
-// CHECK-SAME: in %clk : i1
-// CHECK-SAME: in %rst_n : i1
+// CHECK-SAME: in %m_clock : i1
+// CHECK-SAME: in %p_reset : i1
 // CHECK-SAME: out q : i8
 // CHECK: hw.output
 // CHECK-NOT: nsl.

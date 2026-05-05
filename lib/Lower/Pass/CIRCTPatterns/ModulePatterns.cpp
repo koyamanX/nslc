@@ -160,19 +160,25 @@ void buildPortInfo(nsl::dialect::DeclareOp declareOp,
       rstPort.loc = declareOp.getLoc();
       inputs.push_back(rstPort);
     } else {
+      // Implicit auto-synthesized ports use the NSL-spec-reserved names
+      // `m_clock` (auto-synthesized clock) and `p_reset` (auto-synthesized
+      // reset, ACTIVE-HIGH per the `p_` prefix convention — `n_reset`
+      // would be the active-low form). See nsl_lang.ebnf §15 lines
+      // 818, 820. Round-1 review correction (PR #14): the previous
+      // `clk` / `rst_n` naming + active-low polarity violated the spec.
       circt::hw::PortInfo clkPort;
-      clkPort.name = mlir::StringAttr::get(ctx, "clk");
+      clkPort.name = mlir::StringAttr::get(ctx, "m_clock");
       clkPort.type = i1;
       clkPort.dir = circt::hw::ModulePort::Direction::Input;
       clkPort.loc = implicitLoc;
       inputs.push_back(clkPort);
 
-      circt::hw::PortInfo rstnPort;
-      rstnPort.name = mlir::StringAttr::get(ctx, "rst_n");
-      rstnPort.type = i1;
-      rstnPort.dir = circt::hw::ModulePort::Direction::Input;
-      rstnPort.loc = implicitLoc;
-      inputs.push_back(rstnPort);
+      circt::hw::PortInfo rstPort;
+      rstPort.name = mlir::StringAttr::get(ctx, "p_reset");
+      rstPort.type = i1;
+      rstPort.dir = circt::hw::ModulePort::Direction::Input;
+      rstPort.loc = implicitLoc;
+      inputs.push_back(rstPort);
     }
   }
 
@@ -255,15 +261,22 @@ struct ModuleLoweringCtx {
   };
   llvm::SmallVector<std::pair<llvm::StringRef, RegInfo>, 4> regs;
 
-  /// Wire records: (name, original-nsl-result, location). Each wire
-  /// is materialised as an `hw::WireOp` ONLY when its driver is
-  /// known (via the first nsl.transfer with this wire as LHS), so
-  /// SSA dominance is preserved.
+  /// Wire records: (name, original-nsl-result, location). Per Round-1
+  /// review fix for PR #14 Finding #10: `hw::WireOp` materialization
+  /// is fully DEFERRED to `finaliseWires` (called after the body
+  /// walk). During the walk, each transfer-to-wire updates a running
+  /// `pendingDriver` chain (last-wins for unconditional writes;
+  /// `comb.mux(cond, new, prev)` envelope for conditional writes).
+  /// Reads of the wire's nsl result resolve via `ctx.valueMap` to
+  /// the most recent `pendingDriver`. This guarantees the final
+  /// `hw::WireOp`'s input operand is dominated by all its producers.
   struct WireInfo {
     llvm::StringRef name;
     mlir::Value origResult;
     std::optional<mlir::Location> loc;
-    circt::hw::WireOp hwWireOp; // populated lazily
+    mlir::IntegerType intType;     // wire data type (iW)
+    mlir::Value pendingDriver;     // running mux chain (most-recent write)
+    circt::hw::WireOp hwWireOp;    // populated by finaliseWires
   };
   llvm::SmallVector<WireInfo, 4> wires;
 
@@ -322,31 +335,23 @@ mlir::Value getOrBuildClockSeq(ModuleLoweringCtx &ctx,
   return ctx.clockSeq;
 }
 
-/// Get-or-create the async-active-low reset-fires bit
-/// (`comb.icmp eq %rst_n, 0`).
+/// Get-or-create the async-active-HIGH reset-fires bit. Round-1
+/// review correction (PR #14): the implicit reset port `p_reset`
+/// is active-HIGH per the NSL `p_` prefix convention (nsl_lang.ebnf
+/// §15 line 820); the FirRegOp's reset operand is therefore the raw
+/// `%p_reset` block-arg with NO `comb.icmp eq …, 0` adapter. The
+/// adapter from the active-low era has been removed.
 mlir::Value getOrBuildResetCond(ModuleLoweringCtx &ctx,
-                                mlir::OpBuilder &builder,
-                                mlir::Location loc) {
+                                mlir::OpBuilder & /*builder*/,
+                                mlir::Location /*loc*/) {
   if (ctx.asyncResetCond) {
     return ctx.asyncResetCond;
   }
   if (!ctx.rstnArg) {
     return {};
   }
-  mlir::OpBuilder::InsertionGuard g(builder);
-  builder.setInsertionPointToStart(ctx.hwModuleOp.getBodyBlock());
-  // Skip past ToClockOp if just inserted.
-  if (ctx.clockSeq) {
-    builder.setInsertionPointAfterValue(ctx.clockSeq);
-  }
-  auto i1 = builder.getI1Type();
-  auto zeroAttr = mlir::IntegerAttr::get(i1, 0);
-  auto zero = circt::hw::ConstantOp::create(builder, loc, zeroAttr);
-  ctx.asyncResetCond = circt::comb::ICmpOp::create(
-                            builder, loc,
-                            circt::comb::ICmpPredicate::eq, ctx.rstnArg,
-                            zero, /*twoState=*/false)
-                          .getResult();
+  // Active-HIGH: the reset block-arg IS the reset-fires bit.
+  ctx.asyncResetCond = ctx.rstnArg;
   return ctx.asyncResetCond;
 }
 
@@ -815,8 +820,12 @@ mlir::LogicalResult lowerRegOp(nsl::dialect::RegOp regOp,
     auto &back = ctx.regs.back();
     back.second.firRegOp = firReg;
     back.second.defaultPrev = firReg.getResult();
-    back.second.pendingNext = rstVal; // start with reset value (the
-                                       // unconditional default-driver)
+    // Seed pendingNext with the firreg's own result (Q3 mux-on-data
+    // contract: an unwritten register holds its previous value, so
+    // the first conditional write becomes mux(cond, new, %prev).
+    // Seeding with rstVal would have produced mux(cond, new, rstVal)
+    // — Round-1 review fix for PR #14 Finding #9.
+    back.second.pendingNext = firReg.getResult();
     ctx.valueMap[regOp.getResult()] = firReg.getResult();
   } else {
     // Explicit-`interface` path → seq.compreg with user-named clock/
@@ -838,7 +847,11 @@ mlir::LogicalResult lowerRegOp(nsl::dialect::RegOp regOp,
     auto &back = ctx.regs.back();
     back.second.compRegOp = compReg;
     back.second.defaultPrev = compReg.getResult();
-    back.second.pendingNext = rstVal;
+    // Same Round-1 fix as the firreg path: seed pendingNext with the
+    // reg's own previous-cycle value (the compreg's result), not
+    // rstVal. Otherwise an unwritten register would feed its initial
+    // value back every cycle through mux(cond, new, rstVal).
+    back.second.pendingNext = compReg.getResult();
     ctx.valueMap[regOp.getResult()] = compReg.getResult();
   }
   ctx.pendingErase.push_back(regOp);
@@ -847,15 +860,18 @@ mlir::LogicalResult lowerRegOp(nsl::dialect::RegOp regOp,
 
 mlir::LogicalResult lowerWireOp(nsl::dialect::WireOp wireOp,
                                 ModuleLoweringCtx &ctx,
-                                mlir::OpBuilder &builder) {
-  // Defer hw.wire materialisation until the driving nsl.transfer is
-  // lowered. The wire's name + width are tracked here; the actual
-  // hw.wire op is created during lowerTransferOp once we know the
-  // driver SSA value.
+                                mlir::OpBuilder & /*builder*/) {
+  // Round-1 review fix for PR #14 Finding #10: hw.wire materialisation
+  // is FULLY deferred until after the body walk completes. The wire's
+  // name + width are tracked here; pendingDriver accumulates writes;
+  // finaliseWires emits the hw.wire op after dominance is established.
   ModuleLoweringCtx::WireInfo wi;
   wi.name = wireOp.getName();
   wi.origResult = wireOp.getResult();
   wi.loc = wireOp.getLoc();
+  auto bits =
+      mlir::cast<nsl::dialect::BitsType>(wireOp.getResult().getType());
+  wi.intType = mlir::IntegerType::get(wireOp.getContext(), bits.getWidth());
   ctx.wires.push_back(wi);
   ctx.pendingErase.push_back(wireOp);
   return mlir::success();
@@ -976,7 +992,12 @@ mlir::LogicalResult lowerTransferOp(nsl::dialect::TransferOp xfer,
     ctx.pendingErase.push_back(xfer);
     return mlir::success();
   }
-  // LHS is a wire — find or create its hw.wire (lazy materialise).
+  // LHS is a wire — accumulate the write into the WireInfo's
+  // pendingDriver chain. Per Round-1 review fix for PR #14
+  // Finding #10: NO hw.wire op is created here; the deferred
+  // `finaliseWires` step materialises it once all writers are known
+  // (which guarantees SSA dominance — every producer of pendingDriver
+  // sits BEFORE the to-be-emitted hw.wire op).
   ModuleLoweringCtx::WireInfo *wInfo = nullptr;
   for (auto &w : ctx.wires) {
     if (w.origResult == xfer.getDst()) {
@@ -985,37 +1006,30 @@ mlir::LogicalResult lowerTransferOp(nsl::dialect::TransferOp xfer,
     }
   }
   if (wInfo) {
-    if (!wInfo->hwWireOp) {
-      mlir::Value driver = srcMapped;
-      if (condGate) {
-        auto t = mlir::cast<mlir::IntegerType>(srcMapped.getType());
-        auto zAttr = mlir::IntegerAttr::get(t, 0);
-        auto z = circt::hw::ConstantOp::create(builder, xfer.getLoc(),
-                                                 zAttr)
-                     .getResult();
-        driver = circt::comb::MuxOp::create(builder, xfer.getLoc(),
-                                              condGate, srcMapped, z,
-                                              /*twoState=*/false)
-                     .getResult();
+    mlir::Value newDriver;
+    if (condGate) {
+      mlir::Value prev = wInfo->pendingDriver;
+      if (!prev) {
+        // No prior write — default to zero.
+        auto zAttr = mlir::IntegerAttr::get(wInfo->intType, 0);
+        prev = circt::hw::ConstantOp::create(builder, xfer.getLoc(),
+                                              zAttr)
+                   .getResult();
       }
-      auto nameAttr = builder.getStringAttr(wInfo->name);
-      wInfo->hwWireOp = circt::hw::WireOp::create(
-          builder, xfer.getLoc(), driver, /*name=*/nameAttr,
-          /*innerSym=*/circt::hw::InnerSymAttr{});
-      ctx.valueMap[wInfo->origResult] = wInfo->hwWireOp.getResult();
-    } else {
-      auto prev = wInfo->hwWireOp.getInput();
-      mlir::Value muxed;
-      if (condGate) {
-        muxed = circt::comb::MuxOp::create(builder, xfer.getLoc(),
+      newDriver = circt::comb::MuxOp::create(builder, xfer.getLoc(),
                                               condGate, srcMapped, prev,
                                               /*twoState=*/false)
-                    .getResult();
-      } else {
-        muxed = srcMapped;
-      }
-      wInfo->hwWireOp.setOperand(muxed);
+                      .getResult();
+    } else {
+      // Unconditional write: last-wins.
+      newDriver = srcMapped;
     }
+    wInfo->pendingDriver = newDriver;
+    // Update valueMap so subsequent reads of the wire's nsl result
+    // see the running pendingDriver (substitution flows through
+    // lookupValue). When finaliseWires runs, it'll re-point valueMap
+    // to the materialised hw.wire op result.
+    ctx.valueMap[wInfo->origResult] = newDriver;
     ctx.pendingErase.push_back(xfer);
     return mlir::success();
   }
@@ -1201,36 +1215,244 @@ mlir::LogicalResult lowerAltOp(nsl::dialect::AltOp altOp,
   return mlir::success();
 }
 
+/// Per-target OR-accumulator entry used by `lowerAnyOp` to implement
+/// S13 PARALLEL semantics (round-1 review fix for PR #14 Finding #11).
+/// Each case in an `nsl::AnyOp` contributes one envelope per target
+/// it writes; we OR the envelopes per target and apply a single
+/// transfer / clocked_transfer at end, replacing the priority-encoded
+/// fall-through previously inherited from `lowerAltOp`.
+struct AnyTargetAccum {
+  mlir::Value target;       // nsl LHS (output_port / wire / reg result)
+  mlir::Value orAccum;      // running OR chain (i<W>)
+  mlir::Location loc;
+  bool isClocked = false;   // ClockedTransferOp (`:=`) vs TransferOp (`=`)
+  mlir::IntegerType intType;
+};
+
+/// Lower direct-child transfer / clocked_transfer ops inside one
+/// `any` case body, accumulating per-target contributions in
+/// `accums`. The semantic envelope for each target write is
+/// `comb.mux(caseCond, val, 0)`; multiple writes (across cases) for
+/// the same target OR together. Non-transfer ops inside the case
+/// body (arith / bit-ops / nested control flow) are lowered via the
+/// regular `lowerControlOp` path so their SSA results stay live for
+/// the case-internal data flow — only the target-write step is
+/// re-routed.
+mlir::LogicalResult
+accumulateAnyCaseBody(mlir::Block &caseBody, ModuleLoweringCtx &ctx,
+                      mlir::OpBuilder &builder, mlir::Value caseCond,
+                      llvm::SmallVectorImpl<AnyTargetAccum> &accums) {
+  for (auto &op : llvm::make_early_inc_range(caseBody)) {
+    if (auto xfer = llvm::dyn_cast<nsl::dialect::TransferOp>(&op)) {
+      auto src = lookupValue(ctx, xfer.getSrc());
+      if (!src) {
+        return xfer.emitError("any-case transfer source not materialised");
+      }
+      auto intType = mlir::cast<mlir::IntegerType>(src.getType());
+      // Build mux(caseCond, src, 0).
+      auto zAttr = mlir::IntegerAttr::get(intType, 0);
+      auto z = circt::hw::ConstantOp::create(builder, xfer.getLoc(),
+                                              zAttr)
+                   .getResult();
+      auto envelope = circt::comb::MuxOp::create(
+                          builder, xfer.getLoc(), caseCond, src, z,
+                          /*twoState=*/false)
+                          .getResult();
+      // Find or create accumulator for this target.
+      AnyTargetAccum *acc = nullptr;
+      for (auto &a : accums) {
+        if (a.target == xfer.getDst() && !a.isClocked) {
+          acc = &a;
+          break;
+        }
+      }
+      if (!acc) {
+        accums.push_back({xfer.getDst(), envelope, xfer.getLoc(),
+                          /*isClocked=*/false, intType});
+      } else {
+        acc->orAccum = circt::comb::OrOp::create(
+                            builder, xfer.getLoc(), acc->orAccum, envelope)
+                            .getResult();
+      }
+      ctx.pendingErase.push_back(&op);
+    } else if (auto cxfer =
+                   llvm::dyn_cast<nsl::dialect::ClockedTransferOp>(&op)) {
+      auto src = lookupValue(ctx, cxfer.getSrc());
+      if (!src) {
+        return cxfer.emitError(
+            "any-case clocked_transfer source not materialised");
+      }
+      auto intType = mlir::cast<mlir::IntegerType>(src.getType());
+      auto zAttr = mlir::IntegerAttr::get(intType, 0);
+      auto z = circt::hw::ConstantOp::create(builder, cxfer.getLoc(),
+                                              zAttr)
+                   .getResult();
+      auto envelope = circt::comb::MuxOp::create(
+                          builder, cxfer.getLoc(), caseCond, src, z,
+                          /*twoState=*/false)
+                          .getResult();
+      AnyTargetAccum *acc = nullptr;
+      for (auto &a : accums) {
+        if (a.target == cxfer.getDst() && a.isClocked) {
+          acc = &a;
+          break;
+        }
+      }
+      if (!acc) {
+        accums.push_back({cxfer.getDst(), envelope, cxfer.getLoc(),
+                          /*isClocked=*/true, intType});
+      } else {
+        acc->orAccum = circt::comb::OrOp::create(
+                            builder, cxfer.getLoc(), acc->orAccum, envelope)
+                            .getResult();
+      }
+      ctx.pendingErase.push_back(&op);
+    } else {
+      // Non-transfer leaf op or nested control flow: lower normally.
+      // The case-cond gate flows through to nested transfers (which
+      // themselves may live inside an `if` inside an `any` case);
+      // they take the priority-style path because they're NOT direct
+      // children of the `any`.
+      if (mlir::failed(lowerControlOp(&op, ctx, builder, caseCond))) {
+        return mlir::failure();
+      }
+    }
+  }
+  return mlir::success();
+}
+
 mlir::LogicalResult lowerAnyOp(nsl::dialect::AnyOp anyOp,
                                ModuleLoweringCtx &ctx,
                                mlir::OpBuilder &builder,
                                mlir::Value parentCondGate) {
-  // Parallel: every matching case fires independently. Lower each
-  // case body under its own condition gate; no priority chain.
+  // Round-1 review fix for PR #14 Finding #11: S13 PARALLEL semantics.
+  // Each case fires independently; per-target contributions OR
+  // together. Implementation per `circt-lowering.contract.md` §5:
+  // for each target, emit `comb.or(comb.mux(condA, valA, 0),
+  // comb.mux(condB, valB, 0), …)` and apply the OR'd value as a
+  // single transfer at end.
   auto loc = anyOp.getLoc();
+  llvm::SmallVector<AnyTargetAccum, 4> accums;
+  // Build a constant-1 for the default case (always fires).
+  mlir::Value oneI1;
+  auto getOneI1 = [&]() -> mlir::Value {
+    if (oneI1) {
+      return oneI1;
+    }
+    auto i1 = builder.getI1Type();
+    auto oneAttr = mlir::IntegerAttr::get(i1, 1);
+    oneI1 =
+        circt::hw::ConstantOp::create(builder, loc, oneAttr).getResult();
+    return oneI1;
+  };
+
   for (auto &child : llvm::make_early_inc_range(anyOp.getBody().front())) {
     if (auto caseOp = llvm::dyn_cast<nsl::dialect::CaseOp>(&child)) {
       auto caseCond = lookupValue(ctx, caseOp.getCond());
       auto gated = andConds(builder, loc, parentCondGate, caseCond);
-      for (auto &caseChild :
-           llvm::make_early_inc_range(caseOp.getBody().front())) {
-        if (mlir::failed(lowerControlOp(&caseChild, ctx, builder, gated))) {
-          return mlir::failure();
-        }
+      if (mlir::failed(accumulateAnyCaseBody(caseOp.getBody().front(), ctx,
+                                              builder, gated, accums))) {
+        return mlir::failure();
       }
       ctx.pendingErase.push_back(caseOp);
     } else if (auto defOp = llvm::dyn_cast<nsl::dialect::DefaultOp>(&child)) {
       // Default in an `any` always fires (parallel semantics).
-      for (auto &defChild :
-           llvm::make_early_inc_range(defOp.getBody().front())) {
-        if (mlir::failed(lowerControlOp(&defChild, ctx, builder,
-                                          parentCondGate))) {
-          return mlir::failure();
-        }
+      auto gated = parentCondGate ? parentCondGate : getOneI1();
+      if (mlir::failed(accumulateAnyCaseBody(defOp.getBody().front(), ctx,
+                                              builder, gated, accums))) {
+        return mlir::failure();
       }
       ctx.pendingErase.push_back(defOp);
     }
   }
+
+  // Materialise the per-target ORed write. Each accumulator becomes
+  // exactly one transfer (combinational) or clocked_transfer (reg).
+  for (auto &acc : accums) {
+    if (acc.isClocked) {
+      // Reg target: feed acc.orAccum into the reg's pendingNext via
+      // the existing mux-on-data path. Because the OR'd envelope is
+      // the FULL conditional value, we route it as an unconditional
+      // override against the prior pendingNext (parentCondGate
+      // already accounted for in each envelope).
+      ModuleLoweringCtx::RegInfo *info = nullptr;
+      auto dstMapped = lookupValue(ctx, acc.target);
+      for (auto &kv : ctx.regs) {
+        if (kv.second.defaultPrev == dstMapped) {
+          info = &kv.second;
+          break;
+        }
+      }
+      if (!info) {
+        return anyOp.emitError(
+            "any-case clocked_transfer target is not a known nsl.reg");
+      }
+      // OR the envelope with the previous pendingNext (which encodes
+      // any prior writes from outside this `any` op). For a fresh
+      // reg whose pendingNext is the firreg's own result (Q3 mux-on-
+      // data fix), OR'ing an i<W> envelope against the i<W> prev is
+      // semantically the union of writes — matches `any` parallel.
+      info->pendingNext = circt::comb::OrOp::create(
+                                builder, acc.loc, info->pendingNext,
+                                acc.orAccum)
+                                .getResult();
+    } else {
+      // Combinational target: the OR'd envelope IS the new value.
+      // Route through the regular transfer path with no condGate
+      // (it's already baked into the envelope).
+      llvm::StringRef outName = getOutputPortName(ctx, acc.target);
+      if (!outName.empty()) {
+        // Output-port write: OR with prior assignment if any.
+        mlir::Value prior;
+        for (auto &kv : ctx.outputAssignments) {
+          if (kv.first == outName) {
+            prior = kv.second;
+            break;
+          }
+        }
+        mlir::Value combined = acc.orAccum;
+        if (prior) {
+          combined = circt::comb::OrOp::create(builder, acc.loc, prior,
+                                                  acc.orAccum)
+                          .getResult();
+        }
+        bool updated = false;
+        for (auto &kv : ctx.outputAssignments) {
+          if (kv.first == outName) {
+            kv.second = combined;
+            updated = true;
+            break;
+          }
+        }
+        if (!updated) {
+          ctx.outputAssignments.emplace_back(outName, combined);
+        }
+        continue;
+      }
+      // Wire target: append to pendingDriver chain by OR'ing.
+      ModuleLoweringCtx::WireInfo *wInfo = nullptr;
+      for (auto &w : ctx.wires) {
+        if (w.origResult == acc.target) {
+          wInfo = &w;
+          break;
+        }
+      }
+      if (!wInfo) {
+        return anyOp.emitError(
+            "any-case transfer target not a recognised port or wire");
+      }
+      if (!wInfo->pendingDriver) {
+        wInfo->pendingDriver = acc.orAccum;
+      } else {
+        wInfo->pendingDriver =
+            circt::comb::OrOp::create(builder, acc.loc, wInfo->pendingDriver,
+                                        acc.orAccum)
+                .getResult();
+      }
+      ctx.valueMap[wInfo->origResult] = wInfo->pendingDriver;
+    }
+  }
+
   ctx.pendingErase.push_back(anyOp);
   return mlir::success();
 }
@@ -1365,6 +1587,47 @@ mlir::LogicalResult lowerControlOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
     }
     ctx.pendingErase.push_back(fn);
     return mlir::success();
+  }
+  // Reg / wire / mem / sub-module / port-info / proc body / state —
+  // lowered earlier in `lowerBodyOps` or separately by FSMPatterns.
+  // If we encounter one of THOSE here it was nested inside a control
+  // container, which is also fine — but they should already have
+  // been visited at the outer body walk.
+  if (llvm::isa<nsl::dialect::RegOp, nsl::dialect::WireOp,
+                nsl::dialect::MemOp, nsl::dialect::SubmoduleOp,
+                nsl::dialect::ProcOp, nsl::dialect::FuncInOp,
+                nsl::dialect::FuncOutOp, nsl::dialect::FuncSelfOp,
+                nsl::dialect::FirstStateOp,
+                nsl::dialect::StateOp>(op)) {
+    return mlir::success();
+  }
+  // Sim ops are handled by lowerSimOpsInside (separate ifdef-block
+  // walk); silently accept them here so a `sim_*` nested inside
+  // control flow doesn't trip the fall-through diagnostic.
+  if (llvm::isa<nsl::dialect::SimDisplayOp, nsl::dialect::SimFinishOp,
+                nsl::dialect::SimDelayOp, nsl::dialect::SimInitOp>(op)) {
+    return mlir::success();
+  }
+  // Round-1 review fix for PR #14 Finding #12: previously the
+  // default-success arm silently dropped any unhandled `nsl::*` op,
+  // resulting in latent miscompiles when a new dialect op (or one
+  // missed during M5 lowering) escaped into hw.module body. Now we
+  // fail-fast with a diagnostic naming the op kind — but ONLY for
+  // ops in the `nsl` dialect; ops from other dialects (`hw`,
+  // `comb`, `seq`, `sv`, `fsm`, `builtin`) are CIRCT ops we
+  // already emitted earlier in the walk, and they're allowed to
+  // pass through `lowerControlOp` unchanged when revisited (e.g.,
+  // a parent control op iterating its children with
+  // `make_early_inc_range` may surface previously-emitted CIRCT
+  // ops that happen to live in the same block).
+  if (op->getDialect() &&
+      op->getDialect()->getNamespace() ==
+          nsl::dialect::NSLDialect::getDialectNamespace()) {
+    return op->emitError()
+           << "unhandled nsl op in lowerControlOp dispatch: '"
+           << op->getName().getStringRef()
+           << "'; add a case to the switch or lower it earlier in "
+           << "lowerBodyOps";
   }
   return mlir::success();
 }
@@ -1603,6 +1866,62 @@ mlir::LogicalResult lowerBodyOps(mlir::Block &block, ModuleLoweringCtx &ctx,
   return mlir::success();
 }
 
+/// Round-1 review fix for PR #14 Finding #10: materialise each
+/// `hw::WireOp` AFTER the body walk completes, with its driver
+/// operand bound to the final `pendingDriver`. Inserts the wire op
+/// just before the hw.output terminator, guaranteeing every producer
+/// of `pendingDriver` dominates the wire op. After materialisation,
+/// rewires `ctx.valueMap` so any post-walk reader (e.g., output-port
+/// assignment finalisation) sees the wire op's result.
+void finaliseWires(ModuleLoweringCtx &ctx, mlir::OpBuilder &builder) {
+  for (auto &wi : ctx.wires) {
+    if (!wi.pendingDriver) {
+      // Wire was declared but never written — emit a zero-driven
+      // wire so downstream readers (output-port assignments, other
+      // consumers) see a defined value. The zero constant is
+      // inserted immediately before the wire op.
+      mlir::OpBuilder::InsertionGuard g(builder);
+      auto *terminator =
+          ctx.hwModuleOp.getBodyBlock()->getTerminator();
+      builder.setInsertionPoint(terminator);
+      auto loc = wi.loc.value_or(ctx.hwModuleOp.getLoc());
+      auto zAttr = mlir::IntegerAttr::get(wi.intType, 0);
+      auto z = circt::hw::ConstantOp::create(builder, loc, zAttr)
+                   .getResult();
+      auto nameAttr = builder.getStringAttr(wi.name);
+      wi.hwWireOp = circt::hw::WireOp::create(
+          builder, loc, z, /*name=*/nameAttr,
+          /*innerSym=*/circt::hw::InnerSymAttr{});
+    } else {
+      mlir::OpBuilder::InsertionGuard g(builder);
+      auto *terminator =
+          ctx.hwModuleOp.getBodyBlock()->getTerminator();
+      builder.setInsertionPoint(terminator);
+      auto loc = wi.loc.value_or(ctx.hwModuleOp.getLoc());
+      auto nameAttr = builder.getStringAttr(wi.name);
+      wi.hwWireOp = circt::hw::WireOp::create(
+          builder, loc, wi.pendingDriver, /*name=*/nameAttr,
+          /*innerSym=*/circt::hw::InnerSymAttr{});
+    }
+    // Re-point the wire's nsl result mapping to the materialised
+    // hw.wire op result (any pre-finalisation valueMap entry pointed
+    // at the running pendingDriver chain — that's still correct for
+    // already-emitted consumers; the re-point covers post-finalise
+    // consumers like output-port assignment).
+    ctx.valueMap[wi.origResult] = wi.hwWireOp.getResult();
+    // Also rewire any output-port assignments that captured the
+    // pendingDriver chain to instead reference the hw.wire result
+    // (matches user expectation that `q = w` reads the wire by name,
+    // and FileCheck patterns like `hw.output %w` resolve to the
+    // wire's final result).
+    for (auto &kv : ctx.outputAssignments) {
+      if (kv.second == wi.pendingDriver) {
+        kv.second = wi.hwWireOp.getResult();
+      }
+    }
+  }
+}
+
 /// Finalise the per-reg pendingNext: rewire the firreg / compreg's
 /// data input to the final mux chain. If pendingNext is identical to
 /// the placeholder reset value (no clocked_transfer touched the reg),
@@ -1698,14 +2017,17 @@ mlir::LogicalResult lowerOneModule(nsl::dialect::ModuleOp moduleOp,
     return {};
   };
 
-  // Resolve clk/rst_n block-args.
+  // Resolve auto-synthesized clock + reset block-args. The implicit
+  // ports use the NSL-spec-reserved names `m_clock` + `p_reset`
+  // (active-HIGH; see buildPortInfo helper); explicit-`interface`
+  // path honours the user-declared names verbatim.
   if (declareOp) {
     if (ctx.hasInterface) {
       ctx.clkArg = lookupInputArg(*declareOp.getInterfaceClock());
       ctx.rstnArg = lookupInputArg(*declareOp.getInterfaceReset());
     } else {
-      ctx.clkArg = lookupInputArg("clk");
-      ctx.rstnArg = lookupInputArg("rst_n");
+      ctx.clkArg = lookupInputArg("m_clock");
+      ctx.rstnArg = lookupInputArg("p_reset");
     }
   }
 
@@ -1778,6 +2100,15 @@ mlir::LogicalResult lowerOneModule(nsl::dialect::ModuleOp moduleOp,
   if (mlir::failed(lowerBodyOps(*hwModuleOp.getBodyBlock(), ctx, builder))) {
     return mlir::failure();
   }
+
+  // Finalise wires (materialise hw.wire ops with all producers
+  // already in scope) THEN regs (rewire firreg data-inputs). Order
+  // matters: regs may have captured a pendingDriver SSA value into
+  // their pendingNext mux chain that is still valid; once we
+  // materialise the hw.wire here, regs that wrote `r := w + …`
+  // continue to feed off the concrete mux chain, not the wire op.
+  // (The wire op is a sibling consumer of the same chain.)
+  finaliseWires(ctx, builder);
 
   // Finalise reg data inputs.
   finaliseRegs(ctx);

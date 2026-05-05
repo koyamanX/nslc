@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/state/wire_multi_write.nsl — Round-1 review fix
+// for PR #14 Finding #10 coverage. Multiple conditional writes to
+// the same wire MUST produce a single `hw.wire` whose driver is
+// dominated by ALL its producers (the mux chain). Pre-fix the
+// `hw.wire` was emitted on the first write; subsequent muxes were
+// inserted at the current insertion point and `setOperand` swapped
+// the wire's input — but the new operand may have been DEFINED
+// AFTER the wire op, breaking SSA dominance.
+//
+// Post-fix `hw.wire` is fully deferred to `finaliseWires`, which
+// inserts it just before `hw.output` after every mux is in place.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  input b[8];
+  input c1[1];
+  input c2[1];
+  output q[8];
+}
+
+module M {
+  wire w[8];
+  if(c1) w = a;        // first conditional write
+  if(c2) w = b;        // second conditional write — the bug case
+  q = w;
+}
+
+// The mux chain is built BEFORE the hw.wire op (deferred-emit).
+// The wire op's input operand references the FINAL mux in the chain.
+// CHECK-LABEL: hw.module @M
+// CHECK: %[[Z1:.*]] = hw.constant 0 : i8
+// CHECK: %[[M1:.*]] = comb.mux %c1, %a, %[[Z1]]
+// CHECK: %[[M2:.*]] = comb.mux %c2, %b, %[[M1]]
+// CHECK: %w = hw.wire %[[M2]]
+// CHECK: hw.output %w
+// CHECK-NOT: nsl.

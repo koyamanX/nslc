@@ -183,9 +183,12 @@ BitOpPatterns + ControlPatterns + SimPatterns + ParamPatterns
 (US4 — leaf-op coverage of design §10's mapping table, ~40 rows).
 Three /speckit-clarify decisions pinned conventions: Q1 → A
 `comb`-only arithmetic (no `hwarith`, no `CIRCTHwArith` link
-dep); Q2 → C async-active-low default reset on `seq.firreg`
-(no-`interface` path) for ASIC + FPGA portability + audited-
-corpus alignment; Q3 → A mux-on-data for `nsl.if`-over-reg-LHS
+dep); Q2 → C async **active-HIGH** default reset on `seq.firreg`
+(no-`interface` path) wired through implicit ports `m_clock` +
+`p_reset` per `nsl_lang.ebnf` §15 lines 818, 820 (the `p_`
+prefix indicates positive/active-HIGH polarity; PR #14 Round-1
+review correction superseded the original active-LOW
+`clk`/`rst_n` choice); Q3 → A mux-on-data for `nsl.if`-over-reg-LHS
 (one `seq.firreg` per `nsl.reg` regardless of conditional
 nesting). Two specify-time decisions: `_init` block (S29) →
 `sv.initial` under `sv.ifdef "SIMULATION"` (sim-only); `-emit=hw`

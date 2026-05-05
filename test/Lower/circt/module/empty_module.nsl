@@ -15,5 +15,5 @@ module M {
 // CHECK-LABEL: hw.module @M
 // CHECK-NOT: nsl.
 // CHECK-NOT: %a:
-// CHECK-NOT: %clk:
-// CHECK-NOT: %rst_n:
+// CHECK-NOT: %m_clock:
+// CHECK-NOT: %p_reset:

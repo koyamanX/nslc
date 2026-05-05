@@ -231,12 +231,28 @@ lowerStateBody(MachineBuilder &mb, nsl::dialect::StateOp nslStateOp,
       circt::fsm::TransitionOp::create(builder, callOp.getLoc(),
                                        placeholderName);
     }
-    // Other op kinds inside a state body (transfers, regs, arith,
-    // etc.) are Phase-6 leaf-op territory. Phase 5 does NOT lower
-    // them; they remain in the original nsl.state body, which is
-    // erased when the proc gets erased at the end of the machine
-    // build. This means Phase-5-only fixtures must use empty state
-    // bodies (modulo goto/finish/call).
+    else {
+      // Round-1 review fix for PR #14 Finding #7: previously the
+      // walk silently fell through here, so any leaf op (transfer,
+      // arith, etc.) inside a state body was dropped when the
+      // proc.erase() cascade ran below. Emit a clear deferral
+      // diagnostic instead so the user sees the silent miscompile
+      // surface at the seam between Phase-5 FSM lowering and
+      // Phase-6 leaf-op lowering. Full lowering of state-body
+      // leaf ops (option (a) in the review directive) is
+      // deferred — non-trivial because the leaf ops would need
+      // to be carried into the `fsm::StateOp`'s `output` region
+      // which has its own region semantics distinct from
+      // `hw::HWModuleOp` body. Tracked for a future round.
+      return op.emitError()
+             << "M6 round-1 deferral: state body op '"
+             << op.getName().getStringRef()
+             << "' is not yet lowered into the fsm.state output region "
+             << "(only goto / finish / call / finish_method are handled "
+             << "at this round). Move the assignment outside the "
+             << "nsl.state body or split the proc into single-state "
+             << "machines whose drivers live in the module body.";
+    }
   }
   return mlir::success();
 }
@@ -414,6 +430,19 @@ lowerOneFuncSeq(nsl::dialect::FuncOp funcOp, mlir::ModuleOp parentModule,
   // state[currentIdx] to state[currentIdx + 1]. State[currentIdx]
   // is the ACTIVE state (initially seq_0); each goto closes the
   // current state and opens the next.
+  //
+  // Round-1 review fix for PR #14 Finding #8: previously every goto
+  // was wired as a fall-through to seq_{i+1} regardless of its
+  // declared target symbol AND any non-goto leaf op was silently
+  // dropped before funcOp.erase() cascaded. We now (a) emit a
+  // deferral diagnostic if a non-goto op is present in the seq body
+  // (full lowering of seq-body leaf ops + proper label-to-state
+  // resolution is M7-or-later), and (b) preserve the fall-through
+  // wiring while explicitly noting in the comment that label-to-
+  // state resolution is deferred (the dialect has no `LabelOp` at
+  // M6; gotos in a seq carry a symbol but no LabelOp means we can't
+  // verify the symbol resolves to a position in the seq body — that
+  // belongs to a future Sema pass + a `nsl::SeqLabelOp` dialect op).
   unsigned currentIdx = 0;
   for (auto &op : seqOp.getBody().front()) {
     if (llvm::isa<nsl::dialect::GotoOp>(op)) {
@@ -425,8 +454,20 @@ lowerOneFuncSeq(nsl::dialect::FuncOp funcOp, mlir::ModuleOp parentModule,
       circt::fsm::TransitionOp::create(builder, op.getLoc(),
                                        llvm::StringRef(nextName));
       ++currentIdx;
+    } else {
+      // Non-goto ops in a seq body: emit deferral diagnostic instead
+      // of silently dropping (round-1 fix). The op kind names the
+      // category that's deferred so the failure log gives the user
+      // a clear pointer into M7's seq-body handling.
+      return op.emitError()
+             << "M6 round-1 deferral: nsl.seq body op '"
+             << op.getName().getStringRef()
+             << "' is not yet lowered (only nsl.goto fall-through "
+             << "transitions are emitted at this round; label-to-state "
+             << "resolution + leaf-op carry-over into the fsm.state "
+             << "output region land in M7). Hoist the operation outside "
+             << "the seq, or split the func into a comb-only form.";
     }
-    // Other ops inside a seq body — Phase 6 leaf-op territory.
   }
 
   // Step 5: erase the original nsl.func.

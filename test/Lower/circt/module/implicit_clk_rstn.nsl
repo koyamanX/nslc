@@ -3,10 +3,16 @@
 // test/Lower/circt/module/implicit_clk_rstn.nsl — M6 Phase 4 (US2)
 // fixture (T034). Per `firreg-convention.contract.md` §1 + the
 // circt-lowering contract §3 rule 6: a declare block WITHOUT the
-// S20 `interface` modifier triggers the implicit `clk` + `rst_n`
-// port pair, appended at the end of the input port list, in that
-// order. This fixture asserts the ordering: data inputs FIRST, then
-// `clk`, then `rst_n`.
+// S20 `interface` modifier triggers the implicit `m_clock` +
+// `p_reset` port pair, appended at the end of the input port list,
+// in that order. This fixture asserts the ordering: data inputs
+// FIRST, then `m_clock`, then `p_reset`.
+//
+// **Round-1 review correction (PR #14)**: the implicit-port names
+// are `m_clock` + `p_reset` per `nsl_lang.ebnf` §15 lines 818, 820
+// (auto-synthesized clock + auto-synthesized reset; the `p_` prefix
+// indicates active-HIGH polarity). Previously the M6 implementation
+// emitted `clk` + `rst_n` (active-low) which violated the spec.
 
 // RUN: %nslc -emit=hw %s | %FileCheck %s
 
@@ -23,7 +29,7 @@ module M {
 // CHECK-LABEL: hw.module @M
 // CHECK-SAME: in %a : i8
 // CHECK-SAME: in %b : i4
-// CHECK-SAME: in %clk : i1
-// CHECK-SAME: in %rst_n : i1
+// CHECK-SAME: in %m_clock : i1
+// CHECK-SAME: in %p_reset : i1
 // CHECK-SAME: out q : i8
 // CHECK-NOT: nsl.

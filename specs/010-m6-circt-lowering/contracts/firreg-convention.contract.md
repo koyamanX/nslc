@@ -18,29 +18,39 @@ finding in PR review.
 
 ## §1. Default reset convention (no `interface` modifier)
 
+**Round-1 review correction (PR #14, 2026-05-04)**: this section
+previously specified `clk` + `rst_n` (active-LOW reset, the user
+finding called this out as a violation of the NSL spec). The
+NSL grammar (`nsl_lang.ebnf` §15 lines 818, 820) reserves
+`m_clock` (auto-synthesized clock) and `p_reset` (auto-synthesized
+reset). The `p_` prefix indicates **active-HIGH** polarity — the
+straightforward reading of the prefix; an `n_reset` would denote
+active-LOW. The implementation has been corrected to match.
+
 **Rule**: When an `nsl::ModuleOp`'s paired `nsl::DeclareOp` does
 NOT contain the S20 `interface` modifier, every `nsl::RegOp`
 inside that module lowers to a `circt::seq::FirRegOp` with:
 
 - **Async reset**: `seq::FirRegOp`'s `async_reset` flag is set;
-  the reset operand is connected to a `comb::ICmpOp eq %rst_n, 0`
-  derived condition — i.e., reset fires when `rst_n` is low.
-- **Active-low**: the polarity is encoded by the `comb::ICmpOp
-  eq %rst_n, 0` upstream condition; the FirRegOp itself sees a
-  1-bit "reset-fires" boolean.
+  the reset operand is the raw `%p_reset` block-arg — i.e.,
+  reset fires when `p_reset` is HIGH (1).
+- **Active-HIGH**: the FirRegOp's reset operand is the `%p_reset`
+  block-arg directly; NO `comb::ICmpOp` adapter is interposed.
+  (Round-1 fix: prior code did `comb.icmp eq %rst_n, 0` which
+  encoded active-LOW. That adapter has been removed.)
 - **Reset value**: `nsl::RegOp`'s initializer literal (`reg r[8] = K;`
   → `K`; bare `reg r[8];` → 0 per S2/S23). Width matches the
   reg's data type.
-- **Clock**: connected to the implicit `clk` port (positive-edge
-  triggered).
-- **Implicit ports** on the enclosing `hw::HWModuleOp`: `clk` and
-  `rst_n`, both `i1`, appended at the end of the input port list
-  in that order.
+- **Clock**: connected to the implicit `m_clock` port (positive-edge
+  triggered) via `seq::ToClockOp`.
+- **Implicit ports** on the enclosing `hw::HWModuleOp`: `m_clock`
+  and `p_reset`, both `i1`, appended at the end of the input port
+  list in that order. The names come from `nsl_lang.ebnf` §15.
 
 **Cross-module consistency**: every module in a compilation unit
-that lacks the `interface` modifier shares the same `(clk, rst_n)`
-naming convention. Modules using non-standard names must opt in
-via the explicit S20 `interface` modifier.
+that lacks the `interface` modifier shares the same
+`(m_clock, p_reset)` naming convention. Modules using non-standard
+names must opt in via the explicit S20 `interface` modifier.
 
 ---
 
@@ -135,25 +145,40 @@ M6 (each would deviate from Q2/Q3 conventions):
 
 ## §5. Lit-fixture pinning
 
+**Round-1 review correction (PR #14)**: the canonical reg shape
+now uses `m_clock` + `p_reset` (active-HIGH) per §1.
+
 The fixtures `test/Lower/circt/state/reg_basic.nsl` (and its
 sibling `.mlir.expected`) MUST exhibit:
 
 ```mlir
-hw.module @M(%clk: i1, %rst_n: i1, ...) -> (...) {
-  %not_rstn = comb.icmp eq %rst_n, 0
-  %r = seq.firreg %clk, %r_next, async_reset %not_rstn,
-                  reset_value 0 : i8
+hw.module @M(%m_clock: i1, %p_reset: i1, ...) -> (...) {
+  %clk = seq.to_clock %m_clock
+  %r = seq.firreg %r_next clock %clk reset async %p_reset,
+                  %rst_value : i8
   ...
 }
 ```
 
-The fixture `reg_with_init.nsl` MUST exhibit `reset_value 42` (or
-whatever K) for `reg r[8] = 42;`. The fixture `reg_with_interface.nsl`
-MUST exhibit `seq.compreg` with explicit clock/reset operands
-sourced from the user's `interface` declaration. The fixture
-`reg_with_if.nsl` MUST exhibit `comb.mux` on the data input
-(§3). The fixture `reg_with_chained_if.nsl` MUST exhibit nested
-`comb.mux` (§3 second example).
+There is NO `comb::ICmpOp eq %p_reset, 0` adapter; the active-HIGH
+polarity is implicit in the FirRegOp's reset operand being the
+raw `p_reset` block-arg.
+
+The fixture `reg_with_init.nsl` MUST exhibit a `hw.constant 42`
+hosting the reset value for `reg r[8] = 42;`. The fixture
+`reg_with_interface.nsl` MUST exhibit `seq.compreg` with explicit
+clock/reset operands sourced from the user's `interface`
+declaration. The fixture `if_reg_lhs.nsl` MUST exhibit `comb.mux`
+on the data input — with the FALSE arm referencing the firreg's
+own result (`%r`), NOT the reset constant (Round-1 Finding #9
+fix; an unwritten reg holds its previous value). The fixture
+`chained_if_reg.nsl` MUST exhibit nested `comb.mux` (§3 second
+example) with the inner mux's prev arm as `%r` and the outer
+mux's prev arm as the inner mux result. The fixture
+`reg_unwritten_holds_prev.nsl` is the dedicated regression for
+Finding #9. The fixture `wire_multi_write.nsl` is the dedicated
+regression for Finding #10 (deferred-emit `hw::WireOp` materialised
+post-walk after all producers exist).
 
 These fixtures are the canonical tie-breakers: a contributor
 proposing a deviation from §1–§3 must update them, which is a
@@ -163,14 +188,18 @@ visible audit trail in code review.
 
 ## §6. Audited-corpus alignment forecast (M7 dependency)
 
-The audited NSL projects (`cpu16`, `mips32_single_cycle`, etc.)
-ship with reference Verilog using `always @(posedge clk or
-negedge rst_n)` patterns — i.e., the §1 convention exactly. M7's
-golden VCD comparison will compare `nslc -emit=hw … |
-circt-opt --convert-fsm-to-seq --lower-seq-to-sv …` output
-against those references. Choosing async-active-low at M6 keeps
-M7 byte-stable; deviating would force every audited project's
-golden to be regenerated.
+**Round-1 review correction (PR #14)**: the polarity choice
+(active-HIGH) follows the NSL spec's `p_reset` reserved-keyword
+prefix (`p_` = positive). M7's golden VCD comparison will compare
+`nslc -emit=hw … | circt-opt --convert-fsm-to-sv --lower-seq-to-sv …`
+output against the audited corpus's reference Verilog. The
+audited NSL projects' reference Verilog patterns must be
+re-checked against the M6 emit at M7-time; if they use
+`always @(posedge clk or negedge rst_n)` (active-LOW), M7's
+test-bench wrapper will need to invert the reset signal at the
+DUT boundary OR the audited projects' reset wiring will be
+re-generated through the same `nslc -emit=hw` flow (which guarantees
+self-consistency).
 
 This forecast is informational — M7 owns the actual audited-
 corpus regression — but it justifies why the M6 convention is
