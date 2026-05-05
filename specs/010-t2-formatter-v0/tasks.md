@@ -244,23 +244,23 @@ edge cases.
 
 ### Tests for User Story 4 (TDD)
 
-- [ ] T094 [P] [US4] Author gtest `test_unit/Fmt/config_parser_test.cc::DefaultsMatchSpec` asserting `default_configuration()` returns the §5.1 example values for every field — observe FAILING
-- [ ] T095 [P] [US4] Author gtest `test_unit/Fmt/config_parser_test.cc::ParseAllTenKeys` asserting a TOML file with all 10 keys set non-default round-trips through `parse_config_file()` correctly — observe FAILING
-- [ ] T096 [P] [US4] Author gtest `test_unit/Fmt/config_parser_test.cc::UnknownKeyWarning` asserting unknown TOML key produces a `Diagnostic` with severity Warning and the frozen string from [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §7 — observe FAILING
-- [ ] T097 [P] [US4] Author gtest `test_unit/Fmt/config_parser_test.cc::OutOfRangeError` asserting `indent = "potato"` produces `Status::Error` + the frozen "must be" string — observe FAILING
-- [ ] T098 [P] [US4] Author lit fixture `test/Fmt/config/discovery/upward-walk.test` asserting `nsl-fmt sub/sub/foo.nsl` finds `.nsl-fmt.toml` at the root — observe FAILING
-- [ ] T099 [P] [US4] Author lit fixture `test/Fmt/config/explicit-config/overrides-discovery.test` asserting `--config /tmp/custom.toml` suppresses upward walk — observe FAILING
-- [ ] T100 [P] [US4] Author lit fixture `test/Fmt/config/unknown-key/warn-and-continue.test` asserting unknown-key warning is on stderr and formatting still succeeds — observe FAILING
-- [ ] T101 [P] [US4] Author lit fixture `test/Fmt/config/invalid-value/abort-with-error.test` asserting `indent = "potato"` aborts with exit 2 — observe FAILING
+- [X] T094 [P] [US4] Author gtest `test_unit/Fmt/config_parser_test.cc::DefaultsMatchSpec` asserting `default_configuration()` returns the §5.1 example values for every field — observe FAILING
+- [X] T095 [P] [US4] Author gtest `test_unit/Fmt/config_parser_test.cc::ParseAllTenKeys` asserting a TOML file with all 10 keys set non-default round-trips through `parse_config_file()` correctly — observe FAILING
+- [X] T096 [P] [US4] Author gtest `test_unit/Fmt/config_parser_test.cc::UnknownKeyWarning` asserting unknown TOML key produces a `Diagnostic` with severity Warning and the frozen string from [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §7 — observe FAILING
+- [X] T097 [P] [US4] Author gtest `test_unit/Fmt/config_parser_test.cc::OutOfRangeError` asserting `indent = "potato"` produces `Status::Error` + the frozen "must be" string — observe FAILING
+- [X] T098 [P] [US4] Author lit fixture `test/Fmt/config/discovery/upward-walk.test` asserting `nsl-fmt sub/sub/foo.nsl` finds `.nsl-fmt.toml` at the root — observe FAILING
+- [X] T099 [P] [US4] Author lit fixture `test/Fmt/config/explicit-config/overrides-discovery.test` asserting `--config /tmp/custom.toml` suppresses upward walk — observe FAILING
+- [X] T100 [P] [US4] Author lit fixture `test/Fmt/config/unknown-key/warn-and-continue.test` asserting unknown-key warning is on stderr and formatting still succeeds — observe FAILING
+- [X] T101 [P] [US4] Author lit fixture `test/Fmt/config/invalid-value/abort-with-error.test` asserting `indent = "potato"` aborts with exit 2 — observe FAILING
 
 ### Implementation for User Story 4
 
-- [ ] T102 [US4] Implement `lib/Fmt/Config.{h,cpp}` `Configuration` record per [`data-model.md`](./data-model.md) §5 — built-in defaults match §5.1 example values; T094 turns green
-- [ ] T103 [US4] Implement `lib/Fmt/Config.cpp` `parse_config_file()` using `toml++` per [`research.md`](./research.md) §4; T095 turns green
-- [ ] T104 [US4] Implement unknown-key warning path in `lib/Fmt/Config.cpp` (TOML iteration with `config_key_names()` lookup); T096/T100 turn green
-- [ ] T105 [US4] Implement out-of-range / wrong-type error path in `lib/Fmt/Config.cpp` (per-key range check, frozen diagnostic strings); T097/T101 turn green
-- [ ] T106 [US4] Implement `lib/Fmt/ConfigDiscovery.{h,cpp}` upward-walk for `.nsl-fmt.toml` per [`contracts/format-api.contract.md`](./contracts/format-api.contract.md) §4 (the explicit non-pure-function carve-out); T098 turns green
-- [ ] T107 [US4] Implement CLI `--config PATH` flag in `tools/nsl-fmt/main.cpp` — when set, suppress `discover_config()`; T099 turns green
+- [X] T102 [US4] Implement `lib/Fmt/Config.{h,cpp}` `Configuration` record per [`data-model.md`](./data-model.md) §5 — built-in defaults match §5.1 example values; T094 turns green
+- [X] T103 [US4] Implement `lib/Fmt/Config.cpp` `parse_config_file()` using `toml++` per [`research.md`](./research.md) §4; T095 turns green
+- [X] T104 [US4] Implement unknown-key warning path in `lib/Fmt/Config.cpp` (TOML iteration with `config_key_names()` lookup); T096/T100 turn green
+- [X] T105 [US4] Implement out-of-range / wrong-type error path in `lib/Fmt/Config.cpp` (per-key range check, frozen diagnostic strings); T097/T101 turn green
+- [X] T106 [US4] Implement `lib/Fmt/ConfigDiscovery.{h,cpp}` upward-walk for `.nsl-fmt.toml` per [`contracts/format-api.contract.md`](./contracts/format-api.contract.md) §4 (the explicit non-pure-function carve-out); T098 turns green
+- [X] T107 [US4] Implement CLI `--config PATH` flag in `tools/nsl-fmt/main.cpp` — when set, suppress `discover_config()`; T099 turns green
 - [ ] T108 [US4] Wire `Configuration` through `format_buffer()` so every `LayoutPlanner` decision honors the active config; verify R1–R6 fixtures still green with non-default configs (regression sweep)
 
 ### Additional tests (added during /speckit-analyze remediation, finding C3)

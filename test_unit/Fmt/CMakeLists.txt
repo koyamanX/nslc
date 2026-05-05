@@ -125,3 +125,23 @@ gtest_discover_tests(perf_smoke_test
 
 set_property(GLOBAL APPEND PROPERTY _NSL_FMT_GTEST_BINARIES
   perf_smoke_test)
+
+# -----------------------------------------------------------------------------
+# Phase 6 — Configuration parser (T094, T095, T096, T097 + bonuses)
+# -----------------------------------------------------------------------------
+add_executable(config_parser_test
+  config_parser_test.cpp)
+
+target_link_libraries(config_parser_test
+  PRIVATE
+    nsl-basic
+    NslFmt
+    GTest::gtest_main)
+
+gtest_discover_tests(config_parser_test
+  PROPERTIES
+    TIMEOUT 30
+    LABELS Fmt)
+
+set_property(GLOBAL APPEND PROPERTY _NSL_FMT_GTEST_BINARIES
+  config_parser_test)

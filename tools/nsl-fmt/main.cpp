@@ -262,10 +262,47 @@ int main(int argc, char **argv) {
   // ignores the range and reformats the whole input).
   (void)rangeArg;
 
-  // --config is recognised but TOML parsing lands at Phase 6 (T103).
-  // Use built-in defaults for now.
-  (void)configPath;
+  // T2 Phase 6 (T107) — `--config PATH` + auto-discovery. Resolution:
+  //   1. If --config <PATH> was given, use that file.
+  //   2. Else walk upward from CWD (or each input file's parent dir
+  //      — see per-file discovery in processInput).
+  //   3. Else fall back to default_configuration().
   nsl::fmt::Configuration cfg = nsl::fmt::default_configuration();
+  std::string config_source_for_diags; // empty if no config file was loaded
+
+  if (configPath.has_value()) {
+    auto contentOpt = readFileFully(*configPath);
+    if (!contentOpt) {
+      llvm::errs() << "error: configuration file not found: "
+                   << *configPath << "\n";
+      return 2;
+    }
+    nsl::SourceManager sm;
+    nsl::FileID fid = addBuffer(sm, *configPath, *contentOpt);
+    nsl::fmt::FormatResult cfgRes =
+        nsl::fmt::parse_config_file(*contentOpt, fid, &cfg);
+    config_source_for_diags = *configPath;
+    for (const nsl::Diagnostic &d : cfgRes.diagnostics) {
+      const char *sev = "note";
+      switch (d.severity) {
+        case nsl::Severity::Error:   sev = "error";   break;
+        case nsl::Severity::Warning: sev = "warning"; break;
+        case nsl::Severity::Note:    sev = "note";    break;
+      }
+      llvm::errs() << "nsl-fmt: " << *configPath << ": " << sev << ": "
+                   << d.message << "\n";
+    }
+    if (cfgRes.status != nsl::fmt::FormatResult::Status::Success) {
+      // Refused (TOML syntax) or Error (out-of-range) → exit 2.
+      // Per FR-016: out-of-range value silently using a default
+      // would hide the user's mistake; abort with exit 2.
+      return 2;
+    }
+  }
+  // No --config given: per-file discovery happens below in the
+  // input-handling loop. For --stdin we don't auto-discover (the
+  // current directory's `.nsl-fmt.toml` would be a fragile choice
+  // for a stream-typed input).
 
   // --stdin path.
   if (useStdin) {
@@ -289,7 +326,11 @@ int main(int argc, char **argv) {
   }
 
   // Default / -i / --check over multiple files: continue-on-error
-  // per FR-003a.
+  // per FR-003a. Per-file config discovery (T106 / T107) walks
+  // upward from each input file's parent directory looking for
+  // `.nsl-fmt.toml`; the first hit wins. When --config was given
+  // explicitly the discovery is skipped (the explicit value is
+  // already loaded into `cfg` above).
   int aggregateExit = 0;
   for (const std::string &path : inputs) {
     auto contentOpt = readFileFully(path);
@@ -297,7 +338,42 @@ int main(int argc, char **argv) {
       aggregateExit = 1;
       continue;
     }
-    int rc = processInput(path, *contentOpt, cfg, checkMode, inPlace, path);
+
+    // Per-file config resolution.
+    nsl::fmt::Configuration per_file_cfg = cfg;
+    if (!configPath.has_value()) {
+      std::filesystem::path input_path(path);
+      std::filesystem::path start_dir = input_path.parent_path();
+      if (start_dir.empty()) start_dir = ".";
+      auto discovered = nsl::fmt::discover_config(start_dir.string());
+      if (discovered.has_value()) {
+        auto cfgContentOpt = readFileFully(*discovered);
+        if (cfgContentOpt) {
+          nsl::SourceManager cfgSm;
+          nsl::FileID cfgFid = addBuffer(cfgSm, *discovered, *cfgContentOpt);
+          nsl::fmt::FormatResult cfgRes = nsl::fmt::parse_config_file(
+              *cfgContentOpt, cfgFid, &per_file_cfg);
+          for (const nsl::Diagnostic &d : cfgRes.diagnostics) {
+            const char *sev = "note";
+            switch (d.severity) {
+              case nsl::Severity::Error:   sev = "error";   break;
+              case nsl::Severity::Warning: sev = "warning"; break;
+              case nsl::Severity::Note:    sev = "note";    break;
+            }
+            llvm::errs() << "nsl-fmt: " << *discovered << ": " << sev
+                         << ": " << d.message << "\n";
+          }
+          if (cfgRes.status != nsl::fmt::FormatResult::Status::Success) {
+            // Discovered-config error → skip this input (FR-016 spirit).
+            aggregateExit = 1;
+            continue;
+          }
+        }
+      }
+    }
+
+    int rc = processInput(path, *contentOpt, per_file_cfg, checkMode,
+                          inPlace, path);
     if (rc != 0) {
       aggregateExit = 1;
     }

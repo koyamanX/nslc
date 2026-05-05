@@ -46,7 +46,8 @@ add_library(NslFmt STATIC
   CSTBuilder.cpp
   Doc.cpp                # T2 Phase 2c — Wadler-Leijen IR (T024)
   LayoutRenderer.cpp     # T2 Phase 2c — ribbon-fitter (T025)
-  Config.cpp             # T2 Phase 2c — Configuration + key list (partial T088/T089/T087)
+  Config.cpp             # T2 Phase 2c → 6 — Configuration + parse_config_file (T088/T089/T087/T103/T104/T105)
+  ConfigDiscovery.cpp    # T2 Phase 6 — discover_config upward walk (T106)
   Format.cpp             # T2 Phase 2c — format_buffer skeleton (T026/T027)
   Diff.cpp               # T2 Phase 3b — LCS-based unified-diff emitter (T076)
 )
@@ -62,7 +63,9 @@ target_link_libraries(NslFmt
   PUBLIC
     nsl-basic
     nsl-lex      # T2 Phase 2c — Lexer + Token (used by future Format.cpp paths)
-    nsl-parse)   # T2 Phase 2b — CSTSink interface in Parser.h
+    nsl-parse    # T2 Phase 2b — CSTSink interface in Parser.h
+  PRIVATE
+    tomlpp)      # T2 Phase 6 (T103) — TOML config parsing in Config.cpp
 
 # T2 Phase 5 (T087) — bake the configure-time version string into
 # `version_string()`. `NSLC_GIT_DESCRIBE` is set by

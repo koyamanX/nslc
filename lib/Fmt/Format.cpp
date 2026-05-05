@@ -116,25 +116,8 @@ FormatResult format_buffer(llvm::StringRef sourceBuffer,
 // emit_unified_diff — the real bodies arrive in Phases 4 / 6.
 // -----------------------------------------------------------------------------
 
-FormatResult parse_config_file(llvm::StringRef /*tomlBuffer*/,
-                               ::nsl::FileID /*fileID*/) {
-  // T103 (Phase 6) replaces this body with a toml++ parse. At
-  // Phase 2c every call returns Error so callers cannot
-  // accidentally rely on a default-constructed Configuration.
-  FormatResult r;
-  r.status = FormatResult::Status::Error;
-  // Diagnostic plumbing is deferred to T103 — the FormatResult
-  // carries an empty `diagnostics` vector, but the status==Error
-  // signal is sufficient for the caller to refuse to proceed.
-  return r;
-}
-
-std::optional<std::string> discover_config(llvm::StringRef /*startDir*/) {
-  // T106 (Phase 6) wires `llvm::sys::fs` to walk upward. At
-  // Phase 2c always return nullopt — callers fall back to
-  // default_configuration().
-  return std::nullopt;
-}
+// `parse_config_file` is implemented in lib/Fmt/Config.cpp (T103);
+// `discover_config` lives in lib/Fmt/ConfigDiscovery.cpp (T106).
 
 std::string emit_unified_diff(llvm::StringRef oldText, llvm::StringRef newText,
                               llvm::StringRef oldName,

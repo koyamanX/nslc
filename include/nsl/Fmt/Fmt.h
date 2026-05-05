@@ -118,11 +118,16 @@ FormatResult format_buffer(llvm::StringRef sourceBuffer,
 // 5. parse_config_file — TOML → Configuration (Phase 6 — T103)
 // -----------------------------------------------------------------------------
 //
-// Phase 2c skeleton: returns Status::Error with a "not implemented"
-// diagnostic. Phase 6 (T103) wires toml++ for the real parser.
+// Parses `tomlBuffer` as a `.nsl-fmt.toml` file. On success returns
+// `Status::Success` and populates `*out` with the parsed configuration
+// (defaulting any unset key to its built-in default). On TOML parse
+// error returns `Status::Refused`. On out-of-range / wrong-type
+// values for known keys returns `Status::Error`. Unknown keys emit
+// a warning into `diagnostics` but do NOT change the status (so a
+// caller can ignore them and proceed). `out` MUST NOT be null.
 
 FormatResult parse_config_file(llvm::StringRef tomlBuffer,
-                               ::nsl::FileID fileID);
+                               ::nsl::FileID fileID, Configuration *out);
 
 // -----------------------------------------------------------------------------
 // 6. discover_config — upward .nsl-fmt.toml walk (Phase 6 — T106)

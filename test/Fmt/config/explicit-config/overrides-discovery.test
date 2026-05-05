@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T099: `--config <path>` overrides upward-walk discovery.
+// Place a "tripwire" config at the upward-walked location AND
+// a different "explicit" config at an arbitrary path. Pass
+// --config to the explicit one. Verify ONLY the explicit config's
+// warning surfaces (proves the upward-walk was suppressed).
+
+// RUN: rm -rf %t.tree && mkdir -p %t.tree/sub
+// RUN: printf 'discovered_should_not_appear = 1\n' > %t.tree/.nsl-fmt.toml
+// RUN: printf 'explicit_marker_key = 42\n' > %t.tree/explicit.toml
+// RUN: printf 'module foo {}\n' > %t.tree/sub/foo.nsl
+// RUN: cd %t.tree && nsl-fmt --config explicit.toml sub/foo.nsl 2>&1 | FileCheck %s
+// CHECK: warning: unknown configuration key 'explicit_marker_key'
+// CHECK-NOT: discovered_should_not_appear
