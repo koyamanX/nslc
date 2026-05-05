@@ -10,6 +10,7 @@
 
 #include "NslLSPServer.h"
 #include "DiagnosticMapper.h"
+#include "FoldingRangeBuilder.h"
 #include "JSONTransport.h"
 #include "Logger.h"
 #include "NslServer.h"
@@ -24,15 +25,12 @@ namespace lsp {
 
 namespace {
 
-// JSON-RPC standard error codes (see JSON-RPC 2.0 §5.1) and
-// LSP-specific codes (LSP 3.16 §base-protocol). Only the ones
-// actually referenced from this TU are declared; remaining
-// codes (kParseError -32700, kInvalidParams -32602,
-// kInternalError -32603, kRequestCancelled -32800) are added
-// to this list as later phases consume them.
+// JSON-RPC standard error codes (JSON-RPC 2.0 §5.1) and LSP-
+// specific codes (LSP 3.16 §base-protocol).
 constexpr int kInvalidRequest = -32600;
 constexpr int kMethodNotFound = -32601;
 constexpr int kServerNotInitialized = -32002;
+constexpr int kRequestCancelled = -32800;
 
 llvm::json::Object buildCapabilities() {
   // Per contracts/lsp-protocol.contract.md §1.2 — exact, byte-for-
@@ -338,10 +336,46 @@ void NslLSPServer::onDidClose(const llvm::json::Value &params) {
 }
 
 void NslLSPServer::onFoldingRange(const RequestId &id,
-                                    const llvm::json::Value & /*params*/) {
-  // Phase 2 stub — returns empty array. Phase 5 (T097-T101) wires
-  // FoldingRangeBuilder + cancellation polling.
-  sendResponse(id, llvm::json::Array{});
+                                    const llvm::json::Value &params) {
+  // Extract URI.
+  auto *obj = params.getAsObject();
+  if (!obj) {
+    sendResponse(id, llvm::json::Array{});
+    return;
+  }
+  auto *td = obj->getObject("textDocument");
+  auto uri = td ? td->getString("uri").value_or("") : llvm::StringRef("");
+
+  // Register a cancellation token in the in-flight table.
+  CancellationToken token = CancellationToken::make();
+  {
+    std::lock_guard<std::mutex> guard(inflight_mtx_);
+    inflight_[id] = token;
+  }
+
+  // Run the folding-range walk synchronously on the dispatch
+  // thread. The walk is O(N) over the source bytes and well under
+  // the SC-010 200 ms budget; offloading to a worker thread would
+  // add overhead without observable benefit.
+  std::string contents;
+  backend_.scheduler().withState(
+      uri, [&](const NslTU::State &st) { contents = st.contents; });
+
+  llvm::json::Array folds = buildFoldingRanges(contents, token);
+
+  // Remove from in-flight table; respond.
+  bool was_cancelled;
+  {
+    std::lock_guard<std::mutex> guard(inflight_mtx_);
+    inflight_.erase(id);
+    was_cancelled = token.isCancelled();
+  }
+
+  if (was_cancelled) {
+    sendError(id, kRequestCancelled, "request cancelled");
+  } else {
+    sendResponse(id, std::move(folds));
+  }
 }
 
 void NslLSPServer::onCancelRequest(const llvm::json::Value &params) {

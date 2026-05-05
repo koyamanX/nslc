@@ -76,5 +76,11 @@ nsl_add_lsp_test(lifecycle_test lifecycle_test.cpp)
 # Phase 3 / US1 diagnostic-seam tests (T057–T066).
 nsl_add_lsp_test(diagnostics_test diagnostics_test.cpp)
 
-# Phase 5 / US3 onwards: folding_test, cancellation_test
-# add similar `nsl_add_lsp_test(...)` lines as their tasks land.
+# Phase 5 / US3 folding-range + cancellation tests (T090–T096).
+nsl_add_lsp_test(folding_test folding_test.cpp)
+nsl_add_lsp_test(cancellation_test cancellation_test.cpp)
+
+# Phase 6 / US4 architectural verification (T102, T104).
+nsl_add_lsp_test(architecture_test architecture_test.cpp)
+target_compile_definitions(architecture_test PRIVATE
+  NSL_LSP_LINK_AUDIT_SCRIPT="${CMAKE_SOURCE_DIR}/scripts/lsp_link_audit.sh")

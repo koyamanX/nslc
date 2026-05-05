@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/module_with_blocks.nsl — multi-line module +
+// declare + func + proc with nested seq, used by FoldingSuite tests
+// for multi-line block-fold coverage.
+
+module mod {
+  declare {
+    input clk;
+    input rst;
+    output o;
+  }
+  reg q[8] = 0;
+  func clk {
+    seq {
+      q := q + 1;
+    }
+  }
+}

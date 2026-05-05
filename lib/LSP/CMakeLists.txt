@@ -30,7 +30,8 @@ add_library(NSLLSP STATIC
   TUScheduler.cpp
   NslServer.cpp
   NslLSPServer.cpp
-  DiagnosticMapper.cpp)
+  DiagnosticMapper.cpp
+  FoldingRangeBuilder.cpp)
 
 target_compile_features(NSLLSP PUBLIC cxx_std_17)
 

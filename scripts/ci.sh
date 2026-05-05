@@ -179,6 +179,16 @@ stage_static_checks() {
     log "  (skipping SPDX check: scripts/check_spdx.py not yet present — lands at T065)"
   fi
 
+  # T3 / Phase 6 (T103, T106): lib/LSP/ Principle II audit.
+  # Verifies the LSP server doesn't reimplement any frontend class
+  # and that the public-header surface is a single Server.h.
+  if [[ -x "${REPO_ROOT}/scripts/lsp_link_audit.sh" ]]; then
+    log "  scripts/lsp_link_audit.sh"
+    "${REPO_ROOT}/scripts/lsp_link_audit.sh" || rc=$?
+  else
+    log "  (skipping lsp_link_audit: scripts/lsp_link_audit.sh not yet present)"
+  fi
+
   # 4. M4 dialect fixture-coverage guard (spec FR-021 + research.md §9).
   # Vacuous at Phase 2 (op set empty); goes live as Phase 3 / 4
   # populate `lib/Dialect/NSL/IR/NSLOps.td` and

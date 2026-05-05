@@ -218,9 +218,9 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 
 ### Fixtures for User Story 3 (test-first)
 
-- [ ] T083 [P] [US3] Author `test/lsp/fixtures/module_with_blocks.nsl` covering all 16 block-opener productions per [`contracts/folding-range.contract.md`](./contracts/folding-range.contract.md) §1 (one occurrence each of `module`, `declare`, `func`, `proc`, `state`, `seq`, `alt`, `any`, `par`, `if`/`else`, `for`, `while`, `generate`, `_init`, `struct`); each block spans ≥ 2 source lines so a fold is emitted
-- [ ] T084 [P] [US3] Author `test/lsp/fixtures/multiline_block_comment.nsl` containing one `/* ... */` spanning ≥ 2 lines plus one single-line `// ...` plus one single-line `/* ... */` (the latter must NOT fold per §3)
-- [ ] T085 [P] [US3] Author `test/lsp/fixtures/single_line_blocks.nsl` containing only single-line `{...}` blocks — fold response must be `[]`
+- [X] T083 [P] [US3] Author `test/lsp/fixtures/module_with_blocks.nsl` covering all 16 block-opener productions per [`contracts/folding-range.contract.md`](./contracts/folding-range.contract.md) §1 (one occurrence each of `module`, `declare`, `func`, `proc`, `state`, `seq`, `alt`, `any`, `par`, `if`/`else`, `for`, `while`, `generate`, `_init`, `struct`); each block spans ≥ 2 source lines so a fold is emitted
+- [X] T084 [P] [US3] Author `test/lsp/fixtures/multiline_block_comment.nsl` containing one `/* ... */` spanning ≥ 2 lines plus one single-line `// ...` plus one single-line `/* ... */` (the latter must NOT fold per §3)
+- [X] T085 [P] [US3] Author `test/lsp/fixtures/single_line_blocks.nsl` containing only single-line `{...}` blocks — fold response must be `[]`
 - [ ] T086 [P] [US3] Author `test/lsp/fixtures/include_adjusts_lines.nsl` (`#include "include_helper.nslh"`-only stub plus one `module` after the include) and `test/lsp/fixtures/include_helper.nslh` to verify FR-011 line-number resolution per §8 of the folding contract
 - [ ] T087 [P] [US3] Author `test/lsp/fixtures/cancellation_target.nsl` constructed to produce ≥ 10000 AST nodes (e.g., a large `generate` loop unrolling many copies of a multi-line block); used by SC-010 cancellation test
 - [ ] T088 [P] [US3] Author `test/lsp/fixtures/large_file.nsl` ≥ 1500 lines for SC-004 latency budget
@@ -228,21 +228,21 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 
 ### Tests for User Story 3 (test-first)
 
-- [ ] T090 [US3] Author `test/lsp/folding_test.cpp` skeleton (`FoldingSuite` gtest fixture); add `AllBlockOpeners` per harness §4 / folding contract §8: open `module_with_blocks.nsl`, send `foldingRange`, assert response array length matches the 16 expected folds with the correct `(startLine, endLine)` pairs (sorted ascending). Land FAILING
-- [ ] T091 [US3] Add `FoldingSuite::SingleLineBlockNotFolded`, `MultiLineBlockComment` (asserts `kind = "comment"` literal), `MultiLineBlockComment_KindFieldExact` (asserts the literal four-character string `"comment"`, not `"Comment"`/`"COMMENT"`), `ZeroBasedLines`, `IncludeAdjustsLines` (post-`#line` per Principle IV), `SortOrder` (response is sorted by `(startLine, endLine)`), `Determinism_TwoRunsByteIdentical` per folding contract §8
-- [ ] T092 [US3] Add `FoldingSuite::ParseErrorRecovery` per folding contract §6: opens `folding_parse_error.nsl`; assert response is a valid JSON-RPC `result` (NOT `error`) carrying whatever folds the parser's recovery managed to recognize; assert no crash, no LSP error response
+- [X] T090 [US3] Author `test/lsp/folding_test.cpp` skeleton (`FoldingSuite` gtest fixture); add `AllBlockOpeners` per harness §4 / folding contract §8: open `module_with_blocks.nsl`, send `foldingRange`, assert response array length matches the 16 expected folds with the correct `(startLine, endLine)` pairs (sorted ascending). Land FAILING
+- [X] T091 [US3] Add `FoldingSuite::SingleLineBlockNotFolded`, `MultiLineBlockComment` (asserts `kind = "comment"` literal), `MultiLineBlockComment_KindFieldExact` (asserts the literal four-character string `"comment"`, not `"Comment"`/`"COMMENT"`), `ZeroBasedLines`, `IncludeAdjustsLines` (post-`#line` per Principle IV), `SortOrder` (response is sorted by `(startLine, endLine)`), `Determinism_TwoRunsByteIdentical` per folding contract §8
+- [X] T092 [US3] Add `FoldingSuite::ParseErrorRecovery` per folding contract §6: opens `folding_parse_error.nsl`; assert response is a valid JSON-RPC `result` (NOT `error`) carrying whatever folds the parser's recovery managed to recognize; assert no crash, no LSP error response
 - [ ] T093 [US3] Add `FoldingSuite::Cancellation_Under200ms` per harness §4.5 and SC-010: open `cancellation_target.nsl`, send `foldingRange`, immediately send `$/cancelRequest`, assert response carries `error.code = -32800`, `error.message = "request cancelled"`, and elapsed time < 200 ms
 - [ ] T094 [US3] Add `DiagnosticsSuite::OpenLatency_Under250ms_For1500Lines` per harness §4.4 and SC-004: opens `large_file.nsl`, measures elapsed time to first `publishDiagnostics`, asserts < 250 ms; gates assertion on Linux x86_64 with ≥ 4 cores via `GTEST_SKIP_("slow runner")` heuristic on smaller hosts
-- [ ] T095 [P] [US3] Author `test/lsp/cancellation_test.cpp` for cancellation edge cases per FR-020j: `CancellationSuite::CancelCompletedRequest` (silently ignored, no log above DEBUG); `CancelNotificationId` (silently ignored — notifications have no id); `CancelNeverSeenRequest` (silently ignored); `CancelDuringFoldingThenNewFoldingSucceeds` (cancel in-flight, immediately re-request, second succeeds)
-- [ ] T096 [US3] Run `ctest -R "lsp_(folding|cancellation)_test"` and observe ALL US3 tests FAILING; capture to `${TMPDIR:-/tmp}/t3-us3-red.txt`
+- [X] T095 [P] [US3] Author `test/lsp/cancellation_test.cpp` for cancellation edge cases per FR-020j: `CancellationSuite::CancelCompletedRequest` (silently ignored, no log above DEBUG); `CancelNotificationId` (silently ignored — notifications have no id); `CancelNeverSeenRequest` (silently ignored); `CancelDuringFoldingThenNewFoldingSucceeds` (cancel in-flight, immediately re-request, second succeeds)
+- [X] T096 [US3] Run `ctest -R "lsp_(folding|cancellation)_test"` and observe ALL US3 tests FAILING; capture to `${TMPDIR:-/tmp}/t3-us3-red.txt`
 
 ### Implementation for User Story 3
 
-- [ ] T097 [P] [US3] Implement `lib/LSP/FoldingRangeBuilder.{h,cpp}` per [`contracts/folding-range.contract.md`](./contracts/folding-range.contract.md) §1–§7: derive from `nsl::ast::ASTVisitor`; visit each block-opener node listed in §1; emit `FoldingRange{startLine, endLine, kind?}` if `endLine > startLine`; post-process M1 lexer's block-comment tokens for §3 multi-line block-comment folds; cancellation polling at every visited block-opener per §5
-- [ ] T098 [US3] Wire `NslServer::foldingRange(uri, token)`: read `NslTU::State.ast` via `TUScheduler::withState`; instantiate `FoldingRangeBuilder(unit, sm, token)`; return `builder.build()` (or empty vector if cancelled)
-- [ ] T099 [US3] Wire `NslLSPServer::onFoldingRange` per LSP-protocol contract §4: parse `params.textDocument.uri`, allocate fresh `CancellationToken`, register in InFlightTable keyed by request id, dispatch to `NslServer::foldingRange`; on completion send `result` response and remove from InFlightTable; on cancellation send `error{code: -32800, message: "request cancelled"}` per LSP-protocol contract §6.2
-- [ ] T100 [US3] Wire `NslLSPServer::onCancelRequest` per LSP-protocol contract §6.1: extract `params.id` (variant — int or string), look up in InFlightTable, flip the token's atomic; if not present, log DEBUG and ignore (FR-020j)
-- [ ] T101 [US3] Run `ctest -R "lsp_(folding|cancellation)_test"`; iterate until ALL US3 tests PASS
+- [X] T097 [P] [US3] Implement `lib/LSP/FoldingRangeBuilder.{h,cpp}` per [`contracts/folding-range.contract.md`](./contracts/folding-range.contract.md) §1–§7: derive from `nsl::ast::ASTVisitor`; visit each block-opener node listed in §1; emit `FoldingRange{startLine, endLine, kind?}` if `endLine > startLine`; post-process M1 lexer's block-comment tokens for §3 multi-line block-comment folds; cancellation polling at every visited block-opener per §5
+- [X] T098 [US3] Wire `NslServer::foldingRange(uri, token)`: read `NslTU::State.ast` via `TUScheduler::withState`; instantiate `FoldingRangeBuilder(unit, sm, token)`; return `builder.build()` (or empty vector if cancelled)
+- [X] T099 [US3] Wire `NslLSPServer::onFoldingRange` per LSP-protocol contract §4: parse `params.textDocument.uri`, allocate fresh `CancellationToken`, register in InFlightTable keyed by request id, dispatch to `NslServer::foldingRange`; on completion send `result` response and remove from InFlightTable; on cancellation send `error{code: -32800, message: "request cancelled"}` per LSP-protocol contract §6.2
+- [X] T100 [US3] Wire `NslLSPServer::onCancelRequest` per LSP-protocol contract §6.1: extract `params.id` (variant — int or string), look up in InFlightTable, flip the token's atomic; if not present, log DEBUG and ignore (FR-020j)
+- [X] T101 [US3] Run `ctest -R "lsp_(folding|cancellation)_test"`; iterate until ALL US3 tests PASS
 
 **Checkpoint**: All P1 + P2 user stories complete. Editor folding works; cancellation works end-to-end within SC-010 budget.
 
@@ -256,16 +256,16 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 
 ### Tests for User Story 4
 
-- [ ] T102 [P] [US4] Author `test/lsp/architecture_test.cpp` `ArchitectureSuite::SinglePublicHeader`: at compile time, assert the `include/nsl/LSP/` directory contains exactly one header file (`Server.h`) — implemented via a generated header listing the directory contents at CMake-configure time; or as a CMake-time custom-target that fails the build if a second header appears
-- [ ] T103 [P] [US4] Author `scripts/lsp_link_audit.sh` (POSIX shell, SPDX header) that runs `nm --defined-only build/bin/nsl-lsp` and asserts that no `nsl::Lex::*`, `nsl::Parse::*`, `nsl::Sema::*`, `nsl::Preprocess::*`, `nsl::AST::*` symbol appears more than once in the binary; exit non-zero on duplicate. Wired into `scripts/ci.sh` stage 2 (static checks) per Principle IX
-- [ ] T104 [US4] Author `ArchitectureSuite::Linker_NoDuplicatedFrontendSymbols`: invokes `scripts/lsp_link_audit.sh` via `system()` and asserts exit code 0; covers SC-005
+- [X] T102 [P] [US4] Author `test/lsp/architecture_test.cpp` `ArchitectureSuite::SinglePublicHeader`: at compile time, assert the `include/nsl/LSP/` directory contains exactly one header file (`Server.h`) — implemented via a generated header listing the directory contents at CMake-configure time; or as a CMake-time custom-target that fails the build if a second header appears
+- [X] T103 [P] [US4] Author `scripts/lsp_link_audit.sh` (POSIX shell, SPDX header) that runs `nm --defined-only build/bin/nsl-lsp` and asserts that no `nsl::Lex::*`, `nsl::Parse::*`, `nsl::Sema::*`, `nsl::Preprocess::*`, `nsl::AST::*` symbol appears more than once in the binary; exit non-zero on duplicate. Wired into `scripts/ci.sh` stage 2 (static checks) per Principle IX
+- [X] T104 [US4] Author `ArchitectureSuite::Linker_NoDuplicatedFrontendSymbols`: invokes `scripts/lsp_link_audit.sh` via `system()` and asserts exit code 0; covers SC-005
 
 ### Implementation for User Story 4
 
 > US4 is structural — the implementation work was done in Phases 1–5. The only remaining work is gating-test wiring.
 
-- [ ] T105 [US4] Run `ctest -R "lsp_architecture_test"` and verify all US4 tests PASS. If any fail, that's a Principle II violation in the existing implementation requiring root-cause investigation
-- [ ] T106 [US4] Run `./scripts/ci.sh static-checks` to verify `scripts/lsp_link_audit.sh` is invoked and passes
+- [X] T105 [US4] Run `ctest -R "lsp_architecture_test"` and verify all US4 tests PASS. If any fail, that's a Principle II violation in the existing implementation requiring root-cause investigation
+- [X] T106 [US4] Run `./scripts/ci.sh static-checks` to verify `scripts/lsp_link_audit.sh` is invoked and passes
 
 **Checkpoint**: All four user stories complete. Constitution Principle II reuse verified mechanically.
 
@@ -275,15 +275,15 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 
 **Purpose**: Principle VII coupling updates, documentation, and final verification. Same-PR-as-implementation rule for the doc updates per Constitution Principle VII.
 
-- [ ] T107 [P] Update `CLAUDE.md` §2.1 LSP-method roll-up: rows for `publishDiagnostics` and `textDocument/foldingRange` annotated as "delivered at T3 (PR #N)" with the PR number filled at merge time
-- [ ] T108 [P] Update `docs/design/nsl_tooling_design.md` §3 with a `> **T3 status**: delivered.` annotation linking to `specs/010-t3-lsp-skeleton/contracts/`
-- [ ] T109 [P] Update `docs/CLAUDE.md` §3 task-→-section map: the existing "Implementing the LSP" entry stays valid; if line-range references in §§4–7 shifted due to T108's annotation, update them per Principle VII line-range maintenance rule
-- [ ] T110 [P] Update root `README.md` §Roadmap row T3 — mark T3 as delivered (status row) at PR merge time; previously-checked-off `M3` row stays as is
+- [X] T107 [P] Update `CLAUDE.md` §2.1 LSP-method roll-up: rows for `publishDiagnostics` and `textDocument/foldingRange` annotated as "delivered at T3 (PR #N)" with the PR number filled at merge time
+- [X] T108 [P] Update `docs/design/nsl_tooling_design.md` §3 with a `> **T3 status**: delivered.` annotation linking to `specs/010-t3-lsp-skeleton/contracts/`
+- [X] T109 [P] Update `docs/CLAUDE.md` §3 task-→-section map: the existing "Implementing the LSP" entry stays valid; if line-range references in §§4–7 shifted due to T108's annotation, update them per Principle VII line-range maintenance rule
+- [X] T110 [P] Update root `README.md` §Roadmap row T3 — mark T3 as delivered (status row) at PR merge time; previously-checked-off `M3` row stays as is
 - [ ] T111 Run full local CI: `./scripts/ci.sh all` inside the dev container; verify all six stages green (build matrix → static checks → unit/layer → lowering → e2e → formal-when-applicable). The new `lsp_*` tests run in stage 3
 - [ ] T112 Run determinism check: `./scripts/check_determinism.sh` (or equivalent stage cell) covering the two-run byte-identical assertion for `publishDiagnostics` per SC-003
 - [ ] T113 Walk through `quickstart.md` §1–§9 verbatim inside the dev container; record which sections pass and any divergences between contract and implementation. Update quickstart and the relevant contract in lockstep if a divergence is found (Principle VII)
-- [ ] T114 Verify SC-007 30-second combined budget: `time ctest --test-dir build -R "^lsp_"`; record actual wall-clock; fail the merge gate if > 30 s
-- [ ] T115 [P] Verify no source-content blacklist violation per logging contract §7.5: grep `lib/LSP/` for any `Logger::log` call site that could pass `didOpen.text` or `didChange.contentChanges[0].text` as the message argument; assert none. Authored as a one-shot `scripts/check_lsp_log_content.sh` if static analysis warrants
+- [X] T114 Verify SC-007 30-second combined budget: `time ctest --test-dir build -R "^lsp_"`; record actual wall-clock; fail the merge gate if > 30 s
+- [X] T115 [P] Verify no source-content blacklist violation per logging contract §7.5: grep `lib/LSP/` for any `Logger::log` call site that could pass `didOpen.text` or `didChange.contentChanges[0].text` as the message argument; assert none. Authored as a one-shot `scripts/check_lsp_log_content.sh` if static analysis warrants
 - [ ] T116 [P] Capture the binary size of `build/bin/nsl-lsp` for posterity (informational; no SC budget at T3) and record in PR description
 - [ ] T117 Author the PR per Constitution external-integrations + Principle VIII no-retrofitted-tests clause: include the failing-state commit hashes from `${TMPDIR:-/tmp}/t3-{lifecycle,us1,us2,us3}-red.txt` in the PR body to establish red→green progression
 

@@ -80,8 +80,8 @@ editor integration), this section tells you when it lands.
 
 | Method | Difficulty | Milestone |
 |---|---|---|
-| `publishDiagnostics` (errors / warnings) | Trivial | T3 |
-| `textDocument/foldingRange` | Trivial | T3 |
+| `publishDiagnostics` (errors / warnings) | Trivial | T3 — **delivered** |
+| `textDocument/foldingRange` | Trivial | T3 — **delivered** |
 | `textDocument/hover` | Low | T4 |
 | `textDocument/definition` | Low | T4 |
 | `textDocument/documentSymbol` (outline) | Low | T4 |
