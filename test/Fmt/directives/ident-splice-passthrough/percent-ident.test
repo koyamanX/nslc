@@ -7,5 +7,9 @@
 // because the LayoutPlanner treats `IdentSplice` tokens as
 // `Doc::Text` leaves (research §7).
 
-// RUN: printf 'module %%FOO%% {}\n' | nsl-fmt --stdin | FileCheck %s
+// `echo` is preferred over `printf` here because `printf` would
+// interpret `%F` as a format specifier (uppercase-F float). After
+// lit substitutes `%%FOO%%` -> `%FOO%`, echo emits it literally.
+
+// RUN: echo 'module %%FOO%% {}' | nsl-fmt --stdin | FileCheck %s
 // CHECK: module %FOO% {}
