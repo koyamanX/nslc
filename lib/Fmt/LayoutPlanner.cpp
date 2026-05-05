@@ -85,6 +85,19 @@ DocPtr LayoutPlanner::build(const ::nsl::ast::CompilationUnit &cu) {
   return result_ ? result_ : Doc::text(llvm::StringRef{});
 }
 
+DocPtr LayoutPlanner::visitNode(const ::nsl::ast::ASTNode &child) {
+  // Save/restore `result_` so nested calls compose naturally —
+  // each `accept()` writes its result into `result_`, and a parent
+  // visitor that calls `visitNode(*child)` to recurse into a
+  // specific sub-node mustn't lose its own in-progress Doc.
+  DocPtr saved = std::move(result_);
+  result_ = nullptr;
+  child.accept(*this);
+  DocPtr child_doc = std::move(result_);
+  result_ = std::move(saved);
+  return child_doc ? child_doc : Doc::text(llvm::StringRef{});
+}
+
 DocPtr LayoutPlanner::verbatimFromRange(::nsl::SourceRange r) const {
   if (!r.begin().isValid() || !r.end().isValid()) {
     return Doc::text(llvm::StringRef{});

@@ -76,16 +76,40 @@ public:
 #include "nsl/AST/NodeKind.def"
 #undef NSL_NODE_KIND
 
-private:
+protected:
+  /// Visit a single child node and return its Doc representation.
+  /// Future Phase 3-rules overrides (T049-T055) use this to recurse
+  /// into specific sub-nodes (e.g., `RegDecl::init()`) without
+  /// emitting the parent's whole range verbatim. Save/restore the
+  /// `result_` member so nested calls compose naturally:
+  ///
+  ///   ```cpp
+  ///   void visit(const RegDecl& node) override {
+  ///     result_ = Doc::concat({
+  ///       verbatimFromRange(prefix_range),     // "reg <name>[<width>] = "
+  ///       visitNode(*node.init()),             // recurse — R5 fires here
+  ///       verbatimFromRange(suffix_range),     // ";"
+  ///     });
+  ///   }
+  ///   ```
+  DocPtr visitNode(const ::nsl::ast::ASTNode &child);
+
   /// Slice `src_` for the given source range and wrap as Doc::text.
   /// Bounds-checked: returns Doc::text("") if the range exceeds
   /// the buffer (shouldn't happen for a well-formed AST but
   /// defends against future refactors).
   DocPtr verbatimFromRange(::nsl::SourceRange r) const;
 
-  llvm::StringRef     src_;
+  /// Direct access to the source buffer + active config for
+  /// derived rule visitors that need finer-grained slicing than
+  /// `verbatimFromRange()` provides.
+  [[nodiscard]] llvm::StringRef sourceBuffer() const noexcept { return src_; }
+  [[nodiscard]] const Configuration &config() const noexcept { return cfg_; }
+
+private:
+  llvm::StringRef src_;
   const Configuration &cfg_;
-  DocPtr              result_;
+  DocPtr result_;
 };
 
 } // namespace nsl::fmt
