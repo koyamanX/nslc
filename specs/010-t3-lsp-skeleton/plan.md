@@ -9,7 +9,11 @@
 
 Deliver tooling-track milestone **T3** — the first user-visible LSP
 deliverable and the architectural seam every later LSP-track
-milestone (T4, T5, T9, T10, T11) builds on. T3 ships:
+milestone (T4, T5, T9, T10) extends with new LSP methods. T11
+(editor packaging across Neovim / Emacs / Sublime; not a new
+LSP method) consumes the same `nsl-lsp` binary and gates on T3 +
+T8 per [`docs/design/nsl_tooling_design.md`](../../docs/design/nsl_tooling_design.md)
+§4.4. T3 ships:
 
 1. **`tools/nsl-lsp/`** — a thin entry-point binary
    (`main.cpp` ≤ 70 lines) that delegates to the library. Wired into
@@ -158,14 +162,19 @@ provides clang/gcc/cmake/ninja/lit/gtest. No new platform.
 - Real cancellation for `foldingRange` only (per Q5; the only
   cancellable T3 request).
 
-**Scale/Scope**: 4 LSP methods (`initialize`, `textDocument/didOpen`,
-`didChange`, `didClose`, plus the notification `publishDiagnostics`
-and the request `textDocument/foldingRange`); LSP framing layer
-(~200 LOC); protocol-handler dispatch (~150 LOC); language-logic
-layer (~100 LOC); TUScheduler + NslTU (~250 LOC); in-tree test
-harness (~250 LOC); ~750 LOC C++ headers + sources total in `lib/LSP/`
-+ ~70 LOC in `tools/nsl-lsp/main.cpp`. Tests: ~30 fixtures × ~25
-LOC each ≈ 750 LOC test code. Total in-tree footprint ≤ 1.5 KLOC.
+**Scale/Scope**: 7 LSP wire messages — 4 sync/lifecycle methods
+(`initialize`, `textDocument/didOpen`, `textDocument/didChange`,
+`textDocument/didClose`) plus 1 server→client notification
+(`textDocument/publishDiagnostics`) plus 1 client→server request
+(`textDocument/foldingRange`) plus 1 cancellation notification
+(`$/cancelRequest`). Lifecycle scaffolding (`initialized` /
+`shutdown` / `exit`) is base-protocol overhead, not a counted
+method. LSP framing layer (~200 LOC); protocol-handler dispatch
+(~150 LOC); language-logic layer (~100 LOC); TUScheduler +
+NslTU (~250 LOC); in-tree test harness (~250 LOC); ~750 LOC C++
+headers + sources total in `lib/LSP/` + ~70 LOC in
+`tools/nsl-lsp/main.cpp`. Tests: ~30 fixtures × ~25 LOC each ≈
+750 LOC test code. Total in-tree footprint ≤ 1.5 KLOC.
 
 ## Constitution Check
 

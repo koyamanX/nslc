@@ -117,7 +117,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 - [ ] T039 Author `LifecycleSuite::PreInitialized_RejectsRequest`: send `initialize`, do NOT send `initialized`, send `textDocument/foldingRange`; assert response carries error code `-32002` (`ServerNotInitialized`). Land FAILING
 - [ ] T040 Author `LifecycleSuite::InvalidLogLevel_ExitsNonZero`: spawn with `NSL_LSP_LOG_LEVEL=garbage`; assert process exits non-zero before `initialize` would respond; assert stderr identifies the bad value (regex match). Land FAILING
 - [ ] T041 Author `LifecycleSuite::NSLIncludeLoggedAtStartup`: spawn with `NSL_INCLUDE=/tmp/foo:/tmp/bar`; send `initialize`+`initialized`+`shutdown`+`exit`; assert `capturedStderr()` regex-matches `INFO .*include.*\\/tmp\\/foo.*\\/tmp\\/bar` per contract §8.4. Land FAILING
-- [ ] T042 Run all `LifecycleSuite` tests via `ctest -R "lsp_lifecycle"`; observed FAILING; capture output to `/tmp/claude-1000/t3-lifecycle-red.txt` for the PR description
+- [ ] T042 Run all `LifecycleSuite` tests via `ctest -R "lsp_lifecycle"`; observed FAILING; capture output to `${TMPDIR:-/tmp}/t3-lifecycle-red.txt` for the PR description
 
 ### 2g. CI integration
 
@@ -168,7 +168,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 - [ ] T064 [US1] Add `DiagnosticsSuite::PreprocessError` using `preprocess_unresolved_include.nsl`; assert `source = "nsl-preprocess"` and `code` is the preprocessor's frozen ID for unresolved include (per FR-020c)
 - [ ] T065 [US1] Add `DiagnosticsSuite::UTF8Comment` using `utf8_comment.nsl`; assert the `range.start.character` is computed as a UTF-16 code-unit offset (verifies the conversion path in T012)
 - [ ] T066 [US1] Add `DiagnosticsSuite::Determinism_TwoRunsByteIdentical` per harness §4.2: spawn-and-drive the same fixture twice, capture both `publishDiagnostics` payloads as canonical JSON byte strings, assert byte-equal. Covers SC-003
-- [ ] T067 [US1] Run `ctest -R "lsp_diagnostics_test"` and observe ALL US1 tests FAILING; capture output to `/tmp/claude-1000/t3-us1-red.txt`
+- [ ] T067 [US1] Run `ctest -R "lsp_diagnostics_test"` and observe ALL US1 tests FAILING; capture output to `${TMPDIR:-/tmp}/t3-us1-red.txt`
 
 ### Implementation for User Story 1
 
@@ -196,7 +196,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 - [ ] T074 [US2] Add `DiagnosticsSuite::EditIntroducesError`: open `clean_module.nsl`, assert empty diagnostics; send `didChange` introducing an `__`-name; assert next `publishDiagnostics` has the new S1 diagnostic
 - [ ] T075 [US2] Add `DiagnosticsSuite::RapidEdits_OnlyLatestVersionPublished` (FR-008): open clean, send 5 `didChange`s rapidly with versions 2..6 each toggling between clean and one-error states; wait for the final `publishDiagnostics`; assert its `version == 6` and contents reflect the version-6 source. Add `DiagnosticsSuite::DidClose_FinalEmptyDiagnostics`: open `s01...`, observe diagnostic; send `didClose`; assert one final `publishDiagnostics` with empty `diagnostics`. Add `DiagnosticsSuite::IncrementalChangePayload_Rejected` (FR-006): send `didChange` whose `contentChanges[0]` carries a `range` field; assert no `publishDiagnostics` follows AND stderr contains an ERROR log line. Add `DiagnosticsSuite::StaleVersion_Ignored`: send `didChange` with version=1 after version=3 has been seen; assert WARN log + no diagnostic update
 - [ ] T076 [US2] Add `LifecycleSuite::README_TestGate_OpenErrorEditFix` per [`contracts/lsp-test-harness.contract.md`](./contracts/lsp-test-harness.contract.md) §4.1 — the literal materialization of the README test gate. Land FAILING
-- [ ] T077 [US2] Run `ctest -R "lsp_(diagnostics|lifecycle)_test"` and observe US2 tests FAILING; capture to `/tmp/claude-1000/t3-us2-red.txt`
+- [ ] T077 [US2] Run `ctest -R "lsp_(diagnostics|lifecycle)_test"` and observe US2 tests FAILING; capture to `${TMPDIR:-/tmp}/t3-us2-red.txt`
 
 ### Implementation for User Story 2
 
@@ -234,7 +234,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 - [ ] T093 [US3] Add `FoldingSuite::Cancellation_Under200ms` per harness §4.5 and SC-010: open `cancellation_target.nsl`, send `foldingRange`, immediately send `$/cancelRequest`, assert response carries `error.code = -32800`, `error.message = "request cancelled"`, and elapsed time < 200 ms
 - [ ] T094 [US3] Add `DiagnosticsSuite::OpenLatency_Under250ms_For1500Lines` per harness §4.4 and SC-004: opens `large_file.nsl`, measures elapsed time to first `publishDiagnostics`, asserts < 250 ms; gates assertion on Linux x86_64 with ≥ 4 cores via `GTEST_SKIP_("slow runner")` heuristic on smaller hosts
 - [ ] T095 [P] [US3] Author `test/lsp/cancellation_test.cpp` for cancellation edge cases per FR-020j: `CancellationSuite::CancelCompletedRequest` (silently ignored, no log above DEBUG); `CancelNotificationId` (silently ignored — notifications have no id); `CancelNeverSeenRequest` (silently ignored); `CancelDuringFoldingThenNewFoldingSucceeds` (cancel in-flight, immediately re-request, second succeeds)
-- [ ] T096 [US3] Run `ctest -R "lsp_(folding|cancellation)_test"` and observe ALL US3 tests FAILING; capture to `/tmp/claude-1000/t3-us3-red.txt`
+- [ ] T096 [US3] Run `ctest -R "lsp_(folding|cancellation)_test"` and observe ALL US3 tests FAILING; capture to `${TMPDIR:-/tmp}/t3-us3-red.txt`
 
 ### Implementation for User Story 3
 
@@ -285,7 +285,7 @@ empty `nsl-lsp` binary that exits 0. No real LSP behavior yet.
 - [ ] T114 Verify SC-007 30-second combined budget: `time ctest --test-dir build -R "^lsp_"`; record actual wall-clock; fail the merge gate if > 30 s
 - [ ] T115 [P] Verify no source-content blacklist violation per logging contract §7.5: grep `lib/LSP/` for any `Logger::log` call site that could pass `didOpen.text` or `didChange.contentChanges[0].text` as the message argument; assert none. Authored as a one-shot `scripts/check_lsp_log_content.sh` if static analysis warrants
 - [ ] T116 [P] Capture the binary size of `build/bin/nsl-lsp` for posterity (informational; no SC budget at T3) and record in PR description
-- [ ] T117 Author the PR per Constitution external-integrations + Principle VIII no-retrofitted-tests clause: include the failing-state commit hashes from `/tmp/claude-1000/t3-{lifecycle,us1,us2,us3}-red.txt` in the PR body to establish red→green progression
+- [ ] T117 Author the PR per Constitution external-integrations + Principle VIII no-retrofitted-tests clause: include the failing-state commit hashes from `${TMPDIR:-/tmp}/t3-{lifecycle,us1,us2,us3}-red.txt` in the PR body to establish red→green progression
 
 **Checkpoint**: T3 ready to merge.
 
@@ -388,7 +388,7 @@ With two developers after Foundational (Phase 2) completes:
 - `[P]` tasks = different files, no dependencies on incomplete tasks.
 - `[Story]` label maps each task to the user story it serves.
 - Each user story should be independently completable and testable.
-- Verify tests fail (capture to `/tmp/claude-1000/t3-*-red.txt`) before implementing.
+- Verify tests fail (capture to `${TMPDIR:-/tmp}/t3-*-red.txt`) before implementing.
 - Commit after each task or logical group; PR squash-merges still preserve the failing-state hash via the PR body.
 - Stop at any checkpoint to validate independently.
 - Avoid: same-file concurrent edits, cross-story dependencies that break independence, retrofitted tests, capability advertisement without contract update (Principle VII coupling).
