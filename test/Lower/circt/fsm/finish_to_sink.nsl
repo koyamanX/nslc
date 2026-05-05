@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/fsm/finish_to_sink.nsl — M6 Phase 5 (US3)
+// fixture (T048). `nsl.finish` inside a state body lowers to a
+// `fsm.transition` targeting a synthetic `__sink__` state inserted
+// once per machine.
+//
+// Lowering shape:
+//   nsl.proc @P {
+//     nsl.first_state @s0
+//     nsl.state @s0 { nsl.finish }
+//   }
+//   →
+//   fsm.machine @P attributes { initialState = "s0" } {
+//     fsm.state @s0 transitions { fsm.transition @__sink__ }
+//     fsm.state @__sink__
+//   }
+//
+// Per `circt-lowering.contract.md` §1, ONE sink per `fsm::MachineOp`
+// is shared across all `nsl.finish` / `nsl.finish_method` ops in
+// the proc body.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+}
+
+module M {
+  proc_name p;
+  proc p {
+    state_name s0;
+    first_state s0;
+    state s0 {
+      finish;
+    }
+  }
+}
+
+// CHECK-LABEL: fsm.machine @p
+// CHECK-SAME: initialState = "s0"
+// CHECK-DAG: fsm.state @s0
+// CHECK-DAG: fsm.transition @__sink__
+// CHECK-DAG: fsm.state @__sink__
+// CHECK-NOT: nsl.finish
+// CHECK-NOT: nsl.proc

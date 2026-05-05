@@ -76,7 +76,28 @@ public:
     // for the full rewrite recipe. After this pre-pass, the IR
     // contains zero `nsl::ModuleOp` / `nsl::DeclareOp` ops; any
     // remaining `nsl::*` ops belong to leaf-op families (Phase 5+).
+    //
+    // Phase-5 refactor: unrecognized leaf ops inside a
+    // `nsl::ModuleOp` body are MOVED into the new `hw::HWModuleOp`
+    // body (instead of fail-fasting); subsequent pre-passes (Phase
+    // 5 FSM, Phase 6 leaf-ops) and `applyFullConversion` then handle
+    // them.
     if (mlir::failed(lowerNSLModulesToHWModules(module))) {
+      signalPassFailure();
+      return;
+    }
+
+    // ---------- Phase 5 (US3) FSM pre-pass ----------
+    // Every `nsl::ProcOp` (with its `nsl::StateOp` children) is
+    // rewritten into a top-level `fsm::MachineOp` sibling of the
+    // enclosing `hw::HWModuleOp`. Every `nsl::FuncOp` containing
+    // a `nsl::SeqOp` is rewritten the same way with auto-generated
+    // `seq_N` states. After this pre-pass, the IR contains zero
+    // `nsl::ProcOp` / `nsl::StateOp` / `nsl::FirstStateOp` /
+    // `nsl::GotoOp` / `nsl::FinishOp` / `nsl::FinishMethodOp` /
+    // `nsl::CallOp`-to-proc / `nsl::SeqOp`-inside-FuncOp ops; the
+    // remaining `nsl::*` ops belong to Phase-6 leaf-op families.
+    if (mlir::failed(lowerNSLProcsToFSMMachines(module))) {
       signalPassFailure();
       return;
     }

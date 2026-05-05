@@ -22,6 +22,16 @@
 //   - `nsl::ParamIntOp` / `nsl::ParamStrOp` (T040 / T041b consumed by
 //     submodule instantiation as `hw.instance` parameter wires)
 //
+// Phase-5 refactor of the unrecognized-op handling (US3): the
+// per-op fail-fast `else` arm (which previously emitted a
+// hardcoded "M6 Phase 4 has no conversion pattern" error and
+// returned failure) is replaced with a MOVE — unrecognized ops are
+// relocated into the new `hw::HWModuleOp`'s body. Phase 5's
+// FSM pre-pass and Phase 6's leaf-op patterns then operate on
+// them; if no pattern can legalize an op, `applyFullConversion`
+// fails with the standard "failed to legalize operation 'nsl.<X>'"
+// diagnostic (FR-028; T029 fixture asserts this path).
+//
 // **Implementation strategy**: a custom `runModuleStructuralLowering`
 // pass-driver function (called by `NSLToCIRCTPass::runOnOperation`
 // BEFORE `applyFullConversion`) walks every `nsl::ModuleOp` in the
@@ -384,30 +394,62 @@ mlir::LogicalResult lowerOneModule(nsl::dialect::ModuleOp moduleOp,
                    llvm::dyn_cast<nsl::dialect::TransferOp>(op)) {
       llvm::StringRef outName = getOutputPortName(xfer.getDst());
       if (outName.empty()) {
-        // Not an output-port write; leave the op for fail-fast in
-        // applyFullConversion. (Phase 5/6 will handle wire/reg LHS.)
-        continue;
-      }
-      mlir::Value srcMapped = valueMap.lookup(xfer.getSrc());
-      if (!srcMapped) {
+        // Not an output-port write (LHS is wire/reg/mem). Phase 6's
+        // StatePatterns will handle this. The transfer references
+        // a non-port stub (e.g., a `nsl.reg`'s result); since the
+        // reg is being moved to the new hw.module body too (via the
+        // catch-all `else` arm below, in source order), the SSA
+        // chain stays consistent. The terminator's body-position
+        // ordering preserves source-order moves. Fall through to
+        // the move arm.
+      } else {
+        mlir::Value srcMapped = valueMap.lookup(xfer.getSrc());
+        if (srcMapped) {
+          outputAssignments.emplace_back(outName, srcMapped);
+          continue;
+        }
+        // Output-port write whose source is not yet materialised
+        // (e.g., `q = r;` where `r` is `nsl.reg`). The naive Phase-4
+        // forward-flow assumption breaks; we report fail-fast with
+        // a stable diagnostic per FR-028 (T029 fixture asserts).
         xfer.emitError()
-            << "transfer source not materialised before use; "
-            << "Phase-4 supports only forward-flowing combinational "
-            << "writes to output ports";
+            << "M6 cannot lower output-port write whose source ('"
+            << xfer.getSrc() << "') is not a Phase-4-materialised "
+            << "value (combinational forward-flow only at Phase 4; "
+            << "non-combinational sources land at Phase 6)";
         return mlir::failure();
       }
-      outputAssignments.emplace_back(outName, srcMapped);
+      // Move arm — the transfer is left for Phase 6.
+      auto *terminator = hwModuleOp.getBodyBlock()->getTerminator();
+      op->moveBefore(terminator);
     } else {
-      // Unsupported leaf op at Phase 4 — leave for fail-fast. The
-      // op stays in the original nsl.module body, which gets erased
-      // when we erase moduleOp; but applyFullConversion won't see
-      // it because we erase moduleOp before it runs. To trigger
-      // FR-028 fail-fast on unsupported leaf ops, we leave the op
-      // in place and return failure here.
-      op->emitError()
-          << "M6 Phase 4 has no conversion pattern for op '"
-          << op->getName().getStringRef() << "'";
-      return mlir::failure();
+      // Unrecognized leaf op at Phase 4. Per the Phase-5 refactor
+      // (US3), instead of fail-fasting here, MOVE the op into the
+      // new `hw::HWModuleOp` body so that `applyFullConversion`
+      // (which runs AFTER this structural pre-pass per
+      // `NSLToCIRCTPass::runOnOperation`) sees it. Two cases:
+      //
+      //   (a) A registered pattern exists (e.g., Phase 5's
+      //       FSM patterns for `nsl::ProcOp` / `nsl::StateOp`
+      //       / `nsl::GotoOp` / `nsl::FinishOp` / proc-target
+      //       `nsl::CallOp`) — the op gets rewritten cleanly.
+      //
+      //   (b) No pattern is registered (Phase-6 territory ops like
+      //       `nsl::RegOp` / `nsl::ClockedTransferOp` / `nsl::WireOp`
+      //       / `nsl::MemOp` / arith / bit-op / sim) — `nsl` is an
+      //       illegal dialect via the conversion target, so
+      //       `applyFullConversion` fail-fasts with the standard
+      //       "failed to legalize operation 'nsl.<X>'" diagnostic
+      //       (FR-028). The T029 fixture asserts this path.
+      //
+      // The move uses MLIR's standard list-splice via `Operation`'s
+      // `moveBefore`. We move the op to before the (existing
+      // empty) `hw::OutputOp` terminator created by the
+      // `HWModuleOp` constructor, so SSA-dominance ordering (defs
+      // before uses) is preserved relative to the just-built
+      // `hw::ConstantOp` / block-arg map entries above.
+      auto *terminator = hwModuleOp.getBodyBlock()->getTerminator();
+      op->moveBefore(terminator);
     }
   }
 

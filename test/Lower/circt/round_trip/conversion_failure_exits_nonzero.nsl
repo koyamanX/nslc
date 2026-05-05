@@ -6,16 +6,23 @@
 // reachable `nsl::*` op, `nslc -emit=hw` exits non-zero AND emits
 // a diagnostic naming the unmatched op.
 //
-// **Phase 4 status: PASSES** — Phase 4 lands the ModuleOp /
+// **Phase 5 status: PASSES** — Phase 4 lands the ModuleOp /
 // DeclareOp / Port / Submodule / Param structural rewrites plus
-// inline ConstantOp / TransferOp-to-output-port handling. The
-// fixture body now uses `reg r[8] = 0;` + `r := a;` (clocked
-// transfer to a register) — `nsl.reg` and `nsl.clocked_transfer`
-// are Phase-5/6 territory (state family + FSM), so the structural
-// pre-pass aborts with the documented diagnostic. Once Phase 6
-// lands the state-family patterns, this fixture must be updated
-// again to exercise some op kind whose pattern hasn't shipped, OR
-// retired in Phase 8 polish.
+// inline ConstantOp / TransferOp-to-output-port handling. Phase
+// 5 (US3) lands FSM lowering and refactors Phase 4's per-op
+// fail-fast `else` arm into a "move-and-defer" path — but the
+// fail-fast still fires on a specific Phase-4 limitation: an
+// output-port write whose source is not a Phase-4-materialised
+// value (combinational forward-flow only at Phase 4). The fixture
+// body uses `reg r[8] = 0;` + `r := a;` + `q = r;` to trigger
+// exactly that path: `q = r;` (the third statement) writes to
+// output port `q` from `r` which is a `nsl.reg` (Phase 6
+// territory), so Phase 4's TransferOp arm aborts with the
+// documented diagnostic.
+//
+// Once Phase 6 lands the state-family patterns, this fixture must
+// be updated again to exercise some op kind whose pattern hasn't
+// shipped, OR retired in Phase 8 polish.
 
 // RUN: not %nslc -emit=hw %s 2>&1 | %FileCheck %s
 
@@ -30,4 +37,4 @@ module M {
   q = r;
 }
 
-// CHECK: error: M6 Phase 4 has no conversion pattern for op 'nsl.{{[a-z_]+}}'
+// CHECK: error: M6 cannot lower output-port write whose source

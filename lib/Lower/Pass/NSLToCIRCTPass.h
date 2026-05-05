@@ -68,6 +68,24 @@ void populateStatePatterns(mlir::RewritePatternSet &patterns,
 // attempts to legalize individual port-info ops.
 mlir::LogicalResult lowerNSLModulesToHWModules(mlir::ModuleOp parentModule);
 
+// M6 Phase 5 (US3): FSM-lowering pre-pass. Every `nsl::dialect::ProcOp`
+// (with its child `StateOp`s + `FirstStateOp` + body-region
+// `GotoOp` / `FinishOp` / `CallOp` ops) becomes a top-level
+// `circt::fsm::MachineOp` sibling of the enclosing `hw::HWModuleOp`.
+// Every `nsl::dialect::FuncOp` containing a single `nsl::dialect::SeqOp`
+// becomes a `fsm::MachineOp` with auto-generated `seq_N` states.
+// Implemented in `CIRCTPatterns/FSMPatterns.cpp`; called from
+// `NSLToCIRCTPass::runOnOperation` BEFORE `applyFullConversion`,
+// AFTER `lowerNSLModulesToHWModules`.
+//
+// Per `specs/010-m6-circt-lowering/contracts/circt-lowering.contract.md`
+// §6 the rewrite is non-pattern-driven (manual walk) because the
+// proc → state → goto hierarchy requires coordinated visit-
+// children-before-parent semantics that the standard
+// DialectConversion worklist would interleave incorrectly with
+// attempts to legalize state / goto ops independently.
+mlir::LogicalResult lowerNSLProcsToFSMMachines(mlir::ModuleOp parentModule);
+
 } // namespace nsl::lower
 
 #endif // NSL_LOWER_PASS_NSL_TO_CIRCT_PASS_H

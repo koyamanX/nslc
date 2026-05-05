@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/fsm/first_state_not_first.nsl — M6 Phase 5 (US3)
+// fixture (T047). Asserts that the `initialState` attribute on the
+// `fsm::MachineOp` is correct regardless of source order: the
+// `first_state` declaration appears AFTER the `state` definitions
+// (S28 case — the spec permits `first_state` anywhere inside the
+// `proc` body relative to its referenced `state` defs).
+//
+// Lowering shape:
+//   nsl.proc @P {
+//     nsl.state @s0 { ... }
+//     nsl.state @s1 { ... }
+//     nsl.first_state @s1     // <-- declared LAST, points at s1
+//   }
+//   →
+//   fsm.machine @P attributes { initialState = "s1" } { ... }
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+}
+
+module M {
+  proc_name p;
+  proc p {
+    state_name s0;
+    state_name s1;
+    state s0 {
+    }
+    state s1 {
+    }
+    first_state s1;
+  }
+}
+
+// CHECK-LABEL: fsm.machine @p
+// CHECK-SAME: initialState = "s1"
+// CHECK: fsm.state @s0
+// CHECK: fsm.state @s1
+// CHECK-NOT: nsl.first_state
