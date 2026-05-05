@@ -1,0 +1,65 @@
+// SYNTAX TEST "source.nsl"
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// all-operators.nsl — hand-authored fixture covering all 7
+// operator categories per
+// `specs/009-t1-textmate-grammar/contracts/grammar-coverage.contract.md` §5
+// and `data-model.md §1.5`.
+//
+// Multi-character operators (`==`, `<=`, `&&`, `||`, `++`, `--`,
+// `:=`, `<<`, `>>`) MUST match before single-character variants
+// — the grammar generator emits them in that order (first-match
+// wins under Oniguruma alternation).
+//
+// Each line places one operator in column 1 followed by an inline
+// `// <- <scope>` assertion targeting the operator at column 1
+// of the previous line.
+
++
+// <- keyword.operator.arithmetic.nsl
+-
+// <- keyword.operator.arithmetic.nsl
+*
+// <- keyword.operator.arithmetic.nsl
+++
+// <- keyword.operator.arithmetic.nsl
+--
+// <- keyword.operator.arithmetic.nsl
+&
+// <- keyword.operator.bitwise.nsl
+|
+// <- keyword.operator.bitwise.nsl
+^
+// <- keyword.operator.bitwise.nsl
+~
+// <- keyword.operator.bitwise.nsl
+<<
+// <- keyword.operator.shift.nsl
+>>
+// <- keyword.operator.shift.nsl
+==
+// <- keyword.operator.comparison.nsl
+!=
+// <- keyword.operator.comparison.nsl
+<=
+// <- keyword.operator.comparison.nsl
+>=
+// <- keyword.operator.comparison.nsl
+<
+// <- keyword.operator.comparison.nsl
+>
+// <- keyword.operator.comparison.nsl
+&&
+// <- keyword.operator.logical.nsl
+||
+// <- keyword.operator.logical.nsl
+!
+// <- keyword.operator.logical.nsl
+:=
+// <- keyword.operator.assignment.nsl
+=
+// <- keyword.operator.assignment.nsl
+#
+// <- keyword.operator.extension.nsl
+'
+// <- keyword.operator.extension.nsl

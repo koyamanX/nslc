@@ -58,6 +58,13 @@ RECIPES_BY_EXT: dict[str, tuple[str, Optional[str]]] = {
     ".mlir":   ("//",   None),  # MLIR text format (M4+)
     ".txt":    ("#",    None),  # plain-text config (spdx_exceptions.txt etc.)
     ".cfg":    ("#",    None),  # config files (.lit configs etc.)
+    # JSON has no comment syntax — the SPDX header rides on a
+    # top-level `_comment_top` JSON key per
+    # specs/009-t1-textmate-grammar/research.md §2 (precedent:
+    # .github/branch-protection.json). The recipe pseudo-tuple
+    # below carries the literal opener `"_comment_top": "` so the
+    # first-line match logic finds it.
+    ".json":   ('"_comment_top": "', None),
 }
 
 # Special basenames (no extension or non-canonical extension).
@@ -94,6 +101,15 @@ class Result:
 
 def _is_shebang(line: str) -> bool:
     return line.startswith("#!")
+
+
+def _is_syntax_test_marker(line: str) -> bool:
+    """`vscode-tmgrammar-test` test fixtures REQUIRE
+    `// SYNTAX TEST "<scope>"` as the literal first line (see
+    test/tooling/textmate/node_modules/vscode-tmgrammar-test/README.md
+    §"Unit tests"). Treat it like a shebang — allowed on line 1
+    before the SPDX header."""
+    return line.startswith('// SYNTAX TEST "')
 
 
 def find_recipe(path: Path) -> Optional[tuple[str, Optional[str]]]:
@@ -157,6 +173,11 @@ def check_one_file(
     want = expected_line(opener, closer)
 
     # 5. First non-empty, non-shebang line must equal `want`.
+    # JSON exception: the `_comment_top` JSON-key convention puts
+    # the SPDX header on line 2 (after the opening `{`); so for
+    # `.json` files we match against any line whose stripped form
+    # STARTS WITH `"_comment_top": "SPDX-License-Identifier: <id>`.
+    is_json = path.suffix == ".json"
     try:
         with open(path, encoding="utf-8", errors="replace") as fh:
             for raw in fh:
@@ -166,6 +187,29 @@ def check_one_file(
                     continue
                 if _is_shebang(line):
                     continue
+                if _is_syntax_test_marker(line):
+                    continue
+                if is_json:
+                    # Skip the JSON object opener `{` (and any
+                    # plain wrapper line) so the SPDX match falls
+                    # on the first content line of the object.
+                    if stripped == "{":
+                        continue
+                    json_want_prefix = (
+                        f'"_comment_top": "SPDX-License-Identifier: '
+                        f'{EXPECTED_ID}'
+                    )
+                    if stripped.startswith(json_want_prefix):
+                        return Result(spath, "PASS")
+                    return Result(
+                        spath, "FAIL",
+                        expected=(
+                            f'(JSON) line starting with '
+                            f'"_comment_top": "SPDX-License-Identifier: '
+                            f'{EXPECTED_ID}'
+                        ),
+                        observed=stripped,
+                    )
                 if line == want:
                     return Result(spath, "PASS")
                 return Result(spath, "FAIL", expected=want, observed=line)

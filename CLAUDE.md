@@ -171,32 +171,36 @@ entirely by ops from CIRCT's `hw`, `comb`, `seq`, `fsm`, `sv`
 dialects. User-visible deliverable: `nslc -emit=hw input.nsl`
 operational + byte-stable + verifier-clean across all five CIRCT
 dialects + survives stock CIRCT pass round-trip
-(`circt-opt --convert-fsm-to-seq --lower-seq-to-sv`) externally.
-Driven via MLIR `DialectConversion` framework in full-conversion
-mode; `CIRCTTypeConverter` maps `!nsl.bits<W>` → `iW` and
-`!nsl.struct<@T>` → packed `iN` (S18 MSB-first). Pattern families
-delivered: ModulePatterns (US2), FSMPatterns (US3 — `nsl.proc`/
-`nsl.state`/`nsl.seq` → `fsm.machine`), StatePatterns +
-ArithPatterns + BitOpPatterns + ControlPatterns + SimPatterns +
-ParamPatterns (US4 — leaf-op coverage of design §10's mapping
-table, ~40 rows). Three /speckit-clarify decisions pinned
-conventions: Q1 → A `comb`-only arithmetic (no `hwarith`,
-no `CIRCTHwArith` link dep); Q2 → C async-active-low default
-reset on `seq.firreg` (no-`interface` path) for ASIC + FPGA
-portability + audited-corpus alignment; Q3 → A mux-on-data for
-`nsl.if`-over-reg-LHS (one `seq.firreg` per `nsl.reg` regardless
-of conditional nesting). Two specify-time decisions: `_init`
-block (S29) → `sv.initial` under `sv.ifdef "SIMULATION"` (sim-
-only); `-emit=hw` halts strictly at the nsl→CIRCT conversion
-boundary — stock CIRCT passes are M7's responsibility. Wired
-new `Compilation::lowerToCIRCT` member function. Public umbrella
+(`circt-opt --convert-fsm-to-sv --lower-seq-to-sv`) externally
+(`--convert-fsm-to-seq` is the doc-canonical name; vendored CIRCT
+ships `--convert-fsm-to-sv` — same effect). Driven via MLIR
+`DialectConversion` framework in full-conversion mode;
+`CIRCTTypeConverter` maps `!nsl.bits<W>` → `iW` and `!nsl.struct<@T>`
+→ packed `iN` (S18 MSB-first). Pattern families delivered:
+ModulePatterns (US2), FSMPatterns (US3 — `nsl.proc`/`nsl.state`/
+`nsl.seq` → `fsm.machine`), StatePatterns + ArithPatterns +
+BitOpPatterns + ControlPatterns + SimPatterns + ParamPatterns
+(US4 — leaf-op coverage of design §10's mapping table, ~40 rows).
+Three /speckit-clarify decisions pinned conventions: Q1 → A
+`comb`-only arithmetic (no `hwarith`, no `CIRCTHwArith` link
+dep); Q2 → C async-active-low default reset on `seq.firreg`
+(no-`interface` path) for ASIC + FPGA portability + audited-
+corpus alignment; Q3 → A mux-on-data for `nsl.if`-over-reg-LHS
+(one `seq.firreg` per `nsl.reg` regardless of conditional
+nesting). Two specify-time decisions: `_init` block (S29) →
+`sv.initial` under `sv.ifdef "SIMULATION"` (sim-only); `-emit=hw`
+halts strictly at the nsl→CIRCT conversion boundary — stock
+CIRCT passes are M7's responsibility. Wired new
+`Compilation::lowerToCIRCT` member function. Public umbrella
 header `Lower.h` grew from M5's 8 symbols to **10** (adds
 `createNSLToCIRCTPass` + `registerNSLToCIRCTPass`); M4 dialect
-contract is unchanged across the M6 lowering side (post-merge
-amendments #9 + #10 close prior coupling gaps); M5 pass-pipeline
-contract is unchanged. Final lit gate: **620 PASS + 3 XFAIL out
-of 623**. For technologies, project structure, entity catalog,
-contracts, and quickstart, read the current plan:
+contract gained M4-amendments #9 (`nsl::DeclareOp` + 3 port-info
+ops, closing a Principle VII coupling gap from /speckit-plan)
+and #10 (S20 `interface_clock`/`interface_reset` attrs on
+`nsl::DeclareOp`); M5 pass-pipeline contract is unchanged. Final
+lit gate: **620 PASS + 3 XFAIL out of 623**. For technologies,
+project structure, entity catalog, contracts, and quickstart,
+read the current plan:
 [`specs/010-m6-circt-lowering/plan.md`](./specs/010-m6-circt-lowering/plan.md).
 Companion artifacts:
 [`spec.md`](./specs/010-m6-circt-lowering/spec.md),
