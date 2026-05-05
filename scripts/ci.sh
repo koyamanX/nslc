@@ -37,8 +37,11 @@ nslc-ci: usage: ./scripts/ci.sh <stage> [args]
 stages (Constitution Principle IX order):
   build-matrix [TYPE] [CC]   stage 1; build one cell (default: Release × host)
   build-matrix --matrix      stage 1; fan out all 4 cells
-  static-checks              stage 2 (clang-format + clang-tidy + SPDX header)
-  unit-tests                 stage 3 (ctest)
+  static-checks              stage 2 (clang-format + clang-tidy + SPDX header
+                                       + tooling-grammar regen + mirror byte-eq)
+  unit-tests                 stage 3 (ctest + tooling-textmate scope tests)
+  tooling-textmate           stage 3 sub-step (TextMate scope tests only;
+                                       T1: specs/009-t1-textmate-grammar)
   lowering-tests             stage 4 (lit)
   e2e                        stage 5 (wired but empty until M7)
   formal                     stage 6 (wired but empty until M8)
@@ -260,6 +263,56 @@ stage_static_checks() {
     log "  (skipping op-location audit: scripts/audit_op_locations.sh not yet present)"
   fi
 
+  # 9. T1 / FR-001 + SC-003 — tooling-grammar regen-and-diff
+  # (specs/009-t1-textmate-grammar/data-model.md §3 / §4).
+  # Re-runs `gen_textmate_grammar.py` and `gen_textmate_fixtures.py`,
+  # then `git diff --exit-code` over the generated artefacts.
+  # A spec-side `KeywordSet.def` edit that lands without a parallel
+  # grammar regenerate fails CI here. Constitution Principle VII
+  # spec-↔-grammar coupling becomes mechanical.
+  if [[ -x "${REPO_ROOT}/scripts/gen_textmate_grammar.py" \
+        && -x "${REPO_ROOT}/scripts/gen_textmate_fixtures.py" ]]; then
+    log "  python3 scripts/gen_textmate_grammar.py --check"
+    python3 "${REPO_ROOT}/scripts/gen_textmate_grammar.py" --check \
+      || rc=$?
+    log "  python3 scripts/gen_textmate_fixtures.py --check"
+    python3 "${REPO_ROOT}/scripts/gen_textmate_fixtures.py" --check \
+      || rc=$?
+  else
+    log "  (skipping tooling-grammar regen check: generators not yet present)"
+  fi
+
+  # 10. T1 / FR-013 — tooling-grammar-mirror byte-equality.
+  # Per specs/009-t1-textmate-grammar/research.md §5 (as amended by
+  # the PR #13 CodeRabbit review): the canonical artefact lives at
+  # `grammars/textmate/nsl.tmLanguage.json` and a materialised copy
+  # at `editors/vscode/syntaxes/nsl.tmLanguage.json` is written in
+  # lockstep by `scripts/gen_textmate_grammar.py`. The materialised-
+  # copy approach replaces an earlier symlink design which broke on
+  # Windows / zip-archive extraction (the symlink became a literal
+  # path string). The byte-equality check below catches drift OR a
+  # missing mirror.
+  local canonical="${REPO_ROOT}/grammars/textmate/nsl.tmLanguage.json"
+  local mirror="${REPO_ROOT}/editors/vscode/syntaxes/nsl.tmLanguage.json"
+  if [[ ! -f "${canonical}" ]]; then
+    log "  (skipping tooling-grammar-mirror: canonical not yet present)"
+  elif [[ ! -f "${mirror}" ]]; then
+    log "  ERROR: editors/vscode/syntaxes/nsl.tmLanguage.json is"
+    log "         missing while the canonical grammar exists."
+    log "         Run: python3 scripts/gen_textmate_grammar.py"
+    log "         (the generator writes both paths in lockstep)."
+    rc=1
+  else
+    log "  cmp ${canonical} ${mirror}"
+    if ! cmp -s "${canonical}" "${mirror}"; then
+      log "  ERROR: editors/vscode/syntaxes/nsl.tmLanguage.json"
+      log "         is not byte-equal to the canonical grammar."
+      log "         Run: python3 scripts/gen_textmate_grammar.py"
+      log "         (the generator writes both paths in lockstep)."
+      rc=1
+    fi
+  fi
+
   return "${rc}"
 }
 
@@ -291,7 +344,60 @@ stage_unit_tests() {
   local build_dir
   build_dir="$(_resolve_build_dir "${1:-}")" || \
     die "no configured build dir; run \`./scripts/ci.sh build-matrix\` first"
-  ctest --test-dir "${build_dir}" --output-on-failure
+  local rc=0
+  ctest --test-dir "${build_dir}" --output-on-failure || rc=$?
+
+  # T1 — tooling-track TextMate scope tests
+  # (specs/009-t1-textmate-grammar/contracts/scope-test-format.contract.md §3).
+  # Layer test for the TextMate grammar; runs on a clean checkout
+  # without `nslc` (FR-019). No-op skip when Node / npm / the
+  # vscode-tmgrammar-test package are absent so a partial dev
+  # container does not block the rest of stage 3.
+  stage_tooling_textmate || rc=$?
+
+  return "${rc}"
+}
+
+# -----------------------------------------------------------------------------
+# Stage 3 sub-step: tooling-textmate
+# -----------------------------------------------------------------------------
+# Runs the vscode-tmgrammar-test scope-test gate against the
+# canonical grammar `grammars/textmate/nsl.tmLanguage.json` and the
+# fixtures under `test/tooling/textmate/fixtures/`. Per
+# `contracts/scope-test-format.contract.md §4` the runner has zero
+# compiler dependency — Node + npm + the cached package suffice.
+#
+# Note: the actual `vscode-tmgrammar-test` runner does NOT consume
+# the YAML `.spec` files described in contract §2; assertions live
+# inside the fixture files themselves (`// SYNTAX TEST` line-1
+# header + `// <-` / `// ^^^` inline assertions). This is a
+# contract amendment proposed in T1 close-out; the runner format
+# rules.
+
+stage_tooling_textmate() {
+  log "stage 3 sub-step: tooling-textmate"
+  local fixture_dir="${REPO_ROOT}/test/tooling/textmate"
+  local grammar="${REPO_ROOT}/grammars/textmate/nsl.tmLanguage.json"
+
+  if [[ ! -f "${grammar}" ]]; then
+    log "  (skipping tooling-textmate: ${grammar} not present)"
+    return 0
+  fi
+  if [[ ! -d "${fixture_dir}/node_modules/vscode-tmgrammar-test" ]]; then
+    log "  (skipping tooling-textmate: node_modules/vscode-tmgrammar-test"
+    log "   not present; run \`cd ${fixture_dir} && npm install\`)"
+    return 0
+  fi
+  if ! command -v npx >/dev/null 2>&1; then
+    log "  (skipping tooling-textmate: npx not found on PATH)"
+    return 0
+  fi
+
+  log "  npx vscode-tmgrammar-test --grammar ../../../grammars/textmate/nsl.tmLanguage.json 'fixtures/*.nsl'"
+  ( cd "${fixture_dir}" && \
+    npx --no-install vscode-tmgrammar-test \
+      --grammar ../../../grammars/textmate/nsl.tmLanguage.json \
+      'fixtures/*.nsl' )
 }
 
 # -----------------------------------------------------------------------------
@@ -337,15 +443,16 @@ stage_all() {
 # -----------------------------------------------------------------------------
 
 case "${1:-}" in
-  build-matrix)     shift; stage_build_matrix    "$@" ;;
-  static-checks)    stage_static_checks ;;
-  unit-tests)       shift; stage_unit_tests      "$@" ;;
-  lowering-tests)   shift; stage_lowering_tests  "$@" ;;
-  e2e)              stage_e2e ;;
-  formal)           stage_formal ;;
-  all)              stage_all ;;
-  -h|--help)        usage; exit 0 ;;
-  "")               usage; exit 2 ;;
+  build-matrix)      shift; stage_build_matrix    "$@" ;;
+  static-checks)     stage_static_checks ;;
+  unit-tests)        shift; stage_unit_tests      "$@" ;;
+  tooling-textmate)  stage_tooling_textmate ;;
+  lowering-tests)    shift; stage_lowering_tests  "$@" ;;
+  e2e)               stage_e2e ;;
+  formal)            stage_formal ;;
+  all)               stage_all ;;
+  -h|--help)         usage; exit 0 ;;
+  "")                usage; exit 2 ;;
   *)
     printf '[ci.sh] unknown stage %q\n' "$1" >&2
     usage

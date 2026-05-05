@@ -730,8 +730,7 @@ mlir::LogicalResult FirstStateOp::verify() {
   }
   // Helper: scan `region`'s top-level ops for a `nsl.state` whose
   // `sym_name` matches `target`. Returns (foundState, sawMalformed).
-  auto scanRegion = [&](mlir::Region &region)
-      -> std::pair<bool, bool> {
+  auto scanRegion = [&](mlir::Region &region) -> std::pair<bool, bool> {
     bool found = false;
     bool malformed = false;
     if (region.empty()) {

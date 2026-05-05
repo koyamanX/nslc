@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+# .gitignore for the T1 TextMate scope-test runner harness. The
+# runner is a Node.js npm package; node_modules/ is the only
+# generated path that must stay out of the repo. package-lock.json
+# IS committed (T003) so the runner version is byte-stable across
+# CI cells (Constitution Principle V).
+#
+# See specs/009-t1-textmate-grammar/research.md §1 for the
+# runner-choice rationale.
+
+node_modules/

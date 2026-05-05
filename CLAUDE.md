@@ -157,31 +157,34 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `008-m5-structural-passes` — land `nsl-lower`
-part 1 (layer 8a): the AST → `nsl` MLIR dialect lowering visitor
-(`ASTToMLIR`, single-pass with `SymbolTable` lazy resolution per
-/speckit-clarify Q4 → Option A) plus the six-pass structural-
-expansion pipeline (`NSLResolveParamsPass` →
-`NSLExpandGeneratePass` → `NSLExpandVariablesPass` →
-`NSLExplodeSubmodArrayPass` → `NSLInlineInternalFuncPass` (no-op
-slot at M5 per Q3 → Option B) → `NSLCheckSemanticsPass`). Wires
-`Compilation::lowerToNSL` / `runNSLPasses` (M4-stub bodies → real
-bodies) and the new `nslc -emit=mlir` driver flag (default printer
-output per Q2 → Option A). `%IDENT%` residue detection is regex
-over `mlir::StringAttr` values (per Q1 → Option B); the
-`NSLCheckSemanticsPass` re-checks exactly six post-expansion-
-sensitive `Sn` (S6, S10, S15, S16, S20, S25 — list frozen by
-`contracts/residue-detection.contract.md` §3 + `pass-pipeline.contract.md`
-§3). Public umbrella header `Lower.h` exports 8 frozen symbols
-(visitor entry + 6 pass constructors + 1 registration helper);
-M4 dialect contract is unchanged. For technologies, project
-structure, entity catalog, contracts, and quickstart, read the
-current plan:
-[`specs/008-m5-structural-passes/plan.md`](./specs/008-m5-structural-passes/plan.md).
+**Active feature**: `009-t1-textmate-grammar` — land tooling-track
+milestone **T1**: the first NSL tooling deliverable, gating only
+on the spec (no compiler dependency). Ships
+`grammars/textmate/nsl.tmLanguage.json` (covering every reserved
+keyword from `nsl_lang.ebnf §15`, every numeric form from §13,
+every operator + comment + string from §14 / `nsl_tooling_design.md
+§4.1`, every preprocessor directive from `nsl_pp.ebnf §2`, and the
+`%IDENT%` macro form from §4) plus
+`editors/vscode/language-configuration.json` (comment toggles,
+bracket pairs, autoclose / surround pairs, word pattern, indent
+rules) and a scope-test fixture corpus under
+`test/tooling/textmate/` consumed by `vscode-tmgrammar-test` in
+`./scripts/ci.sh` stage 3. The grammar's keyword block is
+**generated** from `include/nsl/Lex/KeywordSet.def` (the established
+single-source-of-truth) via the new `scripts/gen_textmate_grammar.py`
+and `scripts/gen_textmate_fixtures.py` pair, mirroring the existing
+`gen_keyword_fixtures.py` precedent; CI gates regenerate-and-diff
+so spec ↔ grammar drift is mechanically impossible (Principle VII
+coupling). T1 is the only T-track milestone with no compiler
+dependency. Marketplace publication and a `github-linguist/linguist`
+PR are explicitly deferred per `README.md §Roadmap` T1 deferral
+note. For technologies, project structure, entity catalog,
+contracts, and quickstart, read the current plan:
+[`specs/009-t1-textmate-grammar/plan.md`](./specs/009-t1-textmate-grammar/plan.md).
 Companion artifacts:
-[`spec.md`](./specs/008-m5-structural-passes/spec.md),
-[`research.md`](./specs/008-m5-structural-passes/research.md),
-[`data-model.md`](./specs/008-m5-structural-passes/data-model.md),
-[`contracts/`](./specs/008-m5-structural-passes/contracts/),
-[`quickstart.md`](./specs/008-m5-structural-passes/quickstart.md).
+[`spec.md`](./specs/009-t1-textmate-grammar/spec.md),
+[`research.md`](./specs/009-t1-textmate-grammar/research.md),
+[`data-model.md`](./specs/009-t1-textmate-grammar/data-model.md),
+[`contracts/`](./specs/009-t1-textmate-grammar/contracts/),
+[`quickstart.md`](./specs/009-t1-textmate-grammar/quickstart.md).
 <!-- SPECKIT END -->
