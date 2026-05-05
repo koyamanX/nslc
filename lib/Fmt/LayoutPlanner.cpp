@@ -75,7 +75,9 @@
 
 #include "llvm/ADT/StringRef.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <vector>
 
 namespace nsl::fmt {
 
@@ -102,24 +104,228 @@ DocPtr LayoutPlanner::verbatimFromRange(::nsl::SourceRange r) const {
   if (!r.begin().isValid() || !r.end().isValid()) {
     return Doc::text(llvm::StringRef{});
   }
-  std::uint32_t begin = r.begin().offset();
-  std::uint32_t end = r.end().offset();
-  if (begin >= src_.size() || end > src_.size() || begin > end) {
+  return verbatimFromOffsets(r.begin().offset(), r.end().offset());
+}
+
+DocPtr LayoutPlanner::verbatimFromOffsets(std::uint32_t begin,
+                                          std::uint32_t end) const {
+  if (begin > end || end > src_.size()) {
+    return Doc::text(llvm::StringRef{});
+  }
+  if (begin == end) {
     return Doc::text(llvm::StringRef{});
   }
   return Doc::text(src_.substr(begin, end - begin));
 }
 
-// Verbatim-fallback method definitions, one per concrete NodeKind.
-// Macro-generated to track NodeKind.def: a new node kind added to
-// the spec adds one declaration in LayoutPlanner.h (via the same
-// macro pattern in the header) and one definition here. Phase 3-rules
-// commits replace specific bodies with canonical Doc construction.
+DocPtr LayoutPlanner::interleaveChildren(
+    ::nsl::SourceRange parent_range,
+    llvm::ArrayRef<const ::nsl::ast::ASTNode *> children) {
+  std::vector<DocPtr> parts;
+  std::uint32_t cursor = parent_range.begin().offset();
+  const std::uint32_t parent_end = parent_range.end().offset();
+  for (const ::nsl::ast::ASTNode *child : children) {
+    if (child == nullptr) {
+      continue;
+    }
+    ::nsl::SourceRange cr = child->loc();
+    std::uint32_t child_begin = cr.begin().offset();
+    std::uint32_t child_end = cr.end().offset();
+    if (child_begin < cursor) {
+      // Out-of-order or overlapping child — bail safely with
+      // verbatim emission of the whole parent range. (Should not
+      // happen for a well-formed AST.)
+      return verbatimFromRange(parent_range);
+    }
+    if (child_begin > cursor) {
+      parts.push_back(verbatimFromOffsets(cursor, child_begin));
+    }
+    parts.push_back(visitNode(*child));
+    cursor = child_end;
+  }
+  if (cursor < parent_end) {
+    parts.push_back(verbatimFromOffsets(cursor, parent_end));
+  }
+  return Doc::concat(std::move(parts));
+}
+
+// `visit()` body per concrete NodeKind. Each just routes to
+// `formatNode(node)`, where overload resolution selects the most-
+// specific overload available — defaulting to the verbatim fallback
+// `formatNode(const ASTNode&)` when no per-NodeKind override exists.
+// This pattern keeps the link-time visitor surface honest (every
+// `NSL_NODE_KIND` entry still gets a dedicated `visit()` definition,
+// so a missing override is a link-time error per Principle I) while
+// letting Phase 3-rules tasks add canonical layouts via plain
+// function overloads — no per-NodeKind macro skip-list needed.
 #define NSL_NODE_KIND(EnumName, BaseClass)                                     \
   void LayoutPlanner::visit(const ::nsl::ast::EnumName &node) {                \
-    result_ = verbatimFromRange(node.loc());                                   \
+    result_ = formatNode(node);                                                \
   }
 #include "nsl/AST/NodeKind.def"
 #undef NSL_NODE_KIND
+
+// ---- Default verbatim-fallback ------------------------------------------
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ASTNode &node) {
+  return verbatimFromRange(node.loc());
+}
+
+// ---- Per-NodeKind canonical-layout overrides ----------------------------
+//
+// T049 R5 (operator spacing). The `CompilationUnit`/`ModuleBlock`/
+// `RegDecl` overrides exist to recurse into descendants so the
+// `BinaryExpr` / `UnaryExpr` overrides actually fire on nested
+// expression nodes — without them, the verbatim parent fallback would
+// emit the whole `module ... { reg x[8] = a+b; }` byte range and the
+// inner R5 rule would never see the `a+b`.
+
+DocPtr
+LayoutPlanner::formatNode(const ::nsl::ast::CompilationUnit &node) {
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(node.items().size());
+  for (const auto &item : node.items()) {
+    children.push_back(item.get());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ModuleBlock &node) {
+  // Four declaration-order vectors (per ModuleBlock.h) merge into a
+  // single source-position-sorted list so `interleaveChildren` can
+  // walk them as a flat sequence. The four vectors are sorted by
+  // KIND, not source order, so we sort here.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(node.internals().size() + node.actions().size() +
+                   node.funcs().size() + node.procs().size());
+  for (const auto &n : node.internals()) {
+    children.push_back(n.get());
+  }
+  for (const auto &n : node.actions()) {
+    children.push_back(n.get());
+  }
+  for (const auto &n : node.funcs()) {
+    children.push_back(n.get());
+  }
+  for (const auto &n : node.procs()) {
+    children.push_back(n.get());
+  }
+  std::sort(children.begin(), children.end(),
+            [](const ::nsl::ast::ASTNode *a, const ::nsl::ast::ASTNode *b) {
+              return a->loc().begin().offset() < b->loc().begin().offset();
+            });
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::RegDecl &node) {
+  // `width` precedes `init` in the source (`reg <name>[<width>] =
+  // <init>;`); rely on the AST's lexical order rather than re-sorting.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  if (node.width() != nullptr) {
+    children.push_back(node.width());
+  }
+  if (node.init() != nullptr) {
+    children.push_back(node.init());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::BinaryExpr &node) {
+  // R5: one space on each side of the binary operator. Recurse into
+  // lhs/rhs via `visitNode` so nested binary/unary subtrees get the
+  // same canonicalisation.
+  DocPtr lhs_doc = node.lhs() != nullptr ? visitNode(*node.lhs())
+                                          : Doc::text(llvm::StringRef{});
+  DocPtr rhs_doc = node.rhs() != nullptr ? visitNode(*node.rhs())
+                                          : Doc::text(llvm::StringRef{});
+  std::vector<DocPtr> parts;
+  parts.reserve(5);
+  parts.push_back(std::move(lhs_doc));
+  parts.push_back(Doc::text(llvm::StringRef(" ")));
+  parts.push_back(Doc::text(binaryOpSpelling(node.op())));
+  parts.push_back(Doc::text(llvm::StringRef(" ")));
+  parts.push_back(std::move(rhs_doc));
+  return Doc::concat(std::move(parts));
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::UnaryExpr &node) {
+  // R5: no space between the unary operator and its operand. The
+  // operator immediately abuts the recursively-formatted operand.
+  DocPtr sub_doc = node.sub() != nullptr ? visitNode(*node.sub())
+                                          : Doc::text(llvm::StringRef{});
+  std::vector<DocPtr> parts;
+  parts.reserve(2);
+  parts.push_back(Doc::text(unaryOpSpelling(node.op())));
+  parts.push_back(std::move(sub_doc));
+  return Doc::concat(std::move(parts));
+}
+
+// ---- Op-spelling tables -------------------------------------------------
+
+llvm::StringRef
+LayoutPlanner::binaryOpSpelling(::nsl::ast::BinaryExpr::Op op) {
+  using Op = ::nsl::ast::BinaryExpr::Op;
+  switch (op) {
+  case Op::Add:
+    return "+";
+  case Op::Sub:
+    return "-";
+  case Op::Mul:
+    return "*";
+  case Op::Div:
+    return "/";
+  case Op::Mod:
+    return "%";
+  case Op::BitAnd:
+    return "&";
+  case Op::BitOr:
+    return "|";
+  case Op::BitXor:
+    return "^";
+  case Op::ShiftLeft:
+    return "<<";
+  case Op::ShiftRight:
+    return ">>";
+  case Op::Equal:
+    return "==";
+  case Op::NotEqual:
+    return "!=";
+  case Op::Less:
+    return "<";
+  case Op::LessEqual:
+    return "<=";
+  case Op::Greater:
+    return ">";
+  case Op::GreaterEqual:
+    return ">=";
+  case Op::LogicalAnd:
+    return "&&";
+  case Op::LogicalOr:
+    return "||";
+  }
+  return llvm::StringRef{};
+}
+
+llvm::StringRef
+LayoutPlanner::unaryOpSpelling(::nsl::ast::UnaryExpr::Op op) {
+  using Op = ::nsl::ast::UnaryExpr::Op;
+  switch (op) {
+  case Op::Neg:
+    return "-";
+  case Op::Plus:
+    return "+";
+  case Op::BitNot:
+    return "~";
+  case Op::LogicalNot:
+    return "!";
+  case Op::ReduceAnd:
+    return "&";
+  case Op::ReduceOr:
+    return "|";
+  case Op::ReduceXor:
+    return "^";
+  }
+  return llvm::StringRef{};
+}
 
 } // namespace nsl::fmt

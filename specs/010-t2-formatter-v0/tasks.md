@@ -125,7 +125,7 @@ diff. Verified by ninja `check-fmt-lit` passing the
 
 ### Implementation for User Story 1
 
-- [ ] T049 [US1] Implement R5 (operator spacing) in `lib/Fmt/LayoutPlanner.cpp` `visitBinaryExpr` / `visitUnaryExpr` / `visitConditionalExpr`; T030 turns green
+- [X] T049 [US1] Implement R5 (operator spacing) in `lib/Fmt/LayoutPlanner.cpp` — `formatNode(BinaryExpr)` emits `lhs SP op SP rhs`, `formatNode(UnaryExpr)` emits `op operand` (no space); `CompilationUnit` / `ModuleBlock` / `RegDecl` recursion overrides route the formatter into the relevant sub-expressions; T030 turned XFAIL→PASS and the marker was removed in the same change. (`ConditionalExpr` is deferred to a follow-up; the T030 fixture only exercises Binary + Unary.)
 - [ ] T050 [US1] Implement R4 (bit-slice / concat spacing) in `lib/Fmt/LayoutPlanner.cpp` `visitBitSliceExpr` / `visitConcatExpr`; T031 turns green
 - [ ] T051 [US1] Implement R6 (attached-comment preservation) in `lib/Fmt/LayoutPlanner.cpp` trivia-emission helpers; T032 turns green (R1/R2/R3 build on top)
 - [ ] T052 [US1] Implement R1 (alt/any case-arrow alignment) in `lib/Fmt/LayoutPlanner.cpp` `visitAltBlock` / `visitAnyBlock` — column-calculation per [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §1; T033 turns green
