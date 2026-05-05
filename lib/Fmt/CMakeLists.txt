@@ -48,6 +48,7 @@ add_library(NslFmt STATIC
   LayoutRenderer.cpp     # T2 Phase 2c — ribbon-fitter (T025)
   Config.cpp             # T2 Phase 2c — Configuration + key list (partial T088/T089/T087)
   Format.cpp             # T2 Phase 2c — format_buffer skeleton (T026/T027)
+  Diff.cpp               # T2 Phase 3b — LCS-based unified-diff emitter (T076)
 )
 
 target_include_directories(NslFmt

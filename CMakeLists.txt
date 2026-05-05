@@ -159,22 +159,21 @@ if(NSL_BUILD_TESTS)
   #   * check-fmt-unit — runs only `test_unit/Fmt/` GoogleTest binaries
   #   * check-nsl-fmt  — umbrella that depends on both
   #
-  # The lit subset uses LLVM's `add_lit_testsuite()` (singular) which
-  # creates ONE named target running lit over the given directory.
-  # (LLVM also ships `add_lit_testsuites(prefix dir)` (plural) which
-  # creates a `check-<prefix>-<subdir>` target per direct subdirectory
-  # of `dir`; we want the umbrella behavior, hence the singular form.)
-  # The unit-test subset is a custom target that the per-Fmt gtest
-  # CMakeLists.txt files in `test_unit/Fmt/` (added in Phase 2+) will
-  # `add_dependencies()` themselves to.
+  # The lit subset must invoke lit through the BUILD-tree
+  # `test/lit.site.cfg.py` (which configure_file populates with
+  # `config.nslc_binary_dir` etc.) so the `bin/` dir is on PATH and
+  # the `nsl-fmt` invocations in fixtures resolve. Pointing lit at
+  # the source tree directly bypasses the site config and PATH
+  # extension does not happen — fixtures fail with "command not found".
   #
-  # Both sub-targets resolve at Phase 1 even with an empty `test/Fmt/`
-  # tree — lit on an empty corpus reports "0 tests" and exits 0,
-  # which is what the Phase-1 checkpoint expects.
-  add_lit_testsuite(check-fmt-lit
-    "Running the nsl-fmt lit fixtures"
-    "${CMAKE_SOURCE_DIR}/test/Fmt"
-    DEPENDS nsl-fmt FileCheck)
+  # We use `--filter` to restrict the run to the `Fmt/` subset
+  # while still loading the site config. Empty filter result is
+  # tolerated by lit (exits 0).
+  add_custom_target(check-fmt-lit
+    COMMAND ${LLVM_EXTERNAL_LIT} -sv "${CMAKE_BINARY_DIR}/test" --filter "Fmt/"
+    DEPENDS nsl-fmt FileCheck
+    USES_TERMINAL
+    COMMENT "Running the nsl-fmt lit fixtures (filtered subset of check-nslc)")
 
   # `check-fmt-unit` runs every GoogleTest binary tagged with the
   # `Fmt` ctest label. Per-suite CMakeLists.txt files under

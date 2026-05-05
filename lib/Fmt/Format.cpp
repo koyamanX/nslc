@@ -39,6 +39,7 @@
 
 #include "CST.h"
 #include "CSTBuilder.h"
+#include "Diff.h"
 #include "DirectiveSplitter.h"
 
 #include "nsl/Basic/Diagnostic.h"
@@ -119,17 +120,12 @@ std::optional<std::string> discover_config(llvm::StringRef /*startDir*/) {
 
 std::string emit_unified_diff(llvm::StringRef oldText,
                               llvm::StringRef newText,
-                              llvm::StringRef /*oldName*/,
-                              llvm::StringRef /*newName*/) {
-  // T076 (Phase 4) wires the Myers diff. At Phase 2c we provide a
-  // bare-minimum stub: empty string when inputs match, single-line
-  // marker otherwise. This is sufficient for `--check` mode to
-  // *report* differences (exit non-zero) but the diff content is
-  // not yet useful.
-  if (oldText == newText) {
-    return std::string{};
-  }
-  return std::string("--- (diff not yet implemented at T2 Phase 2c) ---\n");
+                              llvm::StringRef oldName,
+                              llvm::StringRef newName) {
+  // T076 (Phase 3b) delegates to the LCS-based unified-diff
+  // emitter in `lib/Fmt/Diff.cpp`. Pure function; deterministic
+  // (Principle V).
+  return computeUnifiedDiff(oldText, newText, oldName, newName);
 }
 
 } // namespace nsl::fmt

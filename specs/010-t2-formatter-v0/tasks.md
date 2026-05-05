@@ -174,17 +174,17 @@ M7).
 - [ ] T066 [P] [US2] Author lit fixture `test/Fmt/cli/check-mode/dirty-file.test` asserting `RUN: nsl-fmt --check %s; CHECK: <diff>; CHECK: exit 1` — observe FAILING
 - [X] T067 [P] [US2] Author lit fixture `test/Fmt/cli/check-mode/clean-file.test` asserting clean file → exit 0 + empty stdout — observe FAILING
 - [ ] T068 [P] [US2] Author lit fixture `test/Fmt/cli/multi-file/one-bad-one-good.test` asserting one parse-error file + one clean file → both processed, exit 1, only the bad file's diagnostic on stderr (FR-003a continue-on-error) — observe FAILING
-- [ ] T069 [P] [US2] Author lit fixture `test/Fmt/cli/multi-file/all-clean.test` asserting `--check` over 3 already-canonical files → exit 0 — observe FAILING
+- [X] T069 [P] [US2] Author lit fixture `test/Fmt/cli/multi-file/all-clean.test` asserting `--check` over 3 already-canonical files → exit 0 — observe FAILING
 - [X] T070 [P] [US2] Author lit fixture `test/Fmt/cli/mutually-exclusive/check-and-in-place.test` asserting `nsl-fmt -c -i x.nsl` produces frozen string from [`contracts/cli-surface.contract.md`](./contracts/cli-surface.contract.md) §2 + exit 2 — observe FAILING
 - [X] T071 [P] [US2] Author lit fixture `test/Fmt/cli/mutually-exclusive/stdin-and-positional.test` per `cli-surface.contract.md` §2 — observe FAILING
 - [X] T072 [P] [US2] Author lit fixture `test/Fmt/cli/mutually-exclusive/check-without-input.test` per `cli-surface.contract.md` §2 — observe FAILING
-- [ ] T073 [P] [US2] Author gtest `test_unit/Fmt/diff_emitter_test.cc::EmptyOnIdentical` asserting `emit_unified_diff(s, s, "a", "b") == ""` — observe FAILING
-- [ ] T074 [P] [US2] Author gtest `test_unit/Fmt/diff_emitter_test.cc::HunkFormat` asserting one-hunk output matches `--- a\n+++ b\n@@ -1,1 +1,1 @@\n-old\n+new\n` — observe FAILING
-- [ ] T075 [P] [US2] Author gtest `test_unit/Fmt/diff_emitter_test.cc::Determinism` asserting two `emit_unified_diff()` calls on the same inputs produce byte-identical output — observe FAILING
+- [X] T073 [P] [US2] Author gtest `test_unit/Fmt/diff_emitter_test.cc::EmptyOnIdentical` asserting `emit_unified_diff(s, s, "a", "b") == ""` — observe FAILING
+- [X] T074 [P] [US2] Author gtest `test_unit/Fmt/diff_emitter_test.cc::HunkFormat` asserting one-hunk output matches `--- a\n+++ b\n@@ -1,1 +1,1 @@\n-old\n+new\n` — observe FAILING
+- [X] T075 [P] [US2] Author gtest `test_unit/Fmt/diff_emitter_test.cc::Determinism` asserting two `emit_unified_diff()` calls on the same inputs produce byte-identical output — observe FAILING
 
 ### Implementation for User Story 2
 
-- [ ] T076 [US2] Implement `lib/Fmt/Diff.{h,cpp}` Myers-diff-based unified-diff emitter per [`research.md`](./research.md) §5 + [`data-model.md`](./data-model.md) §7; T073/T074/T075 turn green
+- [X] T076 [US2] Implement `lib/Fmt/Diff.{h,cpp}` Myers-diff-based unified-diff emitter per [`research.md`](./research.md) §5 + [`data-model.md`](./data-model.md) §7; T073/T074/T075 turn green
 - [X] T077 [US2] Implement CLI `--check` / `-c` mode in `tools/nsl-fmt/main.cpp` — for each file: format → compare → if differ, print unified diff via `emit_unified_diff()`; track aggregate failure flag; T066/T067 turn green
 - [ ] T078 [US2] Implement multi-file continue-on-error loop in `tools/nsl-fmt/main.cpp` per [`contracts/cli-surface.contract.md`](./contracts/cli-surface.contract.md) §4 — per-file try/catch; aggregate failure flag; final exit code reflects aggregate; T068/T069 turn green
 - [X] T079 [US2] Implement mutually-exclusive flag rejection in `tools/nsl-fmt/main.cpp` after `cl::ParseCommandLineOptions()` — emit each of the five frozen strings from [`contracts/cli-surface.contract.md`](./contracts/cli-surface.contract.md) §2; T070/T071/T072 turn green

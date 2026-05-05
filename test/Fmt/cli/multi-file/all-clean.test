@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T069: `nsl-fmt --check` over 3 already-canonical files exits 0.
+// At Phase 3 the formatter is byte-passthrough so every input is
+// trivially canonical; the test still exercises the multi-file
+// loop in tools/nsl-fmt/main.cpp + the FR-003a continue-on-error
+// aggregate-exit path (which here aggregates 3 success codes).
+
+// RUN: printf 'module a {}\n' > %t.1.nsl
+// RUN: printf 'module b {}\n' > %t.2.nsl
+// RUN: printf 'module c {}\n' > %t.3.nsl
+// RUN: nsl-fmt --check %t.1.nsl %t.2.nsl %t.3.nsl

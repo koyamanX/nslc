@@ -82,3 +82,26 @@ gtest_discover_tests(doc_layout_test
 
 set_property(GLOBAL APPEND PROPERTY _NSL_FMT_GTEST_BINARIES
   doc_layout_test)
+
+# -----------------------------------------------------------------------------
+# Phase 3b — LCS-based unified-diff emitter (T073, T074, T075)
+# -----------------------------------------------------------------------------
+add_executable(diff_emitter_test
+  diff_emitter_test.cpp)
+
+target_link_libraries(diff_emitter_test
+  PRIVATE
+    NslFmt
+    GTest::gtest_main)
+
+target_include_directories(diff_emitter_test
+  PRIVATE
+    "${CMAKE_SOURCE_DIR}/lib/Fmt")  # private header Diff.h
+
+gtest_discover_tests(diff_emitter_test
+  PROPERTIES
+    TIMEOUT 30
+    LABELS Fmt)
+
+set_property(GLOBAL APPEND PROPERTY _NSL_FMT_GTEST_BINARIES
+  diff_emitter_test)
