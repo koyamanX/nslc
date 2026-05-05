@@ -111,16 +111,18 @@ list(LENGTH _NSLC_M6_GAPS _gap_count)
 if(_gap_count GREATER 0)
   string(REPLACE ";" "\n  - " _gap_msg "${_NSLC_M6_GAPS}")
   message(FATAL_ERROR
-    "[nslc] M6 coverage_guard: pattern↔fixture bijection violation:\n"
-    "  - ${_gap_msg}\n\n"
-    "Per FR-033 (Principle VIII TDD): every CIRCTPatterns family "
-    "with at least one OpConversionPattern<...> MUST have at least "
-    "one matching .nsl fixture under test/Lower/circt/<dir>/. Add "
-    "the fixture(s) or remove the pattern declaration.")
+    "[nslc] M6 coverage_guard: family↔fixture-directory bijection "
+    "violation:\n  - ${_gap_msg}\n\n"
+    "Per FR-033 (Principle VIII TDD; refined by PR #14 review-#17): "
+    "every CIRCTPatterns family in the 9-row family→fixture-directory "
+    "map UNCONDITIONALLY requires at least one *.nsl OR *.mlir fixture "
+    "under its mapped test/Lower/circt/<dir>/. Add the fixture(s) — "
+    "or, if the family has been retired wholesale, remove its row "
+    "from the _NSLC_M6_FAMILY_DIRS list at the top of this file.")
 else()
   message(STATUS
     "[nslc] M6 coverage_guard: OK (9 families scanned; per-family "
-    "pattern↔fixture bijection holds at this configure run)")
+    "fixture-directory presence rule holds at this configure run)")
 endif()
 
 unset(_NSLC_M6_FAMILY_DIRS)

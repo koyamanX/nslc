@@ -85,35 +85,43 @@ void registerNSLToCIRCTPass();
 **Layer**: 8b (private — declared in
 `lib/Lower/CIRCTTypeConverter.h`).
 
-**Class shape**:
+**Class shape (PR #14 review fix, 2026-05-05 — aligned with actual
+implementation)**:
 
 ```cpp
 namespace nsl::lower {
 
 class CIRCTTypeConverter : public mlir::TypeConverter {
 public:
-    CIRCTTypeConverter(mlir::MLIRContext& ctx,
-                       const sema::TypeSystem& typeSystem);
-
-private:
-    const sema::TypeSystem& typeSystem_;
-
-    // Internal width arithmetic for !nsl.struct<@T>.
-    unsigned computeStructPackedWidth(
-        nsl::dialect::StructType t) const;
+    explicit CIRCTTypeConverter(mlir::MLIRContext& ctx);
 };
 
 }  // namespace nsl::lower
 ```
 
-**Conversion rules** (registered in constructor):
+The original data-model design proposed a `(ctx, typeSystem)`
+constructor with `typeSystem_` member storage and an internal
+`computeStructPackedWidth` helper for `!nsl.struct<@T>` packing.
+The actual M6 implementation is simpler:
+
+- `CIRCTTypeConverter(ctx)` — single-argument constructor; no Sema
+  reference threaded through (M5's `NSLExpandVariablesPass` already
+  eliminates every `!nsl.struct<@T>` SSA value before M6 sees the
+  IR per FR-022, so struct-typed conversion is moot at this layer).
+- Only one rule registered today: `!nsl.bits<W>` → `iW`. Future
+  hardening: register a `!nsl.struct<@T>` failure conversion that
+  fail-fasts on the M5-pass-bug case (currently relies on the
+  `addIllegalDialect<NSLDialect>()` rule to surface the violation).
+
+**Conversion rules** (registered in constructor — actual
+implementation):
 
 | Source type (M5 IR) | Target type (CIRCT IR) | Rule |
 |---|---|---|
-| `!nsl.bits<W>` | `iW` | Direct width-preserving conversion |
-| `!nsl.struct<@T>` | `iN` (where N = `typeSystem_.sizeOf(@T)`) | S18 MSB-first packing — first field at MSB end |
+| `!nsl.bits<W>` | `iW` | Direct width-preserving conversion (the only registered rule today) |
 | `!nsl.bits<1>` (control terminal) | `i1` | Same as general `!nsl.bits<W=1>` |
 | Built-in MLIR types (`IntegerType`, etc.) | identity | passed through |
+| `!nsl.struct<@T>` | (no registered rule) | M5's NSLExpandVariablesPass guarantees zero `!nsl.struct`-typed SSA values reach M6; `addIllegalDialect<NSLDialect>()` surfaces the M5-pass-bug case |
 | Unhandled `!nsl.*` types | conversion failure | triggers ConversionTarget illegal verdict |
 
 **Materialization rules** (for cross-pattern value handoff):

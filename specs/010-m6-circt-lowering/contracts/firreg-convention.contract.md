@@ -76,8 +76,8 @@ clock(s) and reset(s) explicitly. M6 honours those names verbatim:
 - `nsl::RegOp` lowers to **`circt::seq::CompRegOp`** (not
   FirRegOp) with the explicit clock and reset operands wired to
   the user-named ports.
-- The default `(clk, rst_n)` ports from §1 are NOT auto-added in
-  this case — the user took ownership of the clock/reset surface.
+- The default `(m_clock, p_reset)` ports from §1 are NOT auto-added
+  in this case — the user took ownership of the clock/reset surface.
 - Asymmetric presence (one attr set, the other unset) is rejected
   by `DeclareOp::verify()` per amendment-#10 since S20 mandates
   BOTH names whenever the modifier appears.
@@ -105,7 +105,7 @@ path):
 ```mlir
 %prev = <seq.firreg's current SSA value>
 %new_data = comb.mux %cond, %new_value, %prev
-seq.firreg %r, %clk, %new_data, ...   // §1 reset wiring
+seq.firreg %r, %m_clock, %new_data, ...   // §1 reset wiring
 ```
 
 For chained `nsl::IfOp`s (`if (a) { if (b) { reg = x; } else
@@ -136,8 +136,11 @@ M6 (each would deviate from Q2/Q3 conventions):
 - **`sv::AlwaysFFOp` or `sv::IfOp`** in synthesizable IR (sim-only
   ifdef wrapping is a separate `sv::IfDefOp` — different op):
   not introduced at M6.
-- **Sync reset, active-high reset, or async-active-high reset on
-  the no-`interface` path**: prohibited; only async-active-low.
+- **Sync reset, active-low reset, or async-active-low reset on the
+  no-`interface` path**: prohibited; only async-active-HIGH (the
+  `p_reset` polarity per the `p_` prefix convention frozen at PR
+  #14 review-#0; corrected from the original Q2 → C "active-low"
+  pin).
 - **Per-flag (`-emit=hw --reset=sync`) configurability**:
   prohibited; the convention is project-wide.
 

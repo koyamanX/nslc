@@ -31,10 +31,13 @@ module M {
 
 // The mux chain is built BEFORE the hw.wire op (deferred-emit).
 // The wire op's input operand references the FINAL mux in the chain.
+// PR #14 review fix (CHECK ordering): the negative directive below
+// is hoisted ABOVE the positional ones so it scans the entire
+// module body, not just the trailing region after the output op.
+// CHECK-NOT: nsl.
 // CHECK-LABEL: hw.module @M
 // CHECK: %[[Z1:.*]] = hw.constant 0 : i8
 // CHECK: %[[M1:.*]] = comb.mux %c1, %a, %[[Z1]]
 // CHECK: %[[M2:.*]] = comb.mux %c2, %b, %[[M1]]
 // CHECK: %w = hw.wire %[[M2]]
 // CHECK: hw.output %w
-// CHECK-NOT: nsl.

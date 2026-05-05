@@ -182,11 +182,11 @@ routed to a single `hw::OutputOp` at the end of the body);
    M4-amendment 2026-05-05 (#10), the modifier IS surfaced on
    `nsl::DeclareOp` as a pair of `OptionalAttr<StrAttr>` —
    `interface_clock` + `interface_reset`. Both ABSENT means rule 6
-   applies (implicit `clk` / `rst_n`); both PRESENT means rule 7
-   applies — M6's `lowerOneModule` (`ModulePatterns.cpp`) reads the
-   attrs and emits two `i1` input ports named exactly per the user's
-   declaration (clock first, then reset), in lieu of the implicit
-   pair. The reset name preserves the user's polarity-hint suffix
+   applies (implicit `m_clock` / `p_reset` per PR #14 review-#0
+   correction); both PRESENT means rule 7 applies — M6's
+   `lowerOneModule` (`ModulePatterns.cpp`) reads the attrs and emits
+   two `i1` input ports named exactly per the user's declaration
+   (clock first, then reset), in lieu of the implicit pair. The reset name preserves the user's polarity-hint suffix
    verbatim (e.g., `_n`); polarity interpretation belongs to the
    reg-lowering branch (Phase 6 territory). `nsl::RegOp` lowers to
    `seq::CompRegOp` on this path (per `firreg-convention.contract.md`
