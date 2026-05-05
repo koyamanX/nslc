@@ -138,7 +138,7 @@ void registerNSLLowerPasses();
 ///
 /// Per `specs/010-m6-circt-lowering/contracts/circt-lowering.contract.md`
 /// §1 the per-op mapping table is frozen by reference to design
-/// `docs/design/nsl_compiler_design.md` §10 lines 1206–1258.
+/// `docs/design/nsl_compiler_design.md` §10 lines 1235–1305.
 std::unique_ptr<mlir::Pass> createNSLToCIRCTPass();
 
 /// Register the M6 conversion pass with MLIR's global pass registry

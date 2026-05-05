@@ -9,7 +9,7 @@ This contract pins down — for the duration of M6 — the exact CIRCT
 op produced by `NSLToCIRCTPass` for each `nsl::*` op kind. The
 table is derived from
 [`docs/design/nsl_compiler_design.md`](../../../docs/design/nsl_compiler_design.md)
-§10 lines 1206–1258, **frozen by reference**: any change to
+§10 lines 1235–1305, **frozen by reference**: any change to
 design §10's table is also a change to this contract. Adding,
 removing, or re-targeting a row is a Principle VII coupling
 change requiring spec + design + plan + this contract all updated
@@ -75,14 +75,16 @@ in one PR.
 | `nsl::ExtractOp` (lowBit attr + result-type-derived width) | `comb::ExtractOp` | BitOpPatterns | |
 | `nsl::RepeatOp` | `comb::ReplicateOp` (or N-fold `comb::ConcatOp`) | BitOpPatterns | |
 | `nsl::StructuralGenerateOp` | (must NOT be present at M6 input) | — | Eliminated by M5's `NSLExpandGeneratePass`; if present, fail-fast |
+| `nsl::FireProbeOp` (S27 marker) | (intentionally absent — sentinel for a later step) | — | NO M6 lowering pattern by design (§10 row 1214 — "marker op lowered later to a 1-bit tap"); fail-fasts under `applyFullConversion` if it survives M5 unresolved. The lowering target — a 1-bit tap on the `fsm.machine`'s state-encoding bits — needs the FSM-to-Seq conversion already to have run, so it belongs to a post-M6 step (M7-or-later). Excluded from §2's bijection rule and from coverage_guard's enforcement set. |
 
 ---
 
 ## §2. Conversion-pattern bijection rule
 
 Every row of §1 above (excluding the design-§10 "consumed during"
-rows and the "must NOT be present" row for `StructuralGenerateOp`)
-MUST have:
+rows and the "must NOT be present" row for `StructuralGenerateOp`,
+and the "intentionally absent — sentinel" row for
+`FireProbeOp`) MUST have:
 
 1. One `OpConversionPattern<T>` registered under the family named
    in column 3 (Pattern family).
@@ -93,7 +95,10 @@ MUST have:
 The CI coverage guard (FR-033, `coverage_guard.cmake`) enforces
 items 1 and 2 mechanically; item 3 is enforced by code review
 (any PR touching the registered-pattern set must touch this
-contract too).
+contract too). The two excluded rows
+(`StructuralGenerateOp` invariant violation;
+`FireProbeOp` sentinel) are tracked in `tasks.md` "Post-
+implementation triage" deferred-work catalogue.
 
 ---
 
@@ -295,7 +300,7 @@ ops are in source order of their `nsl::*` predecessors.
   [`specs/007-m4-mlir-dialect/contracts/dialect-api.contract.md`](../../007-m4-mlir-dialect/contracts/dialect-api.contract.md)
 - Design §10 (the source-of-truth mapping table):
   [`docs/design/nsl_compiler_design.md`](../../../docs/design/nsl_compiler_design.md)
-  lines 1206–1258
+  lines 1235–1305
 - Spec FR-006 + FR-007 + FR-008 + FR-013–FR-022 (per-row
   enforcement):
   [../spec.md](../spec.md)

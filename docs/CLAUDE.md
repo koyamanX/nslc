@@ -85,13 +85,24 @@ Rule of thumb: a typical task needs **2–4 sections totaling 200–600 lines**,
 
 ### Implementing semantic analysis (Sema)
 - `spec/nsl_lang.ebnf` lines **826–1015** (semantic constraints S1–S29 — the entire Sema spec)
-- `design/nsl_compiler_design.md` lines **688–857** (SymbolTable + TypeSystem)
-- `design/nsl_compiler_design.md` lines **1452–1464** (testing strategy: one test per S1–S29)
+- `design/nsl_compiler_design.md` lines **688–877** (SymbolTable + TypeSystem)
+- `design/nsl_compiler_design.md` lines **1466–1479** (testing strategy: one test per S1–S29)
 
 ### Adding an MLIR `nsl` dialect op
-- `design/nsl_compiler_design.md` lines **878–1118** (§7 dialect overview, op summary incl. M4 marker / lowering-helper consolidation, TableGen skeleton)
-- `design/nsl_compiler_design.md` lines **1122–1202** (§8 AST → nsl-dialect lowering rules)
-- `design/nsl_compiler_design.md` lines **1221–1290** (§10 nsl → CIRCT lowering — your op needs a target)
+- `design/nsl_compiler_design.md` lines **878–1135** (§7 dialect overview, op summary incl. M4 marker / lowering-helper consolidation, TableGen skeleton)
+- `design/nsl_compiler_design.md` lines **1136–1217** (§8 AST → nsl-dialect lowering rules)
+- `design/nsl_compiler_design.md` lines **1235–1305** (§10 nsl → CIRCT lowering — your op needs a target)
+- **M6 contracts (post-2026-05-04)**: a new op now requires
+  BOTH an M4 dialect contract amendment AND an M6 conversion
+  pattern. The contracts that gate the latter:
+  - `specs/010-m6-circt-lowering/contracts/circt-lowering.contract.md`
+    §1 (per-op mapping freeze; bijection rule §2 — every row
+    needs one `OpConversionPattern<T>` + one fixture pair).
+  - `specs/010-m6-circt-lowering/contracts/lower-api.contract.md`
+    §2 (10-symbol public surface of `Lower.h`; growing past 10
+    is itself a contract amendment).
+  - For `nsl.reg` reset/clock conventions on the new op (if any
+    storage-bearing): `specs/010-m6-circt-lowering/contracts/firreg-convention.contract.md`.
 
 ### Writing a structural-expansion pass (generate-loop unroll, etc.)
 - `design/nsl_compiler_design.md` lines **1204–1219** (§9 pass list)
@@ -125,11 +136,13 @@ Rule of thumb: a typical task needs **2–4 sections totaling 200–600 lines**,
 - All Pn (preprocessor): `spec/nsl_pp.ebnf` lines **391–559**
 
 ### Driver / build / CLI flags
-- `design/nsl_compiler_design.md` lines **1294–1351** (§11 Compilation class, `-emit=` flags)
-- `design/nsl_compiler_design.md` lines **1391–1450** (§13 CMake layout, dependencies)
+- `design/nsl_compiler_design.md` lines **1308–1366** (§11 Compilation class, `-emit=` flags)
+- `design/nsl_compiler_design.md` lines **1405–1465** (§13 CMake layout, dependencies)
+- M5 sibling contract `-emit=mlir`: `specs/008-m5-structural-passes/contracts/driver-emit-mlir.contract.md`
+- M6 contract `-emit=hw`: `specs/010-m6-circt-lowering/contracts/driver-emit-hw.contract.md`
 
 ### Testing / CI
-- `design/nsl_compiler_design.md` lines **1260–1270** (compiler testing strategy)
+- `design/nsl_compiler_design.md` lines **1466–1479** (compiler testing strategy)
 - `design/nsl_tooling_design.md` lines **968–973** (tooling test layout)
 
 ### Looking up the project milestone schedule
@@ -239,7 +252,10 @@ The 6-phase workflow (Linear → plan → implement → CodeRabbit self-review �
 
 ---
 
-## 6. `design/nsl_compiler_design.md` — section TOC (1337 lines)
+## 6. `design/nsl_compiler_design.md` — section TOC (1509 lines)
+
+Line ranges below verified 2026-05-04 against the file post-M4
+amendments #9 + #10 + the M5/M6 commentary additions.
 
 | Lines | Section |
 |---|---|
@@ -249,19 +265,19 @@ The 6-phase workflow (Linear → plan → implement → CodeRabbit self-review �
 | 132–148 | §3 Layered Architecture (9-library breakdown table) |
 | 152–295 | §4 Class Diagram Overview (Mermaid) |
 | 299–615 | §5 AST Class Hierarchy (3 Mermaid diagrams: Decl/Stmt/Expr) |
-| 617–682 | §5.x AST node skeleton (C++17 code) |
-| 688–817 | §6 Symbol Table — Symbol class hierarchy + scopes table (incl. constructive-`Sn` carve-out note) |
-| 820–875 | §6.x Type System — TypeSystem code |
-| 878–1118 | §7 The `nsl` MLIR Dialect (op summary incl. M4 marker / lowering-helper consolidation, rationale, TableGen) |
-| 1122–1202 | §8 Lowering: AST → `nsl` dialect (visitor + per-node rule table) |
-| 1204–1219 | §9 Structural Expansion Passes (NSL-dialect local) |
-| 1221–1290 | §10 Lowering: `nsl` → CIRCT (per-op mapping table) |
-| 1294–1351 | §11 Driver / Compilation Object (CompileOptions, run loop) |
-| 1353–1389 | §12 Error Handling and Diagnostics (DiagnosticEngine, FixItHint) |
-| 1391–1450 | §13 Build System and Dependencies (CMake, repo layout) |
-| 1452–1465 | §14 Testing Strategy (lexer→e2e+formal layers) |
-| 1466–1485 | §14.5 Milestone Plan (routing pointer to `../../README.md` §Roadmap, `../../CLAUDE.md` §1, and the Constitution; do not duplicate the table) |
-| 1487–1495 | §15 Extension Points (verif, LSP, alternate backends) |
+| 617–685 | §5.x AST node skeleton (C++17 code) |
+| 688–814 | §6 Symbol Table — Symbol class hierarchy + scopes table (incl. constructive-`Sn` carve-out note) |
+| 815–877 | §6.x Type System — TypeSystem code |
+| 878–1135 | §7 The `nsl` MLIR Dialect (op summary incl. M4 marker / lowering-helper consolidation, rationale, TableGen) |
+| 1136–1217 | §8 Lowering: AST → `nsl` dialect (visitor + per-node rule table) |
+| 1218–1234 | §9 Structural Expansion Passes (NSL-dialect local) |
+| 1235–1305 | §10 Lowering: `nsl` → CIRCT (per-op mapping table; M6 contract `circt-lowering.contract.md` §1 freezes this table by reference) |
+| 1308–1366 | §11 Driver / Compilation Object (CompileOptions, run loop) |
+| 1367–1404 | §12 Error Handling and Diagnostics (DiagnosticEngine, FixItHint) |
+| 1405–1465 | §13 Build System and Dependencies (CMake, repo layout) |
+| 1466–1479 | §14 Testing Strategy (lexer→e2e+formal layers) |
+| 1480–1500 | §14.5 Milestone Plan (routing pointer to `../../README.md` §Roadmap, `../../CLAUDE.md` §1, and the Constitution; do not duplicate the table) |
+| 1501–1509 | §15 Extension Points (verif, LSP, alternate backends) |
 
 ---
 
@@ -310,12 +326,12 @@ When you touch one of these areas, both sides are involved:
 | `#line` directive | nsl_pp.ebnf:516–559 (P13); nsl_lang.ebnf:1119–1155 (N14) | nsl_compiler_design.md (SourceLocation in §6 Symbol Table area, §12 Diagnostics) |
 | Compile-time helpers | nsl_pp.ebnf:236–310, P5/P7 | nsl_compiler_design.md (Preprocessor in §3, expansion in §9) |
 | `%IDENT%` macros | nsl_pp.ebnf:312–343, P3 | nsl_compiler_design.md §9 (`NSLCheckSemanticsPass` checks residue-free) |
-| AST shape | nsl_lang.ebnf §§1–11 | nsl_compiler_design.md:299–682 |
-| Sema constraints S1–S29 | nsl_lang.ebnf:826–1015 | nsl_compiler_design.md:688–857 (SymbolTable/TypeSystem); nsl_tooling_design.md:723–741 (lint W/S elevations) |
+| AST shape | nsl_lang.ebnf §§1–11 | nsl_compiler_design.md:299–685 |
+| Sema constraints S1–S29 | nsl_lang.ebnf:826–1015 | nsl_compiler_design.md:688–877 (SymbolTable/TypeSystem); nsl_tooling_design.md:723–741 (lint W/S elevations) |
 | Parser disambiguation N1–N14 | nsl_lang.ebnf:1017–1155 | nsl_compiler_design.md (Parser, §3 layer 4) |
-| `proc`/`state`/`finish` semantics | nsl_lang.ebnf:1051–1059 (N6); 900–929 (S21) | nsl_compiler_design.md:860–963 (dialect ops); 1065–1098 (FSM lowering) |
-| `seq` / `while` / `for` placement | nsl_lang.ebnf:850–858 (S7–S9) | nsl_compiler_design.md:1065–1098 (`nsl.seq` → fsm.machine) |
-| `generate` unrolling | nsl_lang.ebnf §8 + S10 | nsl_compiler_design.md:1048–1061 (`NSLExpandGeneratePass`) |
+| `proc`/`state`/`finish` semantics | nsl_lang.ebnf:1051–1059 (N6); 900–929 (S21) | nsl_compiler_design.md:878–1135 (dialect ops, §7); 1235–1305 (FSM lowering, §10) |
+| `seq` / `while` / `for` placement | nsl_lang.ebnf:850–858 (S7–S9) | nsl_compiler_design.md:1235–1305 (`nsl.seq` → fsm.machine, §10) |
+| `generate` unrolling | nsl_lang.ebnf §8 + S10 | nsl_compiler_design.md:1218–1234 (`NSLExpandGeneratePass`, §9) |
 | Hover / definition / refs | — | nsl_tooling_design.md:105–289 |
 | Lint rule W/S/H taxonomy | overlaps S1–S29 | nsl_tooling_design.md:719–752 |
 

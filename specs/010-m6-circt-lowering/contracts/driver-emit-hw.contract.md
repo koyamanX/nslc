@@ -55,6 +55,22 @@ at step 8. The four stock CIRCT passes (`circt::fsm::convertFSMToSeq`,
 `circt::exportVerilog`) are NOT invoked. Those belong to M7's
 `-emit=verilog`.
 
+**Round-trip gate scope clarification (Phase 8 close-out 2026-05-04)**:
+the M6 round-trip fixtures under `test/Lower/circt/round_trip/`
+invoke `circt-opt --convert-fsm-to-seq --lower-seq-to-sv` but NOT
+`--prepare-for-emission`. The `--prepare-for-emission` pass
+requires `hw.module` as the root op rather than `builtin.module`
+(it wraps top-level state for Verilog printing); `nslc -emit=hw`
+emits a `builtin.module` with `hw.module` children (the M6
+output shape per FR-006 + step 8 above) so a direct invocation
+fails the pre-condition. CIRCT's own `circt::ExportVerilog`
+performs the root-op extraction implicitly when invoked in M7;
+M6 round-trip therefore halts at `--lower-seq-to-sv`. Adding
+`--prepare-for-emission` to the round-trip recipe is M7's natural
+scope (its pre-conditions are satisfied at the ExportVerilog
+boundary). Tracked in `tasks.md` "Post-implementation triage"
+deferred-work catalogue.
+
 ---
 
 ## §3. Diagnostic and exit-code behaviour
