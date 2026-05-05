@@ -157,34 +157,44 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `009-t1-textmate-grammar` — land tooling-track
-milestone **T1**: the first NSL tooling deliverable, gating only
-on the spec (no compiler dependency). Ships
-`grammars/textmate/nsl.tmLanguage.json` (covering every reserved
-keyword from `nsl_lang.ebnf §15`, every numeric form from §13,
-every operator + comment + string from §14 / `nsl_tooling_design.md
-§4.1`, every preprocessor directive from `nsl_pp.ebnf §2`, and the
-`%IDENT%` macro form from §4) plus
-`editors/vscode/language-configuration.json` (comment toggles,
-bracket pairs, autoclose / surround pairs, word pattern, indent
-rules) and a scope-test fixture corpus under
-`test/tooling/textmate/` consumed by `vscode-tmgrammar-test` in
-`./scripts/ci.sh` stage 3. The grammar's keyword block is
-**generated** from `include/nsl/Lex/KeywordSet.def` (the established
-single-source-of-truth) via the new `scripts/gen_textmate_grammar.py`
-and `scripts/gen_textmate_fixtures.py` pair, mirroring the existing
-`gen_keyword_fixtures.py` precedent; CI gates regenerate-and-diff
-so spec ↔ grammar drift is mechanically impossible (Principle VII
-coupling). T1 is the only T-track milestone with no compiler
-dependency. Marketplace publication and a `github-linguist/linguist`
-PR are explicitly deferred per `README.md §Roadmap` T1 deferral
-note. For technologies, project structure, entity catalog,
-contracts, and quickstart, read the current plan:
-[`specs/009-t1-textmate-grammar/plan.md`](./specs/009-t1-textmate-grammar/plan.md).
+**Active feature**: `010-t8-tree-sitter-grammar` — land
+tooling-track milestone **T8**: the second tier of the project's
+two-tier highlighter strategy (`docs/design/nsl_tooling_design.md
+§4`), building on T1's TextMate base layer with a context-aware
+tree-sitter parser that distinguishes identifier *contexts* T1
+explicitly left un-scoped (`reg` vs `wire` vs `proc_name` vs
+`func_in` references), tags control-terminal names per `S27`,
+handles `%IDENT%` macro splice sites, and resolves the parser-note
+ambiguities (`N5`, `N2`, `N3`, `N6`) T1 deferred. Ships
+`grammars/treesitter/grammar.js` (productions §§1–11 of
+`nsl_lang.ebnf` + preprocessor seam from `nsl_pp.ebnf §2`; keyword
+block **generated** from `include/nsl/Lex/KeywordSet.def` via a new
+`scripts/gen_treesitter_grammar.py`, mirroring the T1 precedent),
+`grammars/treesitter/queries/highlights.scm` (the §4.3 base set
+**plus 8 sub-captures** — `@variable.register`, `@variable.wire`,
+`@variable.memory`, `@function.proc`, `@function.func`,
+`@function.call.proc`, `@function.call.func`, `@label.state` —
+locked by Clarifications session 2026-05-05 Q3 → Option B), the
+generated `parser.c` / `grammar.json` / `node-types.json`
+(committed; CI gates regenerate-and-diff via FR-017), and a VS
+Code extension shell under `editors/vscode/treesitter/` that loads
+`tree-sitter-nsl.wasm` via `web-tree-sitter`. **`tree-sitter-cli`
+is pinned to `0.22.x`** in `grammars/treesitter/package.json`
+(Q1 → Option B). The **WASM artefact is NOT committed** — CI
+builds it, asserts byte-identity (SC-008 / Principle V), uploads
+as a GHA workflow artefact, and tagged releases attach it
+(Q2 → Option C). Smoke gate parses the in-tree
+`examples/01_*.nsl`–`examples/20_simulation_tb.nsl` corpus
+(Q4 → Option C); the audited corpus joins the gate once P-VEN
+lands at M7. Marketplace publication and a `nvim-treesitter`
+upstream PR are explicitly deferred per `README.md §Roadmap`
+T1/T12 deferral note. For technologies, project structure,
+entity catalog, contracts, and quickstart, read the current plan:
+[`specs/010-t8-tree-sitter-grammar/plan.md`](./specs/010-t8-tree-sitter-grammar/plan.md).
 Companion artifacts:
-[`spec.md`](./specs/009-t1-textmate-grammar/spec.md),
-[`research.md`](./specs/009-t1-textmate-grammar/research.md),
-[`data-model.md`](./specs/009-t1-textmate-grammar/data-model.md),
-[`contracts/`](./specs/009-t1-textmate-grammar/contracts/),
-[`quickstart.md`](./specs/009-t1-textmate-grammar/quickstart.md).
+[`spec.md`](./specs/010-t8-tree-sitter-grammar/spec.md),
+[`research.md`](./specs/010-t8-tree-sitter-grammar/research.md),
+[`data-model.md`](./specs/010-t8-tree-sitter-grammar/data-model.md),
+[`contracts/`](./specs/010-t8-tree-sitter-grammar/contracts/),
+[`quickstart.md`](./specs/010-t8-tree-sitter-grammar/quickstart.md).
 <!-- SPECKIT END -->
