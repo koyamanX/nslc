@@ -8,8 +8,19 @@
 // take a file path (`sm.loadFile(path)`) so we trampoline `-` through
 // a temp file: read stdin, write to a `mkstemp` path, pass that path
 // to `emitX(...)`. The temp file is unlinked at process exit via an
-// `atexit` registered handler. Same shape works for tokens / ast /
-// mlir / hw / circt — one switch, all four stages benefit.
+// `atexit` registered handler. Same shape works across the four
+// distinct emit stages — `tokens`, `ast`, `mlir`, and `hw` (with
+// `circt` as the alias for `hw` per `driver-emit-hw.contract.md` §1,
+// so the dispatch arm count is 4 even though there are 5 accepted
+// stage spellings).
+//
+// **Known limitation (Copilot review #3)**: `mkstemps` returns a
+// random suffix in the path, so `nslc -emit=tokens -` token-stream
+// output (which embeds the input path in each token's location)
+// varies per invocation. Out of scope for this PR — fixing
+// requires plumbing a virtual `<stdin>` label through SourceManager
+// rather than handing it a real filesystem path. Tracked as a
+// post-merge follow-on.
 
 #include "nsl/Driver/EmitAST.h"
 #include "nsl/Driver/EmitHW.h"
@@ -58,9 +69,11 @@ void cleanupStdinTempFile() {
 /// emits a diagnostic). On success, registers an atexit handler that
 /// unlinks the file when the process exits.
 std::string slurpStdinToTempFile(llvm::raw_ostream &err) {
-  // Honor TMPDIR when present, fall back to /tmp.
+  // Honor TMPDIR when present + non-empty, fall back to /tmp.
+  // (Copilot review #2: empty TMPDIR previously turned into a
+  // root-relative "/nslc-stdin-..." path that EACCES'd.)
   const char *tmpdir = std::getenv("TMPDIR");
-  std::string path = (tmpdir ? tmpdir : "/tmp");
+  std::string path = (tmpdir != nullptr && tmpdir[0] != '\0') ? tmpdir : "/tmp";
   if (!path.empty() && path.back() == '/') {
     path.pop_back();
   }
@@ -80,10 +93,17 @@ std::string slurpStdinToTempFile(llvm::raw_ostream &err) {
   // Stream stdin → fd in 64 KB chunks.
   char buf[64 * 1024];
   while (true) {
+    // Copilot review #4: `errno` after `fread` is not guaranteed to
+    // be set even on partial-read-into-EOF; clear it first so the
+    // post-read check distinguishes real I/O errors from spurious
+    // stale errno values.
+    errno = 0;
     std::size_t n = std::fread(buf, 1, sizeof(buf), stdin);
     if (n == 0) {
       if (std::ferror(stdin)) {
-        err << "error reading stdin: " << std::strerror(errno) << "\n";
+        err << "error reading stdin"
+            << (errno != 0 ? std::string(": ") + std::strerror(errno) : "")
+            << "\n";
         ::close(fd);
         return {};
       }

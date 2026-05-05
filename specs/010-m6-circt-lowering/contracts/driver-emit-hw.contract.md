@@ -115,15 +115,25 @@ fixtures inherit M5's golden-comparison form.
 - **Stdin (`nslc -emit=hw -`)**: **SUPPORTED** (post-M6 follow-on
   PR; T139 fixture flipped XFAIL → PASS). `tools/nslc/main.cpp`
   recognises `-` as a stdin marker for every `-emit=<stage>` —
-  `tokens` / `ast` / `mlir` / `hw` / `circt` all benefit
-  uniformly. Implementation strategy: stdin is slurped into a
-  temp file (`mkstemp` under `$TMPDIR` or `/tmp`), the temp
-  path is passed to the emit function in lieu of the user-
-  provided path, and an `atexit` handler unlinks the temp file
-  at process exit. The emit functions themselves are
-  unmodified — they continue to call `sm.loadFile(path)` as
-  before. Same shape works across all four emit modes. Closes
-  PR #14 review-#4 + the `/speckit-analyze` C2 finding.
+  the four distinct emission paths `tokens` / `ast` / `mlir` /
+  `hw` (with `circt` as the alias for `hw` per §1, so the
+  dispatch arm count is 4 even though there are 5 accepted
+  stage spellings). Implementation strategy: stdin is slurped
+  into a temp file (`mkstemp` under `$TMPDIR` or `/tmp` — empty
+  `TMPDIR` falls back to `/tmp`), the temp path is passed to
+  the emit function in lieu of the user-provided path, and an
+  `atexit` handler unlinks the temp file at process exit. The
+  emit functions themselves are unmodified — they continue to
+  call `sm.loadFile(path)` as before. Closes PR #14 review-#4
+  + the `/speckit-analyze` C2 finding.
+
+  **Known limitation**: `mkstemp` randomises the path suffix,
+  so `nslc -emit=tokens -` output (which embeds the input
+  path in each token's `(file:line:col)` annotation) varies
+  per invocation. Determinism for the stdin path requires a
+  separate refactor — plumb a stable virtual `<stdin>` label
+  through `SourceManager` rather than handing it a real
+  filesystem path. Tracked as a post-merge follow-on.
 - Output goes to stdout when `-o` is not specified (this has
   worked since Phase 4 and is exercised by every fixture).
 - `cat input.nsl | nslc -emit=hw - | circt-opt …` is the
