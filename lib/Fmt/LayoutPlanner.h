@@ -111,11 +111,17 @@ protected:
   DocPtr formatNode(const ::nsl::ast::RegDecl &node);
   DocPtr formatNode(const ::nsl::ast::WireDecl &node);
   DocPtr formatNode(const ::nsl::ast::StructDecl &node);
+  DocPtr formatNode(const ::nsl::ast::DeclareBlock &node);
   DocPtr formatNode(const ::nsl::ast::FuncDefn &node);
+  DocPtr formatNode(const ::nsl::ast::ProcDefn &node);
+  DocPtr formatNode(const ::nsl::ast::StateDefn &node);
   DocPtr formatNode(const ::nsl::ast::SeqBlock &node);
   DocPtr formatNode(const ::nsl::ast::ParallelBlock &node);
   DocPtr formatNode(const ::nsl::ast::AltBlock &node);
   DocPtr formatNode(const ::nsl::ast::AnyBlock &node);
+  DocPtr formatNode(const ::nsl::ast::IfStmt &node);
+  DocPtr formatNode(const ::nsl::ast::WhileBlock &node);
+  DocPtr formatNode(const ::nsl::ast::StructuralGenerate &node);
   DocPtr formatNode(const ::nsl::ast::BinaryExpr &node);
   DocPtr formatNode(const ::nsl::ast::UnaryExpr &node);
   DocPtr formatNode(const ::nsl::ast::ConditionalExpr &node);

@@ -429,6 +429,27 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::StructDecl &node) {
   return Doc::concat(std::move(top_parts));
 }
 
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::DeclareBlock &node) {
+  // Recursion-only override. The `declare <name> { <ports> }` shell
+  // is preserved verbatim by the parent gap; we just merge the
+  // header-params + ports vectors and source-position-sort them
+  // so any nested expressions (port widths, header-param init
+  // values) get their canonical R5 / R4 treatment.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(node.headerParams().size() + node.ports().size());
+  for (const auto &n : node.headerParams()) {
+    children.push_back(n.get());
+  }
+  for (const auto &n : node.ports()) {
+    children.push_back(n.get());
+  }
+  std::sort(children.begin(), children.end(),
+            [](const ::nsl::ast::ASTNode *a, const ::nsl::ast::ASTNode *b) {
+              return a->loc().begin().offset() < b->loc().begin().offset();
+            });
+  return interleaveChildren(node.loc(), children);
+}
+
 DocPtr LayoutPlanner::formatNode(const ::nsl::ast::FuncDefn &node) {
   // Recursion-only override: `func <name> ` prefix and ` }` suffix
   // are emitted by the parent's verbatim gap; we only need to make
@@ -436,6 +457,27 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::FuncDefn &node) {
   // `AltBlock` / `AnyBlock` whose canonical R1 layout we need to
   // fire) is *visited* rather than swallowed by the FuncDefn's own
   // verbatim fallback.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  if (node.body() != nullptr) {
+    children.push_back(node.body());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ProcDefn &node) {
+  // Recursion-only override paralleling `formatNode(FuncDefn)`.
+  // `proc <name> <body>` — recurse into the body so nested
+  // canonical-layout overrides fire on transitive children.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  if (node.body() != nullptr) {
+    children.push_back(node.body());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::StateDefn &node) {
+  // Recursion-only override paralleling `formatNode(FuncDefn)`.
+  // `state <name> <body>` — recurse into the body.
   std::vector<const ::nsl::ast::ASTNode *> children;
   if (node.body() != nullptr) {
     children.push_back(node.body());
@@ -493,6 +535,68 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::AltBlock &node) {
 DocPtr LayoutPlanner::formatNode(const ::nsl::ast::AnyBlock &node) {
   return formatCondCaseBlock(node.cases(), node.elseCase(),
                               llvm::StringRef("any"));
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::IfStmt &node) {
+  // Recursion-only override. NSL's statement-position
+  // `if (cond) thenS else elseS` shape — preserve the source
+  // verbatim gaps (`if (`, `)`, `else`) while recursing into the
+  // condition and both branches so nested R5 / R4 fire. Like
+  // `ConditionalExpr`, a true canonical-form override is deferred
+  // pending spec clarification on multi-line vs single-line
+  // surface forms.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(3);
+  if (node.cond() != nullptr) {
+    children.push_back(node.cond());
+  }
+  if (node.thenBr() != nullptr) {
+    children.push_back(node.thenBr());
+  }
+  if (node.elseBr() != nullptr) {
+    children.push_back(node.elseBr());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::WhileBlock &node) {
+  // Recursion-only override. `while (<cond>) { <items> }` — emit
+  // the verbatim shell while recursing into `cond` and each
+  // body item so nested expression rules fire.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(1 + node.items().size());
+  if (node.cond() != nullptr) {
+    children.push_back(node.cond());
+  }
+  for (const auto &n : node.items()) {
+    children.push_back(n.get());
+  }
+  // Items follow the cond in source order, but since the cond's
+  // loc is always before any item's loc, no sort is required.
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::StructuralGenerate &node) {
+  // Recursion-only override. `generate (<init> = <initValue>;
+  // <cond>; <step>) <body>` — preserve the verbatim shell while
+  // recursing into each Expr / Stmt so nested operators get the
+  // canonical R5 / R4 treatment. The structural-expansion
+  // pass (M5) consumes the same AST shape.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(4);
+  if (node.initValue() != nullptr) {
+    children.push_back(node.initValue());
+  }
+  if (node.cond() != nullptr) {
+    children.push_back(node.cond());
+  }
+  if (node.step() != nullptr) {
+    children.push_back(node.step());
+  }
+  if (node.body() != nullptr) {
+    children.push_back(node.body());
+  }
+  return interleaveChildren(node.loc(), children);
 }
 
 DocPtr LayoutPlanner::formatCondCaseBlock(
