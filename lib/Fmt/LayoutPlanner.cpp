@@ -290,6 +290,35 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::UnaryExpr &node) {
   return Doc::concat(std::move(parts));
 }
 
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ConditionalExpr &node) {
+  // Recursion-only override. NSL's `if (c) a else b` and the
+  // ternary `c ? a : b` both lower to the same `ConditionalExpr`
+  // node; the AST doesn't preserve which surface form the source
+  // used. Rather than canonicalising one form into the other
+  // (which would silently rewrite the source spelling — a much
+  // bigger semantic change than R5 spacing), we use
+  // `interleaveChildren` to preserve the source-shape verbatim
+  // gaps (`?` / `:` / `if` / `else`) while still recursing into
+  // each child Expr so nested operators / slices / concats / etc.
+  // get the canonical R5 / R4 treatment. The "one space around
+  // `?` / `:`" sub-rule of R5 §5 lands here when the source
+  // already carries canonical spacing — and a future revision
+  // may add a true canonical-form override once the surface-form
+  // ambiguity is resolved at the spec level.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(3);
+  if (node.cond() != nullptr) {
+    children.push_back(node.cond());
+  }
+  if (node.thenE() != nullptr) {
+    children.push_back(node.thenE());
+  }
+  if (node.elseE() != nullptr) {
+    children.push_back(node.elseE());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
 DocPtr LayoutPlanner::formatNode(const ::nsl::ast::SliceExpr &node) {
   // R4 §4: bit slice has no spaces inside `[`, `]`, around `:`.
   //   `<sub>[<hi>]`            for the single-index form
@@ -535,6 +564,36 @@ DocPtr LayoutPlanner::formatCondCaseBlock(
   top_parts.push_back(Doc::hardline());
   top_parts.push_back(Doc::text(llvm::StringRef("}")));
   return Doc::concat(std::move(top_parts));
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::TransferStmt &node) {
+  // Canonical transfer: `<lhs> <op> <rhs>;` with one space on
+  // each side of the assignment operator. Op spelling per
+  // `TransferStmt::Op`:
+  //   * `WireEq`     → `=`   (combinational `wire_decl = expr;`
+  //                    or top-level transfer)
+  //   * `RegColonEq` → `:=`  (sequential `reg_name := expr;` per S3)
+  // Recurse into both lhs and rhs so any nested binary/unary/
+  // slice/concat expression inside fires the R5 / R4 layout —
+  // without this override, TransferStmt was a verbatim leaf and
+  // `q := a+b;` came out as-is rather than `q := a + b;`.
+  llvm::StringRef op =
+      node.op() == ::nsl::ast::TransferStmt::Op::RegColonEq
+          ? llvm::StringRef(":=")
+          : llvm::StringRef("=");
+  DocPtr lhs_doc = node.lhs() != nullptr ? visitNode(*node.lhs())
+                                          : Doc::text(llvm::StringRef{});
+  DocPtr rhs_doc = node.rhs() != nullptr ? visitNode(*node.rhs())
+                                          : Doc::text(llvm::StringRef{});
+  std::vector<DocPtr> parts;
+  parts.reserve(6);
+  parts.push_back(std::move(lhs_doc));
+  parts.push_back(Doc::text(llvm::StringRef(" ")));
+  parts.push_back(Doc::text(op));
+  parts.push_back(Doc::text(llvm::StringRef(" ")));
+  parts.push_back(std::move(rhs_doc));
+  parts.push_back(Doc::text(llvm::StringRef(";")));
+  return Doc::concat(std::move(parts));
 }
 
 DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ConcatExpr &node) {

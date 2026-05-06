@@ -118,8 +118,10 @@ protected:
   DocPtr formatNode(const ::nsl::ast::AnyBlock &node);
   DocPtr formatNode(const ::nsl::ast::BinaryExpr &node);
   DocPtr formatNode(const ::nsl::ast::UnaryExpr &node);
+  DocPtr formatNode(const ::nsl::ast::ConditionalExpr &node);
   DocPtr formatNode(const ::nsl::ast::SliceExpr &node);
   DocPtr formatNode(const ::nsl::ast::ConcatExpr &node);
+  DocPtr formatNode(const ::nsl::ast::TransferStmt &node);
 
   /// Per-level indent step in column-equivalents. Maps the active
   /// `Configuration::Indent` enum to the integer the renderer's
