@@ -122,6 +122,11 @@ protected:
   DocPtr formatNode(const ::nsl::ast::IfStmt &node);
   DocPtr formatNode(const ::nsl::ast::WhileBlock &node);
   DocPtr formatNode(const ::nsl::ast::StructuralGenerate &node);
+  DocPtr formatNode(const ::nsl::ast::SystemTaskStmt &node);
+  DocPtr formatNode(const ::nsl::ast::ControlCallStmt &node);
+  DocPtr formatNode(const ::nsl::ast::IncDecStmt &node);
+  DocPtr formatNode(const ::nsl::ast::ReturnStmt &node);
+  DocPtr formatNode(const ::nsl::ast::CallExpr &node);
   DocPtr formatNode(const ::nsl::ast::BinaryExpr &node);
   DocPtr formatNode(const ::nsl::ast::UnaryExpr &node);
   DocPtr formatNode(const ::nsl::ast::ConditionalExpr &node);

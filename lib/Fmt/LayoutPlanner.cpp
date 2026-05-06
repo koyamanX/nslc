@@ -599,6 +599,64 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::StructuralGenerate &node) {
   return interleaveChildren(node.loc(), children);
 }
 
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::SystemTaskStmt &node) {
+  // Recursion-only override. `_display(<args>);`, `_finish;`,
+  // etc. — `args` is a vector of Exprs in source order; no
+  // sort needed (Expr children always appear after the task
+  // keyword and `(` token).
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(node.args().size());
+  for (const auto &n : node.args()) {
+    children.push_back(n.get());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ControlCallStmt &node) {
+  // Recursion-only override. `<target>(<args>);` — target is a
+  // ScopedName (not an AST node), so we only descend into the
+  // Expr arguments.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(node.args().size());
+  for (const auto &n : node.args()) {
+    children.push_back(n.get());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::IncDecStmt &node) {
+  // Recursion-only override. `<target>++;` / `<target>--;` —
+  // recurse into the target Expr so any nested operator inside
+  // (e.g., `obj.field++`) gets its canonical layout.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  if (node.target() != nullptr) {
+    children.push_back(node.target());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ReturnStmt &node) {
+  // Recursion-only override. `return [<value>];` — value is
+  // nullable (bare `return;` form).
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  if (node.value() != nullptr) {
+    children.push_back(node.value());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::CallExpr &node) {
+  // Recursion-only override. `<target>(<args>)` in expression
+  // position — like `ControlCallStmt` but emits no trailing
+  // `;` (which the verbatim parent gap supplies if needed).
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(node.args().size());
+  for (const auto &n : node.args()) {
+    children.push_back(n.get());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
 DocPtr LayoutPlanner::formatCondCaseBlock(
     const std::vector<::nsl::ast::CondCase> &cases,
     const ::nsl::ast::Stmt *elseCase, llvm::StringRef keyword) {
