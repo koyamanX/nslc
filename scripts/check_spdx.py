@@ -47,6 +47,7 @@ RECIPES_BY_EXT: dict[str, tuple[str, Optional[str]]] = {
     ".sh":     ("#",    None),
     ".bash":   ("#",    None),
     ".js":     ("//",   None),  # T8 hand-authored grammar.js + generated mirror
+    ".ts":     ("//",   None),  # T8 VS Code extension TypeScript shell
     ".scm":    (";",    None),  # T8 tree-sitter highlight queries (Scheme)
     ".ebnf":   ("(*",   "*)"),
     ".nsl":    ("//",   None),
