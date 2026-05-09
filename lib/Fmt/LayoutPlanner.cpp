@@ -657,6 +657,101 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::CallExpr &node) {
   return interleaveChildren(node.loc(), children);
 }
 
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ForBlock &node) {
+  // Recursion-only override. `for (init; cond; step) { items... }`
+  // — descend into each of the three clauses (any of which may be
+  // nullptr per `ForForm` shape) and the body so nested
+  // binary / unary / slice / concat / transfer expressions inside
+  // fire their canonical R4 / R5 layout. Source order is init →
+  // cond → step → items, which matches accessor order — no sort
+  // needed.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(3 + node.items().size());
+  if (node.form().init != nullptr) {
+    children.push_back(node.form().init.get());
+  }
+  if (node.form().cond != nullptr) {
+    children.push_back(node.form().cond.get());
+  }
+  if (node.form().step != nullptr) {
+    children.push_back(node.form().step.get());
+  }
+  for (const auto &n : node.items()) {
+    children.push_back(n.get());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::RepeatExpr &node) {
+  // Recursion-only override. `{N{x}}` bit-vector replication —
+  // count expression then body expression, source order matches
+  // accessor order.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(2);
+  if (node.count() != nullptr) {
+    children.push_back(node.count());
+  }
+  if (node.body() != nullptr) {
+    children.push_back(node.body());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::SignExtendExpr &node) {
+  // Recursion-only override. `<width> # <sub>` (parser-note N5 —
+  // `#` in expression position post-preprocess; the line-marker
+  // `#line` form never reaches an AST node). Descend into both
+  // operands.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(2);
+  if (node.width() != nullptr) {
+    children.push_back(node.width());
+  }
+  if (node.sub() != nullptr) {
+    children.push_back(node.sub());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ZeroExtendExpr &node) {
+  // Recursion-only override. `<width> ' <sub>` — same shape as
+  // `SignExtendExpr` but distinct AST node (M3/M5 treat them
+  // differently); same recursion need.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(2);
+  if (node.width() != nullptr) {
+    children.push_back(node.width());
+  }
+  if (node.sub() != nullptr) {
+    children.push_back(node.sub());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::FieldAccessExpr &node) {
+  // Recursion-only override. `<obj>.<field>` — `field` is a bare
+  // Identifier (not an AST child), so we descend only into `obj`
+  // so any nested operator / slice / etc. inside it gets the
+  // canonical layout.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  if (node.obj() != nullptr) {
+    children.push_back(node.obj());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::IncDecExpr &node) {
+  // Recursion-only override. Increment / decrement at expression
+  // position — `++x` / `x++` / `--x` / `x--`. Parallels
+  // `IncDecStmt` but no trailing `;` (the verbatim parent gap
+  // supplies it when relevant).
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  if (node.target() != nullptr) {
+    children.push_back(node.target());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
 DocPtr LayoutPlanner::formatCondCaseBlock(
     const std::vector<::nsl::ast::CondCase> &cases,
     const ::nsl::ast::Stmt *elseCase, llvm::StringRef keyword) {

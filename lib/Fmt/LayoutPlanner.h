@@ -127,6 +127,12 @@ protected:
   DocPtr formatNode(const ::nsl::ast::IncDecStmt &node);
   DocPtr formatNode(const ::nsl::ast::ReturnStmt &node);
   DocPtr formatNode(const ::nsl::ast::CallExpr &node);
+  DocPtr formatNode(const ::nsl::ast::ForBlock &node);
+  DocPtr formatNode(const ::nsl::ast::RepeatExpr &node);
+  DocPtr formatNode(const ::nsl::ast::SignExtendExpr &node);
+  DocPtr formatNode(const ::nsl::ast::ZeroExtendExpr &node);
+  DocPtr formatNode(const ::nsl::ast::FieldAccessExpr &node);
+  DocPtr formatNode(const ::nsl::ast::IncDecExpr &node);
   DocPtr formatNode(const ::nsl::ast::BinaryExpr &node);
   DocPtr formatNode(const ::nsl::ast::UnaryExpr &node);
   DocPtr formatNode(const ::nsl::ast::ConditionalExpr &node);
