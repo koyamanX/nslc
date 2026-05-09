@@ -63,6 +63,8 @@ constexpr const char *kErrRangeMultiFile =
     "error: --range requires exactly one input file\n";
 constexpr const char *kErrCheckNoInput =
     "error: --check requires at least one input file or --stdin\n";
+constexpr const char *kErrRangeInvalidSyntax =
+    "error: --range expects LINE:LINE (1-indexed, inclusive)\n";
 
 // -----------------------------------------------------------------------------
 // argv helpers
@@ -70,6 +72,80 @@ constexpr const char *kErrCheckNoInput =
 
 bool starts(const char *s, const char *p) {
   return std::strncmp(s, p, std::strlen(p)) == 0;
+}
+
+// Parse a `--range LINE:LINE` argument (1-indexed inclusive, both
+// numbers strictly positive, lo ≤ hi). Returns true on syntax-OK
+// and writes the parsed range to `out`; bounds-check against the
+// file's line count is the caller's responsibility (the file
+// hasn't been read yet at the parse-argv stage).
+bool parseLineRange(const std::string &s, nsl::fmt::LineRange &out) {
+  if (s.empty()) {
+    return false;
+  }
+  std::size_t colon = s.find(':');
+  if (colon == std::string::npos) {
+    return false;
+  }
+  std::string lo = s.substr(0, colon);
+  std::string hi = s.substr(colon + 1);
+  if (lo.empty() || hi.empty()) {
+    return false;
+  }
+  // Both halves must be all digits and the first digit MUST NOT
+  // be `0` (so "01" is rejected — strict 1-indexed grammar).
+  auto allDigits = [](const std::string &t) {
+    if (t.empty() || t[0] == '0') {
+      return false;
+    }
+    for (char c : t) {
+      if (c < '0' || c > '9') {
+        return false;
+      }
+    }
+    return true;
+  };
+  if (!allDigits(lo) || !allDigits(hi)) {
+    return false;
+  }
+  // std::stoi can throw std::out_of_range on overflow; treat that
+  // as a syntax error too (the user wrote a number that doesn't
+  // fit in int — same semantic outcome as malformed).
+  int loN = 0;
+  int hiN = 0;
+  try {
+    loN = std::stoi(lo);
+    hiN = std::stoi(hi);
+  } catch (...) {
+    return false;
+  }
+  if (loN < 1 || hiN < 1 || loN > hiN) {
+    return false;
+  }
+  out.firstLine = loN;
+  out.lastLine = hiN;
+  return true;
+}
+
+// Count source lines in `content`. A trailing `\n` does NOT
+// introduce an empty extra line (gofmt / clang-format convention):
+//
+//   ""           → 0
+//   "foo"        → 1
+//   "foo\n"      → 1
+//   "foo\nbar"   → 2
+//   "foo\nbar\n" → 2
+int countLines(llvm::StringRef content) {
+  if (content.empty()) {
+    return 0;
+  }
+  int newlines = 0;
+  for (char c : content) {
+    if (c == '\n') {
+      ++newlines;
+    }
+  }
+  return content.back() == '\n' ? newlines : newlines + 1;
 }
 
 // Read every byte of `path` into a string. On failure, write a
@@ -129,12 +205,13 @@ nsl::FileID addBuffer(nsl::SourceManager &sm, llvm::StringRef name,
 
 int processInput(llvm::StringRef name, llvm::StringRef content,
                  const nsl::fmt::Configuration &cfg, bool checkMode,
-                 bool inPlace, llvm::StringRef inPlacePath) {
+                 bool inPlace, llvm::StringRef inPlacePath,
+                 std::optional<nsl::fmt::LineRange> range) {
   nsl::SourceManager sm;
   nsl::FileID fid = addBuffer(sm, name, content);
 
   nsl::fmt::FormatResult res =
-      nsl::fmt::format_buffer(content, cfg, fid, /*range=*/std::nullopt);
+      nsl::fmt::format_buffer(content, cfg, fid, range);
 
   // Render any diagnostics carried out of format_buffer to stderr.
   // Full source-locating renderer (file:line:col) is wired in
@@ -257,10 +334,20 @@ int main(int argc, char **argv) {
     return 2;
   }
 
-  // --range parsing is deferred to Phase 5 (T090). At Phase 3a-CLI
-  // the flag is recognised but its presence is a no-op (the formatter
-  // ignores the range and reformats the whole input).
-  (void)rangeArg;
+  // T090 — `--range LINE:LINE` syntax-parse. Bounds check (does
+  // the range fit inside the file?) is deferred until the input
+  // bytes are available below — both the file path and the stdin
+  // path consult the same `parsedRange` value here for a single
+  // canonical error site.
+  std::optional<nsl::fmt::LineRange> parsedRange;
+  if (rangeArg.has_value()) {
+    nsl::fmt::LineRange r{};
+    if (!parseLineRange(*rangeArg, r)) {
+      llvm::errs() << kErrRangeInvalidSyntax;
+      return 2;
+    }
+    parsedRange = r;
+  }
 
   // T2 Phase 6 (T107) — `--config PATH` + auto-discovery. Resolution:
   //   1. If --config <PATH> was given, use that file.
@@ -313,8 +400,17 @@ int main(int argc, char **argv) {
       return 1;
     }
     llvm::StringRef content = (*bufOrErr)->getBuffer();
+    if (parsedRange.has_value()) {
+      const int n = countLines(content);
+      if (parsedRange->firstLine > n || parsedRange->lastLine > n) {
+        llvm::errs() << "error: --range " << parsedRange->firstLine << ":"
+                     << parsedRange->lastLine
+                     << " falls outside file (file has " << n << " lines)\n";
+        return 2;
+      }
+    }
     return processInput("<stdin>", content, cfg, checkMode, /*inPlace=*/false,
-                        /*inPlacePath=*/"");
+                        /*inPlacePath=*/"", parsedRange);
   }
 
   // No inputs + no --stdin: print usage to stderr + exit 2 (matches
@@ -372,8 +468,18 @@ int main(int argc, char **argv) {
       }
     }
 
+    if (parsedRange.has_value()) {
+      const int n = countLines(*contentOpt);
+      if (parsedRange->firstLine > n || parsedRange->lastLine > n) {
+        llvm::errs() << "error: --range " << parsedRange->firstLine << ":"
+                     << parsedRange->lastLine
+                     << " falls outside file (file has " << n << " lines)\n";
+        return 2;
+      }
+    }
+
     int rc = processInput(path, *contentOpt, per_file_cfg, checkMode,
-                          inPlace, path);
+                          inPlace, path, parsedRange);
     if (rc != 0) {
       aggregateExit = 1;
     }

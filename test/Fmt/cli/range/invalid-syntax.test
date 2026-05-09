@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T090 syntax-check companion fixture — `nsl-fmt --range <bad>`
+// where `<bad>` doesn't match `LINE:LINE` (1-indexed, lo ≤ hi)
+// exits 2 with the frozen diagnostic from
+// `cli-surface.contract.md` §3.
+//
+// Frozen diagnostic:
+//   error: --range expects LINE:LINE (1-indexed, inclusive)
+//
+// Two malformed inputs: `foo` (no colon) and `0:5` (zero is
+// rejected because 1-indexed).
+
+// RUN: printf 'declare a { } module a { wire x[8]; }\n' > %t.nsl
+// RUN: not nsl-fmt --range foo %t.nsl 2>&1 | FileCheck %s
+// RUN: not nsl-fmt --range 0:5 %t.nsl 2>&1 | FileCheck %s
+
+// CHECK: error: --range expects LINE:LINE (1-indexed, inclusive)

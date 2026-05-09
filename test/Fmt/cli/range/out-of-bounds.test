@@ -7,13 +7,6 @@
 //
 // Frozen diagnostic:
 //   error: --range <a>:<b> falls outside file (file has <N> lines)
-//
-// AUTHORED RED — XFAIL until T090 implements the `--range`
-// validation. Today the flag is recognised but its value is a
-// no-op, so out-of-bounds is silently ignored (exit 0, no
-// diagnostic).
-
-// XFAIL: *
 
 // RUN: printf 'declare a { } module a { wire x[8]; }\n' > %t.nsl
 // RUN: not nsl-fmt --range 100:200 %t.nsl 2>&1 | FileCheck %s
