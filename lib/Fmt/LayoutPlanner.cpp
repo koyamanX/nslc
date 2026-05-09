@@ -834,6 +834,78 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::InitBlockStmt &node) {
   return interleaveChildren(node.loc(), children);
 }
 
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::LabeledStmt &node) {
+  // Recursion-only override. `<label>: <body>` — `label` is a
+  // bare Identifier (not an AST child) so we descend only into
+  // `body`. Per N10 the user-supplied label name is permitted
+  // even when it shadows the reserved word `label` (lex-time
+  // disambiguation).
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  if (node.body() != nullptr) {
+    children.push_back(node.body());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::StructCastExpr &node) {
+  // Recursion-only override. `<typeName>'(<sub>)` or
+  // `<typeName>.<member.path>'(<sub>)` per data-model §1.6 —
+  // `typeName` and `memberPath` are bare Identifiers (not AST
+  // children); the only Expr-bearing slot is `sub`.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  if (node.sub() != nullptr) {
+    children.push_back(node.sub());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::StructInstDecl &node) {
+  // Recursion-only override. `<typeName> <instanceName>[<arraySize>]
+  //   = (<init0>, <init1>, ...);` (`reg` or `wire` storage per
+  // `storageKind`; the keyword precedes `typeName` in source).
+  // Source order: arraySize → init[0..N], which matches accessor
+  // order — no sort needed.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(1 + node.init().size());
+  if (node.arraySize() != nullptr) {
+    children.push_back(node.arraySize());
+  }
+  for (const auto &n : node.init()) {
+    children.push_back(n.get());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::SubmoduleDecl &node) {
+  // Recursion-only override. `<templateName> #(<paramAssigns>)
+  //   <instances>;` — `templateName` is an Identifier; the only
+  // Expr-bearing slots are `Instance::arraySize` and
+  // `ParamAssign::value`, each tagged with its own SourceRange
+  // inside the submodule's outer span. Surface-order placement
+  // of `paramAssigns` vs `instances` is grammar-dependent (the
+  // declared order is paramAssigns then instances per the EBNF;
+  // the audited-corpus shape matches), so we gather all Expr
+  // children then sort by source offset before interleaving —
+  // same precedent as `ModuleBlock`.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(node.instances().size() + node.paramAssigns().size());
+  for (const auto &inst : node.instances()) {
+    if (inst.arraySize != nullptr) {
+      children.push_back(inst.arraySize.get());
+    }
+  }
+  for (const auto &pa : node.paramAssigns()) {
+    if (pa.value != nullptr) {
+      children.push_back(pa.value.get());
+    }
+  }
+  std::sort(children.begin(), children.end(),
+            [](const ::nsl::ast::ASTNode *a, const ::nsl::ast::ASTNode *b) {
+              return a->loc().begin().offset() < b->loc().begin().offset();
+            });
+  return interleaveChildren(node.loc(), children);
+}
+
 DocPtr LayoutPlanner::formatCondCaseBlock(
     const std::vector<::nsl::ast::CondCase> &cases,
     const ::nsl::ast::Stmt *elseCase, llvm::StringRef keyword) {

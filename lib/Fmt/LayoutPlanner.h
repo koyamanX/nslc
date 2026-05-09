@@ -139,6 +139,10 @@ protected:
   DocPtr formatNode(const ::nsl::ast::MemDecl &node);
   DocPtr formatNode(const ::nsl::ast::DelayTaskStmt &node);
   DocPtr formatNode(const ::nsl::ast::InitBlockStmt &node);
+  DocPtr formatNode(const ::nsl::ast::LabeledStmt &node);
+  DocPtr formatNode(const ::nsl::ast::StructCastExpr &node);
+  DocPtr formatNode(const ::nsl::ast::StructInstDecl &node);
+  DocPtr formatNode(const ::nsl::ast::SubmoduleDecl &node);
   DocPtr formatNode(const ::nsl::ast::BinaryExpr &node);
   DocPtr formatNode(const ::nsl::ast::UnaryExpr &node);
   DocPtr formatNode(const ::nsl::ast::ConditionalExpr &node);
