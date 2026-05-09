@@ -171,9 +171,9 @@ M7).
 
 ### Tests for User Story 2 (TDD)
 
-- [ ] T066 [P] [US2] Author lit fixture `test/Fmt/cli/check-mode/dirty-file.test` asserting `RUN: nsl-fmt --check %s; CHECK: <diff>; CHECK: exit 1` — observe FAILING
+- [X] T066 [P] [US2] Author lit fixture `test/Fmt/cli/check-mode/dirty-file.test` asserting `RUN: nsl-fmt --check %s; CHECK: <diff>; CHECK: exit 1`. Coverage backfill: `--check`'s diff path was already wired by T067 + the unified-diff helper (T073/T074/T075/T076); the fixture exercises it end-to-end with R5's `x+y` → `x + y` rewrite as the canonical-rule trigger. PASS on author (no XFAIL marker needed; the implementation is in place).
 - [X] T067 [P] [US2] Author lit fixture `test/Fmt/cli/check-mode/clean-file.test` asserting clean file → exit 0 + empty stdout — observe FAILING
-- [ ] T068 [P] [US2] Author lit fixture `test/Fmt/cli/multi-file/one-bad-one-good.test` asserting one parse-error file + one clean file → both processed, exit 1, only the bad file's diagnostic on stderr (FR-003a continue-on-error) — observe FAILING
+- [X] T068 [P] [US2] Author lit fixture `test/Fmt/cli/multi-file/one-bad-one-good.test` asserting one parse-error file + one clean file → both processed, exit 1, only the bad file's diagnostic on stderr (FR-003a continue-on-error). Coverage backfill: the multi-file loop in `tools/nsl-fmt/main.cpp` lines 334–381 already implements `aggregateExit |= rc` continue-on-error; the fixture exercises the bad+good ordering, the stdout-from-good-only invariant, and the `STDERR-NOT: good.nsl` bracketing assertion. PASS on author.
 - [X] T069 [P] [US2] Author lit fixture `test/Fmt/cli/multi-file/all-clean.test` asserting `--check` over 3 already-canonical files → exit 0 — observe FAILING
 - [X] T070 [P] [US2] Author lit fixture `test/Fmt/cli/mutually-exclusive/check-and-in-place.test` asserting `nsl-fmt -c -i x.nsl` produces frozen string from [`contracts/cli-surface.contract.md`](./contracts/cli-surface.contract.md) §2 + exit 2 — observe FAILING
 - [X] T071 [P] [US2] Author lit fixture `test/Fmt/cli/mutually-exclusive/stdin-and-positional.test` per `cli-surface.contract.md` §2 — observe FAILING
