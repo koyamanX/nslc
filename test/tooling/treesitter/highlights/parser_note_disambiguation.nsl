@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T021 fixture — parser-note disambiguation (N2 / N3 / N5 / N6).
+//
+// THIS FIXTURE INTENTIONALLY CARRIES NO INLINE HIGHLIGHT ASSERTIONS.
+// Per highlights-coverage.contract.md §3 row 6, T021's role is
+// "0 (parse-shape correctness; covered by smoke gate)". The implicit
+// assertion is that `tree-sitter parse` consumes this file without
+// emitting any (ERROR) or (MISSING) nodes — enforced at every PR by
+// the `treesitter-smoke` sub-step (scripts/ci.sh stage 3) once the
+// corpus.txt entry for this file lands in T035.
+//
+// Cross-references:
+//   - parser notes N2, N3, N5, N6 (spec/nsl_lang.ebnf 1048–1084)
+//   - contracts/grammar-coverage.contract.md §3 (parser-note disambiguation table)
+//   - examples/16_bit_ops.nsl  (canonical sign-extend syntax: `8 # sign_in`)
+//   - examples/17_concat_lvalue.nsl (canonical concat-lvalue syntax: `.{a, b} = x`)
+//   - examples/18_proc_methods.nsl (canonical proc-instance method access)
+//   - acceptance: spec.md "Edge Cases" section.
+//
+// What each block exercises:
+//   N2 — unary `&` (reduction) vs binary `&` (bitwise);
+//        production-position alone disambiguates.
+//   N3 — `.{` two-character lookahead for concat-lvalue form,
+//        distinct from member-access `.field`.
+//   N5 — `#` is sign-extend in expression position; `#line` at
+//        line-start is the source-location preprocessor directive.
+//   N6 — `<inst>.finish()` and `<inst>.invoke()` proc-instance
+//        method access (dispatched via scoped_identifier "." …).
+
+#line 1 "parser_note_disambiguation.nsl"
+
+declare disambig {
+    input  start;
+    input  a[8], b[8];
+    input  sig[4];
+    output and_red;
+    output and_bin[8];
+    output ext[8];
+    output tag[4], idx[4];
+    output running;
+}
+
+module disambig {
+    // N2 — unary reduction vs binary bitwise. The grammar
+    // disambiguates naturally on whether a left operand is
+    // present.
+    and_red = &a;            // unary reduction-AND
+    and_bin = a & b;         // binary bitwise AND
+
+    // N3 — concat-lvalue with two-character lookahead `.{`.
+    .{ tag, idx } = a;       // concat-lvalue form (lexer recognises `.{` as a composite cue)
+
+    // N5 — `#` in expression position is sign-extend.
+    ext = 8 # sig;           // sign-extend `sig` from 4 to 8 bits
+
+    // N6 — proc-instance method access via dotted form.
+    proc_name worker;
+    if (start) worker.invoke();   // external start
+    proc worker {
+        state_name s0;
+        first_state s0;
+        state s0 { finish; }       // bare `finish` self-terminate
+    }
+    running = worker;        // S27 read-as-1-bit; included incidentally
+}
