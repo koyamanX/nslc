@@ -39,9 +39,13 @@ stages (Constitution Principle IX order):
   build-matrix --matrix      stage 1; fan out all 4 cells
   static-checks              stage 2 (clang-format + clang-tidy + SPDX header
                                        + tooling-grammar regen + mirror byte-eq)
-  unit-tests                 stage 3 (ctest + tooling-textmate scope tests)
+  unit-tests                 stage 3 (ctest + tooling-textmate scope tests
+                                       + tooling-treesitter smoke/golden)
   tooling-textmate           stage 3 sub-step (TextMate scope tests only;
                                        T1: specs/009-t1-textmate-grammar)
+  tooling-treesitter         stage 3 sub-step (tree-sitter smoke + golden
+                                       highlight tests; T8:
+                                       specs/010-t8-tree-sitter-grammar)
   lowering-tests             stage 4 (lit)
   e2e                        stage 5 (wired but empty until M7)
   formal                     stage 6 (wired but empty until M8)
@@ -282,6 +286,99 @@ stage_static_checks() {
     log "  (skipping tooling-grammar regen check: generators not yet present)"
   fi
 
+  # 9b. T8 / FR-006 — treesitter-spdx
+  # (specs/010-t8-tree-sitter-grammar/spec.md FR-006). Validates SPDX
+  # headers on the focused T8 path-set (grammar.js, highlights.scm,
+  # gen_treesitter_grammar.py, corpus.txt, fixtures). The full-repo
+  # check_spdx --all gate above already covers these; this focused
+  # sub-step exists for fast-iteration debugging when a T8 author
+  # lands a new path. Phase-2 soft-skip for paths that don't exist
+  # yet (highlights.scm + corpus.txt + fixtures arrive in US1/US2).
+  local ts_paths=()
+  for p in \
+    "scripts/templates/grammar.js.template" \
+    "scripts/gen_treesitter_grammar.py" \
+    "grammars/treesitter/grammar.js" \
+    "grammars/treesitter/queries/highlights.scm" \
+    "test/tooling/treesitter/smoke/corpus.txt"; do
+    [[ -f "${REPO_ROOT}/${p}" ]] && ts_paths+=("${p}")
+  done
+  if (( ${#ts_paths[@]} > 0 )); then
+    log "  python3 scripts/check_spdx.py [T8 focused subset]"
+    ( cd "${REPO_ROOT}" && python3 scripts/check_spdx.py "${ts_paths[@]}" ) \
+      || rc=$?
+  else
+    log "  (skipping treesitter-spdx: no T8 source paths present yet)"
+  fi
+
+  # 9c. T8 / FR-017 — treesitter-grammar-regen-diff
+  # (specs/010-t8-tree-sitter-grammar/research.md §12). Two-stage:
+  # first the Python generator's --check (template + KeywordSet.def
+  # → grammar.js byte-stable), then `tree-sitter generate` + git
+  # diff over parser.c, grammar.json, node-types.json. The second
+  # stage soft-skips when npm/npx are unavailable; CI's GitHub
+  # Actions run inside a node-bearing image, so the gate fires
+  # there.
+  if [[ -x "${REPO_ROOT}/scripts/gen_treesitter_grammar.py" ]]; then
+    log "  python3 scripts/gen_treesitter_grammar.py --check"
+    python3 "${REPO_ROOT}/scripts/gen_treesitter_grammar.py" --check \
+      || rc=$?
+  else
+    log "  (skipping treesitter Python regen-check: generator not yet present)"
+  fi
+  local ts_grammar_dir="${REPO_ROOT}/grammars/treesitter"
+  if [[ ! -f "${ts_grammar_dir}/grammar.js" ]]; then
+    log "  (skipping treesitter-grammar-regen-diff: grammar.js not yet present)"
+  elif [[ ! -d "${ts_grammar_dir}/node_modules/tree-sitter-cli" ]]; then
+    log "  (skipping treesitter-grammar-regen-diff: node_modules/tree-sitter-cli"
+    log "   not present; run \`cd ${ts_grammar_dir} && npm ci\`)"
+  elif ! command -v npx >/dev/null 2>&1; then
+    log "  (skipping treesitter-grammar-regen-diff: npx not found on PATH)"
+  else
+    log "  cd grammars/treesitter && npx tree-sitter generate && git diff --exit-code"
+    ( cd "${ts_grammar_dir}" && npx --no-install tree-sitter generate ) \
+      || rc=$?
+    ( cd "${REPO_ROOT}" && git -c safe.directory=* diff --exit-code -- \
+        grammars/treesitter/parser.c \
+        grammars/treesitter/grammar.json \
+        grammars/treesitter/node-types.json ) \
+      || rc=$?
+  fi
+
+  # 9d. T8 / SC-008 — treesitter-wasm-determinism
+  # (specs/010-t8-tree-sitter-grammar/spec.md Q2 → Option C; build
+  # the WASM artefact twice under `--docker` and sha256sum-compare).
+  # Soft-skip on environments without the Docker-in-Docker support
+  # tree-sitter's WASM builder needs (research.md §1 / §7).
+  if [[ ! -f "${ts_grammar_dir}/grammar.js" ]]; then
+    log "  (skipping treesitter-wasm-determinism: grammar.js not yet present)"
+  elif [[ ! -d "${ts_grammar_dir}/node_modules/tree-sitter-cli" ]]; then
+    log "  (skipping treesitter-wasm-determinism: node_modules/tree-sitter-cli"
+    log "   not present; run \`cd ${ts_grammar_dir} && npm ci\`)"
+  elif ! command -v npx >/dev/null 2>&1; then
+    log "  (skipping treesitter-wasm-determinism: npx not found on PATH)"
+  elif ! command -v sha256sum >/dev/null 2>&1; then
+    log "  (skipping treesitter-wasm-determinism: sha256sum not found on PATH)"
+  else
+    log "  cd grammars/treesitter && npx tree-sitter build-wasm --docker (×2)"
+    ( cd "${ts_grammar_dir}" && npx --no-install tree-sitter build-wasm --docker ) \
+      || rc=$?
+    local sum1=""
+    [[ -f "${ts_grammar_dir}/tree-sitter-nsl.wasm" ]] \
+      && sum1="$(sha256sum "${ts_grammar_dir}/tree-sitter-nsl.wasm" | awk '{print $1}')"
+    ( cd "${ts_grammar_dir}" && npx --no-install tree-sitter build-wasm --docker ) \
+      || rc=$?
+    local sum2=""
+    [[ -f "${ts_grammar_dir}/tree-sitter-nsl.wasm" ]] \
+      && sum2="$(sha256sum "${ts_grammar_dir}/tree-sitter-nsl.wasm" | awk '{print $1}')"
+    if [[ -n "${sum1}" && -n "${sum2}" && "${sum1}" != "${sum2}" ]]; then
+      log "  ERROR: tree-sitter-nsl.wasm is non-deterministic across two builds"
+      log "         run #1 sha256: ${sum1}"
+      log "         run #2 sha256: ${sum2}"
+      rc=1
+    fi
+  fi
+
   # 10. T1 / FR-013 — tooling-grammar-mirror byte-equality.
   # Per specs/009-t1-textmate-grammar/research.md §5 (as amended by
   # the PR #13 CodeRabbit review): the canonical artefact lives at
@@ -355,6 +452,13 @@ stage_unit_tests() {
   # container does not block the rest of stage 3.
   stage_tooling_textmate || rc=$?
 
+  # T8 — tooling-track tree-sitter smoke + golden-highlight tests
+  # (specs/010-t8-tree-sitter-grammar/contracts/grammar-coverage.contract.md §4
+  # for smoke; contracts/highlights-coverage.contract.md §5 for goldens).
+  # Same soft-skip discipline as tooling-textmate: a partial dev
+  # container without npx / node_modules does not block stage 3.
+  stage_tooling_treesitter || rc=$?
+
   return "${rc}"
 }
 
@@ -398,6 +502,82 @@ stage_tooling_textmate() {
     npx --no-install vscode-tmgrammar-test \
       --grammar ../../../grammars/textmate/nsl.tmLanguage.json \
       'fixtures/*.nsl' )
+}
+
+# -----------------------------------------------------------------------------
+# Stage 3 sub-step: tooling-treesitter
+# -----------------------------------------------------------------------------
+# Runs two tree-sitter gates back-to-back:
+#
+#   (a) treesitter-smoke           — read corpus.txt, parse every
+#                                    file with `tree-sitter parse`,
+#                                    fail on any (ERROR) or (MISSING)
+#                                    node (FR-014).
+#   (b) treesitter-highlights-golden — `tree-sitter test` against the
+#                                    inline-assertion fixtures under
+#                                    test/tooling/treesitter/highlights/
+#                                    (per FR-007 / FR-009 / FR-010).
+#
+# Both sub-steps soft-skip when their inputs (corpus.txt or fixtures)
+# don't yet exist — Phase 2 leaves them as XFAIL placeholders;
+# US1/US2 (T035, T036) lights them up.
+
+stage_tooling_treesitter() {
+  log "stage 3 sub-step: tooling-treesitter"
+  local rc=0
+  local ts_grammar_dir="${REPO_ROOT}/grammars/treesitter"
+  local corpus_file="${REPO_ROOT}/test/tooling/treesitter/smoke/corpus.txt"
+  local fixtures_dir="${REPO_ROOT}/test/tooling/treesitter/highlights"
+
+  if [[ ! -f "${ts_grammar_dir}/grammar.js" ]]; then
+    log "  (skipping tooling-treesitter: ${ts_grammar_dir}/grammar.js not present)"
+    return 0
+  fi
+  if [[ ! -d "${ts_grammar_dir}/node_modules/tree-sitter-cli" ]]; then
+    log "  (skipping tooling-treesitter: node_modules/tree-sitter-cli"
+    log "   not present; run \`cd ${ts_grammar_dir} && npm ci\`)"
+    return 0
+  fi
+  if ! command -v npx >/dev/null 2>&1; then
+    log "  (skipping tooling-treesitter: npx not found on PATH)"
+    return 0
+  fi
+
+  # (a) treesitter-smoke — corpus parse gate.
+  if [[ ! -f "${corpus_file}" ]]; then
+    log "  (skipping treesitter-smoke: ${corpus_file} not present)"
+  else
+    log "  treesitter-smoke: parsing corpus listed in ${corpus_file}"
+    local n_smoke=0
+    while IFS= read -r raw; do
+      local entry="${raw%%#*}"
+      entry="${entry#"${entry%%[![:space:]]*}"}"
+      entry="${entry%"${entry##*[![:space:]]}"}"
+      [[ -z "${entry}" ]] && continue
+      n_smoke=$((n_smoke + 1))
+      ( cd "${ts_grammar_dir}" && \
+        npx --no-install tree-sitter parse --quiet --stat "${REPO_ROOT}/${entry}" \
+        >/dev/null ) || rc=$?
+    done <"${corpus_file}"
+    log "  treesitter-smoke: parsed ${n_smoke} files"
+  fi
+
+  # (b) treesitter-highlights-golden — `tree-sitter test`.
+  local has_fixtures=0
+  if [[ -d "${fixtures_dir}" ]]; then
+    if compgen -G "${fixtures_dir}/*.nsl" >/dev/null; then
+      has_fixtures=1
+    fi
+  fi
+  if (( has_fixtures == 0 )); then
+    log "  (skipping treesitter-highlights-golden: no fixtures in ${fixtures_dir})"
+  else
+    log "  cd grammars/treesitter && npx tree-sitter test"
+    ( cd "${ts_grammar_dir}" && npx --no-install tree-sitter test ) \
+      || rc=$?
+  fi
+
+  return "${rc}"
 }
 
 # -----------------------------------------------------------------------------
@@ -447,6 +627,7 @@ case "${1:-}" in
   static-checks)     stage_static_checks ;;
   unit-tests)        shift; stage_unit_tests      "$@" ;;
   tooling-textmate)  stage_tooling_textmate ;;
+  tooling-treesitter) stage_tooling_treesitter ;;
   lowering-tests)    shift; stage_lowering_tests  "$@" ;;
   e2e)               stage_e2e ;;
   formal)            stage_formal ;;

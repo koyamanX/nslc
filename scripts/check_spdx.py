@@ -46,6 +46,8 @@ RECIPES_BY_EXT: dict[str, tuple[str, Optional[str]]] = {
     ".py":     ("#",    None),
     ".sh":     ("#",    None),
     ".bash":   ("#",    None),
+    ".js":     ("//",   None),  # T8 hand-authored grammar.js + generated mirror
+    ".scm":    (";",    None),  # T8 tree-sitter highlight queries (Scheme)
     ".ebnf":   ("(*",   "*)"),
     ".nsl":    ("//",   None),
     ".yml":    ("#",    None),
@@ -124,9 +126,12 @@ def find_recipe(path: Path) -> Optional[tuple[str, Optional[str]]]:
     name = path.name
     if name in RECIPES_BY_BASENAME:
         return RECIPES_BY_BASENAME[name]
-    # Strip `.in` template suffix: Version.h.in → look up `.h`.
+    # Strip template suffix: Version.h.in → look up `.h`;
+    # grammar.js.template → look up `.js`. Both `.in` and
+    # `.template` are project-wide template-suffix conventions
+    # (T8 introduces `.template`).
     suffixes = path.suffixes
-    if len(suffixes) >= 2 and suffixes[-1] == ".in":
+    if len(suffixes) >= 2 and suffixes[-1] in (".in", ".template"):
         return RECIPES_BY_EXT.get(suffixes[-2])
     if path.suffix in RECIPES_BY_EXT:
         return RECIPES_BY_EXT[path.suffix]
