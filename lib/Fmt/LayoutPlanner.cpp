@@ -752,6 +752,88 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::IncDecExpr &node) {
   return interleaveChildren(node.loc(), children);
 }
 
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::TopLevelParamDecl &node) {
+  // Recursion-only override. `param_int <name> = <init>;` /
+  // `param_str <name> = <init>;` (the latter typically a
+  // string-literal). Recurse into `init` so any nested
+  // compile-time expression inside fires its canonical layout.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  if (node.init() != nullptr) {
+    children.push_back(node.init());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::PortDecl &node) {
+  // Recursion-only override. Data terminal:
+  //   `<direction> <name>[<width>]` (width nullable).
+  // Control terminal: `func_in <name>(<dummy_args>) [: <return>]`
+  //   (no width Expr; `dummyArgs` are Identifiers and
+  //   `returnTerminal` is an Identifier — neither is an AST
+  //   child).
+  // So the only Expr-bearing slot to recurse into is `width`.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  if (node.width() != nullptr) {
+    children.push_back(node.width());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::VariableDecl &node) {
+  // Recursion-only override. `variable <name>[<width>];` —
+  // structurally a `WireDecl` look-alike per data-model §1.4
+  // (Sema treats them differently). Recurse into `width` so any
+  // nested SliceExpr / ConcatExpr / BinaryExpr inside fires the
+  // canonical R4 / R5 treatment.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  if (node.width() != nullptr) {
+    children.push_back(node.width());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::MemDecl &node) {
+  // Recursion-only override. `mem <name>[<depth>][<width>] = (
+  //   <init0>, <init1>, ... );` — `depth` and `width` are single
+  // Exprs; `init` is a vector of Exprs (one per element) and may
+  // be empty. Source order is depth → width → init[0..N].
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(2 + node.init().size());
+  if (node.depth() != nullptr) {
+    children.push_back(node.depth());
+  }
+  if (node.width() != nullptr) {
+    children.push_back(node.width());
+  }
+  for (const auto &n : node.init()) {
+    children.push_back(n.get());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::DelayTaskStmt &node) {
+  // Recursion-only override. `_delay(<count>);` system task at
+  // statement position. Recurse into the single `count` Expr.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  if (node.count() != nullptr) {
+    children.push_back(node.count());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::InitBlockStmt &node) {
+  // Recursion-only override. `_init { items... }` — sim-time
+  // reset block (`lang.ebnf §10`; lowered M6 under
+  // `sv.ifdef "SIMULATION"`). Recurse into each child Stmt so
+  // nested transfers / system tasks fire their canonical layout.
+  std::vector<const ::nsl::ast::ASTNode *> children;
+  children.reserve(node.items().size());
+  for (const auto &n : node.items()) {
+    children.push_back(n.get());
+  }
+  return interleaveChildren(node.loc(), children);
+}
+
 DocPtr LayoutPlanner::formatCondCaseBlock(
     const std::vector<::nsl::ast::CondCase> &cases,
     const ::nsl::ast::Stmt *elseCase, llvm::StringRef keyword) {
