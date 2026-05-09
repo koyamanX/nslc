@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T084 — `nsl-fmt --range LINE:LINE file.nsl` reformats only the
+// requested lines; lines outside the range are emitted byte-
+// identical (FR-007). The fixture name is "inside-alt-block" per
+// the `tasks.md` description but the rule is range-mode-generic;
+// any canonical-rule rewrite confined to the in-range lines would
+// observe the same invariant.
+//
+// Input has R5-dirty formatting on BOTH line 7 (in-range) and
+// line 8 (out-of-range). The expected post-format output applies
+// R5 only to line 7 (`c+d` → `c + d`) and leaves line 8 byte-
+// identical (`e+f` preserved).
+//
+// AUTHORED RED — XFAIL until T090 (CLI `--range` parsing) and
+// T091 (LayoutPlanner LineRange honoring) are implemented. Today
+// the flag is recognised but its value is a no-op (`tools/nsl-
+// fmt/main.cpp` lines 260–263), so the LayoutPlanner reformats
+// the WHOLE file — line 8 becomes `e + f`, which fails CHECK-NOT.
+
+// XFAIL: *
+
+// RUN: printf '// line 1\n\
+// RUN: declare m {\n\
+// RUN:     input a[8];\n\
+// RUN:     input b[8];\n\
+// RUN: }\n\
+// RUN: module m {\n\
+// RUN:     wire y = c+d;\n\
+// RUN:     wire z = e+f;\n\
+// RUN: }\n' > %t.nsl
+// RUN: nsl-fmt --range 7:7 %t.nsl | FileCheck %s
+
+// CHECK:     wire y = c + d;
+// CHECK-NOT: wire z = e + f;
+// CHECK:     wire z = e+f;

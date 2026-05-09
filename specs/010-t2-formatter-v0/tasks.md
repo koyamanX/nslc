@@ -212,8 +212,8 @@ Library can be linked from a synthetic external translation unit
 - [X] T081 [P] [US3] Author gtest `test_unit/Fmt/format_parity_test.cc::CLIMatchesLibrary` invoking `nsl-fmt --stdin` via subprocess and `format_buffer()` directly on the same buffer; assert byte-identical output for 5 representative fixtures — observe FAILING
 - [X] T082 [P] [US3] Author gtest `test_unit/Fmt/format_parity_test.cc::IdempotencePostCondition` asserting `format_buffer(format_buffer(s, c, f).formattedText, c, f).formattedText == format_buffer(s, c, f).formattedText` for the same 5 fixtures — observe FAILING
 - [X] T083 [P] [US3] Author gtest `test_unit/Fmt/format_parity_test.cc::ExternalLinkSmoke` linking against `libNslFmt.a` from an external translation unit (`#include "nsl/Fmt/Fmt.h"`); assert one call to `format_buffer()` returns `Status::Success` for empty input — observe FAILING
-- [ ] T084 [P] [US3] Author lit fixture `test/Fmt/cli/range/inside-alt-block.test` asserting `nsl-fmt --range 5:7 file.nsl` reformats only lines 5–7 (lines outside range emitted byte-identical) — observe FAILING
-- [ ] T085 [P] [US3] Author lit fixture `test/Fmt/cli/range/out-of-bounds.test` asserting `--range 100:200` on a 50-line file → exit 2 + frozen string from [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §7 — observe FAILING
+- [X] T084 [P] [US3] Author lit fixture `test/Fmt/cli/range/inside-alt-block.test` asserting `nsl-fmt --range 5:7 file.nsl` reformats only lines 5–7 (lines outside range emitted byte-identical). Authored RED with `XFAIL: *` per Principle VIII; current behavior reformats the whole file (range no-op per `tools/nsl-fmt/main.cpp` lines 260–263). T090 + T091 turn green.
+- [X] T085 [P] [US3] Author lit fixture `test/Fmt/cli/range/out-of-bounds.test` asserting `--range 100:200` on a 50-line file → exit 2 + frozen string from [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §7. Authored RED with `XFAIL: *` per Principle VIII; current behavior silently ignores the range and exits 0. T090 turns green.
 
 ### Implementation for User Story 3
 

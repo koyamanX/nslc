@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T085 — `nsl-fmt --range LINE:LINE file.nsl` with a range that
+// extends past the file's last line exits 2 with the frozen
+// diagnostic from `formatting-rules.contract.md` §7 (and the
+// matching exit-code matrix in `cli-surface.contract.md` §3).
+//
+// Frozen diagnostic:
+//   error: --range <a>:<b> falls outside file (file has <N> lines)
+//
+// AUTHORED RED — XFAIL until T090 implements the `--range`
+// validation. Today the flag is recognised but its value is a
+// no-op, so out-of-bounds is silently ignored (exit 0, no
+// diagnostic).
+
+// XFAIL: *
+
+// RUN: printf 'declare a { } module a { wire x[8]; }\n' > %t.nsl
+// RUN: not nsl-fmt --range 100:200 %t.nsl 2>&1 | FileCheck %s
+
+// CHECK: error: --range 100:200 falls outside file (file has 1 lines)
