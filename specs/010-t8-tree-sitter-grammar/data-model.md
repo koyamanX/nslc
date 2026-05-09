@@ -215,7 +215,7 @@ loads the WASM artefact and applies highlight queries.
 | `package.json` activation event | string | `onLanguage:nsl` |
 | `extension.ts` `activate()` | function | calls `web-tree-sitter` `Parser.init({locateFile: …})`, loads `tree-sitter-nsl.wasm` from extension directory |
 | `highlight-provider.ts` | class | implements `vscode.DocumentSemanticTokensProvider`; maps tree-sitter captures to VS Code `SemanticTokensLegend` |
-| `SemanticTokensLegend` | array of `{tokenType, tokenModifiers}` | static; exactly 20 entries matching the captures in §1.4 |
+| `SemanticTokensLegend` | array of `{tokenType, tokenModifiers}` | static; **21** entries — the 20 required-minimum captures from §1.4 PLUS the FR-009 control-terminal capture (`variable.builtin.terminal`) locked by `contracts/highlights-coverage.contract.md` §2 and exercised by `test/tooling/treesitter/highlights/control_terminal_s27.nsl`. Per highlights-coverage §1 the §1.4 set is a required-minimum floor; the implementation MAY add sub-captures provided their parents stay in the §1.4 set. The +1 deviation here is the only such addition. |
 
 **Coexistence with T1**: T1's `editors/vscode/package.json`
 already registers the `nsl` language ID and its TextMate

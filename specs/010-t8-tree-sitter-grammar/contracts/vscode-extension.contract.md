@@ -29,7 +29,7 @@ T1's existing `editors/vscode/package.json` registers the
 | `engines.vscode` | `"^1.84.0"` (or whatever T1 already pins; do NOT downgrade) | T8 uses `DocumentSemanticTokensProvider` which has been stable since 1.84 |
 | `activationEvents` | MUST contain `"onLanguage:nsl"` | the existing T1 entry covers this; verify present |
 | `main` | `"./treesitter/extension.js"` (compiled from `extension.ts`) | T1 has no `main` field; T8 adds one |
-| `contributes.semanticTokenTypes` | array of 20 entries matching highlights.scm captures (§1.4 of data-model.md) | one entry per capture name |
+| `contributes.semanticTokenTypes` | array of **21** entries matching highlights.scm captures (§1.4 of data-model.md PLUS the FR-009 control-terminal capture per `highlights-coverage.contract.md` §2) | one entry per capture name. The +1 deviation from the §1.4 minimum is `variable.builtin.terminal`, locked by the T019 fixture |
 | `contributes.semanticTokenScopes` | array mapping each token-type to a TextMate-style scope name | for theme fallback when no semantic-token rule is defined |
 | `dependencies.web-tree-sitter` | pinned to a specific patch version compatible with `tree-sitter-cli@0.22.x` ABI | research.md §1 / §7 |
 
@@ -99,10 +99,13 @@ The provider MUST handle:
   nodes that DID parse successfully and skip the error
   subtree.
 
-The `SemanticTokensLegend` MUST contain exactly the 20
-entries from data-model.md §1.4 (captures #1–#20), in a
-fixed order. The legend's index = the `tokenType` parameter
-in `pushLegend()` calls.
+The `SemanticTokensLegend` MUST contain **21** entries —
+the 20 from data-model.md §1.4 (captures #1–#20) plus the
+FR-009 control-terminal capture (#21,
+`variable.builtin.terminal`, per
+`highlights-coverage.contract.md` §2). The order is fixed:
+#1–#20 in source order followed by #21. The legend's index
+= the `tokenType` parameter in `pushLegend()` calls.
 
 ---
 

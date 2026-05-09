@@ -1,11 +1,13 @@
 {
-  "_comment_top": "SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception. JSON has no comment syntax; the SPDX header rides on this top-level key per specs/009-t1-textmate-grammar/research.md §2 (precedent: .github/branch-protection.json). Minimal VS Code extension manifest per specs/009-t1-textmate-grammar/research.md §7. No marketplace metadata (publisher/icon/keywords) — T1 is folder-drop install only; FR-022 defers Marketplace publication. The grammar path is a relative reference to ../../grammars/textmate/nsl.tmLanguage.json via the symlink at ./syntaxes/nsl.tmLanguage.json (research.md §5).",
+  "_comment_top": "SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception. JSON has no comment syntax; the SPDX header rides on this top-level key per specs/009-t1-textmate-grammar/research.md §2 (precedent: .github/branch-protection.json). T1 contributed: language ID + TextMate grammar; folder-drop install only (no Marketplace metadata). T8 amendments (specs/010-t8-tree-sitter-grammar/contracts/vscode-extension.contract.md §1): bumped engines.vscode to ^1.84.0 (DocumentSemanticTokensProvider stability floor), added `main` pointing at the compiled extension entry, added activationEvents `onLanguage:nsl`, added contributes.semanticTokenTypes (21 entries — the 20 required-minimum captures from data-model.md §1.4 PLUS the FR-009 control-terminal capture `variable.builtin.terminal` per highlights-coverage.contract.md §2), added contributes.semanticTokenScopes mapping each tokenType to a TextMate-style scope name array for theme fallback, added dependencies.web-tree-sitter pinned ABI-compatible with tree-sitter-cli@0.22.x (research.md §1/§7), and added scripts.compile invoking tsc with editors/vscode/treesitter/tsconfig.json. The semanticTokenScopes fallbacks deliberately route T1-already-handled categories (keywords, types, numbers, strings, comments) to T1's own scopes so a theme without semantic-token rules sees no T8 regression on the T1 surface; only the identifier sub-captures (#13–#21) introduce new fallback scopes that T1 left un-scoped — that is the whole T8 value-prop.",
   "name": "nsl",
   "displayName": "NSL Language Support",
-  "description": "Syntax highlighting and editor configuration for NSL (Next Synthesis Language). T1 deliverable; LSP / lint / format land at T3+.",
-  "version": "0.1.0",
-  "engines": { "vscode": "^1.70.0" },
+  "description": "Syntax highlighting and editor configuration for NSL (Next Synthesis Language). T1 deliverable; LSP / lint / format land at T3+. T8 adds tree-sitter-driven semantic tokens for register/wire/memory/proc/func/state identifier classification.",
+  "version": "0.2.0",
+  "engines": { "vscode": "^1.84.0" },
+  "main": "./treesitter/extension.js",
   "categories": ["Programming Languages"],
+  "activationEvents": ["onLanguage:nsl"],
   "contributes": {
     "languages": [
       {
@@ -21,6 +23,68 @@
         "scopeName": "source.nsl",
         "path": "./syntaxes/nsl.tmLanguage.json"
       }
+    ],
+    "semanticTokenTypes": [
+      { "id": "keyword",                   "description": "NSL reserved keyword (root capture)" },
+      { "id": "keyword.control",           "description": "NSL control-block keywords (alt/any/if/else/seq/for/while)" },
+      { "id": "keyword.control.flow",      "description": "NSL control-flow keywords (goto/return/finish)" },
+      { "id": "keyword.modifier",          "description": "NSL declare modifiers (interface/simulation)" },
+      { "id": "keyword.storage",           "description": "NSL parameter-class keywords (param_int/param_str/parameter)" },
+      { "id": "type.builtin",              "description": "NSL storage-class keywords used as types (reg/wire/mem/integer/variable)" },
+      { "id": "type",                      "description": "NSL user-declared module/declare/struct names" },
+      { "id": "function.call",             "description": "Generic control-call (fallback when proc/func sub-resolution fails)" },
+      { "id": "constant.macro",            "description": "Preprocessor %IDENT% splice token (P3)" },
+      { "id": "number",                    "description": "Numeric literal" },
+      { "id": "string",                    "description": "String literal" },
+      { "id": "comment",                   "description": "Line or block comment" },
+      { "id": "variable.register",         "description": "Reference to a `reg` declaration (S2/S3 binding)" },
+      { "id": "variable.wire",             "description": "Reference to a `wire` declaration" },
+      { "id": "variable.memory",           "description": "Reference to a `mem` declaration" },
+      { "id": "function.proc",             "description": "Definition site of a `proc <name> { ... }` (function.proc, FR-007 sub-capture)" },
+      { "id": "function.func",             "description": "Definition site of a `func <name> { ... }` (function.func, FR-007 sub-capture)" },
+      { "id": "function.call.proc",        "description": "Control-call resolved to a proc_definition" },
+      { "id": "function.call.func",        "description": "Control-call resolved to a func_definition" },
+      { "id": "label.state",               "description": "State-definition name and goto target resolved to a state_name (S11/S25)" },
+      { "id": "variable.builtin.terminal", "description": "Control-terminal name in expression position (FR-009 / S27 constructive)" }
+    ],
+    "semanticTokenScopes": [
+      {
+        "language": "nsl",
+        "scopes": {
+          "keyword":                   ["keyword.declaration.nsl", "keyword.nsl"],
+          "keyword.control":           ["keyword.control.block.nsl"],
+          "keyword.control.flow":      ["keyword.control.flow.nsl"],
+          "keyword.modifier":          ["keyword.modifier.nsl"],
+          "keyword.storage":           ["storage.type.param.nsl"],
+          "type.builtin":              ["storage.type.register.nsl", "storage.type.wire.nsl", "storage.type.memory.nsl", "storage.type.nsl"],
+          "type":                      ["entity.name.type.nsl", "entity.name.type"],
+          "function.call":             ["entity.name.function.nsl", "entity.name.function"],
+          "constant.macro":            ["variable.other.macro.nsl"],
+          "number":                    ["constant.numeric.nsl", "constant.numeric"],
+          "string":                    ["string.quoted.double.nsl", "string"],
+          "comment":                   ["comment.line.double-slash.nsl", "comment.block.nsl", "comment"],
+          "variable.register":         ["variable.other.register.nsl", "variable.other.member"],
+          "variable.wire":             ["variable.other.wire.nsl", "variable.other.member"],
+          "variable.memory":           ["variable.other.memory.nsl", "variable.other.member"],
+          "function.proc":             ["entity.name.function.proc.nsl", "entity.name.function"],
+          "function.func":             ["entity.name.function.func.nsl", "entity.name.function"],
+          "function.call.proc":        ["entity.name.function.call.proc.nsl", "entity.name.function"],
+          "function.call.func":        ["entity.name.function.call.func.nsl", "entity.name.function"],
+          "label.state":               ["entity.name.label.nsl", "entity.name.label"],
+          "variable.builtin.terminal": ["variable.other.terminal.nsl", "variable.other.constant"]
+        }
+      }
     ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./treesitter/tsconfig.json"
+  },
+  "dependencies": {
+    "web-tree-sitter": "^0.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.84.0",
+    "typescript": "^5.3.0"
   }
 }
