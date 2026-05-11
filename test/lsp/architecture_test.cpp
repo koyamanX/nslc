@@ -20,6 +20,8 @@
 TEST(ArchitectureSuite, LinkAudit_NoFrontendDuplication) {
   // SC-005 + Principle II §3: lib/LSP/ does not redefine any
   // frontend class. Public header surface is exactly Server.h.
+  // NOLINTNEXTLINE(cert-env33-c): the test is the audit driver;
+  // invoking the project-owned script via system() is the intent.
   int rc = std::system(NSL_LSP_LINK_AUDIT_SCRIPT);
   EXPECT_EQ(rc, 0)
       << "lsp_link_audit failed; see stderr for the violation list";
