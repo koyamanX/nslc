@@ -14,27 +14,43 @@
 //   - nsl_lang.ebnf §3.1 — top_level_parameter       → top_level_parameter
 //   - nsl_lang.ebnf §4   — declare_block             → declare_block
 //   - nsl_lang.ebnf §5   — module_block              → module_block
-//   - nsl_lang.ebnf §6   — internal-structure        → register_declaration / wire_declaration / memory_declaration / proc_name_declaration / state_name_declaration
+//   - nsl_lang.ebnf §6   — internal-structure        → register_declaration / wire_declaration / memory_declaration / proc_name_declaration / state_name_declaration / first_state_declaration / struct_instance_declaration / integer_declaration / variable_declaration / control_internal_declaration
 //   - nsl_lang.ebnf §7   — definitions               → func_definition / proc_definition / state_definition
-//   - nsl_lang.ebnf §8   — action statements         → par_block / alt_block / any_block / seq_block / if_statement / for_statement / while_statement / generate_block
-//   - nsl_lang.ebnf §9   — atomic actions            → transfer_action / control_call / finish_action / system_task_call
-//   - nsl_lang.ebnf §10  — system tasks              → system_task_call
-//   - nsl_lang.ebnf §11  — expressions               → _expression / sign_extend_expr / zero_extend_expr / bit_slice / concat_expression / dot_aggregate / reduction_op / bitwise_binary_op / proc_method_access / conditional_expression
-//   - nsl_lang.ebnf §12  — width / constant exprs    → width_expr / constant_expr
+//   - nsl_lang.ebnf §8   — action statements         → parallel_block / alt_block / any_block / seq_block / if_statement / for_block / while_block / structural_generate
+//   - nsl_lang.ebnf §9   — atomic actions            → register_transfer / wire_or_variable_transfer / control_call / bare_finish_statement / system_task_call / increment_decrement / goto_statement
+//   - nsl_lang.ebnf §10  — system tasks              → system_task_call / init_block / delay_task
+//   - nsl_lang.ebnf §11  — expressions               → binary_expression / unary_expression / sign_extend_expr / zero_extend_expr / bit_slice / bit_select / concat_expression / repeat_expression / proc_method_access / field_access / call_expression / conditional_expression / system_variable
+//   - nsl_lang.ebnf §12  — width / constant exprs    → reuses $._expression (Sema enforces constness)
 //   - nsl_lang.ebnf §13  — lexical                   → identifier / number_literal / string_literal / macro_identifier
 //   - nsl_lang.ebnf §14  — whitespace + comments     → line_comment / block_comment (extras)
-//   - nsl_lang.ebnf §15  — reserved keywords         → _keyword (GENERATED from KeywordSet.def)
-//   - nsl_pp.ebnf  §2    — preprocessor directives   → preprocessor_directive
+//   - nsl_lang.ebnf §15  — reserved keywords         → _keyword (GENERATED from KeywordSet.def; kept as a
+//                                                       documentation rule — unreferenced because keyword
+//                                                       literals appear inline in productions via
+//                                                       tree-sitter's `word: $.identifier` extraction)
+//   - nsl_pp.ebnf  §2    — preprocessor directives   → preprocessor_directive (line-anchored token)
 //   - nsl_pp.ebnf  §4    — %IDENT% macro splice      → macro_identifier
 //
-// At Phase 2 (T009/T010/T011) only the lexical-level scaffolding +
-// keyword block + a token-permissive `source_file` rule are present;
-// the §3–§11 productions land in Phase 3 (US1: T023–T030) editing
-// this same template. After each substantive edit, the regenerator
-// pipeline is:
-//
-//   1. python3 scripts/gen_treesitter_grammar.py   (template + KeywordSet.def → grammar.js)
-//   2. cd grammars/treesitter && npx tree-sitter generate   (grammar.js → parser.c, grammar.json, node-types.json)
+// Parser-note disambiguation (contracts/grammar-coverage.contract.md §3):
+//   - N1 — `if` statement-vs-expression: distinct named rules
+//          `if_statement` (action_statement context) and
+//          `conditional_expression` (expression context).
+//   - N2 — `&` `|` `^` reduction-vs-bitwise: `unary_expression`
+//          (prefix position, prec 13) and `binary_expression`
+//          (infix position, prec 4–6); production-position
+//          alone disambiguates.
+//   - N3 — `.{` two-character lookahead: `concat_lvalue` rule
+//          starts with literal `.{`; tree-sitter's native
+//          tokenizer handles the lookahead.
+//   - N5 — `#` line-marker vs sign-extend: `preprocessor_directive`
+//          is a single token starting with `#` immediately followed
+//          by an identifier (no whitespace), tokenized greedily
+//          per line. The sign-extend `#` always has a primary
+//          left operand and matches in expression position;
+//          space-separated `#` cannot match the directive token.
+//   - N6 — proc-instance method access: `proc_method_access`
+//          rule with `instance` and `method` named children
+//          (currently subsumed by `field_access` + `call_expression`
+//          chaining — see field_access rule below).
 //
 // Per Constitution Principle V (deterministic): given the same input
 // (this template + KeywordSet.def) the generator produces byte-
@@ -48,6 +64,9 @@ module.exports = grammar({
   name: 'nsl',
 
   // Skip whitespace and comments anywhere a token boundary is allowed.
+  // Preprocessor directives stay as concrete nodes (see _line_marker
+  // slot in body productions); they are NOT in `extras` so the
+  // highlighter can scope them.
   // Per nsl_lang.ebnf §14 / contracts/grammar-coverage.contract.md §1
   // rows for `line_comment` and `block_comment`.
   extras: $ => [
@@ -57,57 +76,791 @@ module.exports = grammar({
   ],
 
   // External tokens (none yet). Reserved for a hand-rolled scanner if
-  // needed later (e.g. for nsl_lang.ebnf N3 `.{` two-character
-  // lookahead) — research.md §3 prefers tree-sitter's native conflicts
-  // resolution where possible.
+  // needed later — research.md §3 prefers tree-sitter's native
+  // conflicts resolution where possible.
   externals: $ => [],
 
-  // Tree-sitter conflicts (none yet). Will be populated in Phase 3
-  // (US1) as productions are added; see contracts/grammar-coverage.contract.md
-  // §3 for the parser-note disambiguation strategy (N1, N2, N3, N5, N6).
-  conflicts: $ => [],
+  // Tree-sitter conflict declarations. Tree-sitter's GLR-style
+  // ambiguity resolver needs an explicit hint for the LHS-or-RHS
+  // ambiguity between `expression` (which can begin with `identifier`)
+  // and `lvalue` (which also begins with `identifier`); see
+  // register_transfer / wire_or_variable_transfer rules below.
+  conflicts: $ => [
+    [$.simple_lvalue, $._expression],
+    [$.scoped_identifier, $.field_access],
+  ],
 
-  // The hidden `_keyword` rule below is generated from
-  // include/nsl/Lex/KeywordSet.def. Marking the splice point.
+  // Tree-sitter's keyword-extraction directive: any literal string in
+  // a production that matches the `identifier` token's character set
+  // is automatically promoted to a keyword token, distinct from
+  // bare identifiers. This is how `reg`, `wire`, `proc`, etc. are
+  // recognised as keywords without us listing them explicitly in
+  // every alternative.
   word: $ => $.identifier,
 
   rules: {
     // ----------------------------------------------------------------
-    // §1 — compilation_unit (root rule; tree-sitter convention names
-    // the root `source_file`). Token-permissive at Phase 2; refined to
-    // a strict choice over §3–§7 top-level items in Phase 3 (US1 T024).
+    // §1 — compilation_unit. Tree-sitter's root rule is conventionally
+    // named `source_file`. Top-level items are listed under §3 (struct),
+    // §3.1 (top-level params), §4 (declare block), §5 (module block),
+    // plus preprocessor directives surviving the seam (§2 of nsl_pp.ebnf).
     // ----------------------------------------------------------------
-    source_file: $ => repeat($._top_level_token),
+    source_file: $ => repeat($._top_level_item),
 
-    _top_level_token: $ => choice(
-      $.identifier,
-      $.number_literal,
-      $.string_literal,
-      $.macro_identifier,
-      $._keyword,
-      // Operators and punctuation are surfaced as anonymous tokens
-      // by the productions that consume them. Phase 2's permissive
-      // root accepts any single character not handled above.
-      /[^\s]/,
+    _top_level_item: $ => choice(
+      $.preprocessor_directive,
+      $.struct_declaration,
+      $.top_level_parameter,
+      $.declare_block,
+      $.module_block,
     ),
 
     // ----------------------------------------------------------------
-    // §13 — lexical tokens. Frozen at Phase 2; future edits adjust the
-    // regex shape (e.g. Verilog-sized number literal forms with
-    // Z/X/U markers in Phase 3 T023).
+    // nsl_pp.ebnf §2 — preprocessor directives. Tokenised greedily
+    // per line. The leading `#` must be IMMEDIATELY followed by an
+    // identifier (no whitespace) to distinguish from the expression-
+    // position `#` sign-extend operator (which always has spaces or
+    // primary-expression context — per N5).
+    // ----------------------------------------------------------------
+    preprocessor_directive: $ => token(prec(1, seq(
+      '#',
+      /[a-zA-Z_][a-zA-Z0-9_]*/,
+      /[^\n]*/,
+    ))),
+
+    // ----------------------------------------------------------------
+    // §3 — struct_declaration. Single source of truth for record
+    // types; members are sized like signals.
+    // ----------------------------------------------------------------
+    struct_declaration: $ => seq(
+      'struct',
+      field('name', $.identifier),
+      '{',
+      repeat($.struct_member),
+      '}',
+      ';',
+    ),
+
+    struct_member: $ => seq(
+      field('name', $.identifier),
+      optional(seq('[', $._expression, ']')),
+      ';',
+    ),
+
+    // ----------------------------------------------------------------
+    // §3.1 — top-level parameters (S16 binding-time for HDL submodules).
+    // ----------------------------------------------------------------
+    top_level_parameter: $ => choice(
+      seq('param_int', field('name', $.identifier), '=', $._expression, ';'),
+      seq('param_str', field('name', $.identifier), '=', $.string_literal, ';'),
+    ),
+
+    // ----------------------------------------------------------------
+    // §4 — declare_block. Optional name (a few audited files use the
+    // unnamed `declare { ... }` form) and optional modifier (interface
+    // / simulation). Body is a list of declare_items.
+    // ----------------------------------------------------------------
+    declare_block: $ => seq(
+      'declare',
+      optional(field('name', $.identifier)),
+      optional(field('modifier', choice('interface', 'simulation'))),
+      '{',
+      repeat($._declare_item),
+      '}',
+    ),
+
+    _declare_item: $ => choice(
+      $.parameter_declaration,
+      $.port_declaration,
+      $.control_terminal_declaration,
+      $.preprocessor_directive,
+    ),
+
+    parameter_declaration: $ => seq(
+      choice('param_int', 'param_str'),
+      field('name', $.identifier),
+      repeat(seq(',', field('name', $.identifier))),
+      ';',
+    ),
+
+    port_declaration: $ => seq(
+      field('direction', choice('input', 'output', 'inout')),
+      $.signal_declarator,
+      repeat(seq(',', $.signal_declarator)),
+      ';',
+    ),
+
+    signal_declarator: $ => seq(
+      field('name', $.identifier),
+      optional(seq('[', $._expression, ']')),
+    ),
+
+    control_terminal_declaration: $ => seq(
+      field('direction', choice('func_in', 'func_out')),
+      field('name', $.identifier),
+      optional(seq(
+        '(',
+        optional(seq($.identifier, repeat(seq(',', $.identifier)))),
+        ')',
+      )),
+      optional(seq(':', field('return_terminal', $.identifier))),
+      ';',
+    ),
+
+    // ----------------------------------------------------------------
+    // §5 — module_block.
+    // ----------------------------------------------------------------
+    module_block: $ => seq(
+      'module',
+      field('name', $.identifier),
+      '{',
+      repeat($._module_item),
+      '}',
+    ),
+
+    _module_item: $ => choice(
+      $._internal_declaration,
+      $.func_definition,
+      $.proc_definition,
+      $.state_definition,
+      $._action_statement,
+      $.preprocessor_directive,
+    ),
+
+    // ----------------------------------------------------------------
+    // §6 — internal-structure declarations. One node per declarator
+    // (matches the parser-side shape of the M-track AST's "no silent
+    // AST drops" Principle I sub-clause).
+    // ----------------------------------------------------------------
+    _internal_declaration: $ => choice(
+      $.register_declaration,
+      $.wire_declaration,
+      $.memory_declaration,
+      $.proc_name_declaration,
+      $.state_name_declaration,
+      $.first_state_declaration,
+      $.struct_instance_declaration,
+      $.integer_declaration,
+      $.variable_declaration,
+      $.control_internal_declaration,
+    ),
+
+    register_declaration: $ => seq(
+      'reg',
+      $.register_declarator,
+      repeat(seq(',', $.register_declarator)),
+      ';',
+    ),
+
+    register_declarator: $ => seq(
+      field('name', $.identifier),
+      optional(seq('[', field('width', $._expression), ']')),
+      optional(seq('=', field('init', $._expression))),
+    ),
+
+    wire_declaration: $ => seq(
+      'wire',
+      $.signal_declarator,
+      repeat(seq(',', $.signal_declarator)),
+      ';',
+    ),
+
+    memory_declaration: $ => seq(
+      'mem',
+      field('name', $.identifier),
+      '[', field('depth', $._expression), ']',
+      '[', field('width', $._expression), ']',
+      optional(seq(
+        '=', '{',
+        $._expression, repeat(seq(',', $._expression)),
+        '}',
+      )),
+      ';',
+    ),
+
+    proc_name_declaration: $ => seq(
+      'proc_name',
+      $.proc_declarator,
+      repeat(seq(',', $.proc_declarator)),
+      ';',
+    ),
+
+    proc_declarator: $ => seq(
+      field('name', $.identifier),
+      optional(seq(
+        '(',
+        optional(seq($.identifier, repeat(seq(',', $.identifier)))),
+        ')',
+      )),
+    ),
+
+    state_name_declaration: $ => seq(
+      'state_name',
+      field('name', $.identifier),
+      repeat(seq(',', field('name', $.identifier))),
+      ';',
+    ),
+
+    first_state_declaration: $ => seq(
+      'first_state',
+      field('target', $.identifier),
+      ';',
+    ),
+
+    struct_instance_declaration: $ => seq(
+      field('type', $.identifier),
+      field('kind', choice('reg', 'wire')),
+      $.struct_inst_declarator,
+      repeat(seq(',', $.struct_inst_declarator)),
+      ';',
+    ),
+
+    struct_inst_declarator: $ => seq(
+      field('name', $.identifier),
+      optional(seq('[', $._expression, ']')),
+      optional(seq('=', $._struct_init_value)),
+    ),
+
+    _struct_init_value: $ => choice(
+      $._expression,
+      seq('{', $._expression, repeat(seq(',', $._expression)), '}'),
+    ),
+
+    integer_declaration: $ => seq(
+      'integer',
+      field('name', $.identifier),
+      repeat(seq(',', field('name', $.identifier))),
+      ';',
+    ),
+
+    variable_declaration: $ => seq(
+      'variable',
+      $.variable_declarator,
+      repeat(seq(',', $.variable_declarator)),
+      ';',
+    ),
+
+    variable_declarator: $ => seq(
+      field('name', $.identifier),
+      optional(seq('[', $._expression, ']')),
+    ),
+
+    control_internal_declaration: $ => seq(
+      'func_self',
+      field('name', $.identifier),
+      optional(seq(
+        '(',
+        optional(seq($.identifier, repeat(seq(',', $.identifier)))),
+        ')',
+      )),
+      optional(seq(':', field('return_terminal', $.identifier))),
+      ';',
+    ),
+
+    // ----------------------------------------------------------------
+    // §7 — definitions.
+    //
+    //   - func_definition accepts both `func` and `function` keyword
+    //     forms per S26 (canonical: `func`); a dotted name is permitted
+    //     (e.g. `func ic.ready { ... }` for cross-submodule callbacks).
+    //   - proc_definition / state_definition accept a bare identifier.
+    // ----------------------------------------------------------------
+    func_definition: $ => seq(
+      choice('func', 'function'),
+      field('name', $.scoped_identifier),
+      $._action_statement,
+    ),
+
+    proc_definition: $ => seq(
+      'proc',
+      field('name', $.identifier),
+      $._action_statement,
+    ),
+
+    state_definition: $ => seq(
+      'state',
+      field('name', $.identifier),
+      $._action_statement,
+    ),
+
+    // ----------------------------------------------------------------
+    // §8 — action statements.
+    // ----------------------------------------------------------------
+    _action_statement: $ => choice(
+      seq($._atomic_action, ';'),
+      $.parallel_block,
+      $.alt_block,
+      $.any_block,
+      $.seq_block,
+      $.while_block,
+      $.for_block,
+      $.if_statement,
+      $.structural_generate,
+      $.labeled_statement,
+      $.goto_statement,
+      $.return_statement,
+      $.empty_statement,
+      $.init_block,
+      $.state_definition,
+    ),
+
+    empty_statement: $ => ';',
+
+    parallel_block: $ => seq(
+      '{',
+      repeat($._parallel_block_item),
+      '}',
+    ),
+
+    _parallel_block_item: $ => choice(
+      $._internal_declaration,
+      $._action_statement,
+      $.preprocessor_directive,
+    ),
+
+    alt_block: $ => seq(
+      'alt',
+      '{',
+      repeat($.alt_case),
+      optional($.else_case),
+      '}',
+    ),
+
+    alt_case: $ => seq(
+      field('guard', $._expression),
+      ':',
+      field('body', $._action_statement),
+    ),
+
+    any_block: $ => seq(
+      'any',
+      '{',
+      repeat($.any_case),
+      optional($.else_case),
+      '}',
+    ),
+
+    any_case: $ => seq(
+      field('guard', $._expression),
+      ':',
+      field('body', $._action_statement),
+    ),
+
+    else_case: $ => seq(
+      'else',
+      ':',
+      field('body', $._action_statement),
+    ),
+
+    if_statement: $ => prec.right(seq(
+      'if',
+      '(', field('condition', $._expression), ')',
+      field('then', $._action_statement),
+      optional(seq('else', field('else', $._action_statement))),
+    )),
+
+    seq_block: $ => seq(
+      'seq',
+      '{',
+      repeat($._seq_block_item),
+      '}',
+    ),
+
+    _seq_block_item: $ => choice(
+      $.label_name_declaration,
+      $._internal_declaration,
+      $._action_statement,
+      $.preprocessor_directive,
+    ),
+
+    label_name_declaration: $ => seq(
+      'label_name',
+      field('name', $.identifier),
+      repeat(seq(',', field('name', $.identifier))),
+      ';',
+    ),
+
+    labeled_statement: $ => seq(
+      field('label', $.identifier),
+      ':',
+    ),
+
+    goto_statement: $ => seq(
+      'goto',
+      field('target', $.identifier),
+      ';',
+    ),
+
+    return_statement: $ => seq(
+      'return',
+      optional($._expression),
+      ';',
+    ),
+
+    while_block: $ => seq(
+      'while',
+      '(', field('condition', $._expression), ')',
+      '{',
+      repeat($._seq_block_item),
+      '}',
+    ),
+
+    for_block: $ => seq(
+      'for',
+      '(', $._for_header, ')',
+      '{',
+      repeat($._seq_block_item),
+      '}',
+    ),
+
+    _for_header: $ => choice(
+      // 2-clause enum form: `for (init , end_value)`
+      seq(
+        field('init', $._for_init),
+        ',',
+        field('end', $._expression),
+      ),
+      // 3-clause C form: `for (init; cond; step)`
+      seq(
+        field('init', $._for_init),
+        ';',
+        field('condition', $._expression),
+        ';',
+        field('step', $._for_step),
+      ),
+    ),
+
+    _for_init: $ => choice(
+      $._single_for_init,
+      $.parallel_block,
+    ),
+
+    _for_step: $ => choice(
+      $._single_for_step,
+      $.parallel_block,
+    ),
+
+    _single_for_init: $ => seq(
+      $.identifier, ':=', $._expression,
+    ),
+
+    _single_for_step: $ => choice(
+      $._increment_decrement,
+      seq($.identifier, ':=', $._expression),
+    ),
+
+    structural_generate: $ => seq(
+      'generate',
+      '(',
+      field('init', $._generate_init), ';',
+      field('condition', $._expression), ';',
+      field('step', $._generate_step),
+      ')',
+      field('body', $._action_statement),
+    ),
+
+    _generate_init: $ => seq(
+      $.identifier, '=', $._expression,
+    ),
+
+    _generate_step: $ => choice(
+      $._increment_decrement,
+      seq($.identifier, '=', $._expression),
+    ),
+
+    // ----------------------------------------------------------------
+    // §9 — atomic actions. Wrapped with `;` at the action_statement
+    // site (so the trailing semicolon lives once).
+    // ----------------------------------------------------------------
+    _atomic_action: $ => choice(
+      $.register_transfer,
+      $.wire_or_variable_transfer,
+      $._increment_decrement,
+      $.control_call,
+      $.bare_finish,
+      $.system_task_call,
+    ),
+
+    register_transfer: $ => prec(2, seq(
+      field('lvalue', $._lvalue),
+      ':=',
+      field('value', $._expression),
+    )),
+
+    wire_or_variable_transfer: $ => prec(2, seq(
+      field('lvalue', $._lvalue),
+      '=',
+      field('value', $._expression),
+    )),
+
+    _lvalue: $ => choice(
+      $.concat_lvalue,
+      $.simple_lvalue,
+    ),
+
+    concat_lvalue: $ => seq(
+      '.', '{',
+      $._lvalue, repeat(seq(',', $._lvalue)),
+      '}',
+    ),
+
+    // Visible (concrete) rule so highlights.scm can target the
+    // LHS-of-`:=`/`=` identifier(s) via field bindings.
+    simple_lvalue: $ => seq(
+      $.scoped_identifier,
+      optional($._bit_select_or_slice),
+    ),
+
+    _bit_select_or_slice: $ => seq(
+      '[', $._expression,
+      optional(seq(':', $._expression)),
+      ']',
+    ),
+
+    // Visible (concrete) rule so highlights.scm can target the call-
+    // name tail (last identifier in the dotted chain) via the `.`
+    // anchor in tree-sitter query syntax.
+    scoped_identifier: $ => prec.left(seq(
+      $.identifier,
+      repeat(seq('.', $.identifier)),
+    )),
+
+    _increment_decrement: $ => choice(
+      seq('++', $.identifier),
+      seq('--', $.identifier),
+      seq($.identifier, '++'),
+      seq($.identifier, '--'),
+    ),
+
+    // Procedure / function call as a statement (action position).
+    // `compute()` — bare control_call to a proc_name.
+    // `worker.invoke()` — dotted proc-instance method call (N6).
+    // The disambiguation between proc-call and func-call at highlights
+    // time uses the production-context: control_call is the statement
+    // form; call_expression (postfix) is the expression form. See
+    // grammar-coverage.contract.md §1 row for `control_call` (sub-typing
+    // in highlights.scm via callee binding lookup).
+    control_call: $ => prec(1, seq(
+      field('callee', $.scoped_identifier),
+      '(',
+      optional($._argument_list),
+      ')',
+    )),
+
+    _argument_list: $ => seq(
+      $._expression,
+      repeat(seq(',', $._expression)),
+    ),
+
+    bare_finish: $ => 'finish',
+
+    // ----------------------------------------------------------------
+    // §10 — system tasks. Only valid in modules with the `simulation`
+    // modifier (S17), enforced semantically. Names use the leading-
+    // underscore convention (per N11).
+    // ----------------------------------------------------------------
+    system_task_call: $ => seq(
+      field('name', choice(
+        '_display', '_monitor', '_write',
+        '_finish', '_stop',
+        '_readmemh', '_readmemb',
+        '_time', '_delay',
+      )),
+      '(',
+      optional($._argument_list),
+      ')',
+    ),
+
+    init_block: $ => seq(
+      '_init',
+      '{',
+      repeat($._init_item),
+      '}',
+    ),
+
+    _init_item: $ => choice(
+      seq($._atomic_action, ';'),
+      $.preprocessor_directive,
+    ),
+
+    // ----------------------------------------------------------------
+    // §11 — expressions. Precedence table per Ref §0 Table 0-2 (low
+    // index = high precedence). Tree-sitter's `prec.left` / `prec.right`
+    // assigns numeric precedence levels (higher = tighter binding).
+    //
+    // Precedence ladder (high = tight):
+    //   16 — postfix `[..]` `[..:..]` `.` `(...)` / sign-extend `#`
+    //        / zero-extend `'(...)`
+    //   13 — prefix unary `~` `!` `+` `-` / reduction `&` `|` `^`
+    //        `~&` `~|` `~^`
+    //   11 — `*`
+    //   10 — `+` `-`
+    //    9 — `<<` `>>`
+    //    8 — `<` `>` `<=` `>=`
+    //    7 — `==` `!=`
+    //    6 — `&`
+    //    5 — `^`
+    //    4 — `|`
+    //    3 — `&&`
+    //    2 — `||`
+    //    1 — conditional `if ... else ...` expression form (right-assoc)
+    // ----------------------------------------------------------------
+    _expression: $ => choice(
+      $.conditional_expression,
+      $.binary_expression,
+      $.unary_expression,
+      $.sign_extend_expr,
+      $.zero_extend_expr,
+      $.bit_slice,
+      $.bit_select,
+      $.field_access,
+      $.call_expression,
+      $.parenthesized_expression,
+      $.concat_expression,
+      $.repeat_expression,
+      $.struct_cast_expr,
+      $.system_variable,
+      $.identifier,
+      $.macro_identifier,
+      $.number_literal,
+      $.string_literal,
+    ),
+
+    conditional_expression: $ => prec.right(1, seq(
+      'if',
+      '(', field('condition', $._expression), ')',
+      field('then', $._expression),
+      'else',
+      field('else', $._expression),
+    )),
+
+    binary_expression: $ => {
+      const ops = [
+        ['||', 2], ['&&', 3],
+        ['|', 4], ['^', 5], ['&', 6],
+        ['==', 7], ['!=', 7],
+        ['<', 8], ['>', 8], ['<=', 8], ['>=', 8],
+        ['<<', 9], ['>>', 9],
+        ['+', 10], ['-', 10],
+        ['*', 11],
+      ];
+      return choice(...ops.map(([op, p]) => prec.left(p, seq(
+        field('left', $._expression),
+        field('operator', op),
+        field('right', $._expression),
+      ))));
+    },
+
+    unary_expression: $ => {
+      const prefixes = ['~', '!', '+', '-', '&', '|', '^', '~&', '~|', '~^'];
+      return choice(...prefixes.map(op => prec.right(13, seq(
+        field('operator', op),
+        field('operand', $._expression),
+      ))));
+    },
+
+    // Sign-extend `N # expr`. Per N5 the `#` in expression position is
+    // unambiguously sign-extend; only line-leading `#name` is the
+    // preprocessor directive (tokenised earlier).
+    sign_extend_expr: $ => prec.left(16, seq(
+      field('width', $._expression),
+      '#',
+      field('value', $._expression),
+    )),
+
+    // Zero-extend `N ' ( expr )`. The apostrophe between width and
+    // lparen distinguishes from Verilog-sized literals (which are a
+    // single token with base char after the apostrophe).
+    zero_extend_expr: $ => prec(16, seq(
+      field('width', $._expression),
+      "'",
+      '(', field('value', $._expression), ')',
+    )),
+
+    bit_slice: $ => prec(16, seq(
+      field('base', $._expression),
+      '[',
+      field('hi', $._expression),
+      ':',
+      field('lo', $._expression),
+      ']',
+    )),
+
+    bit_select: $ => prec(16, seq(
+      field('base', $._expression),
+      '[',
+      field('index', $._expression),
+      ']',
+    )),
+
+    // Postfix `.identifier`. Covers struct-field access (`pkt.opcode`),
+    // submodule-port access (`SUB.port`), and the LHS of proc-instance
+    // method calls (`worker.invoke()` parses as `field_access` then
+    // `call_expression` wrapping it).
+    field_access: $ => prec.left(16, seq(
+      field('base', $._expression),
+      '.',
+      field('field', $.identifier),
+    )),
+
+    // Postfix `(args)`. The function callee is whatever sits before
+    // the parens. In expression position this is a func_in call;
+    // in action position the action-side `control_call` rule fires
+    // instead.
+    call_expression: $ => prec(16, seq(
+      field('function', $._expression),
+      '(',
+      optional($._argument_list),
+      ')',
+    )),
+
+    parenthesized_expression: $ => seq(
+      '(', $._expression, ')',
+    ),
+
+    concat_expression: $ => seq(
+      '{',
+      $._expression,
+      repeat(seq(',', $._expression)),
+      '}',
+    ),
+
+    repeat_expression: $ => seq(
+      field('count', $._expression),
+      '{',
+      $._expression,
+      '}',
+    ),
+
+    // Struct cast `(TypeName)(expr).member { . member }`. Rare; kept
+    // for completeness per nsl_lang.ebnf §11.
+    struct_cast_expr: $ => prec(16, seq(
+      '(', field('type', $.identifier), ')',
+      '(', field('value', $._expression), ')',
+      '.', $.identifier,
+      repeat(seq('.', $.identifier)),
+    )),
+
+    system_variable: $ => choice('_random', '_time'),
+
+    // ----------------------------------------------------------------
+    // §13 — lexical tokens.
     // ----------------------------------------------------------------
     identifier: $ => /[A-Za-z][A-Za-z0-9_]*/,
 
-    // Phase-2 stub: accepts decimal, hex, binary, octal. The five
-    // forms (incl. Verilog-sized + Z/X/U markers) land in T023.
-    number_literal: $ => choice(
-      /0[xX][0-9a-fA-F_]+/,
-      /0[bB][01_]+/,
-      /0[oO][0-7_]+/,
+    // Number-literal token choice covers Verilog-sized (`N'b...` /
+    // `N'd...` / `N'o...` / `N'h...`), C-style hex (`0x...`), C-style
+    // binary (`0b...`), and decimal. Value characters may include the
+    // non-digit markers Z / X / U (and lowercase) in non-decimal forms
+    // for Hi-Z / Indefinite / Undriven; tree-sitter accepts them in
+    // every form (Sema rejects them in decimal per the §13 note).
+    number_literal: $ => token(choice(
+      /\d[\d_]*'[bBoOdDhH][0-9a-fA-FxXzZuU_]+/,
+      /0[xX][0-9a-fA-FxXzZuU_]+/,
+      /0[bB][01xXzZuU_]+/,
       /\d[\d_]*/,
-    ),
+    )),
 
-    // §13 lines 761–770 — string literal with backslash escapes.
     string_literal: $ => seq(
       '"',
       repeat(choice(
@@ -117,7 +870,7 @@ module.exports = grammar({
       '"',
     ),
 
-    // nsl_pp.ebnf §4 lines 312–343 — %IDENT% macro splice form.
+    // nsl_pp.ebnf §4 — `%IDENT%` macro splice token.
     macro_identifier: $ => /%[A-Za-z_][A-Za-z0-9_]*%/,
 
     // ----------------------------------------------------------------
@@ -132,6 +885,13 @@ module.exports = grammar({
     // by scripts/gen_treesitter_grammar.py from KeywordSet.def. The
     // marker BELOW is replaced verbatim by the generator; do not
     // hand-edit the resulting block in grammars/treesitter/grammar.js.
+    //
+    // The rule is INTENTIONALLY UNREFERENCED — keyword recognition
+    // happens via tree-sitter's `word: $ => $.identifier` extraction
+    // when keyword literals like `'reg'` appear inline in productions.
+    // The rule is kept (a) as in-grammar documentation of the closed
+    // keyword set, and (b) as a stable hook for future tooling that
+    // wants to enumerate the keyword tokens via the parse-tree API.
     // ----------------------------------------------------------------
     // %%KEYWORD_BLOCK%%
   },
