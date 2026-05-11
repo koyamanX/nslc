@@ -181,8 +181,7 @@ DiagnosticEngine::report(Severity sev, SourceLocation loc, std::string msg) {
   if (sev != Severity::Note && loc.isValid()) {
     auto vpath = impl_->sm.resolveVirtual(loc).path;
     FileID phys = impl_->sm.findFileIDByPath(vpath);
-    if (phys.isValid() &&
-        !impl_->sm.getOriginalIncludeStackFor(phys).empty()) {
+    if (phys.isValid() && !impl_->sm.getOriginalIncludeStackFor(phys).empty()) {
       b.addIncludedFromNotes();
     }
   }
@@ -293,8 +292,7 @@ DiagnosticEngine::Builder &DiagnosticEngine::Builder::addIncludedFromNotes() {
   if (!phys.isValid()) {
     return *this;
   }
-  std::vector<SourceLocation> const stack =
-      sm.getOriginalIncludeStackFor(phys);
+  std::vector<SourceLocation> const stack = sm.getOriginalIncludeStackFor(phys);
   for (const SourceLocation &include_site : stack) {
     Diagnostic note;
     note.severity = Severity::Note;

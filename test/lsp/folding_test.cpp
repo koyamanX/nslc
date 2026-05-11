@@ -8,10 +8,9 @@
 
 #include "llvm/Support/JSON.h"
 
-#include <gtest/gtest.h>
-
 #include <chrono>
 #include <fstream>
+#include <gtest/gtest.h>
 #include <sstream>
 #include <string>
 
@@ -38,16 +37,16 @@ void initialize(LspSession &s) {
 }
 
 void didOpen(LspSession &s, llvm::StringRef uri, int version,
-              llvm::StringRef text) {
-  s.sendNotification("textDocument/didOpen",
-                      llvm::json::Object{
-                          {"textDocument", llvm::json::Object{
-                                                {"uri", uri.str()},
-                                                {"languageId", "nsl"},
-                                                {"version", version},
-                                                {"text", text.str()},
-                                            }},
-                      });
+             llvm::StringRef text) {
+  s.sendNotification("textDocument/didOpen", llvm::json::Object{
+                                                 {"textDocument",
+                                                  llvm::json::Object{
+                                                      {"uri", uri.str()},
+                                                      {"languageId", "nsl"},
+                                                      {"version", version},
+                                                      {"text", text.str()},
+                                                  }},
+                                             });
 }
 
 llvm::json::Value foldingRange(LspSession &s, llvm::StringRef uri) {
@@ -87,9 +86,9 @@ TEST(FoldingSuite, MultiLineBlocksProduceFolds) {
   auto resp = foldingRange(s, "file:///b.nsl");
   const auto *arr = getResultArray(resp);
   ASSERT_NE(arr, nullptr);
-  EXPECT_EQ(arr->size(), 4u)
-      << "expected one fold per multi-line block; "
-         "got " << arr->size();
+  EXPECT_EQ(arr->size(), 4u) << "expected one fold per multi-line block; "
+                                "got "
+                             << arr->size();
 
   s.doShutdownExit();
 }
@@ -164,7 +163,8 @@ TEST(FoldingSuite, ParseErrorRecovery) {
   // the test makes the contract observable.
   LspSession s({.nsl_lsp_log_level = "warn"});
   initialize(s);
-  std::string text = "module m {\n  oops syntax error\n  func {\n    x\n  }\n}\n";
+  std::string text =
+      "module m {\n  oops syntax error\n  func {\n    x\n  }\n}\n";
   didOpen(s, "file:///p.nsl", 1, text);
   s.waitForDiagnostics();
 

@@ -35,7 +35,8 @@ struct FoldingRecord {
   bool is_comment;
 
   bool operator<(const FoldingRecord &o) const {
-    if (start_line != o.start_line) return start_line < o.start_line;
+    if (start_line != o.start_line)
+      return start_line < o.start_line;
     return end_line < o.end_line;
   }
 };
@@ -43,9 +44,9 @@ struct FoldingRecord {
 } // namespace
 
 llvm::json::Array buildFoldingRanges(llvm::StringRef source,
-                                       const CancellationToken &cancel) {
+                                     const CancellationToken &cancel) {
   std::vector<FoldingRecord> records;
-  std::vector<uint32_t> brace_stack;       // open-line per open brace
+  std::vector<uint32_t> brace_stack; // open-line per open brace
   uint32_t line = 0;
   std::size_t i = 0;
   const std::size_t n = source.size();
@@ -54,13 +55,15 @@ llvm::json::Array buildFoldingRanges(llvm::StringRef source,
     char c = source[i];
 
     if (c == '\n') {
-      ++line; ++i;
+      ++line;
+      ++i;
       continue;
     }
 
     // Line comment: skip to end of line.
     if (c == '/' && i + 1 < n && source[i + 1] == '/') {
-      while (i < n && source[i] != '\n') ++i;
+      while (i < n && source[i] != '\n')
+        ++i;
       continue;
     }
 
@@ -73,7 +76,8 @@ llvm::json::Array buildFoldingRanges(llvm::StringRef source,
           i += 2;
           break;
         }
-        if (source[i] == '\n') ++line;
+        if (source[i] == '\n')
+          ++line;
         ++i;
       }
       if (line > start_line) {
@@ -86,9 +90,16 @@ llvm::json::Array buildFoldingRanges(llvm::StringRef source,
     if (c == '"') {
       ++i;
       while (i < n) {
-        if (source[i] == '\\' && i + 1 < n) { i += 2; continue; }
-        if (source[i] == '\n') ++line;
-        if (source[i] == '"') { ++i; break; }
+        if (source[i] == '\\' && i + 1 < n) {
+          i += 2;
+          continue;
+        }
+        if (source[i] == '\n')
+          ++line;
+        if (source[i] == '"') {
+          ++i;
+          break;
+        }
         ++i;
       }
       continue;
@@ -132,7 +143,8 @@ llvm::json::Array buildFoldingRanges(llvm::StringRef source,
         {"endLine", static_cast<int64_t>(r.end_line)},
         {"startLine", static_cast<int64_t>(r.start_line)},
     };
-    if (r.is_comment) obj["kind"] = "comment";
+    if (r.is_comment)
+      obj["kind"] = "comment";
     out.emplace_back(std::move(obj));
   }
   return out;

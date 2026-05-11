@@ -22,6 +22,7 @@
 #define NSL_LSP_LOGGER_H
 
 #include "llvm/ADT/StringRef.h"
+
 #include <cstdint>
 
 namespace nsl {
@@ -59,10 +60,14 @@ public:
   static void log(LogLevel lvl, llvm::StringRef msg);
 };
 
-#define NSL_LSP_LOG_ERROR(msg) ::nsl::lsp::Logger::log(::nsl::lsp::LogLevel::Error, (msg))
-#define NSL_LSP_LOG_WARN(msg)  ::nsl::lsp::Logger::log(::nsl::lsp::LogLevel::Warn,  (msg))
-#define NSL_LSP_LOG_INFO(msg)  ::nsl::lsp::Logger::log(::nsl::lsp::LogLevel::Info,  (msg))
-#define NSL_LSP_LOG_DEBUG(msg) ::nsl::lsp::Logger::log(::nsl::lsp::LogLevel::Debug, (msg))
+#define NSL_LSP_LOG_ERROR(msg)                                                 \
+  ::nsl::lsp::Logger::log(::nsl::lsp::LogLevel::Error, (msg))
+#define NSL_LSP_LOG_WARN(msg)                                                  \
+  ::nsl::lsp::Logger::log(::nsl::lsp::LogLevel::Warn, (msg))
+#define NSL_LSP_LOG_INFO(msg)                                                  \
+  ::nsl::lsp::Logger::log(::nsl::lsp::LogLevel::Info, (msg))
+#define NSL_LSP_LOG_DEBUG(msg)                                                 \
+  ::nsl::lsp::Logger::log(::nsl::lsp::LogLevel::Debug, (msg))
 
 } // namespace lsp
 } // namespace nsl

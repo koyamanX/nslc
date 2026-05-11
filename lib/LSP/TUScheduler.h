@@ -49,9 +49,8 @@ public:
   /// wraps the diagnostics in `publishDiagnostics` and writes them
   /// to the transport. The callback receives the URI, the version
   /// that was diagnosed, and an `NslTU::State` reference (read-only).
-  using DiagnosticsCallback =
-      std::function<void(llvm::StringRef uri, int version,
-                          const NslTU::State &state)>;
+  using DiagnosticsCallback = std::function<void(
+      llvm::StringRef uri, int version, const NslTU::State &state)>;
   void setOnDiagnostics(DiagnosticsCallback cb);
 
   void open(llvm::StringRef uri);
@@ -62,7 +61,7 @@ public:
   /// Read access to a document's most recent state. The callback
   /// observes nothing if the URI is not currently open.
   void withState(llvm::StringRef uri,
-                  std::function<void(const NslTU::State &)> fn);
+                 std::function<void(const NslTU::State &)> fn);
 
   /// Block until all in-flight work drains — used by the protocol
   /// layer's `shutdown` handler.
@@ -70,7 +69,7 @@ public:
 
 private:
   void schedule(std::string uri, int version, std::string contents,
-                 const IncludeSearchPath *includes);
+                const IncludeSearchPath *includes);
 
   std::mutex tus_mtx_;
   llvm::StringMap<std::unique_ptr<NslTU>> tus_;

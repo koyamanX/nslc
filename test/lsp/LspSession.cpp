@@ -32,7 +32,8 @@ constexpr int kReadEnd = 0;
 constexpr int kWriteEnd = 1;
 
 std::string resolveBinaryPath() {
-  if (const char *p = std::getenv("NSL_LSP_BINARY")) return std::string(p);
+  if (const char *p = std::getenv("NSL_LSP_BINARY"))
+    return std::string(p);
   return "./bin/nsl-lsp";
 }
 
@@ -40,9 +41,11 @@ ssize_t readAll(int fd, char *buf, size_t n) {
   size_t total = 0;
   while (total < n) {
     ssize_t r = ::read(fd, buf + total, n - total);
-    if (r == 0) return total; // EOF
+    if (r == 0)
+      return total; // EOF
     if (r < 0) {
-      if (errno == EINTR) continue;
+      if (errno == EINTR)
+        continue;
       return -1;
     }
     total += r;
@@ -55,7 +58,8 @@ ssize_t writeAll(int fd, const char *buf, size_t n) {
   while (total < n) {
     ssize_t w = ::write(fd, buf + total, n - total);
     if (w < 0) {
-      if (errno == EINTR) continue;
+      if (errno == EINTR)
+        continue;
       return -1;
     }
     total += w;
@@ -67,25 +71,32 @@ bool readLine(int fd, std::string *out, char *peeked, bool *have_peeked) {
   out->clear();
   while (true) {
     char c;
-    if (*have_peeked) { c = *peeked; *have_peeked = false; }
-    else {
+    if (*have_peeked) {
+      c = *peeked;
+      *have_peeked = false;
+    } else {
       ssize_t r = ::read(fd, &c, 1);
-      if (r == 0) return false;
+      if (r == 0)
+        return false;
       if (r < 0) {
-        if (errno == EINTR) continue;
+        if (errno == EINTR)
+          continue;
         return false;
       }
     }
     if (c == '\r') {
       char nx;
       ssize_t r = ::read(fd, &nx, 1);
-      if (r <= 0) return false;
-      if (nx == '\n') return true;
+      if (r <= 0)
+        return false;
+      if (nx == '\n')
+        return true;
       out->push_back(c);
       out->push_back(nx);
       continue;
     }
-    if (c == '\n') return true;
+    if (c == '\n')
+      return true;
     out->push_back(c);
   }
 }
@@ -105,8 +116,7 @@ LspSession::LspSession(LspEnvVars env) {
   int in_pipe[2];
   int out_pipe[2];
   int err_pipe[2];
-  if (::pipe(in_pipe) != 0 || ::pipe(out_pipe) != 0 ||
-      ::pipe(err_pipe) != 0) {
+  if (::pipe(in_pipe) != 0 || ::pipe(out_pipe) != 0 || ::pipe(err_pipe) != 0) {
     std::perror("LspSession: pipe");
     std::abort();
   }
@@ -118,10 +128,14 @@ LspSession::LspSession(LspEnvVars env) {
   for (char **e = environ; *e; ++e) {
     llvm::StringRef entry(*e);
     bool override_match = false;
-    if (env.nsl_include && entry.starts_with("NSL_INCLUDE=")) override_match = true;
-    if (env.nsl_lsp_log_level && entry.starts_with("NSL_LSP_LOG_LEVEL=")) override_match = true;
-    if (env.nsl_lsp_workers && entry.starts_with("NSL_LSP_WORKERS=")) override_match = true;
-    if (!override_match) env_strs.emplace_back(*e);
+    if (env.nsl_include && entry.starts_with("NSL_INCLUDE="))
+      override_match = true;
+    if (env.nsl_lsp_log_level && entry.starts_with("NSL_LSP_LOG_LEVEL="))
+      override_match = true;
+    if (env.nsl_lsp_workers && entry.starts_with("NSL_LSP_WORKERS="))
+      override_match = true;
+    if (!override_match)
+      env_strs.emplace_back(*e);
   }
   if (env.nsl_include)
     env_strs.emplace_back("NSL_INCLUDE=" + *env.nsl_include);
@@ -132,7 +146,8 @@ LspSession::LspSession(LspEnvVars env) {
 
   std::vector<char *> envp;
   envp.reserve(env_strs.size() + 1);
-  for (auto &s : env_strs) envp.push_back(s.data());
+  for (auto &s : env_strs)
+    envp.push_back(s.data());
   envp.push_back(nullptr);
 
   std::string bin = resolveBinaryPath();
@@ -141,18 +156,24 @@ LspSession::LspSession(LspEnvVars env) {
   argv.push_back(nullptr);
 
   pid_t pid = ::fork();
-  if (pid < 0) { std::perror("LspSession: fork"); std::abort(); }
+  if (pid < 0) {
+    std::perror("LspSession: fork");
+    std::abort();
+  }
   if (pid == 0) {
     // Child.
     ::dup2(in_pipe[kReadEnd], 0);
     ::dup2(out_pipe[kWriteEnd], 1);
     ::dup2(err_pipe[kWriteEnd], 2);
-    ::close(in_pipe[kReadEnd]); ::close(in_pipe[kWriteEnd]);
-    ::close(out_pipe[kReadEnd]); ::close(out_pipe[kWriteEnd]);
-    ::close(err_pipe[kReadEnd]); ::close(err_pipe[kWriteEnd]);
+    ::close(in_pipe[kReadEnd]);
+    ::close(in_pipe[kWriteEnd]);
+    ::close(out_pipe[kReadEnd]);
+    ::close(out_pipe[kWriteEnd]);
+    ::close(err_pipe[kReadEnd]);
+    ::close(err_pipe[kWriteEnd]);
     ::execve(bin.c_str(), argv.data(), envp.data());
-    std::fprintf(stderr, "LspSession: execve(%s) failed: %s\n",
-                  bin.c_str(), std::strerror(errno));
+    std::fprintf(stderr, "LspSession: execve(%s) failed: %s\n", bin.c_str(),
+                 std::strerror(errno));
     std::_Exit(127);
   }
 
@@ -185,8 +206,7 @@ LspSession::~LspSession() {
 
   // Wait up to 5 seconds; SIGKILL if not exited.
   auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-  while (!exited_.load() &&
-         std::chrono::steady_clock::now() < deadline) {
+  while (!exited_.load() && std::chrono::steady_clock::now() < deadline) {
     int status;
     pid_t r = ::waitpid(child_, &status, WNOHANG);
     if (r == child_) {
@@ -204,10 +224,14 @@ LspSession::~LspSession() {
     exited_.store(true);
   }
 
-  if (reader_thread_.joinable()) reader_thread_.join();
-  if (stderr_thread_.joinable()) stderr_thread_.join();
-  if (stdout_fd_ >= 0) ::close(stdout_fd_);
-  if (stderr_fd_ >= 0) ::close(stderr_fd_);
+  if (reader_thread_.joinable())
+    reader_thread_.join();
+  if (stderr_thread_.joinable())
+    stderr_thread_.join();
+  if (stdout_fd_ >= 0)
+    ::close(stdout_fd_);
+  if (stderr_fd_ >= 0)
+    ::close(stderr_fd_);
 }
 
 void LspSession::readerLoop() {
@@ -227,7 +251,8 @@ void LspSession::readerLoop() {
         queue_cv_.notify_all();
         return;
       }
-      if (line.empty()) break;
+      if (line.empty())
+        break;
       llvm::StringRef sr(line);
       if (sr.starts_with("Content-Length:")) {
         sr = sr.drop_front(15).trim();
@@ -287,7 +312,7 @@ void LspSession::stderrLoop() {
 }
 
 int64_t LspSession::sendRequest(llvm::StringRef method,
-                                  llvm::json::Value params) {
+                                llvm::json::Value params) {
   int64_t id = next_id_.fetch_add(1);
   llvm::json::Value envelope = llvm::json::Object{
       {"id", id},
@@ -300,17 +325,18 @@ int64_t LspSession::sendRequest(llvm::StringRef method,
     llvm::raw_string_ostream os(body);
     os << envelope;
   }
-  std::string framed = "Content-Length: " + std::to_string(body.size()) +
-                        "\r\n\r\n" + body;
+  std::string framed =
+      "Content-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
 
   std::lock_guard<std::mutex> g(write_mtx_);
-  if (stdin_fd_ < 0) return id;
+  if (stdin_fd_ < 0)
+    return id;
   writeAll(stdin_fd_, framed.data(), framed.size());
   return id;
 }
 
 void LspSession::sendNotification(llvm::StringRef method,
-                                    llvm::json::Value params) {
+                                  llvm::json::Value params) {
   llvm::json::Value envelope = llvm::json::Object{
       {"jsonrpc", "2.0"},
       {"method", method.str()},
@@ -321,17 +347,18 @@ void LspSession::sendNotification(llvm::StringRef method,
     llvm::raw_string_ostream os(body);
     os << envelope;
   }
-  std::string framed = "Content-Length: " + std::to_string(body.size()) +
-                        "\r\n\r\n" + body;
+  std::string framed =
+      "Content-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
 
   std::lock_guard<std::mutex> g(write_mtx_);
-  if (stdin_fd_ < 0) return;
+  if (stdin_fd_ < 0)
+    return;
   writeAll(stdin_fd_, framed.data(), framed.size());
 }
 
-std::optional<llvm::json::Value> LspSession::popMessage(
-    std::chrono::milliseconds timeout, bool diagnostics_only,
-    const std::optional<int64_t> &response_id) {
+std::optional<llvm::json::Value>
+LspSession::popMessage(std::chrono::milliseconds timeout, bool diagnostics_only,
+                       const std::optional<int64_t> &response_id) {
   std::unique_lock<std::mutex> g(queue_mtx_);
   auto deadline = std::chrono::steady_clock::now() + timeout;
 
@@ -341,20 +368,25 @@ std::optional<llvm::json::Value> LspSession::popMessage(
     for (auto it = queue_.begin(); it != queue_.end(); ++it) {
       if (response_id) {
         auto *obj = it->getAsObject();
-        if (!obj) continue;
+        if (!obj)
+          continue;
         auto *id_val = obj->get("id");
-        if (!id_val) continue;
+        if (!id_val)
+          continue;
         auto id_int = id_val->getAsInteger();
-        if (!id_int || *id_int != *response_id) continue;
+        if (!id_int || *id_int != *response_id)
+          continue;
         llvm::json::Value v = std::move(*it);
         queue_.erase(it);
         return v;
       }
       if (diagnostics_only) {
         auto *obj = it->getAsObject();
-        if (!obj) continue;
+        if (!obj)
+          continue;
         auto m = obj->getString("method");
-        if (!m || *m != "textDocument/publishDiagnostics") continue;
+        if (!m || *m != "textDocument/publishDiagnostics")
+          continue;
         llvm::json::Value v = std::move(*it);
         queue_.erase(it);
         return v;
@@ -366,29 +398,31 @@ std::optional<llvm::json::Value> LspSession::popMessage(
         return v;
       }
     }
-    if (reader_done_) return std::nullopt;
+    if (reader_done_)
+      return std::nullopt;
     if (queue_cv_.wait_until(g, deadline) == std::cv_status::timeout)
       return std::nullopt;
   }
 }
 
-std::optional<llvm::json::Value> LspSession::waitForMessage(
-    std::chrono::milliseconds timeout) {
+std::optional<llvm::json::Value>
+LspSession::waitForMessage(std::chrono::milliseconds timeout) {
   return popMessage(timeout, false, std::nullopt);
 }
 
-std::optional<llvm::json::Value> LspSession::waitForResponse(
-    int64_t id, std::chrono::milliseconds timeout) {
+std::optional<llvm::json::Value>
+LspSession::waitForResponse(int64_t id, std::chrono::milliseconds timeout) {
   return popMessage(timeout, false, id);
 }
 
-std::optional<llvm::json::Value> LspSession::waitForDiagnostics(
-    std::chrono::milliseconds timeout) {
+std::optional<llvm::json::Value>
+LspSession::waitForDiagnostics(std::chrono::milliseconds timeout) {
   return popMessage(timeout, true, std::nullopt);
 }
 
 int LspSession::doShutdownExit() {
-  if (shutdown_sent_.exchange(true)) return exit_code_;
+  if (shutdown_sent_.exchange(true))
+    return exit_code_;
   int64_t shut_id = sendRequest("shutdown", llvm::json::Value(nullptr));
   waitForResponse(shut_id, std::chrono::milliseconds(2000));
   sendNotification("exit", llvm::json::Value(nullptr));
@@ -403,8 +437,7 @@ int LspSession::exitCode() {
       stdin_fd_ = -1;
     }
     auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-    while (!exited_.load() &&
-           std::chrono::steady_clock::now() < deadline) {
+    while (!exited_.load() && std::chrono::steady_clock::now() < deadline) {
       int status;
       pid_t r = ::waitpid(child_, &status, WNOHANG);
       if (r == child_) {
@@ -421,11 +454,13 @@ int LspSession::exitCode() {
 std::string LspSession::capturedStderr() {
   // Wait briefly for stderr drain after exit.
   if (exited_.load()) {
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
+    auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
     while (std::chrono::steady_clock::now() < deadline) {
       {
         std::lock_guard<std::mutex> g(stderr_mtx_);
-        if (stderr_done_) break;
+        if (stderr_done_)
+          break;
       }
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }

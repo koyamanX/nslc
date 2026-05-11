@@ -17,20 +17,18 @@
 // `DialectConversion`. Per research.md §1.
 
 #include "NSLToCIRCTPass.h"
-#include "CIRCTTypeConverter.h"
 
+#include "CIRCTTypeConverter.h"
 #include "circt/Dialect/Comb/CombDialect.h"
 #include "circt/Dialect/FSM/FSMDialect.h"
 #include "circt/Dialect/HW/HWDialect.h"
 #include "circt/Dialect/SV/SVDialect.h"
 #include "circt/Dialect/Seq/SeqDialect.h"
-
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/DialectRegistry.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassRegistry.h"
 #include "mlir/Transforms/DialectConversion.h"
-
 #include "nsl/Dialect/NSL/IR/NSLDialect.h"
 #include "nsl/Lower/Lower.h"
 
@@ -138,8 +136,8 @@ public:
     populateStatePatterns(patterns, type_converter);
 
     // ---------- Run conversion ----------
-    if (mlir::failed(mlir::applyFullConversion(module, target,
-                                               std::move(patterns)))) {
+    if (mlir::failed(
+            mlir::applyFullConversion(module, target, std::move(patterns)))) {
       signalPassFailure();
     }
   }

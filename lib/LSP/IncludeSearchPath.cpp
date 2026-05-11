@@ -3,6 +3,7 @@
 // lib/LSP/IncludeSearchPath.cpp — `NSL_INCLUDE` env-var parser.
 
 #include "IncludeSearchPath.h"
+
 #include "Logger.h"
 
 #include "llvm/Support/FormatVariadic.h"
@@ -24,12 +25,15 @@ constexpr char kPathSep = ':';
 
 std::vector<std::string> splitPath(const char *value) {
   std::vector<std::string> out;
-  if (!value || !*value) return out;
+  if (!value || !*value)
+    return out;
   const char *start = value;
   for (const char *p = value;; ++p) {
     if (*p == kPathSep || *p == '\0') {
-      if (p > start) out.emplace_back(start, p);
-      if (*p == '\0') break;
+      if (p > start)
+        out.emplace_back(start, p);
+      if (*p == '\0')
+        break;
       start = p + 1;
     }
   }
@@ -48,11 +52,11 @@ IncludeSearchPath IncludeSearchPath::fromEnv() {
   } else {
     std::string joined;
     for (const auto &p : path.anglePaths()) {
-      if (!joined.empty()) joined.push_back(kPathSep);
+      if (!joined.empty())
+        joined.push_back(kPathSep);
       joined += p;
     }
-    NSL_LSP_LOG_INFO(llvm::formatv("NSL_INCLUDE resolved: {0}",
-                                    joined).str());
+    NSL_LSP_LOG_INFO(llvm::formatv("NSL_INCLUDE resolved: {0}", joined).str());
   }
   return path;
 }

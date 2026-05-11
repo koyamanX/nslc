@@ -3,6 +3,7 @@
 // lib/LSP/TUScheduler.cpp — threading + cache impl.
 
 #include "TUScheduler.h"
+
 #include "IncludeSearchPath.h"
 #include "Logger.h"
 
@@ -22,7 +23,8 @@ unsigned TUScheduler::workersFromEnv() {
   unsigned cap = std::min(hw, 4u);
 
   const char *raw = std::getenv("NSL_LSP_WORKERS");
-  if (!raw || !*raw) return cap;
+  if (!raw || !*raw)
+    return cap;
 
   // Parse as positive integer in [1, 64].
   uint64_t parsed = 0;
@@ -35,7 +37,8 @@ unsigned TUScheduler::workersFromEnv() {
       std::exit(1);
     }
     parsed = parsed * 10 + (*p - '0');
-    if (parsed > 64) break;
+    if (parsed > 64)
+      break;
   }
   if (parsed < 1 || parsed > 64) {
     std::fprintf(stderr,
@@ -48,11 +51,14 @@ unsigned TUScheduler::workersFromEnv() {
 
 TUScheduler::TUScheduler(unsigned worker_count)
     : pool_(llvm::hardware_concurrency(worker_count)) {
-  NSL_LSP_LOG_DEBUG(llvm::formatv(
-      "TUScheduler: started with {0} workers", worker_count).str());
+  NSL_LSP_LOG_DEBUG(
+      llvm::formatv("TUScheduler: started with {0} workers", worker_count)
+          .str());
 }
 
-TUScheduler::~TUScheduler() { waitForIdle(); }
+TUScheduler::~TUScheduler() {
+  waitForIdle();
+}
 
 void TUScheduler::setOnDiagnostics(DiagnosticsCallback cb) {
   std::lock_guard<std::mutex> guard(tus_mtx_);
@@ -66,9 +72,8 @@ void TUScheduler::open(llvm::StringRef uri) {
   }
 }
 
-void TUScheduler::update(llvm::StringRef uri, int version,
-                          std::string contents,
-                          const IncludeSearchPath &includes) {
+void TUScheduler::update(llvm::StringRef uri, int version, std::string contents,
+                         const IncludeSearchPath &includes) {
   // Synchronously bump the TU's `latest_received_` atomic before
   // enqueueing the worker. Stale-drop on completion compares the
   // worker's diagnosed version against this — catches the case
@@ -91,21 +96,24 @@ void TUScheduler::close(llvm::StringRef uri) {
 }
 
 void TUScheduler::withState(llvm::StringRef uri,
-                              std::function<void(const NslTU::State &)> fn) {
+                            std::function<void(const NslTU::State &)> fn) {
   NslTU *tu = nullptr;
   {
     std::lock_guard<std::mutex> guard(tus_mtx_);
     auto it = tus_.find(uri);
-    if (it != tus_.end()) tu = it->second.get();
+    if (it != tus_.end())
+      tu = it->second.get();
   }
-  if (tu) tu->withState(fn);
+  if (tu)
+    tu->withState(fn);
 }
 
-void TUScheduler::waitForIdle() { pool_.wait(); }
+void TUScheduler::waitForIdle() {
+  pool_.wait();
+}
 
-void TUScheduler::schedule(std::string uri, int version,
-                            std::string contents,
-                            const IncludeSearchPath *includes) {
+void TUScheduler::schedule(std::string uri, int version, std::string contents,
+                           const IncludeSearchPath *includes) {
   // Ensure a TU exists. (Common path: open() has already been
   // called via the LSP didOpen handler.)
   {
@@ -122,13 +130,14 @@ void TUScheduler::schedule(std::string uri, int version,
     {
       std::lock_guard<std::mutex> guard(tus_mtx_);
       auto it = tus_.find(uri);
-      if (it == tus_.end()) return; // closed before this work ran
+      if (it == tus_.end())
+        return; // closed before this work ran
       tu = it->second.get();
       cb = on_diagnostics_;
     }
 
     int diagnosed = tu->reparse(version, std::move(contents),
-                                  includes ? *includes : IncludeSearchPath());
+                                includes ? *includes : IncludeSearchPath());
 
     // Stale-drop per FR-008: if a newer version was received via
     // update() at any point (even if its reparse hasn't completed
@@ -137,12 +146,11 @@ void TUScheduler::schedule(std::string uri, int version,
     // (synchronously updated in update()) rather than
     // `latestVersion()` (the most-recently-completed reparse,
     // which doesn't anticipate queued newer work).
-    if (diagnosed < tu->latestReceivedVersion()) return;
+    if (diagnosed < tu->latestReceivedVersion())
+      return;
 
     if (cb) {
-      tu->withState([&](const NslTU::State &st) {
-        cb(uri, diagnosed, st);
-      });
+      tu->withState([&](const NslTU::State &st) { cb(uri, diagnosed, st); });
     }
   });
 }

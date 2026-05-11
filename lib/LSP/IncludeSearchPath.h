@@ -16,6 +16,7 @@
 #define NSL_LSP_INCLUDE_SEARCH_PATH_H
 
 #include "llvm/ADT/ArrayRef.h"
+
 #include <string>
 #include <vector>
 

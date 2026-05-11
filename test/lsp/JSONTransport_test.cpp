@@ -25,7 +25,7 @@ namespace {
 // Frame `body_text` with a Content-Length header.
 std::string frame(llvm::StringRef body) {
   return "Content-Length: " + std::to_string(body.size()) + "\r\n\r\n" +
-          body.str();
+         body.str();
 }
 
 } // namespace
@@ -77,7 +77,7 @@ TEST(JSONTransportTest, MultipleMessagesInOneStream) {
 }
 
 TEST(JSONTransportTest, EOFReturnsNullopt) {
-  std::stringstream in_stream;  // empty
+  std::stringstream in_stream; // empty
   std::stringstream out_stream;
 
   JSONTransport t(in_stream, out_stream);
@@ -152,6 +152,6 @@ TEST(JSONTransportTest, WriteContentLengthMatchesBodySize) {
   size_t expected_n = std::stoul(cl);
   std::string body = out.substr(sep + 4);
   EXPECT_EQ(body.size(), expected_n)
-      << "Content-Length header (" << expected_n
-      << ") must equal body size (" << body.size() << ")";
+      << "Content-Length header (" << expected_n << ") must equal body size ("
+      << body.size() << ")";
 }

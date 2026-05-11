@@ -4,19 +4,19 @@
 // Per Constitution Principle II (≤ 70 lines), real work lives in
 // `nsl::lsp::runStdioServer` exposed by `lib/LSP/`.
 
-#include "nsl/LSP/Server.h"
 #include "nsl/Driver/Version.h"
+#include "nsl/LSP/Server.h"
 
 #include <cstdio>
 #include <cstring>
 
 namespace {
 constexpr const char *kUsage = "usage: nsl-lsp [--version]\n"
-                                "  Speaks LSP over stdin/stdout per "
-                                "specs/010-t3-lsp-skeleton/contracts/"
-                                "lsp-protocol.contract.md.\n"
-                                "  Reads NSL_INCLUDE and "
-                                "NSL_LSP_LOG_LEVEL once at startup.\n";
+                               "  Speaks LSP over stdin/stdout per "
+                               "specs/010-t3-lsp-skeleton/contracts/"
+                               "lsp-protocol.contract.md.\n"
+                               "  Reads NSL_INCLUDE and "
+                               "NSL_LSP_LOG_LEVEL once at startup.\n";
 } // namespace
 
 int main(int argc, char **argv) {

@@ -39,7 +39,7 @@ namespace nsl::lsp {
 /// far; the caller (NslLSPServer::onFoldingRange) substitutes the
 /// `RequestCancelled` error response.
 llvm::json::Array buildFoldingRanges(llvm::StringRef source,
-                                       const CancellationToken &cancel);
+                                     const CancellationToken &cancel);
 
 } // namespace nsl::lsp
 

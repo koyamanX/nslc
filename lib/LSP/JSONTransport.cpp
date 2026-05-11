@@ -3,6 +3,7 @@
 // lib/LSP/JSONTransport.cpp — Content-Length framing impl.
 
 #include "JSONTransport.h"
+
 #include "Logger.h"
 
 #include "llvm/ADT/StringRef.h"
@@ -29,10 +30,12 @@ bool readHeaderLine(std::istream &in, std::string *out) {
   out->clear();
   while (true) {
     int c = in.get();
-    if (c == EOF) return false;
+    if (c == EOF)
+      return false;
     if (c == '\r') {
       int next = in.get();
-      if (next == '\n') return true;
+      if (next == '\n')
+        return true;
       // Bare CR is a framing error in LSP base protocol.
       return false;
     }
@@ -48,7 +51,8 @@ bool readHeaderLine(std::istream &in, std::string *out) {
 
 bool parseContentLength(llvm::StringRef line, uint64_t *out) {
   llvm::StringRef key("Content-Length:");
-  if (!line.starts_with(key)) return false;
+  if (!line.starts_with(key))
+    return false;
   llvm::StringRef rest = line.drop_front(key.size()).trim();
   return !rest.consumeInteger(10, *out) && rest.empty();
 }
@@ -66,12 +70,14 @@ std::optional<llvm::json::Value> JSONTransport::readMessage() {
   while (true) {
     if (!readHeaderLine(in_, &line)) {
       // EOF before complete header section.
-      if (!got_length && line.empty()) return std::nullopt;
+      if (!got_length && line.empty())
+        return std::nullopt;
       NSL_LSP_LOG_ERROR("JSONTransport: framing error — unexpected "
-                         "EOF in header section");
+                        "EOF in header section");
       return std::nullopt;
     }
-    if (line.empty()) break; // separator
+    if (line.empty())
+      break; // separator
     uint64_t n;
     if (parseContentLength(line, &n)) {
       content_length = n;
@@ -82,7 +88,7 @@ std::optional<llvm::json::Value> JSONTransport::readMessage() {
 
   if (!got_length) {
     NSL_LSP_LOG_ERROR("JSONTransport: framing error — missing "
-                       "Content-Length header");
+                      "Content-Length header");
     return std::nullopt;
   }
 
@@ -93,9 +99,11 @@ std::optional<llvm::json::Value> JSONTransport::readMessage() {
     in_.read(body.data(), static_cast<std::streamsize>(content_length));
     auto got = in_.gcount();
     if (static_cast<uint64_t>(got) != content_length) {
-      NSL_LSP_LOG_ERROR(llvm::formatv(
-          "JSONTransport: framing error — short read ({0} of {1} bytes)",
-          static_cast<uint64_t>(got), content_length).str());
+      NSL_LSP_LOG_ERROR(
+          llvm::formatv(
+              "JSONTransport: framing error — short read ({0} of {1} bytes)",
+              static_cast<uint64_t>(got), content_length)
+              .str());
       return std::nullopt;
     }
   }
@@ -108,7 +116,9 @@ std::optional<llvm::json::Value> JSONTransport::readMessage() {
     // the process. `toString` is the canonical consume path.
     std::string err = llvm::toString(parsed.takeError());
     NSL_LSP_LOG_ERROR(llvm::formatv("JSONTransport: malformed JSON "
-                                      "body: {0}", err).str());
+                                    "body: {0}",
+                                    err)
+                          .str());
     return std::nullopt;
   }
   return std::move(*parsed);

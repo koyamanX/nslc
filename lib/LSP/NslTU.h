@@ -67,7 +67,8 @@ public:
               const IncludeSearchPath &includes);
 
   /// Read access to the most recent state. Mutex-protected.
-  template <typename Fn> void withState(Fn &&fn) {
+  template <typename Fn>
+  void withState(Fn &&fn) {
     std::lock_guard<std::mutex> guard(mtx_);
     fn(state_);
   }
@@ -85,10 +86,10 @@ public:
   /// completion don't need the per-TU mutex.
   void noteReceived(int version) {
     int prev = latest_received_.load(std::memory_order_relaxed);
-    while (version > prev &&
-           !latest_received_.compare_exchange_weak(
-               prev, version, std::memory_order_release,
-               std::memory_order_relaxed)) {}
+    while (version > prev && !latest_received_.compare_exchange_weak(
+                                 prev, version, std::memory_order_release,
+                                 std::memory_order_relaxed)) {
+    }
   }
   int latestReceivedVersion() const {
     return latest_received_.load(std::memory_order_acquire);

@@ -13,11 +13,10 @@
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include <gtest/gtest.h>
-
 #include <algorithm>
 #include <chrono>
 #include <fstream>
+#include <gtest/gtest.h>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -46,16 +45,16 @@ void initialize(LspSession &s) {
 }
 
 void didOpen(LspSession &s, llvm::StringRef uri, int version,
-              llvm::StringRef text) {
-  s.sendNotification("textDocument/didOpen",
-                      llvm::json::Object{
-                          {"textDocument", llvm::json::Object{
-                                                {"uri", uri.str()},
-                                                {"languageId", "nsl"},
-                                                {"version", version},
-                                                {"text", text.str()},
-                                            }},
-                      });
+             llvm::StringRef text) {
+  s.sendNotification("textDocument/didOpen", llvm::json::Object{
+                                                 {"textDocument",
+                                                  llvm::json::Object{
+                                                      {"uri", uri.str()},
+                                                      {"languageId", "nsl"},
+                                                      {"version", version},
+                                                      {"text", text.str()},
+                                                  }},
+                                             });
 }
 
 const llvm::json::Array *getDiagnosticsArray(const llvm::json::Value &env) {
@@ -132,15 +131,14 @@ TEST(DiagnosticsSuite, SortOrder_LineThenColumn) {
   // Line ascending: (*arr)[0].range.start.line <= (*arr)[1].range.start.line
   auto extractStart = [](const llvm::json::Value &d) {
     const auto *o = d.getAsObject()->getObject("range")->getObject("start");
-    return std::pair<int64_t, int64_t>{
-        o->getInteger("line").value_or(-1),
-        o->getInteger("character").value_or(-1)};
+    return std::pair<int64_t, int64_t>{o->getInteger("line").value_or(-1),
+                                       o->getInteger("character").value_or(-1)};
   };
   auto a = extractStart((*arr)[0]);
   auto b = extractStart((*arr)[1]);
   EXPECT_TRUE(a < b) << "expected (a.line, a.col) < (b.line, b.col); "
-                        << "got (" << a.first << "," << a.second
-                        << ") vs (" << b.first << "," << b.second << ")";
+                     << "got (" << a.first << "," << a.second << ") vs ("
+                     << b.first << "," << b.second << ")";
 
   s.doShutdownExit();
   EXPECT_EQ(s.exitCode(), 0);
@@ -178,8 +176,14 @@ TEST(DiagnosticsSuite, SortOrder_SeverityOnTie) {
   for (size_t i = 0; i < arr->size(); ++i) {
     const auto *d = (*arr)[i].getAsObject();
     auto code = d->getString("code").value_or("");
-    if (code == "S26") { warn_obj = d; warn_idx = i; }
-    if (code == "S01") { err_obj = d; err_idx = i; }
+    if (code == "S26") {
+      warn_obj = d;
+      warn_idx = i;
+    }
+    if (code == "S01") {
+      err_obj = d;
+      err_idx = i;
+    }
   }
   ASSERT_NE(warn_obj, nullptr) << "fixture should produce an S26 warning";
   ASSERT_NE(err_obj, nullptr) << "fixture should produce an S01 error";
@@ -191,17 +195,16 @@ TEST(DiagnosticsSuite, SortOrder_SeverityOnTie) {
 
   auto extractStart = [](const llvm::json::Object *o) {
     const auto *p = o->getObject("range")->getObject("start");
-    return std::pair<int64_t, int64_t>{
-        p->getInteger("line").value_or(-1),
-        p->getInteger("character").value_or(-1)};
+    return std::pair<int64_t, int64_t>{p->getInteger("line").value_or(-1),
+                                       p->getInteger("character").value_or(-1)};
   };
   auto warn_pos = extractStart(warn_obj);
   auto err_pos = extractStart(err_obj);
   ASSERT_EQ(warn_pos, err_pos)
       << "fixture invariant: S26 warning and S01 error must share "
-         "(line, character); got warn=(" << warn_pos.first << ","
-      << warn_pos.second << ") err=(" << err_pos.first << ","
-      << err_pos.second << ")";
+         "(line, character); got warn=("
+      << warn_pos.first << "," << warn_pos.second << ") err=(" << err_pos.first
+      << "," << err_pos.second << ")";
 
   // The contract: at a position tie, severity ascending → Error
   // appears before Warning in the output array.
@@ -229,7 +232,10 @@ TEST(DiagnosticsSuite, ParseError) {
   bool found_parse_source = false;
   for (const auto &d : *arr) {
     auto src = d.getAsObject()->getString("source").value_or("");
-    if (src == "nsl-parse") { found_parse_source = true; break; }
+    if (src == "nsl-parse") {
+      found_parse_source = true;
+      break;
+    }
   }
   EXPECT_TRUE(found_parse_source)
       << "expected at least one diagnostic with source = nsl-parse";
@@ -264,28 +270,30 @@ TEST(DiagnosticsSuite, Determinism_TwoRunsByteIdentical) {
 namespace {
 
 void didChange(LspSession &s, llvm::StringRef uri, int version,
-                llvm::StringRef text) {
+               llvm::StringRef text) {
   s.sendNotification("textDocument/didChange",
-                      llvm::json::Object{
-                          {"textDocument", llvm::json::Object{
-                                                {"uri", uri.str()},
-                                                {"version", version},
-                                            }},
-                          {"contentChanges", llvm::json::Array{
-                                                  llvm::json::Object{
-                                                      {"text", text.str()},
-                                                  },
-                                              }},
-                      });
+                     llvm::json::Object{
+                         {"textDocument",
+                          llvm::json::Object{
+                              {"uri", uri.str()},
+                              {"version", version},
+                          }},
+                         {"contentChanges",
+                          llvm::json::Array{
+                              llvm::json::Object{
+                                  {"text", text.str()},
+                              },
+                          }},
+                     });
 }
 
 void didClose(LspSession &s, llvm::StringRef uri) {
-  s.sendNotification("textDocument/didClose",
-                      llvm::json::Object{
-                          {"textDocument", llvm::json::Object{
-                                                {"uri", uri.str()},
-                                            }},
-                      });
+  s.sendNotification("textDocument/didClose", llvm::json::Object{
+                                                  {"textDocument",
+                                                   llvm::json::Object{
+                                                       {"uri", uri.str()},
+                                                   }},
+                                              });
 }
 
 } // namespace
@@ -333,10 +341,11 @@ TEST(DiagnosticsSuite, EditIntroducesError) {
   auto diag2 = s.waitForDiagnostics();
   ASSERT_TRUE(diag2.has_value());
   ASSERT_EQ(getDiagnosticsArray(*diag2)->size(), 1u);
-  EXPECT_EQ(
-      (*getDiagnosticsArray(*diag2))[0].getAsObject()->getString("code")
-          .value_or(""),
-      "S01");
+  EXPECT_EQ((*getDiagnosticsArray(*diag2))[0]
+                .getAsObject()
+                ->getString("code")
+                .value_or(""),
+            "S01");
 
   s.doShutdownExit();
   EXPECT_EQ(s.exitCode(), 0);
@@ -378,29 +387,33 @@ TEST(DiagnosticsSuite, IncrementalChangePayload_Rejected) {
 
   // Send a malformed didChange with a `range` field (incremental
   // shape).
-  s.sendNotification(
-      "textDocument/didChange",
-      llvm::json::Object{
-          {"textDocument", llvm::json::Object{
-                                {"uri", "file:///x.nsl"},
-                                {"version", 2},
-                            }},
-          {"contentChanges", llvm::json::Array{
-                                  llvm::json::Object{
-                                      {"range", llvm::json::Object{
-                                                     {"start", llvm::json::Object{
-                                                                    {"line", 0},
-                                                                    {"character", 0},
-                                                                }},
-                                                     {"end", llvm::json::Object{
-                                                                  {"line", 0},
-                                                                  {"character", 0},
-                                                              }},
-                                                 }},
-                                      {"text", "x"},
-                                  },
-                              }},
-      });
+  s.sendNotification("textDocument/didChange",
+                     llvm::json::Object{
+                         {"textDocument",
+                          llvm::json::Object{
+                              {"uri", "file:///x.nsl"},
+                              {"version", 2},
+                          }},
+                         {"contentChanges",
+                          llvm::json::Array{
+                              llvm::json::Object{
+                                  {"range",
+                                   llvm::json::Object{
+                                       {"start",
+                                        llvm::json::Object{
+                                            {"line", 0},
+                                            {"character", 0},
+                                        }},
+                                       {"end",
+                                        llvm::json::Object{
+                                            {"line", 0},
+                                            {"character", 0},
+                                        }},
+                                   }},
+                                  {"text", "x"},
+                              },
+                          }},
+                     });
 
   // No publishDiagnostics should arrive within a short window.
   auto diag2 = s.waitForDiagnostics(std::chrono::milliseconds(300));
@@ -434,8 +447,7 @@ TEST(DiagnosticsSuite, StaleVersion_Ignored) {
 
   // No publishDiagnostics should arrive (stale dropped).
   auto diag2 = s.waitForDiagnostics(std::chrono::milliseconds(300));
-  EXPECT_FALSE(diag2.has_value())
-      << "stale version should be ignored";
+  EXPECT_FALSE(diag2.has_value()) << "stale version should be ignored";
 
   s.doShutdownExit();
   EXPECT_EQ(s.exitCode(), 0);
@@ -473,10 +485,13 @@ TEST_P(CodeMappingSuite, ProducesExpectedCode) {
   bool found = false;
   for (const auto &d : *arr) {
     auto code = d.getAsObject()->getString("code").value_or("");
-    if (code == c.expected_code) { found = true; break; }
+    if (code == c.expected_code) {
+      found = true;
+      break;
+    }
   }
-  EXPECT_TRUE(found) << "expected code=" << c.expected_code
-                       << " in fixture " << c.fixture;
+  EXPECT_TRUE(found) << "expected code=" << c.expected_code << " in fixture "
+                     << c.fixture;
 
   s.doShutdownExit();
 }
@@ -484,29 +499,29 @@ TEST_P(CodeMappingSuite, ProducesExpectedCode) {
 INSTANTIATE_TEST_SUITE_P(
     AllSn, CodeMappingSuite,
     ::testing::Values(/* values below */
-        SnCase{"s01_double_underscore.nsl",            "S01"},
-        SnCase{"s02_wire_with_init.nsl",               "S02"},
-        SnCase{"s03_eq_on_reg.nsl",                    "S03"},
-        SnCase{"s04_funcin_dummy_dir.nsl",             "S04"},
-        SnCase{"s05_funcin_return_dir.nsl",            "S05"},
-        SnCase{"s06_proc_arg_reg_only.nsl",            "S06"},
-        SnCase{"s07_seq_outside_funcproc.nsl",         "S07"},
-        SnCase{"s08_while_outside_seq.nsl",            "S08"},
-        SnCase{"s09_for_var_reg.nsl",                  "S09"},
-        SnCase{"s10_generate_var_integer.nsl",         "S10"},
-        SnCase{"s11_state_name_proc_scoped.nsl",       "S11"},
-        SnCase{"s12_partial_lhs_variable.nsl",         "S12"},
-        SnCase{"s14_conditional_else_required.nsl",    "S14"},
-        SnCase{"s15_slice_indices_const.nsl",          "S15"},
-        SnCase{"s16_param_int_submodules.nsl",         "S16"},
-        SnCase{"s17_system_task_simulation.nsl",       "S17"},
-        SnCase{"s20_interface_clk_rst.nsl",            "S20"},
-        SnCase{"s21_bare_finish_outside_proc.nsl",     "S21"},
-        SnCase{"s22_return_outside_func.nsl",          "S22"},
-        SnCase{"s25_goto_target.nsl",                  "S25"},
-        SnCase{"s26_function_synonym.nsl",             "S26"},
-        SnCase{"s28_first_state.nsl",                  "S28"},
-        SnCase{"s29_init_block_placement.nsl",         "S29"}),
+                      SnCase{"s01_double_underscore.nsl", "S01"},
+                      SnCase{"s02_wire_with_init.nsl", "S02"},
+                      SnCase{"s03_eq_on_reg.nsl", "S03"},
+                      SnCase{"s04_funcin_dummy_dir.nsl", "S04"},
+                      SnCase{"s05_funcin_return_dir.nsl", "S05"},
+                      SnCase{"s06_proc_arg_reg_only.nsl", "S06"},
+                      SnCase{"s07_seq_outside_funcproc.nsl", "S07"},
+                      SnCase{"s08_while_outside_seq.nsl", "S08"},
+                      SnCase{"s09_for_var_reg.nsl", "S09"},
+                      SnCase{"s10_generate_var_integer.nsl", "S10"},
+                      SnCase{"s11_state_name_proc_scoped.nsl", "S11"},
+                      SnCase{"s12_partial_lhs_variable.nsl", "S12"},
+                      SnCase{"s14_conditional_else_required.nsl", "S14"},
+                      SnCase{"s15_slice_indices_const.nsl", "S15"},
+                      SnCase{"s16_param_int_submodules.nsl", "S16"},
+                      SnCase{"s17_system_task_simulation.nsl", "S17"},
+                      SnCase{"s20_interface_clk_rst.nsl", "S20"},
+                      SnCase{"s21_bare_finish_outside_proc.nsl", "S21"},
+                      SnCase{"s22_return_outside_func.nsl", "S22"},
+                      SnCase{"s25_goto_target.nsl", "S25"},
+                      SnCase{"s26_function_synonym.nsl", "S26"},
+                      SnCase{"s28_first_state.nsl", "S28"},
+                      SnCase{"s29_init_block_placement.nsl", "S29"}),
     [](const ::testing::TestParamInfo<SnCase> &info) {
       // Clean ctest name: just the expected code (S01..S29).
       return std::string(info.param.expected_code);
@@ -525,8 +540,8 @@ TEST(DiagnosticsSuite, IncludeFromNotes) {
   // primary `Diagnostic.range` itself stays inside the helper —
   // this matches the LSP-spec idiom `clangd` and `rust-analyzer`
   // use for cross-file diagnostics.
-  LspSession s({.nsl_include = NSL_LSP_FIXTURES_DIR,
-                  .nsl_lsp_log_level = "warn"});
+  LspSession s(
+      {.nsl_include = NSL_LSP_FIXTURES_DIR, .nsl_lsp_log_level = "warn"});
   initialize(s);
   std::string text = readFixture("include_chain_main.nsl");
   ASSERT_FALSE(text.empty());
@@ -541,7 +556,10 @@ TEST(DiagnosticsSuite, IncludeFromNotes) {
   const llvm::json::Object *s01 = nullptr;
   for (const auto &d : *arr) {
     auto code = d.getAsObject()->getString("code").value_or("");
-    if (code == "S01") { s01 = d.getAsObject(); break; }
+    if (code == "S01") {
+      s01 = d.getAsObject();
+      break;
+    }
   }
   ASSERT_NE(s01, nullptr) << "expected an S01 diagnostic from the helper";
 
@@ -581,8 +599,8 @@ TEST(DiagnosticsSuite, IncludeChain_FixtureLoadsAndDiagnoses) {
   // diagnostic in the published array. Distinct from
   // `IncludeFromNotes` (T062), which asserts the relatedInformation
   // chain itself.
-  LspSession s({.nsl_include = NSL_LSP_FIXTURES_DIR,
-                  .nsl_lsp_log_level = "warn"});
+  LspSession s(
+      {.nsl_include = NSL_LSP_FIXTURES_DIR, .nsl_lsp_log_level = "warn"});
   initialize(s);
   std::string text = readFixture("include_chain_main.nsl");
   ASSERT_FALSE(text.empty());
@@ -598,7 +616,10 @@ TEST(DiagnosticsSuite, IncludeChain_FixtureLoadsAndDiagnoses) {
   bool found_s01 = false;
   for (const auto &d : *arr) {
     auto code = d.getAsObject()->getString("code").value_or("");
-    if (code == "S01") { found_s01 = true; break; }
+    if (code == "S01") {
+      found_s01 = true;
+      break;
+    }
   }
   EXPECT_TRUE(found_s01)
       << "expected an S01 diagnostic from the included helper";
@@ -680,12 +701,10 @@ TEST(DiagnosticsSuite, UTF8Comment) {
     if (code != "S01") {
       continue;
     }
-    auto *start =
-        o->getObject("range")->getObject("start");
+    auto *start = o->getObject("range")->getObject("start");
     auto col = start->getInteger("character").value_or(-1);
-    EXPECT_EQ(col, 12)
-        << "expected UTF-16 code-unit column 12; got " << col
-        << " (a byte-offset bug would yield 18)";
+    EXPECT_EQ(col, 12) << "expected UTF-16 code-unit column 12; got " << col
+                       << " (a byte-offset bug would yield 18)";
     break;
   }
 
@@ -702,7 +721,7 @@ TEST(DiagnosticsSuite, OpenLatency_Under250ms_For1500Lines) {
   unsigned hw = std::thread::hardware_concurrency();
   if (hw < 4) {
     GTEST_SKIP() << "slow runner (" << hw
-                  << " cores); SC-004 budget assertion deferred";
+                 << " cores); SC-004 budget assertion deferred";
   }
 
   LspSession s({.nsl_lsp_log_level = "warn"});
@@ -720,10 +739,10 @@ TEST(DiagnosticsSuite, OpenLatency_Under250ms_For1500Lines) {
   auto elapsed = std::chrono::steady_clock::now() - t0;
   ASSERT_TRUE(diag.has_value());
 
-  auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed)
-                .count();
+  auto ms =
+      std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
   EXPECT_LT(ms, 250) << "didOpen→publishDiagnostics took " << ms
-                       << " ms (SC-004 budget: 250 ms)";
+                     << " ms (SC-004 budget: 250 ms)";
 
   s.doShutdownExit();
   EXPECT_EQ(s.exitCode(), 0);

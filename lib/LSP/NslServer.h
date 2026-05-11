@@ -28,8 +28,7 @@ public:
   const IncludeSearchPath &includes() const { return includes_; }
 
   /// `didOpen` / `didChange` land here.
-  void openOrUpdate(llvm::StringRef uri, int version,
-                     std::string contents);
+  void openOrUpdate(llvm::StringRef uri, int version, std::string contents);
 
   /// `didClose` lands here.
   void close(llvm::StringRef uri);

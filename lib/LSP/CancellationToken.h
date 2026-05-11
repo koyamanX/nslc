@@ -40,7 +40,8 @@ struct CancellationToken {
   }
 
   void cancel() const noexcept {
-    if (flag) flag->store(true, std::memory_order_release);
+    if (flag)
+      flag->store(true, std::memory_order_release);
   }
 
   bool valid() const noexcept { return static_cast<bool>(flag); }

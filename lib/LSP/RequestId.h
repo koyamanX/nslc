@@ -34,13 +34,12 @@ struct RequestId {
   bool operator==(const RequestId &o) const noexcept {
     return value == o.value;
   }
-  bool operator<(const RequestId &o) const noexcept {
-    return value < o.value;
-  }
+  bool operator<(const RequestId &o) const noexcept { return value < o.value; }
 
   /// Render to its JSON-RPC `id` form (preserves int/string type).
   llvm::json::Value toJson() const {
-    if (auto *i = std::get_if<int64_t>(&value)) return *i;
+    if (auto *i = std::get_if<int64_t>(&value))
+      return *i;
     return std::get<std::string>(value);
   }
 
@@ -48,8 +47,10 @@ struct RequestId {
   /// `v` is not an integer or string (i.e., `null` or unexpected
   /// shape).
   static std::optional<RequestId> fromJson(const llvm::json::Value &v) {
-    if (auto i = v.getAsInteger()) return RequestId(*i);
-    if (auto s = v.getAsString()) return RequestId(std::string(*s));
+    if (auto i = v.getAsInteger())
+      return RequestId(*i);
+    if (auto s = v.getAsString())
+      return RequestId(std::string(*s));
     return std::nullopt;
   }
 };

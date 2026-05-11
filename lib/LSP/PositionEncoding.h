@@ -19,6 +19,7 @@
 #define NSL_LSP_POSITION_ENCODING_H
 
 #include "llvm/ADT/StringRef.h"
+
 #include <cstddef>
 #include <cstdint>
 

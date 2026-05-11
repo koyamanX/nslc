@@ -67,7 +67,7 @@ private:
   void sendError(const RequestId &id, int code, llvm::StringRef message);
   void sendNotification(llvm::StringRef method, llvm::json::Value params);
   void publishDiagnostics(llvm::StringRef uri, int version,
-                            llvm::json::Array diagnostics);
+                          llvm::json::Array diagnostics);
 
   JSONTransport &transport_;
   NslServer &backend_;

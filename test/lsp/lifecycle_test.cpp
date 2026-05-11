@@ -25,9 +25,8 @@
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include <gtest/gtest.h>
-
 #include <chrono>
+#include <gtest/gtest.h>
 #include <regex>
 #include <string>
 
@@ -41,13 +40,14 @@ llvm::json::Object buildExpectedCapabilities() {
   // matches `NslLSPServer::buildCapabilities()` (alphabetical).
   return llvm::json::Object{
       {"foldingRangeProvider", true},
-      {"textDocumentSync", llvm::json::Object{
-                                {"change", 1},
-                                {"openClose", true},
-                                {"save", false},
-                                {"willSave", false},
-                                {"willSaveWaitUntil", false},
-                            }},
+      {"textDocumentSync",
+       llvm::json::Object{
+           {"change", 1},
+           {"openClose", true},
+           {"save", false},
+           {"willSave", false},
+           {"willSaveWaitUntil", false},
+       }},
   };
 }
 
@@ -58,13 +58,13 @@ TEST(LifecycleSuite, CapabilitiesExact) {
   // §1.2 capabilities — no more, no less.
   LspSession s({.nsl_lsp_log_level = "warn"});
 
-  int64_t id = s.sendRequest("initialize",
-                              llvm::json::Object{
-                                  {"clientInfo", llvm::json::Object{
-                                                       {"name", "test"},
-                                                       {"version", "0.0"},
-                                                   }},
-                              });
+  int64_t id = s.sendRequest("initialize", llvm::json::Object{
+                                               {"clientInfo",
+                                                llvm::json::Object{
+                                                    {"name", "test"},
+                                                    {"version", "0.0"},
+                                                }},
+                                           });
   auto resp = s.waitForResponse(id);
   ASSERT_TRUE(resp.has_value());
 
@@ -75,7 +75,7 @@ TEST(LifecycleSuite, CapabilitiesExact) {
 
   // Structural equality on the capabilities object.
   EXPECT_EQ(llvm::json::Value(std::move(*caps)),
-              llvm::json::Value(buildExpectedCapabilities()));
+            llvm::json::Value(buildExpectedCapabilities()));
 
   s.doShutdownExit();
   EXPECT_EQ(s.exitCode(), 0);
@@ -92,7 +92,7 @@ TEST(LifecycleSuite, ShutdownExit_Code0) {
   ASSERT_TRUE(shut_resp.has_value());
   // shutdown response carries `result: null` per contract §5.1.
   EXPECT_EQ(*shut_resp->getAsObject()->get("result"),
-              llvm::json::Value(nullptr));
+            llvm::json::Value(nullptr));
 
   s.sendNotification("exit", llvm::json::Value(nullptr));
   EXPECT_EQ(s.exitCode(), 0);
@@ -119,11 +119,12 @@ TEST(LifecycleSuite, PreInitialized_RejectsRequest) {
   // Deliberately do NOT send `initialized`.
 
   int64_t id_fold = s.sendRequest("textDocument/foldingRange",
-                                    llvm::json::Object{
-                                        {"textDocument", llvm::json::Object{
-                                                              {"uri", "file:///x.nsl"},
-                                                          }},
-                                    });
+                                  llvm::json::Object{
+                                      {"textDocument",
+                                       llvm::json::Object{
+                                           {"uri", "file:///x.nsl"},
+                                       }},
+                                  });
   auto resp = s.waitForResponse(id_fold);
   ASSERT_TRUE(resp.has_value());
   auto *err = resp->getAsObject()->getObject("error");
@@ -157,7 +158,7 @@ TEST(LifecycleSuite, InvalidLogLevel_ExitsNonZero) {
   EXPECT_NE(err.find("garbage"), std::string::npos)
       << "stderr should mention bad value 'garbage'; got: " << err;
   EXPECT_TRUE(err.find("invalid") != std::string::npos ||
-                 err.find("NSL_LSP_LOG_LEVEL") != std::string::npos)
+              err.find("NSL_LSP_LOG_LEVEL") != std::string::npos)
       << "stderr should describe the error; got: " << err;
 }
 
@@ -177,39 +178,42 @@ TEST(LifecycleSuite, README_TestGate_OpenErrorEditFix) {
   s.sendNotification("initialized", llvm::json::Object{});
 
   // didOpen with an S1 violation.
-  s.sendNotification(
-      "textDocument/didOpen",
-      llvm::json::Object{
-          {"textDocument", llvm::json::Object{
-                                {"uri", "file:///gate.nsl"},
-                                {"languageId", "nsl"},
-                                {"version", 1},
-                                {"text", "module m { reg foo__bar; }"},
-                            }},
-      });
+  s.sendNotification("textDocument/didOpen",
+                     llvm::json::Object{
+                         {"textDocument",
+                          llvm::json::Object{
+                              {"uri", "file:///gate.nsl"},
+                              {"languageId", "nsl"},
+                              {"version", 1},
+                              {"text", "module m { reg foo__bar; }"},
+                          }},
+                     });
   auto first = s.waitForDiagnostics();
   ASSERT_TRUE(first.has_value());
-  auto *arr1 = first->getAsObject()->getObject("params")->getArray("diagnostics");
+  auto *arr1 =
+      first->getAsObject()->getObject("params")->getArray("diagnostics");
   ASSERT_EQ(arr1->size(), 1u);
   EXPECT_EQ((*arr1)[0].getAsObject()->getString("code").value_or(""), "S01");
 
   // didChange — fix the error.
-  s.sendNotification(
-      "textDocument/didChange",
-      llvm::json::Object{
-          {"textDocument", llvm::json::Object{
-                                {"uri", "file:///gate.nsl"},
-                                {"version", 2},
-                            }},
-          {"contentChanges", llvm::json::Array{
-                                  llvm::json::Object{
-                                      {"text", "module m { reg foo_bar; }"},
-                                  },
-                              }},
-      });
+  s.sendNotification("textDocument/didChange",
+                     llvm::json::Object{
+                         {"textDocument",
+                          llvm::json::Object{
+                              {"uri", "file:///gate.nsl"},
+                              {"version", 2},
+                          }},
+                         {"contentChanges",
+                          llvm::json::Array{
+                              llvm::json::Object{
+                                  {"text", "module m { reg foo_bar; }"},
+                              },
+                          }},
+                     });
   auto second = s.waitForDiagnostics();
   ASSERT_TRUE(second.has_value());
-  auto *arr2 = second->getAsObject()->getObject("params")->getArray("diagnostics");
+  auto *arr2 =
+      second->getAsObject()->getObject("params")->getArray("diagnostics");
   EXPECT_EQ(arr2->size(), 0u) << "edit-fix should clear diagnostics";
 
   int64_t shut_id = s.sendRequest("shutdown", llvm::json::Value(nullptr));
@@ -221,8 +225,8 @@ TEST(LifecycleSuite, README_TestGate_OpenErrorEditFix) {
 TEST(LifecycleSuite, NSLIncludeLoggedAtStartup) {
   // Per contract §8.4: NSL_INCLUDE resolution emitted at INFO
   // level on startup.
-  LspSession s({.nsl_include = "/tmp/foo:/tmp/bar",
-                  .nsl_lsp_log_level = "info"});
+  LspSession s(
+      {.nsl_include = "/tmp/foo:/tmp/bar", .nsl_lsp_log_level = "info"});
   int64_t id = s.sendRequest("initialize", llvm::json::Object{});
   ASSERT_TRUE(s.waitForResponse(id).has_value());
   s.doShutdownExit();

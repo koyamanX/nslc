@@ -5,9 +5,8 @@
 
 #include "CIRCTTypeConverter.h"
 
-#include "nsl/Dialect/NSL/IR/NSLDialect.h"
-
 #include "mlir/IR/BuiltinTypes.h"
+#include "nsl/Dialect/NSL/IR/NSLDialect.h"
 
 namespace nsl::lower {
 

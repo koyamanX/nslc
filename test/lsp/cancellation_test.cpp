@@ -55,7 +55,7 @@ TEST(CancellationSuite, CancelNeverSeenIdSilentlyIgnored) {
 
   // Cancel an id we never sent.
   s.sendNotification("$/cancelRequest",
-                       llvm::json::Object{{"id", int64_t{9999}}});
+                     llvm::json::Object{{"id", int64_t{9999}}});
 
   // Server should still be functional — round-trip a foldingRange.
   int64_t id = s.sendRequest(

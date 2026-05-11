@@ -12,10 +12,10 @@
 #ifndef NSL_LSP_DIAGNOSTIC_MAPPER_H
 #define NSL_LSP_DIAGNOSTIC_MAPPER_H
 
+#include "nsl/Basic/Diagnostic.h"
+
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/JSON.h"
-
-#include "nsl/Basic/Diagnostic.h"
 
 namespace nsl {
 class SourceManager;
@@ -28,12 +28,12 @@ namespace nsl::lsp {
 /// follows §6: range, severity, code, source, message,
 /// relatedInformation (omitted when empty).
 llvm::json::Value toLspDiagnostic(const nsl::Diagnostic &d,
-                                    const nsl::SourceManager &sm);
+                                  const nsl::SourceManager &sm);
 
 /// Convert an array of `nsl::Diagnostic` and apply the contract
 /// §6 sort order (line, character, severity).
-llvm::json::Array toLspDiagnosticArray(
-    llvm::ArrayRef<nsl::Diagnostic> diags, const nsl::SourceManager &sm);
+llvm::json::Array toLspDiagnosticArray(llvm::ArrayRef<nsl::Diagnostic> diags,
+                                       const nsl::SourceManager &sm);
 
 } // namespace nsl::lsp
 

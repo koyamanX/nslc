@@ -92,9 +92,9 @@ public:
 private:
   void readerLoop();
   void stderrLoop();
-  std::optional<llvm::json::Value> popMessage(
-      std::chrono::milliseconds timeout, bool diagnostics_only,
-      const std::optional<int64_t> &response_id);
+  std::optional<llvm::json::Value>
+  popMessage(std::chrono::milliseconds timeout, bool diagnostics_only,
+             const std::optional<int64_t> &response_id);
 
   pid_t child_ = -1;
   int stdin_fd_ = -1;

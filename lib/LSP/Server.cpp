@@ -29,8 +29,8 @@ int runStdioServer(int /*argc*/, char ** /*argv*/) {
 
   unsigned workers = TUScheduler::workersFromEnv();
   IncludeSearchPath includes = IncludeSearchPath::fromEnv();
-  NSL_LSP_LOG_INFO(llvm::formatv("nsl-lsp starting; {0} worker(s)",
-                                   workers).str());
+  NSL_LSP_LOG_INFO(
+      llvm::formatv("nsl-lsp starting; {0} worker(s)", workers).str());
 
   // Configure stdin/stdout for binary-clean operation. The project
   // targets Linux x86_64 only, so std::cin/std::cout default to
@@ -43,8 +43,8 @@ int runStdioServer(int /*argc*/, char ** /*argv*/) {
     NslLSPServer server(transport, backend);
     return server.run();
   } catch (const std::exception &e) {
-    NSL_LSP_LOG_ERROR(llvm::formatv("nsl-lsp: uncaught exception: {0}",
-                                      e.what()).str());
+    NSL_LSP_LOG_ERROR(
+        llvm::formatv("nsl-lsp: uncaught exception: {0}", e.what()).str());
     return 1;
   } catch (...) {
     NSL_LSP_LOG_ERROR("nsl-lsp: uncaught non-std exception");

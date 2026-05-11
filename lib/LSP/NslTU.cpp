@@ -7,8 +7,8 @@
 // file path.
 
 #include "NslTU.h"
-#include "IncludeSearchPath.h"
 
+#include "IncludeSearchPath.h"
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
@@ -95,8 +95,7 @@ void replayLineDirectivesOntoSynth(SourceManager &sm, FileID synth_fid) {
 namespace {
 
 void runPipeline(int version, std::string contents,
-                  const IncludeSearchPath &includes,
-                  NslTU::State *out) {
+                 const IncludeSearchPath &includes, NslTU::State *out) {
   out->version = version;
   out->contents = std::move(contents);
   out->ast.reset();
@@ -109,9 +108,8 @@ void runPipeline(int version, std::string contents,
 
   // 2. Register the document buffer in the SourceManager.
   std::vector<char> bytes(out->contents.begin(), out->contents.end());
-  nsl::FileID input_fid =
-      sm->addBufferInMemory(std::string("file:///in-memory.nsl"),
-                              std::move(bytes));
+  nsl::FileID input_fid = sm->addBufferInMemory(
+      std::string("file:///in-memory.nsl"), std::move(bytes));
 
   // 3. Build preprocess::IncludeSearchPath from the LSP-side
   //    paths (NSL_INCLUDE) plus the document's parent directory
@@ -120,7 +118,8 @@ void runPipeline(int version, std::string contents,
   //    follow-up; quote-form lookups against an in-memory URI
   //    have nothing useful to resolve to in this Phase).
   preprocess::IncludeSearchPath search;
-  for (const auto &p : includes.anglePaths()) search.appendAnglePath(p);
+  for (const auto &p : includes.anglePaths())
+    search.appendAnglePath(p);
 
   std::vector<std::pair<std::string, std::string>> predefined;
 
@@ -155,7 +154,8 @@ void runPipeline(int version, std::string contents,
   }
 
   // 6. Capture every diagnostic accumulated across the pipeline.
-  for (const auto &d : diag.diagnostics()) out->diagnostics.push_back(d);
+  for (const auto &d : diag.diagnostics())
+    out->diagnostics.push_back(d);
 
   // 7. Stash the SourceManager alongside the state so the protocol
   //    layer can resolve diagnostic locations. State doesn't
@@ -169,7 +169,7 @@ void runPipeline(int version, std::string contents,
 } // namespace
 
 int NslTU::reparse(int version, std::string contents,
-                    const IncludeSearchPath &includes) {
+                   const IncludeSearchPath &includes) {
   std::lock_guard<std::mutex> guard(mtx_);
   runPipeline(version, std::move(contents), includes, &state_);
   return version;

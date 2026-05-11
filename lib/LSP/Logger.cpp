@@ -22,27 +22,45 @@ std::mutex g_write_mtx;
 
 const char *levelLabel(LogLevel lvl) {
   switch (lvl) {
-    case LogLevel::Error: return "ERROR";
-    case LogLevel::Warn:  return "WARN";
-    case LogLevel::Info:  return "INFO";
-    case LogLevel::Debug: return "DEBUG";
+  case LogLevel::Error:
+    return "ERROR";
+  case LogLevel::Warn:
+    return "WARN";
+  case LogLevel::Info:
+    return "INFO";
+  case LogLevel::Debug:
+    return "DEBUG";
   }
   return "?";
 }
 
 bool parseLevel(const char *s, LogLevel *out) {
-  if (!s || !*s) return false;
+  if (!s || !*s)
+    return false;
   std::string lower;
   lower.reserve(8);
   for (const char *p = s; *p; ++p) {
     char c = *p;
-    if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+    if (c >= 'A' && c <= 'Z')
+      c = static_cast<char>(c - 'A' + 'a');
     lower.push_back(c);
   }
-  if (lower == "error") { *out = LogLevel::Error; return true; }
-  if (lower == "warn")  { *out = LogLevel::Warn;  return true; }
-  if (lower == "info")  { *out = LogLevel::Info;  return true; }
-  if (lower == "debug") { *out = LogLevel::Debug; return true; }
+  if (lower == "error") {
+    *out = LogLevel::Error;
+    return true;
+  }
+  if (lower == "warn") {
+    *out = LogLevel::Warn;
+    return true;
+  }
+  if (lower == "info") {
+    *out = LogLevel::Info;
+    return true;
+  }
+  if (lower == "debug") {
+    *out = LogLevel::Debug;
+    return true;
+  }
   return false;
 }
 
@@ -83,7 +101,8 @@ LogLevel Logger::level() {
 }
 
 void Logger::log(LogLevel lvl, llvm::StringRef msg) {
-  if (static_cast<uint8_t>(lvl) > static_cast<uint8_t>(level())) return;
+  if (static_cast<uint8_t>(lvl) > static_cast<uint8_t>(level()))
+    return;
 
   // Escape embedded newlines per contract §7.2 (no embedded \n in
   // any record). Use a string buffer rather than emitting partial
@@ -91,9 +110,14 @@ void Logger::log(LogLevel lvl, llvm::StringRef msg) {
   std::string escaped;
   escaped.reserve(msg.size() + 16);
   for (char c : msg) {
-    if (c == '\n') { escaped.push_back('\\'); escaped.push_back('n'); }
-    else if (c == '\r') { escaped.push_back('\\'); escaped.push_back('r'); }
-    else escaped.push_back(c);
+    if (c == '\n') {
+      escaped.push_back('\\');
+      escaped.push_back('n');
+    } else if (c == '\r') {
+      escaped.push_back('\\');
+      escaped.push_back('r');
+    } else
+      escaped.push_back(c);
   }
 
   char ts[32];

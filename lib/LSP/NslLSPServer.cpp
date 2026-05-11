@@ -9,16 +9,16 @@
 // arrives at T071 (Phase 3 / US1) once `DiagnosticMapper` lands.
 
 #include "NslLSPServer.h"
+
 #include "DiagnosticMapper.h"
 #include "FoldingRangeBuilder.h"
 #include "JSONTransport.h"
 #include "Logger.h"
 #include "NslServer.h"
+#include "nsl/Driver/Version.h"
 
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/JSON.h"
-
-#include "nsl/Driver/Version.h"
 
 namespace nsl {
 namespace lsp {
@@ -39,23 +39,25 @@ llvm::json::Object buildCapabilities() {
   // Order chosen alphabetically.
   return llvm::json::Object{
       {"foldingRangeProvider", true},
-      {"textDocumentSync", llvm::json::Object{
-                                {"change", 1},
-                                {"openClose", true},
-                                {"save", false},
-                                {"willSave", false},
-                                {"willSaveWaitUntil", false},
-                            }},
+      {"textDocumentSync",
+       llvm::json::Object{
+           {"change", 1},
+           {"openClose", true},
+           {"save", false},
+           {"willSave", false},
+           {"willSaveWaitUntil", false},
+       }},
   };
 }
 
 llvm::json::Object buildInitializeResult() {
   return llvm::json::Object{
       {"capabilities", buildCapabilities()},
-      {"serverInfo", llvm::json::Object{
-                          {"name", "nsl-lsp"},
-                          {"version", NSLC_VERSION_STRING},
-                      }},
+      {"serverInfo",
+       llvm::json::Object{
+           {"name", "nsl-lsp"},
+           {"version", NSLC_VERSION_STRING},
+       }},
   };
 }
 
@@ -71,8 +73,7 @@ NslLSPServer::NslLSPServer(JSONTransport &transport, NslServer &backend)
   // diagnostics are sorted by (line, character, severity) inside
   // toLspDiagnosticArray.
   backend_.scheduler().setOnDiagnostics(
-      [this](llvm::StringRef uri, int version,
-              const NslTU::State &state) {
+      [this](llvm::StringRef uri, int version, const NslTU::State &state) {
         if (!state.source_manager) {
           publishDiagnostics(uri, version, llvm::json::Array{});
           return;
@@ -94,7 +95,7 @@ int NslLSPServer::run() {
       if (!exited_.load(std::memory_order_acquire)) {
         if (!shutdown_received_) {
           NSL_LSP_LOG_WARN("nsl-lsp: stdin EOF without prior "
-                            "shutdown; exiting with code 1");
+                           "shutdown; exiting with code 1");
           code = 1;
           break;
         }
@@ -123,9 +124,11 @@ int NslLSPServer::run() {
     to_join = std::move(workers_);
   }
   for (auto &t : to_join) {
-    if (t.joinable()) t.join();
+    if (t.joinable())
+      t.join();
   }
-  if (code != 0) return code;
+  if (code != 0)
+    return code;
   return exit_code_.load(std::memory_order_acquire);
 }
 
@@ -148,7 +151,8 @@ void NslLSPServer::dispatch(llvm::json::Value envelope) {
 
   auto *id_val = obj->get("id");
   std::optional<RequestId> id;
-  if (id_val) id = RequestId::fromJson(*id_val);
+  if (id_val)
+    id = RequestId::fromJson(*id_val);
 
   llvm::json::Value params_default(nullptr);
   llvm::json::Value &params =
@@ -162,15 +166,15 @@ void NslLSPServer::dispatch(llvm::json::Value envelope) {
   // lifecycle permits an immediate teardown after initialize —
   // clangd matches this behavior.)
   if (!initialized_ && method != "initialize" && method != "initialized" &&
-      method != "shutdown" && method != "exit" &&
-      !method.starts_with("$/")) {
+      method != "shutdown" && method != "exit" && !method.starts_with("$/")) {
     if (id) {
       sendError(*id, kServerNotInitialized,
-                 "server not initialized: send 'initialize' first");
+                "server not initialized: send 'initialize' first");
     } else {
-      NSL_LSP_LOG_DEBUG(llvm::formatv(
-          "nsl-lsp: dropping pre-initialized notification {0}",
-          method).str());
+      NSL_LSP_LOG_DEBUG(
+          llvm::formatv("nsl-lsp: dropping pre-initialized notification {0}",
+                        method)
+              .str());
     }
     return;
   }
@@ -178,8 +182,7 @@ void NslLSPServer::dispatch(llvm::json::Value envelope) {
   // After shutdown, only `exit` and `$/cancelRequest` are honored.
   if (shutdown_received_ && method != "exit" && !method.starts_with("$/")) {
     if (id) {
-      sendError(*id, kInvalidRequest,
-                 "request received after shutdown");
+      sendError(*id, kInvalidRequest, "request received after shutdown");
     }
     return;
   }
@@ -216,21 +219,23 @@ void NslLSPServer::dispatch(llvm::json::Value envelope) {
   } else if (method == "$/cancelRequest") {
     onCancelRequest(params);
   } else {
-    if (id) sendError(*id, kMethodNotFound,
-                        llvm::formatv("method not found: {0}", method).str());
+    if (id)
+      sendError(*id, kMethodNotFound,
+                llvm::formatv("method not found: {0}", method).str());
     // Notifications (no id) are silently dropped per LSP.
   }
 }
 
 void NslLSPServer::onInitialize(const RequestId &id,
-                                  const llvm::json::Value &params) {
+                                const llvm::json::Value &params) {
   // Log INFO with optional clientInfo per contract §7.4.
   if (auto *obj = params.getAsObject()) {
     if (auto *ci = obj->getObject("clientInfo")) {
       auto name = ci->getString("name").value_or("<unknown>");
       auto version = ci->getString("version").value_or("");
-      NSL_LSP_LOG_INFO(llvm::formatv("initialize received from {0} {1}",
-                                       name, version).str());
+      NSL_LSP_LOG_INFO(
+          llvm::formatv("initialize received from {0} {1}", name, version)
+              .str());
     } else {
       NSL_LSP_LOG_INFO("initialize received");
     }
@@ -305,9 +310,11 @@ void NslLSPServer::onDidChange(const llvm::json::Value &params) {
     return;
   }
   if (changes->size() != 1) {
-    NSL_LSP_LOG_ERROR(llvm::formatv(
-        "didChange: expected exactly 1 contentChange (Full sync), got {0}",
-        changes->size()).str());
+    NSL_LSP_LOG_ERROR(
+        llvm::formatv(
+            "didChange: expected exactly 1 contentChange (Full sync), got {0}",
+            changes->size())
+            .str());
     return;
   }
   auto *change = (*changes)[0].getAsObject();
@@ -317,8 +324,8 @@ void NslLSPServer::onDidChange(const llvm::json::Value &params) {
   }
   if (change->get("range") != nullptr) {
     NSL_LSP_LOG_ERROR("didChange: contentChange carries 'range' but the "
-                       "server advertised TextDocumentSyncKind.Full; "
-                       "rejecting");
+                      "server advertised TextDocumentSyncKind.Full; "
+                      "rejecting");
     return;
   }
   // Stale-version check per contract §2.2 / FR-008: ignore
@@ -326,13 +333,13 @@ void NslLSPServer::onDidChange(const llvm::json::Value &params) {
   // last-known version. The check goes through the TU mutex via
   // withState.
   int last_known = -1;
-  backend_.scheduler().withState(uri, [&](const NslTU::State &st) {
-    last_known = st.version;
-  });
+  backend_.scheduler().withState(
+      uri, [&](const NslTU::State &st) { last_known = st.version; });
   if (last_known >= 0 && version <= last_known) {
-    NSL_LSP_LOG_WARN(llvm::formatv(
-        "didChange: stale version {0} (last-known {1}); ignoring",
-        static_cast<int>(version), last_known).str());
+    NSL_LSP_LOG_WARN(
+        llvm::formatv("didChange: stale version {0} (last-known {1}); ignoring",
+                      static_cast<int>(version), last_known)
+            .str());
     return;
   }
   auto text = change->getString("text").value_or("");
@@ -341,11 +348,14 @@ void NslLSPServer::onDidChange(const llvm::json::Value &params) {
 
 void NslLSPServer::onDidClose(const llvm::json::Value &params) {
   auto *obj = params.getAsObject();
-  if (!obj) return;
+  if (!obj)
+    return;
   auto *td = obj->getObject("textDocument");
-  if (!td) return;
+  if (!td)
+    return;
   auto uri = td->getString("uri").value_or("");
-  if (uri.empty()) return;
+  if (uri.empty())
+    return;
 
   // Per contract §2.3 / FR-007: emit one final empty diagnostics
   // notification before tearing down the TU, using the URI's
@@ -358,7 +368,7 @@ void NslLSPServer::onDidClose(const llvm::json::Value &params) {
 }
 
 void NslLSPServer::onFoldingRange(const RequestId &id,
-                                    const llvm::json::Value &params) {
+                                  const llvm::json::Value &params) {
   // Extract URI.
   auto *obj = params.getAsObject();
   if (!obj) {
@@ -409,24 +419,26 @@ void NslLSPServer::onFoldingRange(const RequestId &id,
 
 void NslLSPServer::onCancelRequest(const llvm::json::Value &params) {
   auto *obj = params.getAsObject();
-  if (!obj) return;
+  if (!obj)
+    return;
   auto *id_val = obj->get("id");
-  if (!id_val) return;
+  if (!id_val)
+    return;
   auto id = RequestId::fromJson(*id_val);
-  if (!id) return;
+  if (!id)
+    return;
 
   std::lock_guard<std::mutex> guard(inflight_mtx_);
   auto it = inflight_.find(*id);
   if (it == inflight_.end()) {
     NSL_LSP_LOG_DEBUG("cancelRequest: id not in flight (already "
-                       "completed, never seen, or notification)");
+                      "completed, never seen, or notification)");
     return;
   }
   it->second.cancel();
 }
 
-void NslLSPServer::sendResponse(const RequestId &id,
-                                  llvm::json::Value result) {
+void NslLSPServer::sendResponse(const RequestId &id, llvm::json::Value result) {
   // JSON-RPC envelope key order chosen for the canonical wire
   // form (id < jsonrpc < result alphabetically).
   transport_.writeMessage(llvm::json::Object{
@@ -437,19 +449,20 @@ void NslLSPServer::sendResponse(const RequestId &id,
 }
 
 void NslLSPServer::sendError(const RequestId &id, int code,
-                                llvm::StringRef message) {
+                             llvm::StringRef message) {
   transport_.writeMessage(llvm::json::Object{
-      {"error", llvm::json::Object{
-                     {"code", code},
-                     {"message", message.str()},
-                 }},
+      {"error",
+       llvm::json::Object{
+           {"code", code},
+           {"message", message.str()},
+       }},
       {"id", id.toJson()},
       {"jsonrpc", "2.0"},
   });
 }
 
 void NslLSPServer::sendNotification(llvm::StringRef method,
-                                      llvm::json::Value params) {
+                                    llvm::json::Value params) {
   transport_.writeMessage(llvm::json::Object{
       {"jsonrpc", "2.0"},
       {"method", method.str()},
@@ -458,13 +471,13 @@ void NslLSPServer::sendNotification(llvm::StringRef method,
 }
 
 void NslLSPServer::publishDiagnostics(llvm::StringRef uri, int version,
-                                        llvm::json::Array diagnostics) {
+                                      llvm::json::Array diagnostics) {
   sendNotification("textDocument/publishDiagnostics",
-                    llvm::json::Object{
-                        {"diagnostics", std::move(diagnostics)},
-                        {"uri", uri.str()},
-                        {"version", version},
-                    });
+                   llvm::json::Object{
+                       {"diagnostics", std::move(diagnostics)},
+                       {"uri", uri.str()},
+                       {"version", version},
+                   });
 }
 
 } // namespace lsp
