@@ -52,6 +52,8 @@
 
 #include "llvm/ADT/StringRef.h"
 
+#include <algorithm>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -63,10 +65,6 @@ namespace nsl::fmt {
 FormatResult format_buffer(llvm::StringRef sourceBuffer,
                            const Configuration &config, ::nsl::FileID fileID,
                            std::optional<LineRange> range) {
-  // `range` is parsed but not yet honored at Phase 2c — Phase 5
-  // (T090/T091) wires it through to the LayoutPlanner. Touch the
-  // parameter so the compiler does not warn about it.
-  (void)range;
   (void)config;
 
   FormatResult result;
@@ -153,9 +151,27 @@ FormatResult format_buffer(llvm::StringRef sourceBuffer,
       return result;
     }
 
+    // Compute the absolute file line where this NSL fragment starts.
+    // The slice's `range.begin().offset()` is a byte offset into the
+    // ORIGINAL `sourceBuffer`; count newlines before it (1-indexed).
+    int fragmentStartLine = 1;
+    {
+      std::uint32_t sliceBeginOff = s.range.begin().offset();
+      std::uint32_t scanLimit =
+          std::min<std::uint32_t>(sliceBeginOff,
+                                  static_cast<std::uint32_t>(sourceBuffer.size()));
+      for (std::uint32_t i = 0; i < scanLimit; ++i) {
+        if (sourceBuffer[i] == '\n') {
+          ++fragmentStartLine;
+        }
+      }
+    }
+
     // Build Doc + render. At Phase 3-skeleton this is byte-identical
-    // to s.rawText (verbatim fallback for every AST node kind).
-    LayoutPlanner planner(s.rawText, config);
+    // to s.rawText (verbatim fallback for every AST node kind);
+    // canonical-layout overrides fire only on nodes whose line span
+    // intersects `range` (T091).
+    LayoutPlanner planner(s.rawText, config, range, fragmentStartLine);
     DocPtr doc = planner.build(*cu);
     out.append(renderer.render(doc, config.max_line_length, indent_spaces));
   }

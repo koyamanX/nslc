@@ -7,30 +7,29 @@
 // any canonical-rule rewrite confined to the in-range lines would
 // observe the same invariant.
 //
-// Input has R5-dirty formatting on BOTH line 7 (in-range) and
-// line 8 (out-of-range). The expected post-format output applies
-// R5 only to line 7 (`c+d` → `c + d`) and leaves line 8 byte-
-// identical (`e+f` preserved).
+// Input has R5-dirty formatting on BOTH the in-range and the out-
+// of-range transfer statements. The expected post-format output
+// applies R5 (operator spacing) only to the in-range line; the
+// other transfer is emitted byte-identical (no `+` spacing
+// applied), demonstrating that out-of-range bytes are preserved.
 //
-// AUTHORED RED — XFAIL until T090 (CLI `--range` parsing) and
-// T091 (LayoutPlanner LineRange honoring) are implemented. Today
-// the flag is recognised but its value is a no-op (`tools/nsl-
-// fmt/main.cpp` lines 260–263), so the LayoutPlanner reformats
-// the WHOLE file — line 8 becomes `e + f`, which fails CHECK-NOT.
-
-// XFAIL: *
+// T090 (CLI `--range` parsing + bounds check) and T091
+// (LayoutPlanner LineRange honoring) both landed; this fixture
+// is expected to pass without XFAIL.
 
 // RUN: printf '// line 1\n\
 // RUN: declare m {\n\
 // RUN:     input a[8];\n\
 // RUN:     input b[8];\n\
+// RUN:     output y[8];\n\
+// RUN:     output z[8];\n\
 // RUN: }\n\
 // RUN: module m {\n\
-// RUN:     wire y = c+d;\n\
-// RUN:     wire z = e+f;\n\
+// RUN:     y = a+b;\n\
+// RUN:     z = a+b;\n\
 // RUN: }\n' > %t.nsl
-// RUN: nsl-fmt --range 7:7 %t.nsl | FileCheck %s
+// RUN: nsl-fmt --range 9:9 %t.nsl | FileCheck %s
 
-// CHECK:     wire y = c + d;
-// CHECK-NOT: wire z = e + f;
-// CHECK:     wire z = e+f;
+// CHECK:     y = a + b;
+// CHECK-NOT: z = a + b;
+// CHECK:     z = a+b;

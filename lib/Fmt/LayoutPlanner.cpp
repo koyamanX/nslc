@@ -81,6 +81,51 @@
 
 namespace nsl::fmt {
 
+void LayoutPlanner::buildLineTable() noexcept {
+  lineStartOffsets_.clear();
+  lineStartOffsets_.push_back(0); // line 1 starts at offset 0
+  for (std::uint32_t i = 0; i < src_.size(); ++i) {
+    if (src_[i] == '\n') {
+      lineStartOffsets_.push_back(i + 1);
+    }
+  }
+}
+
+int LayoutPlanner::lineForOffset(std::uint32_t offset) const noexcept {
+  // Binary search the line-start table; line N (1-indexed) covers
+  // [lineStartOffsets_[N-1], lineStartOffsets_[N]).
+  auto it = std::upper_bound(lineStartOffsets_.begin(),
+                             lineStartOffsets_.end(), offset);
+  int fragmentLine = static_cast<int>(it - lineStartOffsets_.begin());
+  if (fragmentLine < 1) {
+    fragmentLine = 1;
+  }
+  return fragmentStartLine_ + fragmentLine - 1;
+}
+
+bool LayoutPlanner::nodeIntersectsRange(
+    const ::nsl::ast::ASTNode &node) const noexcept {
+  if (!range_.has_value()) {
+    return true;
+  }
+  ::nsl::SourceRange r = node.loc();
+  if (!r.begin().isValid() || !r.end().isValid()) {
+    // Defensive: a node with no source location can't be range-
+    // filtered, so let canonical layout run (preserves behavior for
+    // any future synthetic nodes).
+    return true;
+  }
+  std::uint32_t begin_off = r.begin().offset();
+  std::uint32_t end_off = r.end().offset();
+  // The end-offset is one-past-the-last byte (half-open). Subtract 1
+  // so an end on a newline boundary doesn't bleed into the next
+  // line — but guard against begin == end.
+  std::uint32_t last_byte = end_off > begin_off ? end_off - 1 : begin_off;
+  int beginLine = lineForOffset(begin_off);
+  int endLine = lineForOffset(last_byte);
+  return beginLine <= range_->lastLine && endLine >= range_->firstLine;
+}
+
 DocPtr LayoutPlanner::build(const ::nsl::ast::CompilationUnit &cu) {
   result_ = nullptr;
   cu.accept(*this); // dispatches to visit(CompilationUnit)
@@ -158,9 +203,21 @@ DocPtr LayoutPlanner::interleaveChildren(
 // so a missing override is a link-time error per Principle I) while
 // letting Phase 3-rules tasks add canonical layouts via plain
 // function overloads — no per-NodeKind macro skip-list needed.
+// T091 — `--range LINE:LINE` honoring. When the range is set and the
+// node's source-line span falls entirely outside it, short-circuit
+// canonical layout to a verbatim emission so out-of-range bytes are
+// preserved character-for-character (FR-007). Parent nodes that
+// straddle the range still go through `formatNode(...)` so canonical
+// layout recurses into in-range descendants; verbatim emission for
+// out-of-range *children* is handled by re-entry into this same
+// dispatch on the next `visit()` call.
 #define NSL_NODE_KIND(EnumName, BaseClass)                                     \
   void LayoutPlanner::visit(const ::nsl::ast::EnumName &node) {                \
-    result_ = formatNode(node);                                                \
+    if (!nodeIntersectsRange(node)) {                                          \
+      result_ = verbatimFromRange(node.loc());                                 \
+    } else {                                                                   \
+      result_ = formatNode(node);                                              \
+    }                                                                          \
   }
 #include "nsl/AST/NodeKind.def"
 #undef NSL_NODE_KIND

@@ -56,6 +56,9 @@
 #include "llvm/ADT/StringRef.h"
 
 #include <cstdint>
+#include <optional>
+#include <utility>
+#include <vector>
 
 namespace nsl::fmt {
 
@@ -70,8 +73,13 @@ namespace nsl::fmt {
 ///     decisions; ignored at Phase 3-skeleton).
 class LayoutPlanner : public ::nsl::ast::ASTVisitor {
 public:
-  LayoutPlanner(llvm::StringRef src, const Configuration &cfg) noexcept
-      : src_(src), cfg_(cfg) {}
+  LayoutPlanner(llvm::StringRef src, const Configuration &cfg,
+                std::optional<LineRange> range = std::nullopt,
+                int fragmentStartLine = 1) noexcept
+      : src_(src), cfg_(cfg), range_(range),
+        fragmentStartLine_(fragmentStartLine) {
+    buildLineTable();
+  }
 
   /// Walk `cu` and produce its Doc representation.
   DocPtr build(const ::nsl::ast::CompilationUnit &cu);
@@ -225,10 +233,39 @@ protected:
   [[nodiscard]] llvm::StringRef sourceBuffer() const noexcept { return src_; }
   [[nodiscard]] const Configuration &config() const noexcept { return cfg_; }
 
+  /// Active `--range` selector (T091 — Phase 5 US3). When non-empty,
+  /// the dispatch macro short-circuits any AST node whose line span
+  /// does not intersect the range to a verbatim emission so out-of-
+  /// range bytes are preserved character-for-character (FR-007).
+  /// `fragmentStartLine` is the 1-indexed line number where `src_`
+  /// begins inside the original whole-file buffer (so byte offsets
+  /// inside `src_` map onto absolute file lines).
+  [[nodiscard]] const std::optional<LineRange> &range() const noexcept {
+    return range_;
+  }
+
+  /// True iff `node`'s line span (absolute file lines) overlaps
+  /// `range_`. Returns true when `range_` is empty (no range filter —
+  /// every node participates in canonical layout).
+  [[nodiscard]] bool
+  nodeIntersectsRange(const ::nsl::ast::ASTNode &node) const noexcept;
+
 private:
   llvm::StringRef src_;
   const Configuration &cfg_;
+  std::optional<LineRange> range_;
+  int fragmentStartLine_;
+  std::vector<std::uint32_t> lineStartOffsets_; // 0-indexed; size = lineCount
   DocPtr result_;
+
+  /// Populate `lineStartOffsets_` from `src_` so `lineForOffset` is
+  /// O(log n) per query. Called once from the constructor.
+  void buildLineTable() noexcept;
+
+  /// Compute the absolute file line number (1-indexed) for a byte
+  /// offset into `src_`. Out-of-range offsets clamp to the last line.
+  [[nodiscard]] int
+  lineForOffset(std::uint32_t offset) const noexcept;
 };
 
 } // namespace nsl::fmt
