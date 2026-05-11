@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T109 — audited-corpus idempotence sweep for SDRAM_Controler
+// (per SC-002 + FR-021 + `research.md` §6). Asserts every `*.nsl`
+// file under `test/audited/SDRAM_Controler/` reaches a fixed
+// point under `nsl-fmt | nsl-fmt`.
+//
+// The project's upstream spelling is `SDRAM_Controler` (single
+// `l`, sic) — preserved verbatim per the P-VEN vendoring rule
+// that the audited tree mirrors the source repository.
+//
+// Activates automatically when M7's P-VEN vendoring lands
+// `test/audited/SDRAM_Controler/`; today the require-feature
+// line skips this fixture via `test/lit.cfg.py`'s
+// `audited-SDRAM_Controler` feature probe.
+
+// REQUIRES: audited-SDRAM_Controler
+
+// RUN: for f in %S/../../../audited/SDRAM_Controler/*.nsl; do \
+// RUN:   nsl-fmt --stdin < $f > %t.once && \
+// RUN:   nsl-fmt --stdin < %t.once > %t.twice && \
+// RUN:   cmp %t.once %t.twice; \
+// RUN: done

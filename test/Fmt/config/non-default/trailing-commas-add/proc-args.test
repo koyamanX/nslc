@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T122 (a/b) — non-default config: `trailing_commas = "add"`
+// appends a comma after the LAST arg in a multi-line `proc_name`
+// argument list (per `formatting-rules.contract.md` §3 trailing-
+// comma policy + §9 rule↔key matrix row R3 ↔ `trailing_commas`).
+//
+// Default config is `trailing_commas = "preserve"` (no transform
+// to the post-format trailing comma state); this fixture flips
+// the knob and verifies the output adds a trailing comma.
+//
+// AUTHORED RED — XFAIL until T054 implements R3 (`proc_name`
+// argument-list wrapping) AND the trailing-comma policy is wired
+// in `formatNode(ProcNameDecl)`. Today the verbatim fallback
+// leaves the source byte-for-byte (no comma added).
+
+// XFAIL: *
+
+// RUN: rm -rf %t.tc && mkdir -p %t.tc
+// RUN: printf 'trailing_commas = "add"\n' > %t.tc/.nsl-fmt.toml
+// RUN: printf 'module m { proc_name exec(pc[32], inst[32], src1[32], src2[32]); }\n' > %t.tc/m.nsl
+// RUN: cd %t.tc && nsl-fmt m.nsl | FileCheck %s
+
+// CHECK:     pc   [32],
+// CHECK-NEXT:     inst [32],
+// CHECK-NEXT:     src1 [32],
+// CHECK-NEXT:     src2 [32],
+// CHECK-NEXT: );

@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T109 — audited-corpus idempotence sweep for ahb_lite_nsl (per
+// SC-002 + FR-021 + `research.md` §6). Asserts every `*.nsl`
+// file under `test/audited/ahb_lite_nsl/` reaches a fixed point
+// under `nsl-fmt | nsl-fmt`.
+//
+// Activates automatically when M7's P-VEN vendoring lands
+// `test/audited/ahb_lite_nsl/`; today the require-feature line skips
+// this fixture via `test/lit.cfg.py`'s `audited-ahb_lite_nsl`
+// feature probe.
+
+// REQUIRES: audited-ahb_lite_nsl
+
+// RUN: for f in %S/../../../audited/ahb_lite_nsl/*.nsl; do \
+// RUN:   nsl-fmt --stdin < $f > %t.once && \
+// RUN:   nsl-fmt --stdin < %t.once > %t.twice && \
+// RUN:   cmp %t.once %t.twice; \
+// RUN: done
