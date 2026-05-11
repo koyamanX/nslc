@@ -8,9 +8,10 @@
 
 #include "llvm/Support/JSON.h"
 
+#include <gtest/gtest.h>
+
 #include <chrono>
 #include <fstream>
-#include <gtest/gtest.h>
 #include <sstream>
 #include <string>
 
@@ -62,9 +63,13 @@ llvm::json::Value foldingRange(LspSession &s, llvm::StringRef uri) {
 
 const llvm::json::Array *getResultArray(const llvm::json::Value &resp) {
   auto *obj = resp.getAsObject();
-  if (!obj) return nullptr;
+  if (!obj) {
+    return nullptr;
+  }
   auto *r = obj->get("result");
-  if (!r) return nullptr;
+  if (!r) {
+    return nullptr;
+  }
   return r->getAsArray();
 }
 

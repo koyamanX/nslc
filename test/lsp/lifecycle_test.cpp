@@ -25,8 +25,9 @@
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include <chrono>
 #include <gtest/gtest.h>
+
+#include <chrono>
 #include <regex>
 #include <string>
 

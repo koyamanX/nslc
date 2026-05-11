@@ -13,10 +13,11 @@
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <gtest/gtest.h>
+
 #include <algorithm>
 #include <chrono>
 #include <fstream>
-#include <gtest/gtest.h>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -59,9 +60,13 @@ void didOpen(LspSession &s, llvm::StringRef uri, int version,
 
 const llvm::json::Array *getDiagnosticsArray(const llvm::json::Value &env) {
   auto *obj = env.getAsObject();
-  if (!obj) return nullptr;
+  if (!obj) {
+    return nullptr;
+  }
   auto *params = obj->getObject("params");
-  if (!params) return nullptr;
+  if (!params) {
+    return nullptr;
+  }
   return params->getArray("diagnostics");
 }
 
@@ -245,7 +250,9 @@ TEST(DiagnosticsSuite, Determinism_TwoRunsByteIdentical) {
     EXPECT_TRUE(diag.has_value());
     std::string out;
     llvm::raw_string_ostream os(out);
-    if (diag.has_value()) os << *diag;
+    if (diag.has_value()) {
+      os << *diag;
+    }
     s.doShutdownExit();
     return out;
   };
@@ -556,7 +563,9 @@ TEST(DiagnosticsSuite, IncludeFromNotes) {
     auto uri = loc->getString("uri").value_or("");
     EXPECT_FALSE(uri.empty()) << "entry uri must be non-empty";
     auto msg = eo->getString("message").value_or("");
-    if (msg.contains("included from")) found_included_from = true;
+    if (msg.contains("included from")) {
+      found_included_from = true;
+    }
   }
   EXPECT_TRUE(found_included_from)
       << "at least one entry must carry the LSP-spec "
@@ -668,7 +677,9 @@ TEST(DiagnosticsSuite, UTF8Comment) {
   for (const auto &d : *arr) {
     auto *o = d.getAsObject();
     auto code = o->getString("code").value_or("");
-    if (code != "S01") continue;
+    if (code != "S01") {
+      continue;
+    }
     auto *start =
         o->getObject("range")->getObject("start");
     auto col = start->getInteger("character").value_or(-1);
@@ -754,7 +765,9 @@ TEST(DiagnosticsSuite, RapidEdits_LatestVersionPublished) {
       // No publish in 500 ms; if we already have version=6, done.
       if (final_pub.kind() != llvm::json::Value::Null) {
         auto *p = final_pub.getAsObject()->getObject("params");
-        if (p && p->getInteger("version").value_or(-1) == 6) break;
+        if (p && p->getInteger("version").value_or(-1) == 6) {
+          break;
+        }
       }
       continue;
     }
