@@ -170,11 +170,21 @@ DiagnosticEngine::report(Severity sev, SourceLocation loc, std::string msg) {
   Builder b(this, idx);
   // T068 (US3 / FR-026): auto-attach `note: included from <ancestor>`
   // entries whenever the diagnostic's file has a non-empty include
-  // stack on the SourceManager. Notes are only attached on the
-  // PRIMARY diagnostic (sev != Note), so chained notes don't recurse.
-  if (sev != Severity::Note && loc.isValid() &&
-      !impl_->sm.getIncludeStackFor(loc.file()).empty()) {
-    b.addIncludedFromNotes();
+  // ancestry on the SourceManager. Uses the *permanent* include-site
+  // map so post-preprocessing diagnostics (Sema, MLIR, LSP) still
+  // observe the chain after the dynamic include stack has been
+  // popped. The lookup goes via `resolveVirtual` so a diagnostic
+  // emitted with a SYNTHETIC preprocessed-buffer FileID is bridged
+  // to the original physical file (whose path is preserved by the
+  // `#line` machinery). Notes are only attached on the PRIMARY
+  // diagnostic (sev != Note), so chained notes don't recurse.
+  if (sev != Severity::Note && loc.isValid()) {
+    auto vpath = impl_->sm.resolveVirtual(loc).path;
+    FileID phys = impl_->sm.findFileIDByPath(vpath);
+    if (phys.isValid() &&
+        !impl_->sm.getOriginalIncludeStackFor(phys).empty()) {
+      b.addIncludedFromNotes();
+    }
   }
   return b;
 }
@@ -275,8 +285,16 @@ DiagnosticEngine::Builder &DiagnosticEngine::Builder::addIncludedFromNotes() {
   if (!parent_loc.isValid()) {
     return *this;
   }
+  // Bridge synthetic preprocessed-buffer FileIDs back to physical
+  // FileIDs via the `#line`-preserved virtual path. Mirrors the
+  // resolution done in `report()`'s auto-attach trigger.
+  auto vpath = sm.resolveVirtual(parent_loc).path;
+  FileID const phys = sm.findFileIDByPath(vpath);
+  if (!phys.isValid()) {
+    return *this;
+  }
   std::vector<SourceLocation> const stack =
-      sm.getIncludeStackFor(parent_loc.file());
+      sm.getOriginalIncludeStackFor(phys);
   for (const SourceLocation &include_site : stack) {
     Diagnostic note;
     note.severity = Severity::Note;

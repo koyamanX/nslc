@@ -34,6 +34,66 @@ NslTU::~NslTU() = default;
 
 namespace {
 
+/// Scan the synthetic preprocessed buffer for `#line N "path"` lines
+/// and register each on `synth_fid` via `SourceManager::addLineDirective`.
+/// Mirrors `lib/Driver/EmitAST.cpp::replayLineDirectives` — without
+/// it, `resolveVirtual` falls back to the synth-buffer's own path and
+/// physical line number, breaking diagnostic localization (Principle
+/// IV) and the FR-026 include-from-notes auto-attach for any
+/// diagnostic in `#include`'d content.
+void replayLineDirectivesOntoSynth(SourceManager &sm, FileID synth_fid) {
+  llvm::StringRef const syn = sm.getBuffer(synth_fid);
+  std::size_t off = 0;
+  while (off < syn.size()) {
+    std::size_t const line_begin = off;
+    while (off < syn.size() && syn[off] != '\n') {
+      ++off;
+    }
+    std::size_t const line_end_excl = off;
+    if (off < syn.size()) {
+      ++off; // consume newline
+    }
+    llvm::StringRef const line =
+        syn.substr(line_begin, line_end_excl - line_begin);
+    if (!line.starts_with("#line ")) {
+      continue;
+    }
+    std::size_t i = 6;
+    while (i < line.size() && (line[i] == ' ' || line[i] == '\t')) {
+      ++i;
+    }
+    if (i >= line.size() || line[i] < '0' || line[i] > '9') {
+      continue;
+    }
+    long long ln = 0;
+    while (i < line.size() && line[i] >= '0' && line[i] <= '9') {
+      ln = ln * 10 + (line[i] - '0');
+      ++i;
+    }
+    while (i < line.size() && (line[i] == ' ' || line[i] == '\t')) {
+      ++i;
+    }
+    std::string vpath;
+    if (i < line.size() && line[i] == '"') {
+      ++i;
+      std::size_t const fb = i;
+      while (i < line.size() && line[i] != '"') {
+        ++i;
+      }
+      if (i < line.size()) {
+        vpath = line.substr(fb, i - fb).str();
+      }
+    }
+    auto at_off = static_cast<uint32_t>(off);
+    sm.addLineDirective(SourceLocation::make(synth_fid, at_off),
+                        static_cast<uint32_t>(ln), llvm::StringRef(vpath));
+  }
+}
+
+} // namespace
+
+namespace {
+
 void runPipeline(int version, std::string contents,
                   const IncludeSearchPath &includes,
                   NslTU::State *out) {
@@ -72,6 +132,12 @@ void runPipeline(int version, std::string contents,
     std::vector<char> synth_bytes(pp_out->begin(), pp_out->end());
     nsl::FileID synth_fid = sm->addBufferInMemory(
         std::string("file:///in-memory.nsl-pp"), std::move(synth_bytes));
+
+    // Replay `#line` directives from the synthetic buffer so
+    // `resolveVirtual` resolves locations back to original file
+    // coordinates — required for Principle IV diagnostic
+    // localization and FR-026 include-from-notes auto-attach.
+    replayLineDirectivesOntoSynth(*sm, synth_fid);
 
     Lexer lexer(*sm, synth_fid, diag);
     auto cu = parse::parseCompilationUnit(lexer, diag);
