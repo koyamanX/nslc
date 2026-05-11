@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/fsm/proc_call_to_proc.nsl — M6 Phase 5 (US3)
+// fixture (T050). A `target();` call inside a `state` body whose
+// `target` is a sibling `proc_name` lowers to `fsm::TransitionOp`
+// targeting the called proc's initial state per
+// `circt-lowering.contract.md` §1 (proc-target row).
+//
+// Lowering shape:
+//   nsl.module @M {
+//     nsl.proc @p {
+//       nsl.first_state @s0
+//       nsl.state @s0 { nsl.call @q() : () -> () }
+//     }
+//     nsl.proc @q {
+//       nsl.first_state @s0
+//       nsl.state @s0 { }
+//     }
+//   }
+//   →
+//   fsm.machine @p { fsm.state @s0 transitions { fsm.transition @q_initial_state } }
+//   fsm.machine @q { ... }
+//
+// Phase 5 simplification: the disambiguation between proc-target
+// (FSM transition) and func_in-target (Phase 6 inline) is by
+// symbol-table lookup — if the callee resolves to a sibling
+// `nsl.proc` in the parent `nsl.module`, this Phase 5 pattern
+// fires. If it resolves to a `nsl.func_in`, the pattern declines
+// (returns failure) and Phase 6's pattern picks it up.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+}
+
+module M {
+  proc_name p;
+  proc_name q;
+  proc p {
+    state_name s0;
+    first_state s0;
+    state s0 {
+      q();
+    }
+  }
+  proc q {
+    state_name s0;
+    first_state s0;
+    state s0 {
+    }
+  }
+}
+
+// CHECK: fsm.machine @p
+// CHECK: fsm.transition @q_initial_state
+// CHECK: fsm.machine @q
+// CHECK-NOT: nsl.call
+// CHECK-NOT: nsl.proc

@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/arith/mux_op.nsl — M6 Phase 6 fixture (T079).
+// `nsl.mux` (3-input expression form) → `comb.mux`.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  input b[8];
+  input c[1];
+  output q[8];
+}
+
+module M {
+  q = if(c) a else b;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK: comb.mux %c, %a, %b : i8
+// CHECK-NOT: nsl.

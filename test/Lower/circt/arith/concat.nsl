@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/arith/concat.nsl — M6 Phase 6 fixture (T077).
+// `nsl.concat` (variadic) → `comb.concat`.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[4];
+  input b[4];
+  output q[8];
+}
+
+module M {
+  q = {a, b};
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK: comb.concat %a, %b : i4, i4
+// CHECK-NOT: nsl.

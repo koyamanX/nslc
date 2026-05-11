@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/decl/declareblock_data_emit_mlir.nsl — M4-amendment-9
+// follow-on (M5 visitor): `declare` block with data terminals lowers
+// to `nsl.declare` + child `nsl.input_port` / `nsl.output_port` ops.
+// Pre-amendment-9 these AST nodes were silently dropped (visitor bug —
+// `STUB(DeclareBlock)` at lib/Lower/ASTToMLIR.cpp:1921). Post-amendment
+// FR-006 grows a row "DeclareBlock → nsl.declare + child port-info ops"
+// (see specs/008-m5-structural-passes/data-model.md update).
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  output q[8];
+}
+
+// CHECK: nsl.declare @M
+// CHECK: nsl.input_port "a" : !nsl.bits<8>
+// CHECK: nsl.output_port "q" : !nsl.bits<8>

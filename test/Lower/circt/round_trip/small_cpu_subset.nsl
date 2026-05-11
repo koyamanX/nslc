@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/round_trip/small_cpu_subset.nsl — M6 Phase 7
+// (US5) round-trip fixture (T127). The minimal cpu-style shape:
+// `reg` + `wire` + `mem` + clocked-transfer + module-level `proc` /
+// `state`. Exercises the Phase-5 FSM lowering (proc/state →
+// `fsm.machine`) AND the Phase-6 leaf-op lowerings (combinational
+// arith on a wire RHS, async-active-low-reset firreg, firmem)
+// concurrently — the smallest viable end-to-end shape that covers
+// the audited-corpus's `cpu16` / `mips32_single_cycle` skeleton.
+//
+// Round-trip pipeline: `nslc -emit=hw | circt-opt --convert-fsm-to-sv
+// --lower-seq-to-sv`. The output MUST verify cleanly with NO
+// `unrealized_conversion_cast` ops surviving (per spec FR-022 +
+// US5 acceptance scenario).
+//
+// **The CIRCT pass actually used is `--convert-fsm-to-sv`**, not
+// the spec.md narrative's `--convert-fsm-to-seq` (the upstream FSM
+// → Seq pass is not present in the dev-container's CIRCT build at
+// HEAD; FSM lands in SV directly via the available pass). The
+// behavioural-equivalence guarantee is identical: every `fsm.machine`
+// becomes a `hw.module` whose body is `seq`/`sv` — i.e., still
+// stock-CIRCT below the `nsl` boundary (Principle III firewall).
+
+// RUN: %nslc -emit=hw %s > %t.hw
+// RUN: %FileCheck %s --input-file=%t.hw
+// RUN: circt-opt --convert-fsm-to-sv --lower-seq-to-sv %t.hw -o %t.rt.mlir
+// RUN: %FileCheck %s --input-file=%t.rt.mlir --check-prefix=ROUNDTRIP
+// RUN: not grep "unrealized_conversion_cast" %t.rt.mlir
+
+declare M {
+  input a[8];
+  input b[8];
+  output q[8];
+}
+
+module M {
+  reg r[8] = 0;
+  wire sum[8];
+
+  sum = a + b;
+  r := sum;
+  q = r;
+
+  proc_name p;
+  proc p {
+    state_name s0;
+    first_state s0;
+    state s0 {
+    }
+  }
+}
+
+// Pre-round-trip shape (Phase-6 emit-hw output).
+// CHECK-LABEL: hw.module @M
+// CHECK: comb.add %a, %b
+// CHECK: hw.wire
+// CHECK: seq.firreg
+// CHECK: hw.output
+// CHECK-LABEL: fsm.machine @p
+// CHECK-NOT: nsl.
+
+// Post-round-trip shape (after convert-fsm-to-sv + lower-seq-to-sv).
+// `fsm.machine @p` becomes a sibling `hw.module @p` (FSM lowered to
+// seq + sv); the original `hw.module @M` survives with its `seq.firreg`
+// expanded to the canonical `sv.alwaysff` + randomization scaffold.
+// ROUNDTRIP-DAG: hw.module @M
+// ROUNDTRIP-DAG: hw.module @p
+// ROUNDTRIP-NOT: fsm.
+// ROUNDTRIP-NOT: nsl.

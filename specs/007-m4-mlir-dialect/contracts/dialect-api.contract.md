@@ -38,6 +38,10 @@ header carve-out for `nsl-ast` and `nsl-sema`).
 | `nsl::dialect::StructOp` | class | (TableGen) |
 | `nsl::dialect::SubmoduleOp` | class | (TableGen) |
 | `nsl::dialect::ConnectOp` | class | (TableGen) |
+| `nsl::dialect::DeclareOp` | class | (TableGen, post-merge amendment 2026-05-05 #9; field-level amendment 2026-05-05 #10 adds `interface_clock` / `interface_reset` `OptionalAttr<StrAttr>`) |
+| `nsl::dialect::InputPortOp` | class | (TableGen, post-merge amendment 2026-05-05 #9) |
+| `nsl::dialect::OutputPortOp` | class | (TableGen, post-merge amendment 2026-05-05 #9) |
+| `nsl::dialect::InoutPortOp` | class | (TableGen, post-merge amendment 2026-05-05 #9) |
 | `nsl::dialect::RegOp` | class | (TableGen) |
 | `nsl::dialect::WireOp` | class | (TableGen) |
 | `nsl::dialect::VariableOp` | class | (TableGen) |
@@ -113,8 +117,8 @@ header carve-out for `nsl-ast` and `nsl-sema`).
 | `nsl::dialect::MemType` | class | TableGen `def NSL_MemType` |
 | `nsl::dialect::registerNSLDialect` | function | hand-written |
 
-That's 72 op classes + 2 auto-generated terminators + 3 type
-classes + the dialect class + the registration function = **79
+That's 76 op classes + 2 auto-generated terminators + 3 type
+classes + the dialect class + the registration function = **83
 public types/functions** (post-Q6: `nsl.field_decl` added; post-merge
 amendment 2026-05-01: `nsl.constant` added; post-merge amendment
 2026-05-02 (Phase A): the 28-op expression surface added; post-merge
@@ -124,7 +128,15 @@ type-constraint relaxations only — see notes below);
 post-merge amendment 2026-04-30 (#6): no new ops (single trait
 relaxation on `nsl.seq` — see notes below);
 post-merge amendment 2026-04-30 (#7): no new ops (single trait
-relaxation on `nsl.sim_finish` — see notes below).
+relaxation on `nsl.sim_finish` — see notes below);
+post-merge amendment 2026-05-05 (#9): `nsl.declare` +
+`nsl.input_port` + `nsl.output_port` + `nsl.inout_port` added (4
+new ops — closes the M5 visitor `STUB(DeclareBlock)` gap and the
+M6 Principle VII coupling violation);
+post-merge amendment 2026-05-05 (#10): no new ops (two
+`OptionalAttr<StrAttr>` field additions on `nsl.declare` —
+`interface_clock` + `interface_reset` — surface the S20
+`interface(...)` modifier; closes T033 XFAIL).
 
 > **Post-merge amendment 2026-05-01 (#1).** `nsl.constant` (a Pure +
 > ConstantLike value-producer of `!nsl.bits<N>`) was added after M4
@@ -430,6 +442,167 @@ relaxation on `nsl.sim_finish` — see notes below).
 > M5-side reasoning (2 example-suite fixtures unblocked, closing
 > the entire 20-example corpus to zero FAILs).
 
+> **Post-merge amendment 2026-05-05 (#9).** Four new op records:
+> `nsl.declare`, `nsl.input_port`, `nsl.output_port`, `nsl.inout_port`.
+> Surfaced during /speckit-plan for M6 (`010-m6-circt-lowering`):
+> the M6 contracts (`circt-lowering.contract.md` §1 + §3, `tasks.md`
+> T038) reference `nsl::DeclareOp` as the source of port-list
+> derivation for `hw::HWModuleOp`, but no such op existed in the
+> M4 freeze surface (post-merge surface 79). Simultaneously, the
+> M5 visitor `STUB(DeclareBlock)` at
+> `lib/Lower/ASTToMLIR.cpp:1921` silently dropped every NSL
+> `declare M { ... }` block — control terminals reachable inside
+> `module` bodies (handled by `visit(PortDecl)` at lines
+> 1455–1490) were never emitted because `node.ports()` was never
+> walked, and data terminals had no dialect target at all
+> (`nsl.func_in`/`func_out`/`func_self` carry only StrAttr name +
+> `Variadic<NSL_BitsOrStruct>` args, no port-direction surface).
+>
+> This amendment closes both gaps in one coordinated change:
+>
+> 1. **`nsl.declare @M { ... }`** — `NoTerminator + SingleBlock`,
+>    parent = `mlir::ModuleOp`. Carries a `SymbolNameAttr:$pair_name`
+>    (NOT `sym_name` — using the magic name would collide with the
+>    sibling `nsl.module @M`'s `Symbol`-trait registration in the
+>    parent `mlir::ModuleOp`'s SymbolTable per
+>    `mlir/IR/SymbolTable.h`'s "any op carrying a `sym_name`
+>    StringAttr is uniqueness-checked, regardless of `Symbol`-trait
+>    inheritance" rule). Body region holds the data-port surface
+>    (verifier rejects non-port children). M6's port-list
+>    derivation walks the parent `mlir::ModuleOp`'s children,
+>    matches by literal name string, and consumes the declare's
+>    body for the `hw::HWModuleOp` port list.
+>
+> 2. **`nsl.input_port "name" : !nsl.bits<W>`** /
+>    **`nsl.output_port "name" : !nsl.bits<W>`** /
+>    **`nsl.inout_port "name" : !nsl.bits<W>`** —
+>    `ParentOneOf<["DeclareOp", "ModuleOp"]>` (dual-placement rule;
+>    see below). Each carries `StrAttr:$name` and yields a
+>    `NSL_AnyBits:$result` whose type IS the port's `!nsl.bits<W>`
+>    width (matches `nsl.wire`'s shape — no redundant `portType`
+>    attribute). Empty `name` is admissible (anonymous-port shape).
+>
+> **Dual-placement design rationale** (the user-authorised follow-on
+> to amendment #9, surfaced during M5 visitor implementation):
+> SSA-dominance forces port-info ops to materialise both inside
+> `nsl.declare`'s body AND inside `nsl.module`'s body. The
+> declare-body version is port-list metadata for M6's `hw::HWModuleOp`
+> port-list derivation (option 1 above) — its result Value is
+> informational only. The module-body version is the SSA-Value-
+> bearing port reference (option 2) used by `nsl.transfer`'s
+> `%dst`/`%src` operands; without it, transfers like `r := a` (where
+> `a` is a port) cannot resolve because MLIR regions are isolated
+> and a sibling-of-module declare's body Values can't be referenced
+> inside a nested `nsl.module > nsl.func > nsl.transfer`. M6's
+> ModuleOp pattern walks the declare for the port-list shape and
+> rewrites the in-module port-info ops as block-arg substitutions /
+> output wiring of the resulting `hw::HWModuleOp`.
+>
+> The user authorised four-way decision option (B) — "amend M4 to
+> add the missing primitives" — over (A) emit CIRCT-side helpers
+> directly from M5 (violates Principle III), (C) defer the
+> structural gap to M6 (semantically opaque IR; breaks the M5→M6
+> cut), (D) downgrade to a stub (postpones the cut and breaks
+> Principle VIII test sequencing). This grows the freeze surface
+> from 79 → 83 (4 new ops). Round-trip + invalid fixtures live
+> under `test/Dialect/declare/` (1 round-trip + 4 invalid:
+> `declare_roundtrip.mlir`, `declare_invalid_no_symname.mlir`,
+> `input_port_invalid_wrong_parent.mlir`,
+> `output_port_invalid_wrong_parent.mlir`,
+> `inout_port_invalid_wrong_parent.mlir`). M5 visitor fixtures
+> live under `test/Lower/decl/` (3 new: `declareblock_data_emit_mlir.nsl`,
+> `declareblock_mixed_emit_mlir.nsl`,
+> `declareblock_transfers_emit_mlir.nsl`). M3-corpus goldens
+> refreshed: 5 fixtures whose source contains a `declare` block
+> (`s04`, `s05`, `s17`, `s20`, `s29`) now produce different IR
+> (DeclareOp + port ops appear); the new IR shape is the truth,
+> the old shape was the visitor bug. SC-012's "next op" baseline
+> updates from "73rd op" to "77th op". CIRCT-side conversion code
+> does NOT land at M4 — design §10's M6 mapping table grows
+> per-row entries for the 4 new ops (Principle III firewall: M4
+> dialect is the seam, NOT CIRCT). Cross-reference:
+> `specs/010-m6-circt-lowering/contracts/circt-lowering.contract.md`
+> §1 + §3 (the M6 contracts now align with the actual op shape),
+> parent commit body, and the language-feature roll-up in root
+> `CLAUDE.md` §1 (the `declare` block row of the lowering table
+> grows a "M5 (`nsl::DeclareOp`)" entry).
+>
+> The S20 `interface` modifier (explicit clock/reset names) is
+> NOT yet surfaced on `nsl.declare` at amendment-#9 — see
+> amendment-#10 below, which lands the `interface_clock` /
+> `interface_reset` `OptionalAttr<StrAttr>` pair.
+
+> **Post-merge amendment 2026-05-05 (#10).** Field-level addition on
+> the `nsl.declare` op only — **no new op records, no new symbols.**
+> Two `OptionalAttr<StrAttr>` are added: `$interface_clock` and
+> `$interface_reset`. Surfaced during M6 Phase 4 close-out as the
+> blocker for T033 `interface_modifier.nsl` (XFAIL'd because the
+> dialect carried no IR-level signal for the user-named clock /
+> reset port surface from S20 `interface(...)`). Resolution path:
+>
+> 1. **Field addition to `nsl.declare`**: two `OptionalAttr<StrAttr>`
+>    attrs — `interface_clock` and `interface_reset` — both ABSENT
+>    means no S20 modifier (implicit `clk` / `rst_n` path), both
+>    PRESENT means the user has named clock + reset explicitly. The
+>    reset name preserves the raw S20 syntax verbatim (including any
+>    polarity-hint suffix such as `_n`); polarity interpretation is
+>    M6's responsibility, not the dialect's. `DeclareOp::verify()`
+>    rejects asymmetric presence (one set, the other unset) because
+>    S20 mandates BOTH when the modifier appears at all; empty
+>    StrAttr values are also rejected when the attr is set.
+>
+> 2. **M5 visitor update**: `visit(DeclareBlock)` populates the new
+>    attrs from `ast::DeclareBlock::clockName()` / `resetName()`
+>    when `modifier() == Modifier::Interface`. Absent modifier →
+>    both attrs unset (status quo).
+>
+> 3. **M6 ModulePatterns update**: `lowerOneModule` /
+>    `buildPortInfo` reads the attrs to drive the port-list shape.
+>    Both present → user-named `iN` input ports appended in lieu of
+>    the implicit `clk` / `rst_n` pair (`circt-lowering.contract.md`
+>    §3 rule 7). Both absent → implicit-pair path (rule 6, status
+>    quo). The reg-on-explicit-interface lowering branch (`nsl.reg`
+>    → `seq.compreg` instead of `seq.firreg`) is Phase 6 territory;
+>    amendment-#10 only plumbs the port-naming half.
+>
+> The user authorised four-way decision option (B) — "amend M4 with
+> the field-level addition" — over (A) read the modifier from M3
+> Sema's symbol table at M6 (Principle II layering violation: M6
+> depends on Sema results not on dialect IR; also Principle V
+> determinism risk because Sema results aren't plumbed through
+> `Compilation::lowerToCIRCT`), (C) defer to M7 (continues to block
+> the explicit-`interface` audited-corpus path), (D) downgrade to
+> a stub at M6 (postpones the M5→M6 cut). Cost: **zero new op
+> records**, two field additions on `nsl.declare`, six new test
+> assets (1 dialect roundtrip
+> `test/Dialect/declare/declare_interface_modifier_roundtrip.mlir`,
+> 1 dialect invalid `declare_invalid_asymmetric_interface.mlir`,
+> 1 M5 visitor `test/Lower/decl/declareblock_interface_emit_mlir.nsl`,
+> the T033 fixture flipped XFAIL → PASS, 1 M3-corpus golden refresh
+> `s20/pass.expected.mlir`, plus this contract). Pre-existing fixtures
+> (`declare_roundtrip.mlir`, `declareblock_data_emit_mlir.nsl`,
+> `declareblock_mixed_emit_mlir.nsl`, `declareblock_transfers_emit_mlir.nsl`,
+> the other M3-corpus declare-bearing fixtures `s04`, `s05`, `s17`,
+> `s29`) remain valid and continue to PASS — the optional-attr
+> defaults (both absent) preserve their printed form exactly. **The
+> freeze surface is unchanged at 83** (no new op records); SC-012's
+> "next op" baseline is unchanged ("77th op"). CIRCT-side conversion
+> code lands in `lib/Lower/Pass/CIRCTPatterns/ModulePatterns.cpp`
+> (`buildPortInfo`); design §10 is unchanged (the existing row for
+> `nsl::DeclareOp` was already "consumed during ModuleOp lowering"
+> and that remains accurate; the per-row prose in
+> `circt-lowering.contract.md` §3 + `firreg-convention.contract.md`
+> §2 is updated to reference the new attrs in lieu of the prior
+> M3-Sema-introspection-observable hand-wave). Cross-reference: the
+> commit body for the amendment-#10 single coordinated commit on
+> branch `010-m6-circt-lowering` (closes T033 deferral and unblocks
+> M6 Phase 6 reg-on-explicit-interface lowering).
+>
+> Updated `nsl::dialect::DeclareOp` accessors (TableGen-generated):
+> `getInterfaceClock() -> std::optional<llvm::StringRef>`,
+> `getInterfaceReset() -> std::optional<llvm::StringRef>`,
+> `setInterfaceClockAttr(StringAttr)`, `setInterfaceResetAttr(StringAttr)`.
+
 ## 3. Registration entry-point contract
 
 Signature:
@@ -497,11 +670,15 @@ public:
 
 Once M4 is merged, the following are FROZEN:
 
-1. **Op-class set**: 70 ops + 2 auto-generated terminators (post-merge
+1. **Op-class set**: 76 ops + 2 auto-generated terminators (post-merge
    amendment 2026-05-01: `nsl.constant` is the 42nd; post-merge
    amendment 2026-05-02 Phase A: the 28-op expression surface adds the
-   43rd–70th). Adding a 71st is an M4 amendment + design §7 update
-   (per SC-012). Removing or renaming an op is a MAJOR version change.
+   43rd–70th; post-merge amendment 2026-05-02 #4: `nsl.param_int` and
+   `nsl.param_str` are the 71st–72nd; post-merge amendment 2026-05-05
+   #9: `nsl.declare`, `nsl.input_port`, `nsl.output_port`,
+   `nsl.inout_port` are the 73rd–76th). Adding a 77th is an M4
+   amendment + design §7 update (per SC-012). Removing or renaming an
+   op is a MAJOR version change.
 2. **Op-class trait set per op**: per the data-model.md table.
    Adding a trait is a minor amendment; removing one (especially
    `Symbol` or `SymbolTable`) is MAJOR (consumers rely on the

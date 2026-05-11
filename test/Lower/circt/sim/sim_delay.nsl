@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/sim/sim_delay.nsl — M6 Phase 6 fixture (T095).
+// `_delay(N)` → `sv.verbatim "#N;"` inside the per-module
+// SIMULATION ifdef. CIRCT has no dedicated `sv::DelayOp`, so the
+// idiomatic emission uses `sv.verbatim` carrying the SystemVerilog
+// `#N;` time-control statement (matches the SV LRM 14.10 form).
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare tb simulation {
+}
+
+module tb {
+  _init {
+    _delay(5);
+  }
+}
+
+// CHECK: sv.macro.decl @SIMULATION
+// CHECK-LABEL: hw.module @tb
+// CHECK: sv.ifdef @SIMULATION
+// CHECK: sv.initial
+// CHECK: sv.verbatim "#5;"
+// CHECK-NOT: nsl.

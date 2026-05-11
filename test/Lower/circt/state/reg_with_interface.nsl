@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/state/reg_with_interface.nsl — M6 Phase 6 fixture
+// (T082). Per `firreg-convention.contract.md` §2: explicit `interface`
+// modifier (S20) routes registers to `seq.compreg` with user-named
+// clock + reset operands.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare interface(clock=my_clk, reset=my_rst_n) M {
+  input my_clk;
+  input my_rst_n;
+  input a[8];
+  output q[8];
+}
+
+module M {
+  reg r[8] = 0;
+  r := a;
+  q = r;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK-SAME: in %my_clk : i1
+// CHECK-SAME: in %my_rst_n : i1
+// CHECK: seq.compreg
+// CHECK-NOT: nsl.

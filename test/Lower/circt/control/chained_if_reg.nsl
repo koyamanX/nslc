@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/control/chained_if_reg.nsl — M6 Phase 6 fixture
+// (T090, refreshed by Round-1 review fix for PR #14 Finding #9).
+// Chained `if`-over-reg lowers to nested `comb.mux` chain; ONE
+// `seq.firreg` regardless of depth (Q3 → A). Round-1 correction:
+// the inner mux's `prev` arm IS the reg's own previous value
+// (`%r`); the outer mux's `prev` arm is the inner mux result.
+// (Pre-fix: both arms would have started from `rstVal` — the inner
+// mux would have been `mux(c1, a, rstVal)`, not `mux(c1, a, %r)`.)
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  input b[8];
+  input c1[1];
+  input c2[1];
+  output q[8];
+}
+
+module M {
+  reg r[8] = 0;
+  if(c1) r := a;
+  if(c2) r := b;
+  q = r;
+}
+
+// CHECK-LABEL: hw.module @M
+// Inner mux: prev arm is the firreg's own result (%r), NOT rstVal.
+// CHECK: %[[M1:.*]] = comb.mux %c1, %a, %r
+// Outer mux: prev arm is the inner mux's result.
+// CHECK: %[[M2:.*]] = comb.mux %c2, %b, %[[M1]]
+// CHECK: %r = seq.firreg %[[M2]]
+// CHECK-NOT: nsl.

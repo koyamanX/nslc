@@ -4,6 +4,7 @@
 // ≤62 lines + per-`-emit=*` glue). Real work lives in nsl-driver.
 
 #include "nsl/Driver/EmitAST.h"
+#include "nsl/Driver/EmitHW.h"
 #include "nsl/Driver/EmitMLIR.h"
 #include "nsl/Driver/EmitTokens.h"
 #include "nsl/Driver/Version.h"
@@ -21,7 +22,8 @@ constexpr const char *kUsage =
     "                    tokens   M1 lex output\n"
     "                    ast      M2/M3 AST snapshot\n"
     "                    mlir     M5 nsl::* MLIR (post-structural-expansion)\n"
-    "                    hw       (M6+) — not yet implemented\n"
+    "                    hw       M6 CIRCT MLIR (hw/comb/seq/fsm/sv;\n"
+    "                             also accepts -emit=circt as an alias)\n"
     "                    verilog  (M7+) — not yet implemented\n";
 bool starts(const char *s, const char *p) {
   return std::strncmp(s, p, std::strlen(p)) == 0;
@@ -72,10 +74,14 @@ int main(int argc, char **argv) {
   if (stage == "mlir") {
     return nsl::driver::emitMLIR(input, opts, llvm::outs(), llvm::errs());
   }
-  if (stage == "hw" || stage == "verilog") {
-    llvm::errs() << "error: '-emit=" << stage
-                 << "' is not yet implemented (planned for "
-                 << (stage == "hw" ? "M6" : "M7") << ")\n";
+  // M6: -emit=hw (canonical) and -emit=circt (alias per
+  // driver-emit-hw.contract.md §1) both invoke emitHW.
+  if (stage == "hw" || stage == "circt") {
+    return nsl::driver::emitHW(input, opts, llvm::outs(), llvm::errs());
+  }
+  if (stage == "verilog") {
+    llvm::errs()
+        << "error: '-emit=verilog' is not yet implemented (planned for M7)\n";
     return 2;
   }
   llvm::errs() << "unknown emit stage: " << stage << "\n" << kUsage;

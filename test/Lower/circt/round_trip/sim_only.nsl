@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/round_trip/sim_only.nsl — M6 Phase 7 (US5)
+// round-trip fixture (T130). Exercises Phase-6's per-module
+// SIMULATION ifdef-sharing rule (research §9): multiple `_init`
+// blocks within a single `simulation`-modifier module produce
+// MULTIPLE `sv.initial` ops but ALL nested under ONE `sv.ifdef
+// @SIMULATION`. The `--lower-seq-to-sv` pass preserves the ifdef
+// block intact (it's an SV op, not a seq op).
+//
+// Per design §10 sim-op rows:
+//   _delay(N)         → sv.verbatim "#N;"
+//   _display("S")     → sv.fwrite %fd, "S"
+//   _finish("S")      → sv.finish 1
+//   _init { ... }     → sv.initial { ... }  inside sv.ifdef @SIMULATION
+//
+// Round-trip pipeline: `--lower-seq-to-sv`. The `sv.ifdef`,
+// `sv.initial`, `sv.fwrite`, `sv.finish`, `sv.verbatim` ops survive
+// untouched (they're already at the SV level — there's nothing for
+// the seq-to-sv pass to lower).
+
+// RUN: %nslc -emit=hw %s > %t.hw
+// RUN: %FileCheck %s --input-file=%t.hw
+// RUN: circt-opt --lower-seq-to-sv %t.hw -o %t.rt.mlir
+// RUN: %FileCheck %s --input-file=%t.rt.mlir --check-prefix=ROUNDTRIP
+// RUN: not grep "unrealized_conversion_cast" %t.rt.mlir
+
+declare tb simulation {
+}
+
+module tb {
+  _init {
+    _delay(1);
+    _display("hello");
+    _delay(10);
+    _finish("bye");
+  }
+  _init {
+    _display("second-init");
+  }
+}
+
+// Pre-round-trip shape: ONE @SIMULATION ifdef shared across BOTH
+// `_init` blocks (research §9 lazy-materialise rule).
+// CHECK: sv.macro.decl @SIMULATION
+// CHECK-LABEL: hw.module @tb
+// CHECK: sv.ifdef @SIMULATION
+// CHECK: sv.initial
+// CHECK-DAG: sv.verbatim "#1;"
+// CHECK-DAG: sv.fwrite
+// CHECK-DAG: sv.finish
+// CHECK: sv.initial
+// CHECK-NOT: nsl.
+
+// Post-round-trip shape: identical structure (the seq-to-sv pass is
+// a no-op on this all-SV body); the SIMULATION ifdef survives.
+// ROUNDTRIP: sv.macro.decl @SIMULATION
+// ROUNDTRIP-LABEL: hw.module @tb
+// ROUNDTRIP: sv.ifdef @SIMULATION
+// ROUNDTRIP: sv.initial
+// ROUNDTRIP-NOT: nsl.

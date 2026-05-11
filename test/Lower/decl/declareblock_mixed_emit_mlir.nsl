@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/decl/declareblock_mixed_emit_mlir.nsl — M4-amendment-9
+// follow-on: data terminals lower into `nsl.declare`, control
+// terminals stay inside the matched `nsl.module` body. The visitor
+// must split the AST `PortDecl` set by direction.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  output q[8];
+  func_in clk;
+}
+module M {
+}
+
+// Data ports inside nsl.declare:
+// CHECK: nsl.declare @M
+// CHECK: nsl.input_port "a" : !nsl.bits<8>
+// CHECK: nsl.output_port "q" : !nsl.bits<8>
+//
+// Control terminals inside nsl.module:
+// CHECK: nsl.module @M
+// CHECK: nsl.func_in "clk"() : () -> ()
