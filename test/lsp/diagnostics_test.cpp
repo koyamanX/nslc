@@ -141,6 +141,72 @@ TEST(DiagnosticsSuite, SortOrder_LineThenColumn) {
   EXPECT_EQ(s.exitCode(), 0);
 }
 
+TEST(DiagnosticsSuite, SortOrder_SeverityOnTie) {
+  // T061 / contract §6 + §7.5: when two diagnostics share
+  // `(range.start.line, range.start.character)`, sort by `severity`
+  // ascending — Error(1) before Warning(2). The fixture
+  // `two_errors_same_position.nsl` puts a `function` keyword whose
+  // name has `__`: S26 warning fires at the keyword begin (parser
+  // site) and S01 error fires at `FuncDefn.loc().begin()` (Sema
+  // site, NK_FuncDefn case in `S01_NoDoubleUnderscore.cpp`). Since
+  // `parseFuncDefn` builds `FuncDefn` with
+  // `rangeFromTo(kw.range().begin(), end_loc)`, both start positions
+  // are byte-identical.
+  LspSession s({.nsl_lsp_log_level = "warn"});
+  initialize(s);
+  std::string text = readFixture("two_errors_same_position.nsl");
+  ASSERT_FALSE(text.empty());
+  didOpen(s, "file:///tie.nsl", 1, text);
+
+  auto diag = s.waitForDiagnostics();
+  ASSERT_TRUE(diag.has_value());
+  const auto *arr = getDiagnosticsArray(*diag);
+  ASSERT_NE(arr, nullptr);
+
+  // Find the S26 warning and the S01 error. Other diagnostics may
+  // accompany them, but only these two are required to share a
+  // start position.
+  const llvm::json::Object *warn_obj = nullptr;
+  const llvm::json::Object *err_obj = nullptr;
+  size_t warn_idx = 0;
+  size_t err_idx = 0;
+  for (size_t i = 0; i < arr->size(); ++i) {
+    const auto *d = (*arr)[i].getAsObject();
+    auto code = d->getString("code").value_or("");
+    if (code == "S26") { warn_obj = d; warn_idx = i; }
+    if (code == "S01") { err_obj = d; err_idx = i; }
+  }
+  ASSERT_NE(warn_obj, nullptr) << "fixture should produce an S26 warning";
+  ASSERT_NE(err_obj, nullptr) << "fixture should produce an S01 error";
+
+  EXPECT_EQ(warn_obj->getInteger("severity").value_or(0), 2)
+      << "S26 must map to LSP Warning(2)";
+  EXPECT_EQ(err_obj->getInteger("severity").value_or(0), 1)
+      << "S01 must map to LSP Error(1)";
+
+  auto extractStart = [](const llvm::json::Object *o) {
+    const auto *p = o->getObject("range")->getObject("start");
+    return std::pair<int64_t, int64_t>{
+        p->getInteger("line").value_or(-1),
+        p->getInteger("character").value_or(-1)};
+  };
+  auto warn_pos = extractStart(warn_obj);
+  auto err_pos = extractStart(err_obj);
+  ASSERT_EQ(warn_pos, err_pos)
+      << "fixture invariant: S26 warning and S01 error must share "
+         "(line, character); got warn=(" << warn_pos.first << ","
+      << warn_pos.second << ") err=(" << err_pos.first << ","
+      << err_pos.second << ")";
+
+  // The contract: at a position tie, severity ascending → Error
+  // appears before Warning in the output array.
+  EXPECT_LT(err_idx, warn_idx)
+      << "Error(1) must precede Warning(2) at the same (line, character)";
+
+  s.doShutdownExit();
+  EXPECT_EQ(s.exitCode(), 0);
+}
+
 TEST(DiagnosticsSuite, ParseError) {
   LspSession s({.nsl_lsp_log_level = "warn"});
   initialize(s);
@@ -439,12 +505,73 @@ INSTANTIATE_TEST_SUITE_P(
       return std::string(info.param.expected_code);
     });
 
+TEST(DiagnosticsSuite, IncludeFromNotes) {
+  // T062 / FR-026 / contract §5: a diagnostic whose `loc` is in
+  // an `#include`-pulled file MUST carry a non-empty
+  // `relatedInformation` array whose entries are the include-from
+  // chain. The chain materializes from `DiagnosticEngine`'s
+  // auto-attached `is_include_from_note == true` notes (see
+  // `lib/Basic/Diagnostic.cpp` `addIncludedFromNotes`). Each note's
+  // `loc` is the *parent* file's `#include` directive position, so
+  // each `relatedInformation[i].location.uri` references the file
+  // that pulled the helper in (here, `include_chain_main.nsl`). The
+  // primary `Diagnostic.range` itself stays inside the helper —
+  // this matches the LSP-spec idiom `clangd` and `rust-analyzer`
+  // use for cross-file diagnostics.
+  LspSession s({.nsl_include = NSL_LSP_FIXTURES_DIR,
+                  .nsl_lsp_log_level = "warn"});
+  initialize(s);
+  std::string text = readFixture("include_chain_main.nsl");
+  ASSERT_FALSE(text.empty());
+  didOpen(s, "file:///main.nsl", 1, text);
+
+  auto diag = s.waitForDiagnostics();
+  ASSERT_TRUE(diag.has_value());
+  const auto *arr = getDiagnosticsArray(*diag);
+  ASSERT_NE(arr, nullptr);
+
+  // Locate the S01 diagnostic (helper-side violation).
+  const llvm::json::Object *s01 = nullptr;
+  for (const auto &d : *arr) {
+    auto code = d.getAsObject()->getString("code").value_or("");
+    if (code == "S01") { s01 = d.getAsObject(); break; }
+  }
+  ASSERT_NE(s01, nullptr) << "expected an S01 diagnostic from the helper";
+
+  const auto *related = s01->getArray("relatedInformation");
+  ASSERT_NE(related, nullptr)
+      << "S01 diagnostic must carry relatedInformation per contract §5";
+  ASSERT_GE(related->size(), 1u)
+      << "include chain must contribute at least one entry";
+
+  // Each entry must carry a well-formed (uri, range) location and a
+  // non-empty message. The include-from message format (contract §5)
+  // begins with "included from".
+  bool found_included_from = false;
+  for (const auto &e : *related) {
+    const auto *eo = e.getAsObject();
+    ASSERT_NE(eo, nullptr);
+    const auto *loc = eo->getObject("location");
+    ASSERT_NE(loc, nullptr) << "entry must carry a location";
+    auto uri = loc->getString("uri").value_or("");
+    EXPECT_FALSE(uri.empty()) << "entry uri must be non-empty";
+    auto msg = eo->getString("message").value_or("");
+    if (msg.contains("included from")) found_included_from = true;
+  }
+  EXPECT_TRUE(found_included_from)
+      << "at least one entry must carry the LSP-spec "
+         "`included from <path>:<line>:<col>` form per contract §5";
+
+  s.doShutdownExit();
+  EXPECT_EQ(s.exitCode(), 0);
+}
+
 TEST(DiagnosticsSuite, IncludeChain_FixtureLoadsAndDiagnoses) {
-  // T055 fixtures (include_chain_main.nsl + helper.nslh) load via
-  // NSL_INCLUDE-rooted angle-form `#include` and the helper's S1
-  // violation surfaces as a diagnostic. This is the structural
-  // half of T062; the relatedInformation half (FR-026) is
-  // deferred — see commit narrative.
+  // T055 / FR-020a sibling: the angle-form `#include` resolves via
+  // NSL_INCLUDE and the helper's S1 violation surfaces as a
+  // diagnostic in the published array. Distinct from
+  // `IncludeFromNotes` (T062), which asserts the relatedInformation
+  // chain itself.
   LspSession s({.nsl_include = NSL_LSP_FIXTURES_DIR,
                   .nsl_lsp_log_level = "warn"});
   initialize(s);

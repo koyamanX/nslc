@@ -214,6 +214,51 @@ TEST(FoldingSuite, IncludeAdjustsLines) {
   s.doShutdownExit();
 }
 
+TEST(FoldingSuite, Cancellation_Under200ms) {
+  // T093 / SC-010 / harness contract §4.5: open the large
+  // `cancellation_target.nsl` fixture, send `foldingRange`,
+  // immediately follow with `$/cancelRequest`, and assert the
+  // server returns `RequestCancelled` (-32800) within 200 ms.
+  // The fixture's > 10,000-node AST guarantees the per-node
+  // cancellation poll in FoldingRangeBuilder (folding-range
+  // contract §5) has a window to observe the cancel signal —
+  // the request would otherwise complete with a fold array.
+  LspSession s({.nsl_lsp_log_level = "warn"});
+  initialize(s);
+  std::string text = readFixture("cancellation_target.nsl");
+  ASSERT_FALSE(text.empty());
+  didOpen(s, "file:///cancel.nsl", 1, text);
+  s.waitForDiagnostics();
+
+  int64_t reqId = s.sendRequest(
+      "textDocument/foldingRange",
+      llvm::json::Object{
+          {"textDocument", llvm::json::Object{{"uri", "file:///cancel.nsl"}}},
+      });
+  s.sendNotification("$/cancelRequest", llvm::json::Object{{"id", reqId}});
+
+  auto t0 = std::chrono::steady_clock::now();
+  auto resp = s.waitForResponse(reqId, std::chrono::milliseconds(500));
+  auto elapsed = std::chrono::steady_clock::now() - t0;
+
+  ASSERT_TRUE(resp.has_value())
+      << "expected a JSON-RPC response (cancellation acknowledgment)";
+  const auto *err = resp->getAsObject()->getObject("error");
+  ASSERT_NE(err, nullptr)
+      << "cancelled request must respond with an `error` object, "
+         "not a `result`";
+  EXPECT_EQ(err->getInteger("code").value_or(0), -32800)
+      << "expected RequestCancelled (-32800)";
+  auto msg = err->getString("message").value_or("");
+  EXPECT_EQ(msg, "request cancelled")
+      << "expected message 'request cancelled' per FR-020j; got: " << msg.str();
+  EXPECT_LT(elapsed, std::chrono::milliseconds(200))
+      << "SC-010 200 ms cancellation budget missed";
+
+  s.doShutdownExit();
+  EXPECT_EQ(s.exitCode(), 0);
+}
+
 TEST(FoldingSuite, Determinism_TwoRunsByteIdentical) {
   auto runOnce = [&]() -> std::string {
     LspSession s({.nsl_lsp_log_level = "warn"});

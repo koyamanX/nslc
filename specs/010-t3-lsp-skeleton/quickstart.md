@@ -170,10 +170,10 @@ Send `initialize` and pretty-print the result:
 docker run --rm -v "$PWD:/work" -w /work \
   ghcr.io/koyamanx/nsl-nslc:dev \
   sh -c '
-    printf "Content-Length: 67\r\n\r\n%s" \
+    printf "Content-Length: 58\r\n\r\n%s" \
       "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}" |
     ./build/bin/nsl-lsp |
-    sed -n "s/^Content-Length: [0-9]*$//; /^{/p" |
+    sed -n "s/^Content-Length: [0-9]*\r\?$//; /^{/p" |
     python3 -m json.tool
   '
 ```

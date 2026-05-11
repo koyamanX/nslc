@@ -84,6 +84,7 @@ NslLSPServer::NslLSPServer(JSONTransport &transport, NslServer &backend)
 }
 
 int NslLSPServer::run() {
+  int code = 0;
   while (!exited_.load(std::memory_order_acquire)) {
     auto envelope = transport_.readMessage();
     if (!envelope) {
@@ -94,16 +95,37 @@ int NslLSPServer::run() {
         if (!shutdown_received_) {
           NSL_LSP_LOG_WARN("nsl-lsp: stdin EOF without prior "
                             "shutdown; exiting with code 1");
-          return 1;
+          code = 1;
+          break;
         }
         // Shutdown received but no exit notification — treat as 1
         // per contract §9.
-        return 1;
+        code = 1;
+        break;
       }
       break;
     }
     dispatch(std::move(*envelope));
   }
+  // Drain any in-flight worker threads so their wire writes complete
+  // before the transport stream is torn down by the process exit.
+  // Cancel any still-running tokens first so polling-aware handlers
+  // unwind quickly instead of finishing their full walk.
+  {
+    std::lock_guard<std::mutex> guard(inflight_mtx_);
+    for (auto &kv : inflight_) {
+      kv.second.cancel();
+    }
+  }
+  std::vector<std::thread> to_join;
+  {
+    std::lock_guard<std::mutex> guard(workers_mtx_);
+    to_join = std::move(workers_);
+  }
+  for (auto &t : to_join) {
+    if (t.joinable()) t.join();
+  }
+  if (code != 0) return code;
   return exit_code_.load(std::memory_order_acquire);
 }
 
@@ -353,29 +375,36 @@ void NslLSPServer::onFoldingRange(const RequestId &id,
     inflight_[id] = token;
   }
 
-  // Run the folding-range walk synchronously on the dispatch
-  // thread. The walk is O(N) over the source bytes and well under
-  // the SC-010 200 ms budget; offloading to a worker thread would
-  // add overhead without observable benefit.
+  // Run the folding-range walk on a worker thread so the dispatch
+  // thread can continue reading messages — in particular, an
+  // `$/cancelRequest` notification that arrives mid-walk MUST be
+  // observable by the worker's polling discipline (FR-020h–j /
+  // folding-range contract §5 / SC-010). Without offloading, the
+  // dispatch thread would block until the walk completes and the
+  // cancellation flag would never flip during the walk.
   std::string contents;
   backend_.scheduler().withState(
       uri, [&](const NslTU::State &st) { contents = st.contents; });
 
-  llvm::json::Array folds = buildFoldingRanges(contents, token);
+  std::thread worker([this, id, contents = std::move(contents),
+                      token = std::move(token)]() mutable {
+    llvm::json::Array folds = buildFoldingRanges(contents, token);
 
-  // Remove from in-flight table; respond.
-  bool was_cancelled;
-  {
-    std::lock_guard<std::mutex> guard(inflight_mtx_);
-    inflight_.erase(id);
-    was_cancelled = token.isCancelled();
-  }
+    bool was_cancelled;
+    {
+      std::lock_guard<std::mutex> guard(inflight_mtx_);
+      inflight_.erase(id);
+      was_cancelled = token.isCancelled();
+    }
 
-  if (was_cancelled) {
-    sendError(id, kRequestCancelled, "request cancelled");
-  } else {
-    sendResponse(id, std::move(folds));
-  }
+    if (was_cancelled) {
+      sendError(id, kRequestCancelled, "request cancelled");
+    } else {
+      sendResponse(id, std::move(folds));
+    }
+  });
+  std::lock_guard<std::mutex> wguard(workers_mtx_);
+  workers_.push_back(std::move(worker));
 }
 
 void NslLSPServer::onCancelRequest(const llvm::json::Value &params) {

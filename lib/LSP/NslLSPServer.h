@@ -23,6 +23,8 @@
 #include <functional>
 #include <map>
 #include <mutex>
+#include <thread>
+#include <vector>
 
 namespace nsl {
 namespace lsp {
@@ -81,6 +83,12 @@ private:
   // (remove).
   std::mutex inflight_mtx_;
   std::map<RequestId, CancellationToken> inflight_;
+
+  // Worker threads spawned for cancellable handlers (foldingRange).
+  // Joined when the run-loop exits so process teardown is clean
+  // even if a stray request was in flight at shutdown time.
+  std::mutex workers_mtx_;
+  std::vector<std::thread> workers_;
 };
 
 } // namespace lsp
