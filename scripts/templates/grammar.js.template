@@ -81,13 +81,23 @@ module.exports = grammar({
   externals: $ => [],
 
   // Tree-sitter conflict declarations. Tree-sitter's GLR-style
-  // ambiguity resolver needs an explicit hint for the LHS-or-RHS
-  // ambiguity between `expression` (which can begin with `identifier`)
-  // and `lvalue` (which also begins with `identifier`); see
-  // register_transfer / wire_or_variable_transfer rules below.
+  // ambiguity resolver needs an explicit hint for ambiguities that
+  // share a multi-token prefix:
+  //
+  //   - simple_lvalue vs _expression — both can begin with `identifier`;
+  //     the `:=` / `=` operator in register_transfer / wire_or_variable_transfer
+  //     resolves at the operator position.
+  //   - scoped_identifier vs field_access — both share the
+  //     `identifier "." identifier` shape; production-position
+  //     (statement-form `control_call` vs expression-form postfix access)
+  //     resolves at the trailing-tokens position.
+  //   - parenthesized_expression vs struct_cast_expr — both share the
+  //     `( ident )` prefix; the optional `( expr ) . ident` tail in
+  //     struct_cast_expr discriminates if present.
   conflicts: $ => [
     [$.simple_lvalue, $._expression],
     [$.scoped_identifier, $.field_access],
+    [$.parenthesized_expression, $.struct_cast_expr],
   ],
 
   // Tree-sitter's keyword-extraction directive: any literal string in
@@ -770,14 +780,16 @@ module.exports = grammar({
 
     // Zero-extend `N ' ( expr )`. The apostrophe between width and
     // lparen distinguishes from Verilog-sized literals (which are a
-    // single token with base char after the apostrophe).
-    zero_extend_expr: $ => prec(16, seq(
+    // single token with base char after the apostrophe). Left-
+    // recursive on the width field — uses `prec.left` so tree-sitter
+    // anchors the recursion on the left.
+    zero_extend_expr: $ => prec.left(16, seq(
       field('width', $._expression),
       "'",
       '(', field('value', $._expression), ')',
     )),
 
-    bit_slice: $ => prec(16, seq(
+    bit_slice: $ => prec.left(16, seq(
       field('base', $._expression),
       '[',
       field('hi', $._expression),
@@ -786,7 +798,7 @@ module.exports = grammar({
       ']',
     )),
 
-    bit_select: $ => prec(16, seq(
+    bit_select: $ => prec.left(16, seq(
       field('base', $._expression),
       '[',
       field('index', $._expression),
@@ -806,8 +818,9 @@ module.exports = grammar({
     // Postfix `(args)`. The function callee is whatever sits before
     // the parens. In expression position this is a func_in call;
     // in action position the action-side `control_call` rule fires
-    // instead.
-    call_expression: $ => prec(16, seq(
+    // instead. Left-recursive on the `function` field — uses
+    // `prec.left` so tree-sitter anchors the recursion on the left.
+    call_expression: $ => prec.left(16, seq(
       field('function', $._expression),
       '(',
       optional($._argument_list),
