@@ -58,6 +58,12 @@ private:
 
   // Feature handlers.
   void onFoldingRange(const RequestId &id, const llvm::json::Value &params);
+  // T5 (specs/011-t5-lsp-formatting/) — formatting methods. Phase 2
+  // stubs return `null` per FR-007 (clarified Session 2026-05-12);
+  // Phase 3 / Phase 4 fill the real bodies. Dispatch branches in
+  // `dispatch()` route the LSP method strings to these handlers.
+  void onFormatting(const RequestId &id, const llvm::json::Value &params);
+  void onRangeFormatting(const RequestId &id, const llvm::json::Value &params);
 
   // Cancellation.
   void onCancelRequest(const llvm::json::Value &params);

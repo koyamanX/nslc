@@ -31,7 +31,8 @@ add_library(NSLLSP STATIC
   NslServer.cpp
   NslLSPServer.cpp
   DiagnosticMapper.cpp
-  FoldingRangeBuilder.cpp)
+  FoldingRangeBuilder.cpp
+  FormattingHandler.cpp)
 
 target_compile_features(NSLLSP PUBLIC cxx_std_17)
 
@@ -58,8 +59,19 @@ target_include_directories(NSLLSP PUBLIC
 # frontend (basic + preprocess + lex + ast + parse + sema + dialect
 # + lower). The LSP server consumes `nsl::driver::Compilation` for
 # parse + sema invocation per data-model.md §3 and contracts.
-target_link_libraries(NSLLSP PUBLIC
-  nsl-driver)
+#
+# T5 (LSP formatting integration — specs/011-t5-lsp-formatting/)
+# adds the link to `NslFmt` (T2 — `libNslFmt.a`). The link is
+# PRIVATE because NslFmt is only consumed from `lib/LSP/
+# FormattingHandler.cpp`; no public header in `include/nsl/LSP/`
+# references `nsl::fmt::*` types. Principle II structural check
+# (T5 spec SC-007 / scripts/audit_lsp_no_formatter_duplication.sh):
+# `nm` over `libNSLLSP.a` MUST NOT find any `format_buffer` /
+# `parse_config_file` / Wadler-Leijen symbols defined locally —
+# they all resolve into `libNslFmt.a` via this link edge.
+target_link_libraries(NSLLSP
+  PUBLIC nsl-driver
+  PRIVATE NslFmt)
 
 # Header install via FILE_SET (matches add_nsl_library §6 pattern,
 # applied manually here for the T-track library).

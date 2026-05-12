@@ -36,9 +36,15 @@ using namespace std::chrono_literals;
 namespace {
 
 llvm::json::Object buildExpectedCapabilities() {
-  // Per contract §1.2 — exact, byte-for-byte. Insertion order
-  // matches `NslLSPServer::buildCapabilities()` (alphabetical).
+  // Per contract §1.2 (amended 2026-05-12 for T5 —
+  // specs/011-t5-lsp-formatting/) — exact, byte-for-byte.
+  // Insertion order matches `NslLSPServer::buildCapabilities()`
+  // (alphabetical). T5 added `documentFormattingProvider` and
+  // `documentRangeFormattingProvider` before
+  // `foldingRangeProvider`.
   return llvm::json::Object{
+      {"documentFormattingProvider", true},
+      {"documentRangeFormattingProvider", true},
       {"foldingRangeProvider", true},
       {"textDocumentSync",
        llvm::json::Object{

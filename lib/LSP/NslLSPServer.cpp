@@ -12,6 +12,7 @@
 
 #include "DiagnosticMapper.h"
 #include "FoldingRangeBuilder.h"
+#include "FormattingHandler.h"
 #include "JSONTransport.h"
 #include "Logger.h"
 #include "NslServer.h"
@@ -33,11 +34,16 @@ constexpr int kServerNotInitialized = -32002;
 constexpr int kRequestCancelled = -32800;
 
 llvm::json::Object buildCapabilities() {
-  // Per contracts/lsp-protocol.contract.md §1.2 — exact, byte-for-
-  // byte stable. Insertion order matters for the canonical wire
-  // form (llvm::json::Object preserves insertion order).
-  // Order chosen alphabetically.
+  // Per contracts/lsp-protocol.contract.md §1.2 (amended
+  // 2026-05-12 for T5) — exact, byte-for-byte stable. Insertion
+  // order matters for the canonical wire form
+  // (llvm::json::Object preserves insertion order). Order chosen
+  // alphabetically. T5 added `documentFormattingProvider` and
+  // `documentRangeFormattingProvider` (both `true`) — T4 / T9 /
+  // T10 extend further as their respective methods land.
   return llvm::json::Object{
+      {"documentFormattingProvider", true},
+      {"documentRangeFormattingProvider", true},
       {"foldingRangeProvider", true},
       {"textDocumentSync",
        llvm::json::Object{
@@ -216,6 +222,18 @@ void NslLSPServer::dispatch(llvm::json::Value envelope) {
       return;
     }
     onFoldingRange(*id, params);
+  } else if (method == "textDocument/formatting") {
+    if (!id) {
+      NSL_LSP_LOG_ERROR("nsl-lsp: formatting received without id");
+      return;
+    }
+    onFormatting(*id, params);
+  } else if (method == "textDocument/rangeFormatting") {
+    if (!id) {
+      NSL_LSP_LOG_ERROR("nsl-lsp: rangeFormatting received without id");
+      return;
+    }
+    onRangeFormatting(*id, params);
   } else if (method == "$/cancelRequest") {
     onCancelRequest(params);
   } else {
@@ -415,6 +433,48 @@ void NslLSPServer::onFoldingRange(const RequestId &id,
   });
   std::lock_guard<std::mutex> wguard(workers_mtx_);
   workers_.push_back(std::move(worker));
+}
+
+void NslLSPServer::onFormatting(const RequestId &id,
+                                const llvm::json::Value &params) {
+  // T5 Phase 2 stub: per FR-007 (clarified Session 2026-05-12),
+  // a `null` response is the LSP-spec convention for "no
+  // formatting available." Phase 3 (US1) replaces this body
+  // with the full handler per
+  // `specs/011-t5-lsp-formatting/contracts/formatting-api.contract.md`
+  // §2.2 — Configuration resolver + format_buffer +
+  // TextEdit converter + cancellation polling + logging.
+  //
+  // The stub is synchronous (no worker thread, no cancellation
+  // token registration) because there's no work to cancel.
+  // Phase 3 introduces the worker-thread pattern mirroring
+  // `onFoldingRange` (per FR-011 / FR-012).
+  (void)params; // Phase 3 parses params.textDocument.uri.
+  // Funnel through the FormattingHandler stub for the seam
+  // exercise (and to keep the `NslFmt` link edge live; see
+  // FormattingHandler.cpp).
+  CancellationToken stub_token = CancellationToken::make();
+  llvm::json::Value result = buildFormattingResponse(
+      /*documentURI=*/"", /*contents=*/"",
+      /*range=*/std::nullopt, backend_, stub_token);
+  sendResponse(id, std::move(result));
+}
+
+void NslLSPServer::onRangeFormatting(const RequestId &id,
+                                     const llvm::json::Value &params) {
+  // T5 Phase 2 stub. Same posture as `onFormatting` above —
+  // Phase 4 (US2) replaces with the real range-handling body
+  // per
+  // `specs/011-t5-lsp-formatting/contracts/formatting-api.contract.md`
+  // §3.3, including the FR-003 whole-line snap / clamp / inverted-
+  // range rejection logic via the file-static `computeLineRange`
+  // helper to land at T023.
+  (void)params; // Phase 4 parses params.textDocument.uri + params.range.
+  CancellationToken stub_token = CancellationToken::make();
+  llvm::json::Value result = buildFormattingResponse(
+      /*documentURI=*/"", /*contents=*/"",
+      /*range=*/std::nullopt, backend_, stub_token);
+  sendResponse(id, std::move(result));
 }
 
 void NslLSPServer::onCancelRequest(const llvm::json::Value &params) {

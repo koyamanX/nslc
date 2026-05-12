@@ -13,6 +13,34 @@ PR (Principle VII coupling).
 
 ---
 
+## Amendment log
+
+### Amendment 2026-05-12 (T5 — `011-t5-lsp-formatting`)
+
+§1.2 canonical `InitializeResult.capabilities` JSON gains two
+new keys per the T5 capability advertisement requirement (T5 spec
+FR-004): `documentFormattingProvider: true` and
+`documentRangeFormattingProvider: true`. Keys inserted
+alphabetically before `foldingRangeProvider`. The MUST-NOT-advertise
+list in §1.2 loses two entries (`documentFormattingProvider`,
+`documentRangeFormattingProvider`) since both are now advertised;
+T5 spec FR-022 keeps `documentOnTypeFormattingProvider` on the
+MUST-NOT list.
+
+This amendment is the **first exercise of the T3 coupling clause**
+("Any later T-track milestone that modifies any frozen entry MUST
+update this contract in the same PR — Principle VII coupling")
+introduced when T3 landed. It sets the precedent of in-place
+amendment for T4 / T9 / T10 to follow when their respective
+methods land. The amendment lands in the same PR as the T5
+implementation under `specs/011-t5-lsp-formatting/`.
+
+The `lifecycle_test::CapabilitiesExact` assertion's expected JSON
+(in `test/lsp/lifecycle_test.cpp::buildExpectedCapabilities()`)
+is updated in the same change to match the new shape.
+
+---
+
 ## §1 Initialize handshake
 
 ### §1.1 Initialize request — accepted shape
@@ -37,6 +65,8 @@ existing `NSLC_VERSION_STRING` macro.
 ```json
 {
   "capabilities": {
+    "documentFormattingProvider": true,
+    "documentRangeFormattingProvider": true,
     "foldingRangeProvider": true,
     "textDocumentSync": {
       "change": 1,
@@ -54,15 +84,18 @@ existing `NSLC_VERSION_STRING` macro.
 ```
 
 `textDocumentSync.change == 1` is `TextDocumentSyncKind.Full` per
-LSP 3.16 §General. `foldingRangeProvider == true` is the boolean
-form (the `FoldingRangeOptions` form is allowed but not used).
+LSP 3.16 §General. `foldingRangeProvider == true` /
+`documentFormattingProvider == true` /
+`documentRangeFormattingProvider == true` are the boolean form
+(the `FoldingRangeOptions` / `DocumentFormattingOptions` /
+`DocumentRangeFormattingOptions` forms are allowed but not used).
 
 The server MUST NOT advertise: `hoverProvider`, `definitionProvider`,
-`documentFormattingProvider`, `documentRangeFormattingProvider`,
 `semanticTokensProvider`, `signatureHelpProvider`,
 `documentSymbolProvider`, `referencesProvider`, `completionProvider`,
 `renameProvider`, `codeActionProvider`, `inlayHintProvider`,
-`callHierarchyProvider`, or any `workspace.*` capability.
+`callHierarchyProvider`, `documentOnTypeFormattingProvider`
+(per T5 spec FR-022), or any `workspace.*` capability.
 
 The server MUST NOT advertise `general.positionEncodings` (LSP 3.17
 feature; out of scope per the LSP 3.16 floor).
