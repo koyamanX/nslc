@@ -48,6 +48,15 @@ uint32_t byteToUtf16Column(llvm::StringRef line, std::size_t byteOffset) {
   while (i < byteOffset) {
     uint32_t units;
     std::size_t len = utf8SequenceLen(static_cast<uint8_t>(line[i]), &units);
+    // Truncated multibyte sequence at the end of `line`: clamp `len`
+    // to the bytes that remain so `i` cannot advance past
+    // `line.size()`. The lead byte alone advertised 2/3/4 bytes, but
+    // the trailing continuation bytes are missing — treat as a
+    // single byte / one unit.
+    if (i + len > line.size()) {
+      len = 1;
+      units = 1;
+    }
     if (i + len > byteOffset)
       break; // partial mid-sequence — round down
     utf16 += units;
@@ -62,6 +71,15 @@ std::size_t utf16ToByteOffset(llvm::StringRef line, uint32_t character) {
   while (i < line.size() && utf16 < character) {
     uint32_t units;
     std::size_t len = utf8SequenceLen(static_cast<uint8_t>(line[i]), &units);
+    // Truncated multibyte sequence at the end of `line`: clamp `len`
+    // to the bytes that remain so `i` cannot advance past
+    // `line.size()`. The lead byte alone advertised 2/3/4 bytes, but
+    // the trailing continuation bytes are missing — treat as a
+    // single byte / one unit.
+    if (i + len > line.size()) {
+      len = 1;
+      units = 1;
+    }
     // If `character` lands inside a supplementary surrogate pair,
     // bumping utf16 by 2 would overshoot. Round DOWN — leave i at
     // the start of the supplementary character.

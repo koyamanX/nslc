@@ -309,21 +309,33 @@ one fixture file under `test/lsp/fixtures/s<NN>_<short_name>.nsl`
 with one diagnostic-emitting line. The locked diagnostic string is
 the same one M3 already asserts; the fixture's expected
 `publishDiagnostics` payload is computed from that string plus the
-position of the offending source. **Fixtures are NOT generated**
-for T3 — they are authored by hand, mirroring the layout used by
-`test/sema/s01/` … `test/sema/s29/`. This keeps the LSP test
-fixtures readable and avoids introducing a new generator script.
+position of the offending source. **Hand-authored fixtures are the
+default path**, mirroring the layout used by `test/sema/s01/` …
+`test/sema/s29/`. This keeps the LSP test fixtures readable.
+
+> **Update (post-spec, during implementation)**: a one-shot
+> generator `scripts/gen_lsp_fixtures.py` was added during the T3
+> Phase-3 / US1 cycle to lift each `test/sema/s<NN>/fail*.nsl`
+> body verbatim into `test/lsp/fixtures/s<NN>_<short>.nsl`. Its
+> purpose is *initial population* of the 23 fixtures; subsequent
+> edits remain hand-authored. The generator is invoked
+> infrequently (only when the M3 fail corpus shifts) and is not
+> wired into CI — running it is an explicit developer action.
+> R8's original "no generator" stance is preserved as the
+> *default-edit* path; the generator covers the one-time
+> bulk-author scenario.
 
 **Rationale**:
 
 - The 23 fixtures × ~10 LOC each = ~230 LOC of fixture text;
-  hand-authoring is fast and the result is reviewable.
-- A generator would be tempting (parse the M3 diagnostic-string
-  contract, emit one fixture per row) but the marginal benefit is
-  small and the cost (a new generator script + its own test) is
-  not.
+  once populated, hand-editing is fast and the result is
+  reviewable.
+- The generator's marginal cost is small (~80 lines + no
+  recurring CI cost) and saved the equivalent of one hand-author
+  pass; subsequent diffs go through review like any other code
+  change.
 - Folding-range fixtures (~5) and cancellation fixtures (~2) are
-  also hand-authored.
+  hand-authored end-to-end (no generator).
 
 **Alternatives rejected**:
 

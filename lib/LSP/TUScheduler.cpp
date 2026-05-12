@@ -68,7 +68,7 @@ void TUScheduler::setOnDiagnostics(DiagnosticsCallback cb) {
 void TUScheduler::open(llvm::StringRef uri) {
   std::lock_guard<std::mutex> guard(tus_mtx_);
   if (tus_.find(uri) == tus_.end()) {
-    tus_[uri] = std::make_unique<NslTU>();
+    tus_[uri] = std::make_shared<NslTU>();
   }
 }
 
@@ -82,7 +82,7 @@ void TUScheduler::update(llvm::StringRef uri, int version, std::string contents,
     std::lock_guard<std::mutex> guard(tus_mtx_);
     auto it = tus_.find(uri);
     if (it == tus_.end()) {
-      tus_[uri] = std::make_unique<NslTU>();
+      tus_[uri] = std::make_shared<NslTU>();
       it = tus_.find(uri);
     }
     it->second->noteReceived(version);
@@ -97,12 +97,14 @@ void TUScheduler::close(llvm::StringRef uri) {
 
 void TUScheduler::withState(llvm::StringRef uri,
                             std::function<void(const NslTU::State &)> fn) {
-  NslTU *tu = nullptr;
+  // Capture a shared_ptr so the TU outlives a concurrent close(uri)
+  // for the duration of the caller's read-only walk.
+  std::shared_ptr<NslTU> tu;
   {
     std::lock_guard<std::mutex> guard(tus_mtx_);
     auto it = tus_.find(uri);
     if (it != tus_.end())
-      tu = it->second.get();
+      tu = it->second;
   }
   if (tu)
     tu->withState(fn);
@@ -119,20 +121,24 @@ void TUScheduler::schedule(std::string uri, int version, std::string contents,
   {
     std::lock_guard<std::mutex> guard(tus_mtx_);
     if (tus_.find(uri) == tus_.end()) {
-      tus_[uri] = std::make_unique<NslTU>();
+      tus_[uri] = std::make_shared<NslTU>();
     }
   }
 
   pool_.async([this, uri, version, contents = std::move(contents),
                includes]() mutable {
-    NslTU *tu = nullptr;
+    // Capture a shared_ptr so the TU outlives a concurrent close(uri)
+    // for the duration of this worker's reparse + diagnostics-publish
+    // sequence — closes the use-after-free that a raw `NslTU*`
+    // capture pattern would expose.
+    std::shared_ptr<NslTU> tu;
     DiagnosticsCallback cb;
     {
       std::lock_guard<std::mutex> guard(tus_mtx_);
       auto it = tus_.find(uri);
       if (it == tus_.end())
         return; // closed before this work ran
-      tu = it->second.get();
+      tu = it->second;
       cb = on_diagnostics_;
     }
 

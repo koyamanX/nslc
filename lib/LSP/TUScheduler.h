@@ -72,7 +72,13 @@ private:
                 const IncludeSearchPath *includes);
 
   std::mutex tus_mtx_;
-  llvm::StringMap<std::unique_ptr<NslTU>> tus_;
+  // `shared_ptr<NslTU>` (not `unique_ptr`) so worker lambdas captured
+  // under `tus_mtx_` extend the TU's lifetime past a concurrent
+  // `close(uri)` — eliminates the use-after-free that a raw `NslTU*`
+  // capture pattern would expose if a didClose arrives while a
+  // reparse is in flight. Same pattern as `NslTU::sm_` (see
+  // NslTU.h:46–51 for the analogue rationale).
+  llvm::StringMap<std::shared_ptr<NslTU>> tus_;
   DiagnosticsCallback on_diagnostics_;
   llvm::DefaultThreadPool pool_;
 };

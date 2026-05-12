@@ -2,10 +2,10 @@
 //
 // test/lsp/fixtures/include_adjusts_lines.nsl — T086 fixture for
 // FoldingSuite::IncludeAdjustsLines. The `#include` line is at
-// physical line 7 (zero-based 6). The `module mod {` opens at
-// physical line 9 (zero-based 8) and closes at line 12 (zero-
-// based 11). The text walker counts physical lines, so the
-// expected fold is startLine=8, endLine=11 regardless of the
+// physical line 11 (zero-based 10). The `module mod {` opens at
+// physical line 13 (zero-based 12) and closes at line 16 (zero-
+// based 15). The text walker counts physical lines, so the
+// expected fold is startLine=12, endLine=15 regardless of the
 // preprocessor's view of the included file's contents.
 
 #include <include_chain_helper.nslh>

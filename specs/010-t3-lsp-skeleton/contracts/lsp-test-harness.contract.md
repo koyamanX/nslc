@@ -42,19 +42,22 @@ public:
 
     // --- receive side ---
 
-    // Block (with timeout) for the next incoming response or notification.
-    // Returns the parsed JSON-RPC envelope.
-    llvm::json::Value waitForMessage(std::chrono::milliseconds timeout =
-                                      std::chrono::milliseconds(2000));
+    // Block (with timeout) for the next incoming response or
+    // notification. Returns `std::nullopt` on timeout or reader EOF;
+    // otherwise returns the parsed JSON-RPC envelope.
+    std::optional<llvm::json::Value> waitForMessage(
+        std::chrono::milliseconds timeout = std::chrono::milliseconds(2000));
 
-    // Block for the response to a specific request id.
-    llvm::json::Value waitForResponse(int64_t id,
-                                       std::chrono::milliseconds timeout =
-                                       std::chrono::milliseconds(2000));
+    // Block for the response to a specific request id. Returns
+    // `std::nullopt` on timeout or reader EOF.
+    std::optional<llvm::json::Value> waitForResponse(
+        int64_t id,
+        std::chrono::milliseconds timeout = std::chrono::milliseconds(2000));
 
     // Block for the next publishDiagnostics notification (any URI).
-    llvm::json::Value waitForDiagnostics(std::chrono::milliseconds timeout =
-                                          std::chrono::milliseconds(2000));
+    // Returns `std::nullopt` on timeout or reader EOF.
+    std::optional<llvm::json::Value> waitForDiagnostics(
+        std::chrono::milliseconds timeout = std::chrono::milliseconds(2000));
 
     // --- subprocess control ---
 
@@ -175,7 +178,8 @@ TEST_F(LifecycleSuite, README_TestGate_OpenErrorEditFix) {
     LspSession s;
     auto initId = s.sendRequest("initialize", llvm::json::Object{});
     auto initResp = s.waitForResponse(initId);
-    ASSERT_TRUE(initResp.getAsObject()->getObject("result"));
+    ASSERT_TRUE(initResp.has_value());
+    ASSERT_TRUE(initResp->getAsObject()->getObject("result"));
 
     s.sendNotification("initialized", llvm::json::Object{});
 
@@ -187,8 +191,9 @@ TEST_F(LifecycleSuite, README_TestGate_OpenErrorEditFix) {
             {"text",       "module foo { reg foo__bar; }"} }}}); // S01
 
     auto diag1 = s.waitForDiagnostics();
-    auto* arr = diag1.getAsObject()->getObject("params")
-                   ->getArray("diagnostics");
+    ASSERT_TRUE(diag1.has_value());
+    auto* arr = diag1->getAsObject()->getObject("params")
+                    ->getArray("diagnostics");
     EXPECT_EQ(arr->size(), 1u);
     EXPECT_EQ(arr->at(0).getAsObject()->getString("code"), "S01");
 
@@ -199,8 +204,9 @@ TEST_F(LifecycleSuite, README_TestGate_OpenErrorEditFix) {
              llvm::json::Object{{"text", "module foo { reg foo_bar; }"}} }}});
 
     auto diag2 = s.waitForDiagnostics();
-    auto* arr2 = diag2.getAsObject()->getObject("params")
-                    ->getArray("diagnostics");
+    ASSERT_TRUE(diag2.has_value());
+    auto* arr2 = diag2->getAsObject()->getObject("params")
+                     ->getArray("diagnostics");
     EXPECT_EQ(arr2->size(), 0u);
 
     auto shutId = s.sendRequest("shutdown", llvm::json::Value{nullptr});
@@ -236,8 +242,9 @@ TEST_F(LifecycleSuite, CapabilitiesExact) {
     LspSession s;
     auto id = s.sendRequest("initialize", llvm::json::Object{});
     auto resp = s.waitForResponse(id);
-    auto* caps = resp.getAsObject()->getObject("result")
-                    ->getObject("capabilities");
+    ASSERT_TRUE(resp.has_value());
+    auto* caps = resp->getAsObject()->getObject("result")
+                     ->getObject("capabilities");
     ASSERT_NE(caps, nullptr);
 
     // Canonicalize and compare against the frozen contract JSON.
@@ -285,7 +292,8 @@ TEST_F(FoldingSuite, Cancellation_Under200ms) {
                                     std::chrono::milliseconds(500));
     auto elapsed = std::chrono::steady_clock::now() - t0;
 
-    auto* err = resp.getAsObject()->getObject("error");
+    ASSERT_TRUE(resp.has_value());
+    auto* err = resp->getAsObject()->getObject("error");
     ASSERT_NE(err, nullptr);
     EXPECT_EQ(err->getInteger("code").value(), -32800);
     EXPECT_LT(elapsed, std::chrono::milliseconds(200));

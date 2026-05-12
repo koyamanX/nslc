@@ -1414,7 +1414,7 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr, mlir::Type typeHint) {
         nsl::dialect::BitsType::get(&ctx_, static_cast<unsigned>(result_width));
     auto loc = builder_.getUnknownLoc();
     return nsl::dialect::RepeatOp::create(builder_, loc, result_ty, body_val,
-                                           builder_.getI64IntegerAttr(count))
+                                          builder_.getI64IntegerAttr(count))
         .getResult();
   }
   // Other expression-position kinds (Call/IncDec/SystemVar) — T055.

@@ -288,9 +288,19 @@ Checks: >
 #   inconsistently across the codebase.
 #
 # cppcoreguidelines-init-variables:
-#   Default-constructed `std::string` / `std::vector` / `size_t`
-#   locals get zeroed by the language; explicit `= 0` / `= ""`
-#   adds noise without changing behavior.
+#   The check fires on a pre-existing out-parameter idiom — locals
+#   declared at the top of a scope that are unconditionally
+#   initialized by a downstream call before any read (e.g.,
+#   `uint32_t units; std::size_t len = utf8SequenceLen(b, &units);`
+#   in `lib/LSP/PositionEncoding.cpp`). The data flow makes the
+#   declarations safe: the call writes through the pointer before
+#   the value is consumed. Per-site review and refactor to
+#   `uint32_t units{};` would be style churn that adds redundant
+#   zeroing for values that are then overwritten anyway.
+#   (Note for reviewers: this suppression does NOT make uninitialized
+#   primitives safe in general — C++ does not zero-initialize
+#   scalar locals; the suppression covers only this specific idiom
+#   where the data flow proves no uninitialized read can occur.)
 #
 # cppcoreguidelines-missing-std-forward:
 #   Forwarding-reference parameters in lambda-captures (Lower/

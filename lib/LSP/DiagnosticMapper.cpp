@@ -30,9 +30,41 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <string>
 
 namespace nsl::lsp {
+
+namespace {
+
+/// Percent-encode a filesystem path for inclusion in a `file://` URI
+/// per RFC 3986. Leaves the unreserved character set (`A-Z`, `a-z`,
+/// `0-9`, `-`, `_`, `.`, `~`) and the path separator `/` alone; all
+/// other bytes are emitted as `%HH` (uppercase hex).
+///
+/// Necessary because raw paths may contain spaces, `%`, `#`, `?`,
+/// non-ASCII, or Windows drive prefixes — `file://` + raw path
+/// would mis-parse at the editor end (LSP clients call
+/// `url.parse(uri)`, which percent-decodes the path component).
+std::string percentEncodePath(llvm::StringRef path) {
+  std::string out;
+  out.reserve(path.size());
+  for (unsigned char c : path) {
+    bool unreserved = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+                      (c >= '0' && c <= '9') || c == '-' || c == '_' ||
+                      c == '.' || c == '~' || c == '/';
+    if (unreserved) {
+      out.push_back(static_cast<char>(c));
+    } else {
+      char buf[4];
+      std::snprintf(buf, sizeof(buf), "%%%02X", c);
+      out.append(buf);
+    }
+  }
+  return out;
+}
+
+} // namespace
 
 namespace {
 
@@ -172,7 +204,7 @@ llvm::json::Value toLspDiagnostic(const nsl::Diagnostic &d,
                     {"end", buildPosition(zline, utf16)},
                     {"start", buildPosition(zline, utf16)},
                 }},
-               {"uri", std::string("file://") + vloc.path.str()},
+               {"uri", std::string("file://") + percentEncodePath(vloc.path)},
            }},
           {"message", note.message},
       });
@@ -192,24 +224,29 @@ llvm::json::Array toLspDiagnosticArray(llvm::ArrayRef<nsl::Diagnostic> diags,
   for (const auto &d : diags)
     mapped.emplace_back(toLspDiagnostic(d, sm));
 
-  std::sort(mapped.begin(), mapped.end(),
-            [](const llvm::json::Value &a, const llvm::json::Value &b) {
-              const auto *aro =
-                  a.getAsObject()->getObject("range")->getObject("start");
-              const auto *bro =
-                  b.getAsObject()->getObject("range")->getObject("start");
-              auto al = aro->getInteger("line").value_or(0);
-              auto ac = aro->getInteger("character").value_or(0);
-              auto bl = bro->getInteger("line").value_or(0);
-              auto bc = bro->getInteger("character").value_or(0);
-              if (al != bl)
-                return al < bl;
-              if (ac != bc)
-                return ac < bc;
-              auto as = a.getAsObject()->getInteger("severity").value_or(0);
-              auto bs = b.getAsObject()->getInteger("severity").value_or(0);
-              return as < bs;
-            });
+  // stable_sort preserves emit-order for diagnostics that compare
+  // equal under `(line, character, severity)` — required for
+  // determinism (SC-003) when two same-position same-severity
+  // diagnostics tie on the comparator.
+  std::stable_sort(
+      mapped.begin(), mapped.end(),
+      [](const llvm::json::Value &a, const llvm::json::Value &b) {
+        const auto *aro =
+            a.getAsObject()->getObject("range")->getObject("start");
+        const auto *bro =
+            b.getAsObject()->getObject("range")->getObject("start");
+        auto al = aro->getInteger("line").value_or(0);
+        auto ac = aro->getInteger("character").value_or(0);
+        auto bl = bro->getInteger("line").value_or(0);
+        auto bc = bro->getInteger("character").value_or(0);
+        if (al != bl)
+          return al < bl;
+        if (ac != bc)
+          return ac < bc;
+        auto as = a.getAsObject()->getInteger("severity").value_or(0);
+        auto bs = b.getAsObject()->getInteger("severity").value_or(0);
+        return as < bs;
+      });
 
   llvm::json::Array out;
   out.reserve(mapped.size());
