@@ -1211,6 +1211,7 @@ Every MLIR op created carries the AST node's `SourceRange` as an `mlir::Location
 | `BareFinishStmt` | `nsl.finish` | lowered inside a `nsl.proc` region only |
 | `SystemTaskStmt` | `nsl.sim_display`, `nsl.sim_finish`, ... | guarded by S17 |
 | `StructCastExpr` | `nsl.struct_cast %v : @T` + `nsl.field @m` | preserves field access chain |
+| `RepeatExpr` (`N{a}`) | `nsl.repeat %a, N` | `N` is compile-time (S15); resolved eagerly via paramTable_ at AST-walk time so the count lands as a literal `I64Attr` and `NSLResolveParamsPass` has no work to do here. M5 visitor lit up on branch `m5-visitor-repeat-funccall` (post-M6 deferred-work close). |
 | `Control-name used as 1-bit value` (S27) | `nsl.fire_probe @name` | marker op lowered later to a 1-bit tap |
 
 ---

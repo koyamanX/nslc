@@ -1072,12 +1072,18 @@ mlir::LogicalResult lowerControlOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
                                    mlir::Value condGate);
 
 /// Combine two i1 conditions: condGate AND extraCond (fresh comb.and).
+/// Parameter name is `extraCond` (not `extra`) so call-site arg names
+/// like `cond` cannot trigger clang-tidy's
+/// `readability-suspicious-call-argument` heuristic — a 4-character
+/// shared substring with `condGate` confused the diagnostic into
+/// flagging swapped 3rd/4th args.
 mlir::Value andConds(mlir::OpBuilder &builder, mlir::Location loc,
-                     mlir::Value condGate, mlir::Value extra) {
+                     mlir::Value condGate, mlir::Value extraCond) {
   if (!condGate) {
-    return extra;
+    return extraCond;
   }
-  return circt::comb::AndOp::create(builder, loc, condGate, extra).getResult();
+  return circt::comb::AndOp::create(builder, loc, condGate, extraCond)
+      .getResult();
 }
 
 mlir::LogicalResult lowerIfOp(nsl::dialect::IfOp ifOp, ModuleLoweringCtx &ctx,

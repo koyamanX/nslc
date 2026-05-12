@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/expr/repeatexpr_emit_mlir.nsl — M5 visitor fixture
+// covering `ast::RepeatExpr` per FR-006 / FR-007 row "RepeatExpr →
+// nsl.repeat" (NSL `N{a}` per `lang.ebnf §11` line 700).
+//
+// Closes the M6 deferred-work entry "nsl.repeat unreachable from
+// NSL source": the M6 ControlPatterns lowering for `nsl::RepeatOp`
+// (target `comb::ReplicateOp` per design §10) was registered but
+// no NSL source path emitted the op because M5's visitor stubbed
+// `RepeatExpr`. This fixture exercises the now-real
+// `lowerExpr(RepeatExpr)` path.
+//
+// Per S15 the count is a compile-time constant. The M5 visitor
+// resolves it eagerly at AST-walk time (mirroring
+// `visit(StructuralGenerate)`'s bound-resolution policy):
+//   - LiteralExpr decimal     → I64Attr directly.
+//   - IdentifierExpr → paramTable_ → I64Attr (S16 forbids
+//     `param_int` in pure-NSL modules, so this arm is reached
+//     only for HDL-submodule param contexts; not exercised here).
+//   - Compile-time helper `_int(_pow(...))` → already substituted
+//     to a literal by the M1 preprocessor, lands as LiteralExpr.
+//
+// Result type: `count × operand_width`, computed from the operand's
+// resolved `nsl::dialect::BitsType` width. The M4 verifier
+// (`RepeatOp::verify`) cross-checks this invariant.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+#define N 4
+#define HALF _int(_pow(2.0, 1.0))
+
+declare M {
+  input a[1];
+  input b[3];
+  input c[2];
+  output q1[4];
+  output q2[12];
+  output q3[4];
+}
+
+module M {
+  // Literal-N replicate: `4{a}` → !nsl.bits<1> repeated 4× = !nsl.bits<4>.
+  q1 = 4{a};
+  // Multi-bit operand: `4{b}` → !nsl.bits<3> repeated 4× = !nsl.bits<12>.
+  q2 = 4{b};
+  // Compile-time-helper-derived count (`%HALF%` → `_int(_pow(2.0,1.0))`
+  // → `2`): `2{c}` → !nsl.bits<2> repeated 2× = !nsl.bits<4>.
+  q3 = %HALF%{c};
+}
+
+// CHECK: nsl.module @M
+// CHECK-DAG: nsl.repeat %{{.*}}, 4 : !nsl.bits<1> -> !nsl.bits<4>
+// CHECK-DAG: nsl.repeat %{{.*}}, 4 : !nsl.bits<3> -> !nsl.bits<12>
+// CHECK-DAG: nsl.repeat %{{.*}}, 2 : !nsl.bits<2> -> !nsl.bits<4>
