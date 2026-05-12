@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s15_slice_indices_const.nsl — T051 (US1).
+// S15: bit-slice index compile-time.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// reference here is runtime-variable.
+
+
+module m_fail {
+  wire a[8];
+  reg idx[3];
+  reg q = a[idx:0];
+}

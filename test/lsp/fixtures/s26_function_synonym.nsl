@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s26_function_synonym.nsl — T051 (US1).
+// S26: 'function' canonical is 'func'.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// is the only warning-class Sn).
+// warning recommends the canonical form.
+// replaceRange = function-keyword range, replacement = `func`.
+// Note: this is a WARNING, so the parser/Sema still accepts the
+// input; nslc exits 0 and the AST is emitted on stdout (we do NOT
+// use `not %nslc` here).
+// is not emitted; this fixture FAILS the CHECK. Phase 4b T062
+// turns it green.
+
+
+module m_warn {
+  function ready { }
+}

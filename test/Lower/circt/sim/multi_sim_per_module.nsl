@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/sim/multi_sim_per_module.nsl — M6 Phase 6 fixture
+// (T097). Multiple sim ops across one module share ONE
+// `sv::IfDefOp "SIMULATION"` block (research §9 lazy-materialise
+// rule). Each `_init` produces its own `sv::InitialOp` but the
+// outer ifdef is reused.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare tb simulation {
+}
+
+module tb {
+  _init {
+    _display("first");
+  }
+  _init {
+    _display("second");
+  }
+}
+
+// Single SIMULATION ifdef shared across multiple _init blocks.
+// CHECK: sv.macro.decl @SIMULATION
+// CHECK-LABEL: hw.module @tb
+// CHECK-COUNT-1: sv.ifdef @SIMULATION
+// CHECK-NOT: sv.ifdef @SIMULATION
+// CHECK-NOT: nsl.

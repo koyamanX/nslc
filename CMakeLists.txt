@@ -140,12 +140,27 @@ include_directories(SYSTEM ${MLIR_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS} ${CIRCT_INC
 add_subdirectory(third_party/tomlpp)
 
 add_subdirectory(lib)
+
+# T-track tooling library (`libNSLLSP.a`) — outside the §3 layer
+# table that `lib/CMakeLists.txt` aggregates via `add_nsl_library`.
+# Per Constitution Principle II §3, T-track tools (`nsl-lsp`,
+# `nsl-fmt`, `nsl-lint`) reuse `libNSLFrontend.a` rather than
+# duplicate frontend layers. Wired here from the top-level so
+# `lib/CMakeLists.txt` retains its documented "aggregator for the
+# nine compiler-track layer libraries" scope.
+add_subdirectory(lib/LSP)
+
 add_subdirectory(tools)
 
 if(NSL_BUILD_TESTS)
   enable_testing()
   add_subdirectory(test)
   add_subdirectory(test_unit)
+
+  # M6 (FR-033 + tasks.md T028): per-family conversion-pattern ↔
+  # fixture bijection guard. Configure-time check with
+  # FATAL_ERROR on violation.
+  include(${CMAKE_SOURCE_DIR}/test/Lower/circt/coverage_guard.cmake)
 
   # -----------------------------------------------------------------------------
   # Per-feature roll-up ninja targets (T2 — `check-nsl-fmt`)

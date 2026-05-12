@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/utf8_comment.nsl — T054 UTF-8 conversion path.
+// The S1 violation `bad__id` appears AFTER a multi-byte UTF-8 block
+// comment on the same line, exercising the byte-offset → UTF-16
+// code-unit conversion in DiagnosticMapper / PositionEncoding.
+
+module utf {
+  /* 日本語 */ reg bad__id;
+}

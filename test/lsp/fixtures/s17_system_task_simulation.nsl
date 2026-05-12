@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s17_system_task_simulation.nsl — T051 (US1).
+// S17: system task needs 'simulation'.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// rule. Without a `simulation`-modified declare block, `_display`
+// must NOT appear.
+
+
+module m_fail {
+  _display("oops");
+}

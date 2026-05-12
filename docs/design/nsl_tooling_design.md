@@ -104,6 +104,18 @@ Only the formatter and LSP "format" request need the CST. Compiler/linter skip i
 
 ## 3. Language Server — `nsl-lsp`
 
+> **T3 status: delivered.** The four contracts under
+> `specs/010-t3-lsp-skeleton/contracts/` (lsp-protocol,
+> diagnostic-mapping, folding-range, lsp-test-harness) freeze the
+> wire-visible behavior. The README §Roadmap row T3 test gate
+> ("open a file with a Sema error, observe diagnostic; edit,
+> observe re-diagnose") is materialized as
+> `LifecycleSuite::README_TestGate_OpenErrorEditFix` and passes.
+> 27 LSP integration tests run via `ctest -R lsp` in under 3
+> seconds. T4/T5/T9/T10 extend the dispatch table in `lib/LSP/
+> NslLSPServer.cpp` with new method handlers; the framing,
+> lifecycle, and document-sync layers below do not change.
+
 ### 3.1 Overall Architecture
 
 Modeled on clangd's three-layer design: ClangdLSPServer handles the LSP protocol details. Incoming requests are routed to some method on this class using a lookup table, and then implemented by dispatching them to the contained ClangdServer.

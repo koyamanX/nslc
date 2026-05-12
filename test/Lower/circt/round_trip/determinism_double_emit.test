@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/round_trip/determinism_double_emit.test — M6
+// Phase 7 (US5) determinism gate (T132). Asserts that two consecutive
+// `nslc -emit=hw` invocations on the same fixture, from the same
+// build, produce byte-identical output. This is the same-build
+// weaker companion to the cross-host-path gate in
+// `scripts/determinism_check_emit_hw.sh`; it catches the most
+// common non-determinism sources (pointer-derived ordering,
+// timestamps, environment leakage) on every CI run without paying
+// the cost of building the toolchain twice.
+//
+// Per Constitution Principle V + spec.md FR-022 +
+// `driver-emit-hw.contract.md` §6.
+//
+// Run set: every `.nsl` round-trip fixture in this directory whose
+// first RUN line invokes `%nslc -emit=hw` (i.e., not the XFAIL
+// fail-fast fixtures). The fixture filenames are listed inline so
+// the lit recipe is deterministic in a single layer (no glob over
+// readdir order).
+
+// RUN: %nslc -emit=hw %S/full_module_combination.nsl > %t.full.1
+// RUN: %nslc -emit=hw %S/full_module_combination.nsl > %t.full.2
+// RUN: diff -q %t.full.1 %t.full.2
+
+// RUN: %nslc -emit=hw %S/handshake_pattern.nsl > %t.hs.1
+// RUN: %nslc -emit=hw %S/handshake_pattern.nsl > %t.hs.2
+// RUN: diff -q %t.hs.1 %t.hs.2
+
+// RUN: %nslc -emit=hw %S/loc_plumbing.nsl > %t.loc.1
+// RUN: %nslc -emit=hw %S/loc_plumbing.nsl > %t.loc.2
+// RUN: diff -q %t.loc.1 %t.loc.2
+
+// RUN: %nslc -emit=hw %S/memory_array.nsl > %t.mem.1
+// RUN: %nslc -emit=hw %S/memory_array.nsl > %t.mem.2
+// RUN: diff -q %t.mem.1 %t.mem.2
+
+// RUN: %nslc -emit=hw %S/sim_only.nsl > %t.sim.1
+// RUN: %nslc -emit=hw %S/sim_only.nsl > %t.sim.2
+// RUN: diff -q %t.sim.1 %t.sim.2
+
+// RUN: %nslc -emit=hw %S/small_cpu_subset.nsl > %t.cpu.1
+// RUN: %nslc -emit=hw %S/small_cpu_subset.nsl > %t.cpu.2
+// RUN: diff -q %t.cpu.1 %t.cpu.2
+
+// RUN: %nslc -emit=hw %S/zero_nsl_ops.nsl > %t.zero.1
+// RUN: %nslc -emit=hw %S/zero_nsl_ops.nsl > %t.zero.2
+// RUN: diff -q %t.zero.1 %t.zero.2

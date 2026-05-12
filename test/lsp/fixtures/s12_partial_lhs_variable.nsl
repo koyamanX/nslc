@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s12_partial_lhs_variable.nsl — T051 (US1).
+// S12: partial LHS only on 'variable'.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// the LHS is a `reg` slice, which violates S12.
+
+
+module m_fail {
+  reg r[16];
+  func ready {
+    r[3:0] := 0;
+  }
+}

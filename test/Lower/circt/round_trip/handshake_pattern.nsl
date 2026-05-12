@@ -1,0 +1,60 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/round_trip/handshake_pattern.nsl — M6 Phase 7
+// (US5) round-trip fixture (T128). Exercises Phase-6's `nsl.call`
+// (func_in target) lowering with the materialised `<func>_valid`
+// `hw::WireOp` (research §8 + design §10 row "func_in call").
+//
+// The shape: `func_in load();` declared on the interface, `func load
+// { reg := input; }` defined in the module body, `if(load_req) load();`
+// in a par-block. Phase-6 inline-rewrites the call site to (a) an
+// inline copy of the func body's body-side effects (the firreg's
+// data-input mux gate) AND (b) a sibling `<func>_valid` wire whose
+// value is the call-site predicate (`load_req`).
+//
+// Round-trip pipeline: `circt-opt --lower-seq-to-sv` (no FSM in this
+// fixture — pure Phase-6 path). Asserts no `unrealized_conversion_cast`
+// surviving; `<func>_valid` wire survives as a `hw.wire`.
+
+// RUN: %nslc -emit=hw %s > %t.hw
+// RUN: %FileCheck %s --input-file=%t.hw
+// RUN: circt-opt --lower-seq-to-sv %t.hw -o %t.rt.mlir
+// RUN: %FileCheck %s --input-file=%t.rt.mlir --check-prefix=ROUNDTRIP
+// RUN: not grep "unrealized_conversion_cast" %t.rt.mlir
+
+declare M {
+  input din[8];
+  input load_req[1];
+  output dout[8];
+  func_in load();
+}
+
+module M {
+  reg buf[8] = 0;
+
+  func load {
+    buf := din;
+  }
+
+  if(load_req) load();
+
+  dout = buf;
+}
+
+// Pre-round-trip: `<func>_valid` wire materialised at call site.
+// CHECK-LABEL: hw.module @M
+// CHECK-DAG: %load_valid = hw.wire %load_req
+// CHECK-DAG: seq.firreg
+// CHECK-DAG: hw.output
+// CHECK-NOT: nsl.
+
+// Post-round-trip: hw.wire survives lower-seq-to-sv (it's a hw op,
+// not a seq op); seq.firreg lowers to sv.always + sv.passign +
+// randomization scaffold. No unrealized_conversion_cast survives;
+// no nsl.* survives.
+// ROUNDTRIP: hw.module @M
+// ROUNDTRIP-DAG: hw.wire
+// ROUNDTRIP-DAG: sv.always
+// ROUNDTRIP-DAG: sv.passign
+// ROUNDTRIP-NOT: seq.firreg
+// ROUNDTRIP-NOT: nsl.

@@ -1,0 +1,26 @@
+{
+  "_comment_top": "SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception. JSON has no comment syntax; the SPDX header rides on this top-level key per specs/009-t1-textmate-grammar/research.md §2 (precedent: .github/branch-protection.json). Minimal VS Code extension manifest per specs/009-t1-textmate-grammar/research.md §7. No marketplace metadata (publisher/icon/keywords) — T1 is folder-drop install only; FR-022 defers Marketplace publication. The grammar path is a relative reference to ../../grammars/textmate/nsl.tmLanguage.json via the symlink at ./syntaxes/nsl.tmLanguage.json (research.md §5).",
+  "name": "nsl",
+  "displayName": "NSL Language Support",
+  "description": "Syntax highlighting and editor configuration for NSL (Next Synthesis Language). T1 deliverable; LSP / lint / format land at T3+.",
+  "version": "0.1.0",
+  "engines": { "vscode": "^1.70.0" },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "nsl",
+        "aliases": ["NSL", "nsl"],
+        "extensions": [".nsl", ".nslh", ".inc"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "nsl",
+        "scopeName": "source.nsl",
+        "path": "./syntaxes/nsl.tmLanguage.json"
+      }
+    ]
+  }
+}

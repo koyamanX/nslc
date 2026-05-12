@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/include_chain_main.nsl — T055 main.
+// Pulls in include_chain_helper.nslh via the angle-form
+// `#include`. With NSL_INCLUDE pointing at this fixtures dir, the
+// helper resolves; its S1 violation produces a diagnostic whose
+// relatedInformation references this file's `#include` directive
+// (the include-from-notes chain per Principle IV / FR-026).
+
+#include <include_chain_helper.nslh>
+
+module main { }

@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/decl/funcdefn_call_func_in_emit_mlir.nsl — M5 visitor
+// fixture closing the M6 deferred-work entry "call_func_in deep
+// coverage": the M6 ControlPatterns helper `lowerCallOp` materialises
+// a `<func>_valid` `hw.wire` (research §8) for `nsl.call` ops whose
+// callee is a `func_in`, but the Phase 6 fixture
+// `test/Lower/circt/control/call_func_in.nsl` initially exercised
+// only the trivial inlined-`func` body — there was no `nsl.call`
+// call-site in the M5 IR for the helper to consume.
+//
+// This fixture pins the M5 visitor's contribution: `F();` inside a
+// `func FIRE` body lowers to `nsl.call @F() : () -> ()`, sitting
+// alongside the `nsl.func @F { ... }` body. The matching M6
+// end-to-end assertion lives in `test/Lower/circt/control/call_func_in.nsl`.
+//
+// Per FR-006 / FR-007 row "ControlCallStmt → nsl.call @target". Per
+// Q5 → Option A' the callee `@F` is a `FlatSymbolRefAttr` whose
+// resolution is deferred to MLIR's `SymbolTable` (lazy lookup;
+// matches `controlcallstmt_emit_mlir.nsl`'s `proc_name target`
+// shape, but with a `func_in`-targeted callee instead).
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  output q[8];
+  func_in F();
+  func_self FIRE;
+}
+
+module M {
+  func F {
+    q = a;
+  }
+  func FIRE {
+    F();
+  }
+}
+
+// CHECK-LABEL: nsl.module @M
+// CHECK: nsl.func_in "F"() : () -> ()
+// CHECK: nsl.func_self "FIRE"() : () -> ()
+// CHECK: nsl.func @F
+// CHECK: nsl.transfer %{{.*}}, %{{.*}} : !nsl.bits<8>
+// CHECK: nsl.func @FIRE
+// CHECK: nsl.call @F() : () -> ()

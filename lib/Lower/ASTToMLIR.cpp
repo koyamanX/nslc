@@ -27,6 +27,7 @@
 #include "nsl/AST/ConcatExpr.h"
 #include "nsl/AST/ConditionalExpr.h"
 #include "nsl/AST/ControlCallStmt.h"
+#include "nsl/AST/DeclareBlock.h"
 #include "nsl/AST/DelayTaskStmt.h"
 #include "nsl/AST/Expr.h"
 #include "nsl/AST/FieldAccessExpr.h"
@@ -46,6 +47,7 @@
 #include "nsl/AST/ProcDefn.h"
 #include "nsl/AST/ProcNameDecl.h"
 #include "nsl/AST/RegDecl.h"
+#include "nsl/AST/RepeatExpr.h"
 #include "nsl/AST/SeqBlock.h"
 #include "nsl/AST/SignExtendExpr.h"
 #include "nsl/AST/SliceExpr.h"
@@ -314,6 +316,23 @@ void ASTToMLIR::visit(const ast::ModuleBlock &node) {
   // continue to land in top_module_.getBody().
   mlir::OpBuilder::InsertionGuard guard(builder_);
   builder_.setInsertionPointToStart(&body_block);
+
+  // Drain control terminals parked by the matching
+  // `visit(DeclareBlock)` (post-merge M4-amendment 2026-05-05 #9).
+  // Source order is preserved: the inner SmallVector was filled in
+  // declare-source order. This dispatches to the existing
+  // `visit(PortDecl)` (lines 1455–1490 below) which emits
+  // `nsl.func_in`/`nsl.func_out`/`nsl.func_self` ops at the current
+  // insertion point — inside the new `nsl.module` body, where they
+  // belong per `HasParent<"ModuleOp">`.
+  if (auto pending_it = pendingControlTerminals_.find(node.name());
+      pending_it != pendingControlTerminals_.end()) {
+    for (const ast::PortDecl *port : pending_it->getValue()) {
+      port->accept(*this);
+    }
+    pendingControlTerminals_.erase(pending_it);
+  }
+
   for (const auto &decl : node.internals()) {
     decl->accept(*this);
   }
@@ -329,6 +348,127 @@ void ASTToMLIR::visit(const ast::ModuleBlock &node) {
     action->accept(*this);
   }
   currentModule_ = prevModule;
+}
+
+void ASTToMLIR::visit(const ast::DeclareBlock &node) {
+  // Post-merge M4-amendment 2026-05-05 (#9). FR-006 grows a row
+  // "DeclareBlock → nsl.declare @M + child port-info ops". The
+  // visitor splits the AST `PortDecl` set by direction at lowering
+  // time:
+  //
+  //   * **Data terminals (input/output/inout)** — emit `nsl.input_port`
+  //     / `nsl.output_port` / `nsl.inout_port` ops in TWO places per
+  //     amendment-#9 follow-on (SSA-dominance forces dual placement):
+  //       (a) inside the new `nsl.declare` body — port-list metadata
+  //           for M6's `hw::HWModuleOp` port-list derivation per
+  //           `specs/010-m6-circt-lowering/contracts/
+  //           circt-lowering.contract.md` §3. The result Value here
+  //           is informational only (never crosses the declare body
+  //           region boundary).
+  //       (b) inside the matching `nsl.module` body — SSA-Value-
+  //           bearing port reference. The visitor registers the
+  //           in-module result in `nameTable_` so transfers
+  //           (`r := a`, `q = r`) resolve correctly. The in-module
+  //           emission is parked here in `pendingControlTerminals_`
+  //           (despite the misleading name — it parks data ports
+  //           too post-amendment-#9) and drained by
+  //           `visit(ModuleBlock)`.
+  //
+  //   * **Control terminals (func_in/func_out/func_self)** — park
+  //     for the matching `visit(ModuleBlock)`; emitted as
+  //     `nsl.func_in`/`nsl.func_out`/`nsl.func_self` (those ops
+  //     carry `HasParent<"ModuleOp">`).
+  //
+  //   * **`Wire` direction** (per N4 — wire-class internal terminal
+  //     referenced by func_self dummy args) — Phase 3 carry-over
+  //     policy (existing `visit(PortDecl)`): skip; the dialect has
+  //     no `nsl.wire_port` op and Sema's S4 enforces direction
+  //     upstream.
+  //
+  // Empty `name()` (anonymous declare) materialises an empty
+  // SymbolName; M3 Sema flags this upstream when a module name is
+  // expected. We emit the op with whatever name the AST carries to
+  // preserve round-trippability.
+  auto loc = builder_.getUnknownLoc();
+  llvm::StringRef declName = node.name();
+  // Post-merge M4-amendment 2026-05-05 (#10). Surface the S20
+  // `interface(clock=<clk>, reset=<rst>)` modifier as the dialect's
+  // `interface_clock` / `interface_reset` OptionalAttr<StrAttr> pair.
+  // Both names are taken verbatim from the AST (which preserves any
+  // polarity hint such as `_n` suffix). Absent modifier → both attrs
+  // unset (status quo, implicit clk/rst_n path). M6's
+  // `lowerOneModule` reads these attrs to emit user-named clock +
+  // reset ports per `circt-lowering.contract.md` §3 rule 7.
+  mlir::StringAttr ifaceClkAttr;
+  mlir::StringAttr ifaceRstAttr;
+  if (node.modifier() == ast::DeclareBlock::Modifier::Interface) {
+    llvm::StringRef clkName = node.clockName();
+    llvm::StringRef rstName = node.resetName();
+    if (!clkName.empty()) {
+      ifaceClkAttr = builder_.getStringAttr(clkName);
+    }
+    if (!rstName.empty()) {
+      ifaceRstAttr = builder_.getStringAttr(rstName);
+    }
+  }
+  auto declare_op = nsl::dialect::DeclareOp::create(
+      builder_, loc, builder_.getStringAttr(declName), ifaceClkAttr,
+      ifaceRstAttr);
+  auto &body_block = declare_op.getBody().emplaceBlock();
+
+  // Pass 1: emit DATA port-info ops inside the declare body
+  // (placement (a) above). Save/restore insertion point so the
+  // outer top-level cursor (top_module_.getBody()) is unchanged for
+  // subsequent items at the CU level.
+  using D = ast::PortDecl::Direction;
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder_);
+    builder_.setInsertionPointToStart(&body_block);
+    for (const auto &port : node.ports()) {
+      if (!port) {
+        continue;
+      }
+      auto port_loc = builder_.getUnknownLoc();
+      auto port_name_attr = builder_.getStringAttr(port->name());
+      switch (port->direction()) {
+      case D::Input: {
+        auto bits_ty =
+            nsl::dialect::BitsType::get(&ctx_, resolveWidth(port->width()));
+        (void)nsl::dialect::InputPortOp::create(builder_, port_loc, bits_ty,
+                                                port_name_attr);
+        break;
+      }
+      case D::Output: {
+        auto bits_ty =
+            nsl::dialect::BitsType::get(&ctx_, resolveWidth(port->width()));
+        (void)nsl::dialect::OutputPortOp::create(builder_, port_loc, bits_ty,
+                                                 port_name_attr);
+        break;
+      }
+      case D::Inout: {
+        auto bits_ty =
+            nsl::dialect::BitsType::get(&ctx_, resolveWidth(port->width()));
+        (void)nsl::dialect::InoutPortOp::create(builder_, port_loc, bits_ty,
+                                                port_name_attr);
+        break;
+      }
+      default:
+        break; // control + wire — handled in pass 2 / not emitted
+      }
+    }
+  }
+
+  // Pass 2: park ALL non-`Wire` ports for the matching
+  // `visit(ModuleBlock)` to drain. Source-order preserved.
+  for (const auto &port : node.ports()) {
+    if (!port) {
+      continue;
+    }
+    if (port->direction() == D::Wire) {
+      continue;
+    }
+    pendingControlTerminals_[declName].push_back(port.get());
+  }
 }
 
 /// Lower an action-body Stmt directly into the current insertion-
@@ -1217,8 +1357,67 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr, mlir::Type typeHint) {
     return nsl::dialect::FieldOp::create(builder_, loc, field_ty, obj_val, idx)
         .getResult();
   }
-  // Other expression-position kinds (Repeat/Call/IncDec/SystemVar) —
-  // T055.
+  if (expr->kind() == ast::RepeatExpr::kKind) {
+    // FR-007 row "RepeatExpr → nsl.repeat". NSL `N{a}` per §11 line
+    // 700: operand `a` is repeated `N` times left-to-right, result
+    // width is `N × operand_width`. Per S15, `N` is a compile-time
+    // constant — at the AST level that's a `LiteralExpr` decimal or
+    // an `IdentifierExpr` referring to a `param_int` (resolved
+    // eagerly via `paramTable_`, mirroring `visit(StructuralGenerate)`'s
+    // bound-resolution policy so the count lands as a literal
+    // `I64Attr` and `NSLResolveParamsPass` has no work to do here).
+    //
+    // Compile-time helpers (`_int(...)`, `_pow(...)`, etc., per
+    // pp.ebnf §3) are already substituted to a literal by the M1
+    // preprocessor by the time we see them here, so they reach this
+    // path as `LiteralExpr` Decimal — the literal-arm covers them.
+    //
+    // Soft-fail per FR-010 if either:
+    //   - the count is neither a decimal literal nor a known param
+    //     (Sema-clean inputs would have flagged it upstream);
+    //   - the body fails to lower (downstream gap);
+    //   - the count is < 1 (the M4 `RepeatOp::verify` would reject it
+    //     anyway — bail at the visitor to keep the partial IR clean).
+    const auto *rep = static_cast<const ast::RepeatExpr *>(expr);
+    int64_t count = 0;
+    const auto *count_expr = rep->count();
+    if (count_expr) {
+      if (count_expr->kind() == ast::LiteralExpr::kKind) {
+        count = resolveDecimalLiteral(count_expr);
+      } else if (count_expr->kind() == ast::IdentifierExpr::kKind) {
+        const auto *ident =
+            static_cast<const ast::IdentifierExpr *>(count_expr);
+        const auto &parts = ident->name().parts;
+        if (parts.size() == 1) {
+          auto it = paramTable_.find(parts.front());
+          if (it != paramTable_.end()) {
+            count = it->second;
+          }
+        }
+      }
+    }
+    if (count < 1) {
+      return {};
+    }
+    auto body_val = lowerExpr(rep->body());
+    if (!body_val) {
+      return {};
+    }
+    auto operand_bits =
+        mlir::dyn_cast<nsl::dialect::BitsType>(body_val.getType());
+    if (!operand_bits) {
+      return {};
+    }
+    uint64_t result_width =
+        static_cast<uint64_t>(count) * operand_bits.getWidth();
+    auto result_ty =
+        nsl::dialect::BitsType::get(&ctx_, static_cast<unsigned>(result_width));
+    auto loc = builder_.getUnknownLoc();
+    return nsl::dialect::RepeatOp::create(builder_, loc, result_ty, body_val,
+                                          builder_.getI64IntegerAttr(count))
+        .getResult();
+  }
+  // Other expression-position kinds (Call/IncDec/SystemVar) — T055.
   return {};
 }
 
@@ -1235,6 +1434,14 @@ void ASTToMLIR::visit(const ast::LiteralExpr &node) {
 void ASTToMLIR::visit(const ast::IdentifierExpr &node) {
   // Visitor entry-point form (cf. `visit(LiteralExpr)`). Pure value
   // — no IR emitted at the current insertion point.
+  (void)lowerExpr(&node);
+}
+
+void ASTToMLIR::visit(const ast::RepeatExpr &node) {
+  // Visitor entry-point form (cf. `visit(LiteralExpr)`). RepeatExpr
+  // is `Pure`, so direct statement-position visits are no-ops; real
+  // lowering happens via `lowerExpr` from a containing transfer /
+  // arg / etc.
   (void)lowerExpr(&node);
 }
 
@@ -1454,39 +1661,77 @@ void ASTToMLIR::visit(const ast::FuncSelfDecl &node) {
 
 void ASTToMLIR::visit(const ast::PortDecl &node) {
   // FR-006 (M4 ops mapping) — `declare` block port declarations.
-  // Phase 3 only emits the control-terminal flavours (`FuncIn`,
-  // `FuncOut`, `FuncSelf`) so the `nsl.fire_probe` verifier finds
-  // its sibling target. Data terminals (`Input`, `Output`, `Inout`)
-  // and dummy-arg `Wire`s are deferred — Phase 3's smoke fixtures
-  // don't exercise them, and lowering them requires `hw::PortInfo`-
-  // shaped plumbing that's an M6 concern (per design §10).
+  //
+  // Two callers:
+  //   1. Direct AST-walk dispatch when this `PortDecl` lands inside
+  //      a `module` body (rare; most declares are CU-top-level).
+  //   2. `visit(ModuleBlock)`'s drain of `pendingControlTerminals_`
+  //      (post-merge M4-amendment 2026-05-05 #9): the matching
+  //      `declare M { ... }` parked all of its non-`Wire` ports for
+  //      this module to materialise inside its body.
+  //
+  // Direction split:
+  //   * Control (`FuncIn`/`FuncOut`/`FuncSelf`) → `nsl.func_in`/
+  //     `nsl.func_out`/`nsl.func_self` (each carries
+  //     `HasParent<"ModuleOp">`); registered in `controlTable_` so
+  //     `lowerExpr` emits a sibling `nsl.fire_probe` for any S27
+  //     control-name-as-1-bit-value reference.
+  //   * Data (`Input`/`Output`/`Inout`) → `nsl.input_port`/
+  //     `nsl.output_port`/`nsl.inout_port`; registered in
+  //     `nameTable_` so transfers reach the SSA Value (placement (b)
+  //     of the amendment-#9 dual-emission rule per the
+  //     `visit(DeclareBlock)` doc-comment).
+  //   * `Wire` — Phase 3 carry-over: skip (no `nsl.wire_port`).
   using D = ast::PortDecl::Direction;
-  if (node.direction() != D::FuncIn && node.direction() != D::FuncOut &&
-      node.direction() != D::FuncSelf) {
-    return;
-  }
   auto loc = builder_.getUnknownLoc();
   llvm::StringRef name = node.name();
+  auto name_attr = builder_.getStringAttr(name);
   switch (node.direction()) {
   case D::FuncIn:
     (void)nsl::dialect::FuncInOp::create(builder_, loc, /*result=*/mlir::Type{},
-                                         builder_.getStringAttr(name),
+                                         name_attr,
                                          /*args=*/mlir::ValueRange{});
-    break;
+    controlTable_.insert(name);
+    return;
   case D::FuncOut:
-    (void)nsl::dialect::FuncOutOp::create(builder_, loc,
-                                          builder_.getStringAttr(name),
+    (void)nsl::dialect::FuncOutOp::create(builder_, loc, name_attr,
                                           /*args=*/mlir::ValueRange{});
-    break;
+    controlTable_.insert(name);
+    return;
   case D::FuncSelf:
-    (void)nsl::dialect::FuncSelfOp::create(builder_, loc,
-                                           builder_.getStringAttr(name),
+    (void)nsl::dialect::FuncSelfOp::create(builder_, loc, name_attr,
                                            /*args=*/mlir::ValueRange{});
-    break;
-  default:
+    controlTable_.insert(name);
+    return;
+  case D::Input: {
+    auto bits_ty =
+        nsl::dialect::BitsType::get(&ctx_, resolveWidth(node.width()));
+    auto op =
+        nsl::dialect::InputPortOp::create(builder_, loc, bits_ty, name_attr);
+    nameTable_[name] = op.getResult();
     return;
   }
-  controlTable_.insert(name);
+  case D::Output: {
+    auto bits_ty =
+        nsl::dialect::BitsType::get(&ctx_, resolveWidth(node.width()));
+    auto op =
+        nsl::dialect::OutputPortOp::create(builder_, loc, bits_ty, name_attr);
+    nameTable_[name] = op.getResult();
+    return;
+  }
+  case D::Inout: {
+    auto bits_ty =
+        nsl::dialect::BitsType::get(&ctx_, resolveWidth(node.width()));
+    auto op =
+        nsl::dialect::InoutPortOp::create(builder_, loc, bits_ty, name_attr);
+    nameTable_[name] = op.getResult();
+    return;
+  }
+  case D::Wire:
+    // Phase 3 carry-over: no `nsl.wire_port` op; Sema's S4 enforces
+    // direction upstream.
+    return;
+  }
 }
 
 // ---------- Action-block stmt-position visitors ----------
@@ -1918,7 +2163,6 @@ void ASTToMLIR::visit(const ast::StructuralGenerate &node) {
 #define STUB(EnumName)                                                         \
   void ASTToMLIR::visit(const ast::EnumName & /*node*/) {}
 
-STUB(DeclareBlock)
 STUB(IntegerDecl)
 STUB(SubmoduleDecl)
 
@@ -1929,7 +2173,6 @@ STUB(LabeledStmt)
 STUB(GotoStmt)
 
 STUB(SystemVarExpr)
-STUB(RepeatExpr)
 STUB(CallExpr)
 STUB(IncDecExpr)
 

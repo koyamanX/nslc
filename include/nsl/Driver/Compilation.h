@@ -87,6 +87,17 @@ public:
   /// `mlir::failure()`.
   mlir::LogicalResult runNSLPasses(mlir::ModuleOp module);
 
+  /// Run the M6 nsl→CIRCT conversion pass over the post-M5 `nsl`
+  /// dialect IR (M6 deliverable). On success, every reachable op
+  /// belongs to one of the five CIRCT dialects (`hw`, `comb`, `seq`,
+  /// `fsm`, `sv`); zero ops in the `nsl` dialect remain. Failures
+  /// route through the project `nsl::DiagnosticEngine` via the
+  /// internal `DiagnosticBridge` (Constitution Principle IV).
+  ///
+  /// Pinned by `specs/010-m6-circt-lowering/contracts/lower-api.contract.md`
+  /// §4 + `circt-lowering.contract.md` §1 (per-op mapping freeze).
+  mlir::LogicalResult lowerToCIRCT(mlir::ModuleOp module);
+
   /// Read-only accessor for the embedded MLIR context. M5 lowering
   /// passes consume this when constructing ops.
   mlir::MLIRContext &context() noexcept { return mlir_ctx_; }

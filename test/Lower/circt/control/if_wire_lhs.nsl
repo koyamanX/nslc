@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/control/if_wire_lhs.nsl — M6 Phase 6 fixture
+// (T088). `if(c) w = a; else w = b;` over wire LHS lowers via
+// `comb.mux %c, %a, %b`.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  input b[8];
+  input c[1];
+  output q[8];
+}
+
+module M {
+  wire w[8];
+  if(c) w = a;
+  else w = b;
+  q = w;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK: comb.mux
+// CHECK-NOT: nsl.

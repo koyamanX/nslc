@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/sim/s29_init_block.nsl — M6 Phase 6 fixture (T096).
+// S29 module-level `_init { … }` block: every body statement is
+// wrapped in a single `sv::InitialOp` inside the SIMULATION ifdef
+// (per spec Q1-specify-time → B). Multiple sim ops in one _init
+// share the same initial block (research §9 forbidding ifdef
+// duplication).
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare tb simulation {
+}
+
+module tb {
+  _init {
+    _delay(1);
+    _display("start");
+    _delay(10);
+    _finish("done");
+  }
+}
+
+// CHECK: sv.macro.decl @SIMULATION
+// CHECK-LABEL: hw.module @tb
+// CHECK: sv.ifdef @SIMULATION
+// CHECK: sv.initial
+// CHECK-DAG: sv.verbatim "#1;"
+// CHECK-DAG: sv.fwrite
+// CHECK-DAG: sv.verbatim "#10;"
+// CHECK-DAG: sv.finish
+// CHECK-NOT: nsl.

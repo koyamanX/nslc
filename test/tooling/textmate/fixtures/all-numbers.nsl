@@ -1,0 +1,50 @@
+// SYNTAX TEST "source.nsl"
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// all-numbers.nsl — hand-authored fixture covering every numeric
+// literal form in `docs/spec/nsl_lang.ebnf §13` per
+// `specs/009-t1-textmate-grammar/contracts/scope-test-format.contract.md` §1.2
+// and `data-model.md §1.4`. Pattern-ordering note: Verilog-sized
+// must match before bare decimal so `8'hFF` does not fragment.
+//
+// Coverage:
+//   - bare decimal (with and without underscore separators)
+//   - hex 0x... (with and without underscore separators)
+//   - binary 0b... (with and without underscore separators)
+//   - octal 0o... (with and without underscore separators)
+//   - Verilog-sized for each base b/o/d/h
+//   - Verilog-sized with Z/X/U value markers
+//
+// Assertions use the `// <- <scope>` form — the runner asserts
+// the scope at column 1 of the previous line.
+
+42
+// <- constant.numeric.decimal.nsl
+1_000_000
+// <- constant.numeric.decimal.nsl
+0xDEADBEEF
+// <- constant.numeric.hex.nsl
+0xFF_00
+// <- constant.numeric.hex.nsl
+0b1010
+// <- constant.numeric.binary.nsl
+0b1100_0011
+// <- constant.numeric.binary.nsl
+0o17
+// <- constant.numeric.octal.nsl
+0o12_34
+// <- constant.numeric.octal.nsl
+8'b1010
+// <- constant.numeric.verilog.nsl
+8'o17
+// <- constant.numeric.verilog.nsl
+8'd255
+// <- constant.numeric.verilog.nsl
+8'hFF
+// <- constant.numeric.verilog.nsl
+8'hFZ_3X
+// <- constant.numeric.verilog.nsl
+4'bx10z
+// <- constant.numeric.verilog.nsl
+2'bUU
+// <- constant.numeric.verilog.nsl

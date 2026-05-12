@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/two_errors_same_line.nsl — two S1 violations on
+// the SAME physical line so the column tiebreak path is exercised
+// by `DiagnosticsSuite::SortOrder_LineThenColumn` (T060). With both
+// violations on one line, `a.line == b.line` and the assertion
+// degenerates onto the `(character)` comparison.
+
+module m {
+  reg first__bad; reg second__bad;
+}

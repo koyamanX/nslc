@@ -10,3 +10,4 @@
 add_subdirectory(nslc)
 add_subdirectory(nsl-opt)
 add_subdirectory(nsl-fmt)   # T2 milestone (010-t2-formatter-v0)
+add_subdirectory(nsl-lsp)   # T3 milestone (010-t3-lsp-skeleton)

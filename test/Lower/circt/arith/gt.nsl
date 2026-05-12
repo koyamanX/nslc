@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/arith/gt.nsl — M6 Phase 6 fixture (T069).
+// `nsl.gt` → `comb.icmp ugt` (unsigned).
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  input b[8];
+  output q[1];
+}
+
+module M {
+  q = a > b;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK: comb.icmp ugt %a, %b : i8
+// CHECK-NOT: nsl.

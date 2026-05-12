@@ -1,0 +1,14 @@
+{
+  "_comment_top": "SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception. JSON has no comment syntax; the SPDX header rides on this top-level key per specs/009-t1-textmate-grammar/research.md §2 (precedent: .github/branch-protection.json). This package.json declares only the test-time dev-dependency for the TextMate scope-test runner; it is NOT a publishable package and has no runtime dependencies.",
+  "name": "nslc-tooling-textmate-tests",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Test-only npm package wrapping vscode-tmgrammar-test for the T1 TextMate scope-test gate. See specs/009-t1-textmate-grammar/contracts/scope-test-format.contract.md.",
+  "license": "Apache-2.0 WITH LLVM-exception",
+  "devDependencies": {
+    "vscode-tmgrammar-test": "0.1.3"
+  },
+  "scripts": {
+    "test": "vscode-tmgrammar-test --grammar ../../../grammars/textmate/nsl.tmLanguage.json 'fixtures/*.nsl'"
+  }
+}

@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/round_trip/memory_array.nsl — M6 Phase 7 (US5)
+// round-trip fixture (T129). Exercises `nsl.mem` Phase-6 lowering
+// to `seq::FirMemOp` AND the stock CIRCT `lower-seq-to-sv` pass
+// which canonicalises `seq.firmem` into a generated `hw.module`
+// + the `RANDOM_INIT_*_FRAGMENT` randomization scaffolding.
+//
+// Per design §10 row "mem":
+//   nsl.mem "ram" : !nsl.mem<16, 8>
+//     → seq.firmem 0, 1, undefined, port_order : <16 x 8>
+//     → hw.module.generated @ram_16x8, @FIRRTLMem(...)  (after
+//       --lower-seq-to-sv)
+//
+// The fixture also includes a register so the post-`lower-seq-to-sv`
+// shape exercises both the firmem and firreg expansion machinery —
+// realistic memory-bearing modules always carry registers too.
+//
+// Round-trip pipeline: `--lower-seq-to-sv`. No FSM in this fixture.
+
+// RUN: %nslc -emit=hw %s > %t.hw
+// RUN: %FileCheck %s --input-file=%t.hw
+// RUN: circt-opt --lower-seq-to-sv %t.hw -o %t.rt.mlir
+// RUN: %FileCheck %s --input-file=%t.rt.mlir --check-prefix=ROUNDTRIP
+// RUN: not grep "unrealized_conversion_cast" %t.rt.mlir
+
+declare M {
+  input din[8];
+  output dout[8];
+}
+
+module M {
+  mem ram[16][8];
+  reg r[8] = 0;
+
+  r := din;
+  dout = r;
+}
+
+// Pre-round-trip shape.
+// CHECK-LABEL: hw.module @M
+// CHECK-DAG: seq.firmem
+// CHECK-SAME: <16 x 8>
+// CHECK-DAG: seq.firreg
+// CHECK-NOT: nsl.
+
+// Post-round-trip shape: seq.firmem → hw.module.generated stub +
+// hw.instance "ram_ext" call site inside @M; the M-module body uses
+// sv.reg + sv.always + sv.passign for the firreg expansion.
+// ROUNDTRIP-DAG: hw.module.generated @ram
+// ROUNDTRIP-DAG: hw.module @M
+// ROUNDTRIP-DAG: hw.instance "ram_ext"
+// ROUNDTRIP-DAG: sv.always
+// ROUNDTRIP-DAG: sv.passign
+// ROUNDTRIP-NOT: seq.firmem
+// ROUNDTRIP-NOT: seq.firreg
+// ROUNDTRIP-NOT: nsl.

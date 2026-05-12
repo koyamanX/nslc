@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/sim/sim_display.nsl — M6 Phase 6 fixture (T092).
+// `_display` → `sv.fwrite` inside `sv.ifdef "SIMULATION"` (research
+// §9; circt-lowering.contract.md §1).
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare tb simulation {
+}
+
+module tb {
+  _init {
+    _display("hello");
+  }
+}
+
+// CHECK: sv.macro.decl @SIMULATION
+// CHECK-LABEL: hw.module @tb
+// CHECK: sv.ifdef @SIMULATION
+// CHECK: sv.initial
+// CHECK: sv.fwrite
+// CHECK-NOT: nsl.

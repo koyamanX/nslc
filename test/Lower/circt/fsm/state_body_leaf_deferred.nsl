@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/fsm/state_body_leaf_deferred.nsl — Round-1 review
+// fix for PR #14 Finding #7 coverage. A leaf op (transfer / arith)
+// inside a `nsl.state` body now produces an explicit deferral
+// diagnostic instead of being silently dropped during the
+// proc.erase() cascade. Full lowering of state-body leaf ops into
+// the `fsm::StateOp` output region is M7-or-later territory.
+
+// RUN: not %nslc -emit=hw %s 2>&1 | %FileCheck %s
+
+declare M {
+  input a[8];
+  output q[8];
+}
+
+module M {
+  reg r[8] = 0;
+  proc_name p;
+  proc p {
+    state_name s0;
+    first_state s0;
+    state s0 {
+      // This leaf op should fire-fast with a deferral diagnostic.
+      r := a;
+    }
+  }
+  q = r;
+}
+
+// CHECK: M6 round-1 deferral: state body op
+// CHECK-SAME: nsl.clocked_transfer

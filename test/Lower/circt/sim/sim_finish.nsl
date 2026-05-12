@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/sim/sim_finish.nsl — M6 Phase 6 fixture (T093).
+// `_finish` → `sv.finish` inside SIMULATION ifdef.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare tb simulation {
+}
+
+module tb {
+  _init {
+    _finish("done");
+  }
+}
+
+// CHECK: sv.macro.decl @SIMULATION
+// CHECK-LABEL: hw.module @tb
+// CHECK: sv.ifdef @SIMULATION
+// CHECK: sv.initial
+// CHECK: sv.finish
+// CHECK-NOT: nsl.

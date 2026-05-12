@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/arith/zero_extend.nsl — M6 Phase 6 fixture (T076).
+// `nsl.zero_extend` → `comb.concat (zeros, operand)`.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[4];
+  output q[8];
+}
+
+module M {
+  q = 8'(a);
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK: hw.constant 0
+// CHECK: comb.concat
+// CHECK-NOT: nsl.

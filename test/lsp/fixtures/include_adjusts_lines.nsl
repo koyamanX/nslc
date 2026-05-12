@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/include_adjusts_lines.nsl — T086 fixture for
+// FoldingSuite::IncludeAdjustsLines. The `#include` line is at
+// physical line 11 (zero-based 10). The `module mod {` opens at
+// physical line 13 (zero-based 12) and closes at line 16 (zero-
+// based 15). The text walker counts physical lines, so the
+// expected fold is startLine=12, endLine=15 regardless of the
+// preprocessor's view of the included file's contents.
+
+#include <include_chain_helper.nslh>
+
+module mod {
+  reg q[8] = 0;
+  func clk { q := q + 1; }
+}

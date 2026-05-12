@@ -28,3 +28,11 @@ add_lit_testsuite(check-nslc
   "Running the NSLC regression tests"
   ${CMAKE_CURRENT_BINARY_DIR}
   DEPENDS nslc FileCheck)
+
+# LSP integration test layer (T3). gtest binaries driven by ctest
+# via `gtest_discover_tests`; lit.local.cfg.py at test/lsp/ opts
+# the subtree out of lit's recursive discovery (the `.nsl` fixture
+# files have no RUN line — they're consumed by `LspSession`,
+# the in-tree subprocess harness). Per
+# `specs/010-t3-lsp-skeleton/contracts/lsp-test-harness.contract.md`.
+add_subdirectory(lsp)

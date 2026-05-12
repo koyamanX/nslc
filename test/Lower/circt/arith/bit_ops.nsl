@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/arith/bit_ops.nsl — M6 Phase 6 fixture (T071).
+// `nsl.{and,or,xor}` → `comb.{and,or,xor}`.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  input b[8];
+  output qa[8];
+  output qo[8];
+  output qx[8];
+}
+
+module M {
+  qa = a & b;
+  qo = a | b;
+  qx = a ^ b;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK-DAG: comb.and %a, %b : i8
+// CHECK-DAG: comb.or %a, %b : i8
+// CHECK-DAG: comb.xor %a, %b : i8
+// CHECK-NOT: nsl.

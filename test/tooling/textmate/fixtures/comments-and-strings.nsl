@@ -1,0 +1,29 @@
+// SYNTAX TEST "source.nsl"
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// comments-and-strings.nsl — hand-authored fixture covering
+// comment forms (line + non-nestable block per
+// `nsl_lang.ebnf §14`) and string literals with backslash
+// escapes per `specs/009-t1-textmate-grammar/data-model.md`
+// §§1.8, 1.9.
+//
+// The negative-coverage assertions (lines starting with `^ -`)
+// verify that keyword spellings inside comments / strings DO
+// NOT carry keyword/storage scopes — required by spec User
+// Story 1 acceptance scenarios 2 and 4.
+
+// regular line comment, no scope leakage
+// <- comment.line.double-slash.nsl
+// proc this is still a comment, NOT a proc keyword
+//   ^^^^ comment.line.double-slash.nsl - storage.type.control.nsl
+/* func this is a block comment containing func */
+// <- comment.block.nsl
+//   ^^^^ comment.block.nsl - storage.type.control.nsl
+"hello world"
+// <- string.quoted.double.nsl
+"a\nb\tc"
+// <- string.quoted.double.nsl
+//^^ constant.character.escape.nsl
+"reg q[8];"
+// <- string.quoted.double.nsl
+// ^^^ string.quoted.double.nsl - storage.type.register.nsl

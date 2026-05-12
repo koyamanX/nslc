@@ -22,15 +22,21 @@ References to `lang.ebnf §X` are sections in
 `pp.ebnf §X` are sections in
 [`docs/spec/nsl_pp.ebnf`](./docs/spec/nsl_pp.ebnf).
 
-> **Status as of 2026-04-30**: M1, M2, M3, M4, and M5 (this branch,
-> pass-standalone) are delivered. The "M5 (...)" column entries
-> below — `%IDENT%` residue check (`NSLCheckSemanticsPass`),
+> **Status as of 2026-05-04**: M1, M2, M3, M4, M5, and M6 (this
+> branch, structurally feature-complete) are delivered. The "M5 (...)"
+> column entries — `%IDENT%` residue check (`NSLCheckSemanticsPass`),
 > `generate` unroll (`NSLExpandGeneratePass`), expression visitor
 > coverage, width / constant expressions (`NSLResolveParamsPass`) —
 > are all wired into the `Compilation::runNSLPasses` pipeline (slots
 > 1, 2, 6 of 6 per `008-m5-structural-passes/contracts/pass-pipeline.
-> contract.md` §2). 499/506 lit + 7 XFAIL pass inside the dev
-> container. M6 (lower-to-CIRCT) and beyond remain forward-looking.
+> contract.md` §2). The "M6 ✓" entries — the `nsl::*` → CIRCT
+> conversion pass (`NSLToCIRCTPass`) producing `hw`/`comb`/`seq`/
+> `fsm`/`sv` IR per `010-m6-circt-lowering/contracts/circt-lowering.
+> contract.md` §1 — are wired into `Compilation::lowerToCIRCT` and
+> exposed via `nslc -emit=hw`. 620 PASS + 3 XFAIL out of 623 lit
+> tests inside the dev container. M7 (`-emit=verilog` via stock
+> CIRCT passes + `circt::ExportVerilog`) and beyond remain
+> forward-looking.
 
 | Language area | Spec reference | Lex / parse / sema | Lower to dialect | Lower to CIRCT |
 |---|---|---|---|---|
@@ -44,17 +50,17 @@ References to `lang.ebnf §X` are sections in
 | Preprocessor: `%IDENT%` macro splicing | pp.ebnf §4; P3 | M1 | M5 (residue-free check) | — |
 | Preprocessor: bare-macro textual substitution + recursion bound | pp.ebnf P10 (amended in 003-macro-textual-concat) | M1 (`MacroExpander` pre-pass; 256-level cycle bound; FR-007 locked diagnostic) | — | — |
 | Compile-time helpers `_int`/`_pow`/`_sin`/… | pp.ebnf §3 | M1 (preprocessor parse + eval per pp.ebnf P5/P6/P7/P12); M3 separately delivers the NSL-language Sema constant evaluator for `Sn` constraints (S15 bit-slice indices etc.) — that's a different evaluator from the preprocessor's | — | — |
-| Compilation unit + `struct` types | lang.ebnf §§1, 3 | M2; M3 (S18) | M4 (struct layout) | M6 |
-| Top-level parameters | lang.ebnf §3.1; S16 | M2; M3 | M4 (param attrs) | M6 (param propagation) |
-| `declare` block (ports, control terminals, modifiers) | lang.ebnf §4 | M2; M3 (S20 interface modifier) | M4 (`nsl::DeclareOp`) | M6 (HW ports) |
-| `module` block | lang.ebnf §5 | M2; M3 | M4 (`nsl::ModuleOp`) | M6 (`hw::HWModuleOp`) |
-| Internal-structure: `reg`, `wire`, `mem`, `proc_name`, `state_name` | lang.ebnf §6 | M2; M3 (S2, S6, S11) | M4 | M6 (`seq::CompRegOp`, `seq::FirMemOp`, `hw::WireOp`) |
-| `func` / `proc` / `state` definitions | lang.ebnf §7 | M2; M3 (S6, S11, S21, S22, S26, S28) | M4 (`FuncInOp`, `FuncOutOp`, `ProcOp`, `StateOp`) | M6 (FSM lowering) |
-| Action statements: `par` / `alt` / `any` | lang.ebnf §8; S13 | M2; M3 | M4 (`AltOp`, `AnyOp`) | M6 (`comb::MuxOp` chains) |
-| Action statements: `seq` / `if` / `for` / `while` / `generate` | lang.ebnf §8; S7, S8, S9, S10 | M2; M3 | M4 (`SeqOp`); M5 (`generate` unroll pass) | M6 (`SeqOp` → `fsm::MachineOp` for in-`func`) |
-| Atomic actions: transfers, control calls, `finish`, system tasks | lang.ebnf §9; S3, S12, S21 | M2; M3 | M4 (`TransferOp`) | M6 |
-| System tasks: `_display`, `_finish`, `_init`, `_delay`, … | lang.ebnf §10; S17, S29 | M2; M3 | M4 (sim-only) | M6 (sim-only emit) |
-| Expressions (sign-extend `#`, zero-extend `'`, slice, concat, conditional) | lang.ebnf §11; S14, S15 | M2 (incl. N5 `#` line-marker disambiguation); M3 | M5 | M6 (`comb::*`, `hwarith::*`) |
+| Compilation unit + `struct` types | lang.ebnf §§1, 3 | M2; M3 (S18) | M4 (struct layout) | M6 ✓ |
+| Top-level parameters | lang.ebnf §3.1; S16 | M2; M3 | M4 (param attrs) | M6 ✓ (param propagation; ParamPatterns) |
+| `declare` block (ports, control terminals, modifiers) | lang.ebnf §4 | M2; M3 (S20 interface modifier) | M4 (`nsl::DeclareOp` + `nsl::InputPortOp` / `nsl::OutputPortOp` / `nsl::InoutPortOp`; post-merge amendment 2026-05-05 #9; field-level amendment 2026-05-05 #10 surfaces S20 as `interface_clock` + `interface_reset` `OptionalAttr<StrAttr>` on `nsl::DeclareOp`) + M5 visitor (`visit(DeclareBlock)`; populates the attrs from `ast::DeclareBlock::clockName()` / `resetName()`) | M6 ✓ (HW ports; user-named clock + reset on the explicit-`interface` path per amendment-#10; ModulePatterns) |
+| `module` block | lang.ebnf §5 | M2; M3 | M4 (`nsl::ModuleOp`) | M6 ✓ (`hw::HWModuleOp`) |
+| Internal-structure: `reg`, `wire`, `mem`, `proc_name`, `state_name` | lang.ebnf §6 | M2; M3 (S2, S6, S11) | M4 | M6 ✓ (`seq::FirRegOp` default / `seq::CompRegOp` on S20 interface path, `seq::FirMemOp`, `hw::WireOp`) |
+| `func` / `proc` / `state` definitions | lang.ebnf §7 | M2; M3 (S6, S11, S21, S22, S26, S28) | M4 (`FuncInOp`, `FuncOutOp`, `ProcOp`, `StateOp`) | M6 ✓ (FSM lowering — FSMPatterns) |
+| Action statements: `par` / `alt` / `any` | lang.ebnf §8; S13 | M2; M3 | M4 (`AltOp`, `AnyOp`) | M6 ✓ (`comb::MuxOp` chains; ControlPatterns) |
+| Action statements: `seq` / `if` / `for` / `while` / `generate` | lang.ebnf §8; S7, S8, S9, S10 | M2; M3 | M4 (`SeqOp`); M5 (`generate` unroll pass) | M6 ✓ (`SeqOp` → `fsm::MachineOp` for in-`func`; `IfOp` → `comb::MuxOp` per Q3 → A) |
+| Atomic actions: transfers, control calls, `finish`, system tasks | lang.ebnf §9; S3, S12, S21 | M2; M3 | M4 (`TransferOp`) | M6 ✓ |
+| System tasks: `_display`, `_finish`, `_init`, `_delay`, … | lang.ebnf §10; S17, S29 | M2; M3 | M4 (sim-only) | M6 ✓ (sim-only emit; SimPatterns under `sv.ifdef "SIMULATION"`) |
+| Expressions (sign-extend `#`, zero-extend `'`, slice, concat, conditional) | lang.ebnf §11; S14, S15 | M2 (incl. N5 `#` line-marker disambiguation); M3 | M5 | M6 ✓ (`comb::*` only — Q1 → A; ArithPatterns + BitOpPatterns) |
 | Width / constant expressions | lang.ebnf §12 | M2; M3 | M5 | — |
 | Semantic constraints `S1`–`S29` | lang.ebnf S1–S29 area | **M3 — one pass-case + one fail-case test each per Principle VI**[^constructive] | — | — |
 
@@ -80,8 +86,8 @@ editor integration), this section tells you when it lands.
 
 | Method | Difficulty | Milestone |
 |---|---|---|
-| `publishDiagnostics` (errors / warnings) | Trivial | T3 |
-| `textDocument/foldingRange` | Trivial | T3 |
+| `publishDiagnostics` (errors / warnings) | Trivial | T3 — **delivered** |
+| `textDocument/foldingRange` | Trivial | T3 — **delivered** |
 | `textDocument/hover` | Low | T4 |
 | `textDocument/definition` | Low | T4 |
 | `textDocument/documentSymbol` (outline) | Low | T4 |
