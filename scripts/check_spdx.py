@@ -51,6 +51,7 @@ RECIPES_BY_EXT: dict[str, tuple[str, Optional[str]]] = {
     ".scm":    (";",    None),  # T8 tree-sitter highlight queries (Scheme)
     ".ebnf":   ("(*",   "*)"),
     ".nsl":    ("//",   None),
+    ".nslh":   ("//",   None),
     ".yml":    ("#",    None),
     ".yaml":   ("#",    None),
     ".toml":   ("#",    None),

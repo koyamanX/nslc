@@ -190,6 +190,23 @@ stage_static_checks() {
     log "  (skipping SPDX check: scripts/check_spdx.py not yet present — lands at T065)"
   fi
 
+  # T3 / Phase 6 (T103, T106): lib/LSP/ Principle II audit.
+  # Verifies the LSP server doesn't reimplement any frontend class
+  # and that the public-header surface is a single Server.h.
+  # Gate on file existence (`-f`), not executable bit (`-x`): the
+  # audit is load-bearing for Principle II — if the file is present
+  # but its mode was inadvertently lost (e.g., by a Windows-side
+  # checkout that drops `+x`), invoke via `bash` so we still run.
+  # A missing file is treated as an outright error rather than a
+  # silent skip.
+  if [[ -f "${REPO_ROOT}/scripts/lsp_link_audit.sh" ]]; then
+    log "  scripts/lsp_link_audit.sh"
+    bash "${REPO_ROOT}/scripts/lsp_link_audit.sh" || rc=$?
+  else
+    log "  ERROR: scripts/lsp_link_audit.sh is missing"
+    rc=1
+  fi
+
   # 4. M4 dialect fixture-coverage guard (spec FR-021 + research.md §9).
   # Vacuous at Phase 2 (op set empty); goes live as Phase 3 / 4
   # populate `lib/Dialect/NSL/IR/NSLOps.td` and
@@ -235,6 +252,18 @@ stage_static_checks() {
     log "  (skipping determinism source-audit: scripts/audit_determinism.sh not yet present)"
   fi
 
+  # T2 T092 — `audit_fmt_api.sh` enforces the 10-symbol freeze on
+  # `include/nsl/Fmt/Fmt.h` per format-api.contract.md §5. Adding
+  # an 11th public symbol to nsl-fmt's umbrella header without
+  # amending the contract fails CI here.
+  if [[ -x "${REPO_ROOT}/scripts/audit_fmt_api.sh" ]]; then
+    log "  bash scripts/audit_fmt_api.sh"
+    bash "${REPO_ROOT}/scripts/audit_fmt_api.sh" \
+      || rc=$?
+  else
+    log "  (skipping nsl-fmt API audit: scripts/audit_fmt_api.sh not yet present)"
+  fi
+
   # 7. M5 US5 / T101 cross-host-path determinism check
   # (FR-025 + FR-026 + FR-029 + driver-emit-mlir.contract.md §3).
   # Builds the toolchain twice in distinct host paths, runs
@@ -254,6 +283,23 @@ stage_static_checks() {
     log "  (skipping cross-host-path determinism check; set NSLC_RUN_DETERMINISM_CHECK=1 to opt in)"
   else
     log "  (skipping cross-host-path determinism check: scripts/determinism_check.sh not yet present)"
+  fi
+
+  # 7b. M6 US5 / T132 cross-host-path determinism check for `-emit=hw`
+  # (FR-022 + driver-emit-hw.contract.md §6). Sibling of step 7;
+  # extends the M5 mechanism to the M6 driver layer per Phase-7 of
+  # `specs/010-m6-circt-lowering/tasks.md`. Same opt-in env var as
+  # the M5 sibling — both gates run together when
+  # NSLC_RUN_DETERMINISM_CHECK=1 is set.
+  if [[ -x "${REPO_ROOT}/scripts/determinism_check_emit_hw.sh" \
+        && "${NSLC_RUN_DETERMINISM_CHECK:-0}" == "1" ]]; then
+    log "  bash scripts/determinism_check_emit_hw.sh (NSLC_RUN_DETERMINISM_CHECK=1)"
+    bash "${REPO_ROOT}/scripts/determinism_check_emit_hw.sh" \
+      || rc=$?
+  elif [[ -x "${REPO_ROOT}/scripts/determinism_check_emit_hw.sh" ]]; then
+    log "  (skipping cross-host-path -emit=hw determinism check; set NSLC_RUN_DETERMINISM_CHECK=1 to opt in)"
+  else
+    log "  (skipping cross-host-path -emit=hw determinism check: scripts/determinism_check_emit_hw.sh not yet present)"
   fi
 
   # 8. M5 T110 / FR-008 + SC-009 op-location audit
@@ -606,6 +652,30 @@ stage_lowering_tests() {
 
 stage_e2e() {
   log "stage 5 (end-to-end): wired but empty until M7 — see roadmap M7."
+
+  # T2 T080 — nsl-fmt audited-corpus idempotence soft-gate.
+  # `test/audited/<project>/*.nsl` is populated by M7 P-VEN
+  # (the seven-NSL-projects vendoring milestone). Until that
+  # ships, the audited corpus is empty and this check is a
+  # no-op. The `|| true` guard is removed in a one-line
+  # follow-up commit at M7, at which point any drift between
+  # `nsl-fmt`'s canonical output and the vendored sources
+  # fails CI.
+  local build_dir
+  build_dir="$(_resolve_build_dir "${1:-}" 2>/dev/null)" || build_dir=""
+  if [[ -n "${build_dir}" && -x "${build_dir}/bin/nsl-fmt" ]]; then
+    shopt -s nullglob globstar
+    local audited_files=("${REPO_ROOT}"/test/audited/**/*.nsl)
+    shopt -u nullglob globstar
+    if (( ${#audited_files[@]} > 0 )); then
+      log "  bin/nsl-fmt --check ${#audited_files[@]} audited NSL files (|| true until M7)"
+      "${build_dir}/bin/nsl-fmt" --check "${audited_files[@]}" || true
+    else
+      log "  (skipping audited-corpus idempotence: M7 P-VEN not yet vendored — test/audited/ is empty)"
+    fi
+  else
+    log "  (skipping audited-corpus idempotence: nsl-fmt not built yet — run \`./scripts/ci.sh build-matrix\` first)"
+  fi
   exit 0
 }
 

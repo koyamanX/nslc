@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T109 — audited-corpus idempotence sweep for turboV (per
+// SC-002 + FR-021 + `research.md` §6). Asserts every `*.nsl`
+// file under `test/audited/turboV/` reaches a fixed point under
+// `nsl-fmt | nsl-fmt`.
+//
+// Activates automatically when M7's P-VEN vendoring lands
+// `test/audited/turboV/`; today the require-feature line skips this
+// fixture via `test/lit.cfg.py`'s `audited-turboV` feature probe.
+
+// REQUIRES: audited-turboV
+
+// RUN: for f in %S/../../../audited/turboV/*.nsl; do \
+// RUN:   nsl-fmt --stdin < $f > %t.once && \
+// RUN:   nsl-fmt --stdin < %t.once > %t.twice && \
+// RUN:   cmp %t.once %t.twice; \
+// RUN: done

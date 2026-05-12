@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/arith/reductions.nsl — M6 Phase 6 fixture (T074).
+// Reductions: `&a` (`nsl.reduce_and` → `comb.icmp eq %a, all-ones`),
+// `|a` (`nsl.reduce_or` → `comb.icmp ne %a, 0`), `^a`
+// (`nsl.reduce_xor` → `comb.parity %a`).
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  output qa[1];
+  output qo[1];
+  output qx[1];
+}
+
+module M {
+  qa = &a;
+  qo = |a;
+  qx = ^a;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK-DAG: comb.icmp eq %a
+// CHECK-DAG: comb.icmp ne %a
+// CHECK-DAG: comb.parity %a
+// CHECK-NOT: nsl.

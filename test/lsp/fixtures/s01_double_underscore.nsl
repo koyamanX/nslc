@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s01_double_underscore.nsl — S1 trigger (T050).
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-
+// string.contract.md`: `identifier may not contain '__' (S1)`.
+
+module m {
+  reg bad__name;
+}

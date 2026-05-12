@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T072: `--check` with no input source (no `--stdin`, no
+// positional) is rejected with the frozen diagnostic.
+
+// RUN: not nsl-fmt --check 2>&1 | FileCheck %s
+// CHECK: error: --check requires at least one input file or --stdin

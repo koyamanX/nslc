@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/include_chain_helper.nslh — T055 helper.
+// Contains an S1 violation that fires when included into a main
+// fixture; the diagnostic's range lands here, and the
+// relatedInformation chain points back to the parent's #include
+// directive.
+
+module helper {
+  reg bad__id;
+}

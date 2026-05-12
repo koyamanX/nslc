@@ -67,7 +67,16 @@ foreach(suite
     # invariant. Authored RED before `lib/Dialect/NSL/IR/NSLDialect.cpp`
     # lands a real registration body; the translation unit fails to
     # link until T006 ships the dialect class + entry-point.
-    dialect_register_test)
+    dialect_register_test
+    # T2 Phase 2a (010-t2-formatter-v0, T011–T015) — `Fmt/` is an
+    # umbrella suite directory containing per-feature gtest binaries
+    # (`directive_splitter_test`, plus future `doc_layout_test`,
+    # `format_parity_test`, `diff_emitter_test`, `config_parser_test`,
+    # `perf_smoke_test`). One subdirectory CMakeLists.txt declares
+    # multiple `add_executable()` calls — see test_unit/Fmt/CMakeLists.txt
+    # for the rationale (deviates from the per-binary-directory shape
+    # used by M0 layers).
+    Fmt)
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${suite}/CMakeLists.txt")
     add_subdirectory(${suite})
   endif()

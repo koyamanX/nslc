@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/parse_error_missing_brace.nsl — parser-level
+// error (T052). The opening `{` of `module m` is never closed.
+
+module m {
+  reg q[8] = 0;
+  func clk { q := q + 1; }

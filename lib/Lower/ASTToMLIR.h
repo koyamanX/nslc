@@ -30,6 +30,7 @@ namespace nsl::ast {
 class CompilationUnit;
 class Expr;
 class ModuleBlock;
+class PortDecl;
 class ProcDefn;
 class Stmt;
 } // namespace nsl::ast
@@ -183,6 +184,30 @@ private:
   /// restored on exit via local `RestoreOnExit` guard.
   const ast::ModuleBlock *currentModule_ = nullptr;
   const ast::ProcDefn *currentProc_ = nullptr;
+
+  /// Name-keyed catalog of control-terminal `PortDecl`s collected
+  /// from `visit(DeclareBlock)` and consumed by `visit(ModuleBlock)`.
+  ///
+  /// Background (post-merge M4-amendment 2026-05-05 #9 — `nsl.declare`
+  /// + port-info ops). The NSL `declare M { ... }` block carries BOTH
+  /// data terminals (input/output/inout) AND control terminals
+  /// (func_in/func_out/func_self) per `lang.ebnf §4`. Post-amendment
+  /// the data terminals lower to `nsl.input_port`/`nsl.output_port`/
+  /// `nsl.inout_port` ops INSIDE the `nsl.declare` body; control
+  /// terminals continue to lower to `nsl.func_in`/`nsl.func_out`/
+  /// `nsl.func_self` ops INSIDE the paired `nsl.module` body
+  /// (those ops carry `HasParent<"ModuleOp">`). Since NSL grammar
+  /// places `declare M` before `module M` in source order, the
+  /// declare visit fires first; this table parks the control-terminal
+  /// AST nodes until the matching `visit(ModuleBlock)` runs and can
+  /// open the module's region as the insertion point.
+  ///
+  /// Ordering rule (Constitution Principle V — determinism): this
+  /// map is for LOOKUP only by module name; the inner vector
+  /// preserves source order so control terminals materialize in
+  /// the same sequence they appear in the NSL source.
+  llvm::StringMap<llvm::SmallVector<const ast::PortDecl *, 4>>
+      pendingControlTerminals_;
 
   /// TRANSITIONAL (offload 2026-04-30 Commit 1 / T071): name-keyed
   /// catalog of `nsl.param_int`-style top-level integer parameters

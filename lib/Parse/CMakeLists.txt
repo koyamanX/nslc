@@ -16,6 +16,7 @@ add_nsl_library(nsl-parse
   ParseStmt.cpp
   ParseExpr.cpp
   Recovery.cpp
+  CSTMode.cpp     # T2 Phase 2b — 3-arg CSTSink overload of parseCompilationUnit
   HEADERS
     ${CMAKE_SOURCE_DIR}/include/nsl/Parse/Parser.h
   DEPENDS

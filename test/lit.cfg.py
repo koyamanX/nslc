@@ -86,3 +86,26 @@ if nslc_src:
         ("%spdx_check",
          f"{shlex.quote(python)} "
          f"{shlex.quote(os.path.join(nslc_src, 'scripts', 'check_spdx.py'))}"))
+
+# -----------------------------------------------------------------------------
+# Audited-corpus features (T2 T109 — auto-activates on M7 P-VEN vendoring)
+# -----------------------------------------------------------------------------
+#
+# Each of the seven Principle-VI-named audited projects exposes a lit
+# feature `audited-<project>` iff `test/audited/<project>/` exists in
+# the source tree. The T2 audited idempotence fixtures gate on the
+# corresponding feature with `REQUIRES:`, so they auto-activate the
+# moment M7 vendors the project tree — no T2-side edit required.
+_audited_projects = [
+    "rv32x_dev",
+    "turboV",
+    "mmcspi",
+    "SDRAM_Controler",
+    "mips32_single_cycle",
+    "ahb_lite_nsl",
+    "cpu16",
+]
+_audited_root = os.path.join(config.test_source_root, "audited")
+for _proj in _audited_projects:
+    if os.path.isdir(os.path.join(_audited_root, _proj)):
+        config.available_features.add(f"audited-{_proj}")

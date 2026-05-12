@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T098: per-file `.nsl-fmt.toml` upward discovery (T106).
+// Drop a `.nsl-fmt.toml` at the root of a temp tree; format a
+// file deeply nested under it; verify that nsl-fmt finds the
+// config and applies it. Indirect verification: an unknown-key
+// warning is surfaced on stderr, proving the discovered config
+// was actually parsed.
+
+// RUN: rm -rf %t.tree && mkdir -p %t.tree/sub/sub
+// RUN: printf 'unknown_key = 42\n' > %t.tree/.nsl-fmt.toml
+// RUN: printf 'module foo {}\n' > %t.tree/sub/sub/foo.nsl
+// RUN: cd %t.tree && nsl-fmt sub/sub/foo.nsl 2>&1 | FileCheck %s
+// CHECK: warning: unknown configuration key 'unknown_key'

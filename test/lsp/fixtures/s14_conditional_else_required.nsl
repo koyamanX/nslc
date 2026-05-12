@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s14_conditional_else_required.nsl — T051 (US1).
+// S14: conditional needs 'else'.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// below has only the `then` branch.
+// insertRange = ConditionalExpr::endRange (zero-width insert),
+// replacement = ` else ` template (user fills the expression).
+// already partially handle this; M3 Sema is the authoritative
+// enforcement site.
+
+
+module m_fail {
+  wire c;
+  wire a;
+  reg q = if (c) a;
+}

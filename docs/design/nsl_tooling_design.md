@@ -104,6 +104,18 @@ Only the formatter and LSP "format" request need the CST. Compiler/linter skip i
 
 ## 3. Language Server — `nsl-lsp`
 
+> **T3 status: delivered.** The four contracts under
+> `specs/010-t3-lsp-skeleton/contracts/` (lsp-protocol,
+> diagnostic-mapping, folding-range, lsp-test-harness) freeze the
+> wire-visible behavior. The README §Roadmap row T3 test gate
+> ("open a file with a Sema error, observe diagnostic; edit,
+> observe re-diagnose") is materialized as
+> `LifecycleSuite::README_TestGate_OpenErrorEditFix` and passes.
+> 27 LSP integration tests run via `ctest -R lsp` in under 3
+> seconds. T4/T5/T9/T10 extend the dispatch table in `lib/LSP/
+> NslLSPServer.cpp` with new method handlers; the framing,
+> lifecycle, and document-sync layers below do not change.
+
 ### 3.1 Overall Architecture
 
 Modeled on clangd's three-layer design: ClangdLSPServer handles the LSP protocol details. Incoming requests are routed to some method on this class using a lookup table, and then implemented by dispatching them to the contained ClangdServer.
@@ -597,34 +609,70 @@ preserve_comments = "all"     # "all" | "leading_only" | "none"
 
 ### 5.2 Architecture
 
-```
-     Source text
+The formatter pipeline follows a directive-aware, parse-then-render
+flow. Per `/speckit-clarify` Q1 (specs/010-t2-formatter-v0/spec.md
+Session 2026-05-04 → Option A), the formatter parses **raw source
+before preprocessing**: each preprocessor directive line is treated
+as an opaque CST token, while NSL fragments between directives are
+parsed by the existing `libNSLFrontend.a` lexer + parser pipeline
+(no parallel parser implementation; Constitution Principle II
+no-duplication rule preserved).
+
+```text
+     Source text (raw, pre-preprocessor)
           │
           ▼
-    ┌──────────┐
-    │  Lexer   │  (from libNSLFrontend)
-    └─────┬────┘
-          │ Token stream + trivia
-          ▼
-    ┌──────────┐
-    │  Parser  │  (CST mode; preserves whitespace + comments)
-    └─────┬────┘
-          │ CST
-          ▼
     ┌──────────────────────┐
-    │   LayoutPlanner      │  decides where lines break, indentation
-    │   – "Wadler-Leijen"  │   depth, alignment groups
-    │   pretty-printer     │
+    │ DirectiveSplitter    │  scans line-oriented directives;
+    │ (T2 — pre-pass)      │  emits Slice = Directive | NSLFragment
     └─────┬────────────────┘
-          │ Doc IR  (typed layout commands)
+          │ Slices: [Directive(opaque) | NSLFragment]+
           ▼
-    ┌──────────────────────┐
-    │   LayoutRenderer     │  ribbon fitting, respects max_line_length
-    └─────┬────────────────┘
+    For each Directive slice  ──► verbatim emit (FR-012a opaque)
+    For each NSLFragment slice ──┐
+                                 ▼
+                         ┌──────────────┐
+                         │  Lexer       │  (from libNSLFrontend.a)
+                         └──────┬───────┘
+                                │ Token stream + trivia
+                                ▼
+                         ┌──────────────┐
+                         │  Parser      │  (CST mode via `CSTSink`
+                         │              │   added to existing
+                         │              │   include/nsl/Parse/Parser.h
+                         │              │   per /speckit-analyze C1
+                         │              │   remediation)
+                         └──────┬───────┘
+                                │ CST
+                                ▼
+                         ┌──────────────────────┐
+                         │   LayoutPlanner      │  decides where lines break,
+                         │   – "Wadler-Leijen"  │  indentation depth,
+                         │   pretty-printer     │  alignment groups
+                         └──────┬───────────────┘
+                                │ Doc IR  (typed layout commands)
+                                ▼
+                         ┌──────────────────────┐
+                         │   LayoutRenderer     │  ribbon fitting,
+                         │                      │  respects max_line_length;
+                         │                      │  emits exactly one trailing
+                         │                      │  `\n` on non-empty output
+                         │                      │  (R7 per Session 2026-05-05)
+                         └──────┬───────────────┘
+          ┌─────────────────────┘
           │
           ▼
    Formatted text
 ```
+
+**Refusal-mode atomic semantics** (per Session 2026-05-05 Q1
+strict refusal): if ANY NSLFragment slice fails to lex+parse,
+`format_buffer` returns `Status::Refused` with the failing
+slice's diagnostics; no partial output is emitted. Tolerated
+pre-parse byte sequences are limited to those named in FR-012a
+(directive lines + `%IDENT%` splices). BOM bytes, vendor
+pragmas, and top-level system-task expressions are all parse
+errors → refused.
 
 The pretty-printer IR follows the Wadler-Leijen algebra:
 

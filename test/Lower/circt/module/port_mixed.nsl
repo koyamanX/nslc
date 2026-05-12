@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/module/port_mixed.nsl — M6 Phase 4 (US2) fixture
+// (T032). Mixed input + output port; verifies the in-module
+// `nsl.transfer %q, %a` resolves through block-arg substitution
+// (input) and output wiring (output) per
+// `circt-lowering.contract.md` §3.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  output q[8];
+}
+
+module M {
+  q = a;
+}
+
+// CHECK-LABEL: hw.module @M
+// CHECK-SAME: in %a : i8
+// CHECK-SAME: in %m_clock : i1
+// CHECK-SAME: in %p_reset : i1
+// CHECK-SAME: out q : i8
+// CHECK: hw.output %a
+// CHECK-NOT: nsl.

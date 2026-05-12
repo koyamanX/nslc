@@ -62,6 +62,12 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 readonly LOWER_ROOT="${REPO_ROOT}/lib/Lower"
+# T2 Phase 2c (T028) — `lib/Fmt/` joins the determinism gate. Per
+# Constitution Principle V the formatter is also a deterministic
+# stage: same source bytes + same config + same flags ⇒ same output
+# bytes. The same forbidden-pattern table applies (no
+# unordered_map / pointer-derived ordering / time / random / pid).
+readonly FMT_ROOT="${REPO_ROOT}/lib/Fmt"
 
 QUIET=0
 VERBOSE=0
@@ -83,6 +89,10 @@ if [[ ! -d "${LOWER_ROOT}" ]]; then
   printf '[audit_determinism] error: cannot read directory %s\n' "${LOWER_ROOT}" >&2
   exit 2
 fi
+
+# `lib/Fmt/` is allowed to be absent (during early scaffolding
+# when this script runs against an old commit) — only enforce its
+# scan when the directory exists.
 
 # -----------------------------------------------------------------------------
 # Forbidden patterns table (research.md §13)
@@ -129,25 +139,35 @@ declare -A RATIONALE=(
 FAIL=0
 TOTAL_MATCHES=0
 
+# Scan roots: lib/Lower (M5 origin), lib/Fmt (T2 Phase 2c onward).
+# `lib/Fmt/` is conditional — see existence guard above.
+SCAN_ROOTS=("${LOWER_ROOT}")
+if [[ -d "${FMT_ROOT}" ]]; then
+  SCAN_ROOTS+=("${FMT_ROOT}")
+fi
+
 for pattern in "${FORBIDDEN[@]}"; do
-  detail "scanning lib/Lower/ for: ${pattern}"
-  # `--include` keeps us on translation-unit and header source only;
-  # `--exclude-dir build` defends against an accidental in-tree build.
-  if matches="$(grep -rEn \
-      --include='*.cpp' --include='*.h' \
-      --include='*.cc' --include='*.hpp' \
-      --exclude-dir=build \
-      "${pattern}" "${LOWER_ROOT}" 2>/dev/null)"; then
-    if [[ -n "${matches}" ]]; then
-      printf '[audit_determinism] FORBIDDEN PATTERN: %s\n' "${pattern}" >&2
-      printf '%s\n' "${matches}" >&2
-      printf '  rationale: %s\n' "${RATIONALE[${pattern}]}" >&2
-      printf '\n' >&2
-      n="$(printf '%s\n' "${matches}" | grep -c .)"
-      TOTAL_MATCHES=$(( TOTAL_MATCHES + n ))
-      FAIL=1
+  for root in "${SCAN_ROOTS[@]}"; do
+    detail "scanning ${root#${REPO_ROOT}/} for: ${pattern}"
+    # `--include` keeps us on translation-unit and header source only;
+    # `--exclude-dir build` defends against an accidental in-tree build.
+    if matches="$(grep -rEn \
+        --include='*.cpp' --include='*.h' \
+        --include='*.cc' --include='*.hpp' \
+        --exclude-dir=build \
+        "${pattern}" "${root}" 2>/dev/null)"; then
+      if [[ -n "${matches}" ]]; then
+        printf '[audit_determinism] FORBIDDEN PATTERN: %s (in %s)\n' \
+          "${pattern}" "${root#${REPO_ROOT}/}" >&2
+        printf '%s\n' "${matches}" >&2
+        printf '  rationale: %s\n' "${RATIONALE[${pattern}]}" >&2
+        printf '\n' >&2
+        n="$(printf '%s\n' "${matches}" | grep -c .)"
+        TOTAL_MATCHES=$(( TOTAL_MATCHES + n ))
+        FAIL=1
+      fi
     fi
-  fi
+  done
 done
 
 # -----------------------------------------------------------------------------
@@ -155,7 +175,11 @@ done
 # -----------------------------------------------------------------------------
 
 if (( FAIL == 0 )); then
-  log "OK: zero forbidden patterns in lib/Lower/ (${#FORBIDDEN[@]} pattern(s) scanned)"
+  scanned_summary="lib/Lower/"
+  if [[ -d "${FMT_ROOT}" ]]; then
+    scanned_summary="lib/Lower/ + lib/Fmt/"
+  fi
+  log "OK: zero forbidden patterns in ${scanned_summary} (${#FORBIDDEN[@]} pattern(s) scanned)"
   exit 0
 fi
 

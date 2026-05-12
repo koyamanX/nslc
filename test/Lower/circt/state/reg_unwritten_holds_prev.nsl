@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/state/reg_unwritten_holds_prev.nsl — Round-1
+// review fix for PR #14 Finding #9 coverage. A register that has
+// ONLY a conditional write (no unconditional default) MUST hold its
+// previous-cycle value when the condition is false. Pre-fix the
+// `pendingNext` chain was seeded with `rstVal`, so the mux became
+// `comb.mux(c, a, rstVal)` — feeding the initialiser back every
+// cycle. Post-fix the mux is `comb.mux(c, a, %r)` so an unwritten
+// register holds.
+//
+// This is the canonical mux-on-data shape per
+// `firreg-convention.contract.md` §3.
+
+// RUN: %nslc -emit=hw %s | %FileCheck %s
+
+declare M {
+  input a[8];
+  input c[1];
+  output q[8];
+}
+
+module M {
+  reg r[8] = 42;     // non-zero init to make the bug visible
+  if(c) r := a;      // ONLY conditional write
+  q = r;
+}
+
+// The mux's "false" arm references the firreg's OWN result (%r)
+// — the previous-cycle value — NOT the constant 42 (rstVal).
+// CHECK-LABEL: hw.module @M
+// CHECK-DAG: %[[RSTVAL:.*]] = hw.constant 42 : i8
+// CHECK: %[[MUX:.*]] = comb.mux %c, %a, %r : i8
+// CHECK: %r = seq.firreg %[[MUX]]{{.*}}reset async %p_reset, %[[RSTVAL]]
+// CHECK-NOT: comb.mux %c, %a, %[[RSTVAL]]
+// CHECK-NOT: nsl.

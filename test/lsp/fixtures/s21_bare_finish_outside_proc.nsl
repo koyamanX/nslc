@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s21_bare_finish_outside_proc.nsl — T051 (US1).
+// S21: bare finish only inside proc.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// fail variant. A bare `finish` in a func body (outside any proc)
+// violates S21.
+
+
+module m_fail {
+  func ready {
+    finish;
+  }
+}

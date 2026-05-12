@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/circt/round_trip/stdin_pipe.test — M6 Phase 8 polish
+// task (T139). **PASSES** post-merge: `tools/nslc/main.cpp` now
+// recognises `-` as a stdin marker for every `-emit=<stage>` (not
+// just `-emit=hw` — tokens / ast / mlir / hw / circt all benefit).
+// The driver trampolines stdin through a `mkstemp`-created temp
+// file, then passes that path to the emit function — same pipeline
+// as the `-o file` case. Closes FR-026 stdin-support gap and the
+// C2 finding from /speckit-analyze. The XFAIL was removed in the
+// same commit that added the driver support.
+//
+// Test shape: pipe a known-good fixture through stdin AND through
+// the file path; assert the two outputs are byte-identical.
+
+// RUN: cat %S/zero_nsl_ops.nsl | %nslc -emit=hw - > %t.stdin.hw
+// RUN: %nslc -emit=hw %S/zero_nsl_ops.nsl > %t.file.hw
+// RUN: diff -q %t.stdin.hw %t.file.hw

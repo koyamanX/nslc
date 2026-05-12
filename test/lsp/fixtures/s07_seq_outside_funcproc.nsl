@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s07_seq_outside_funcproc.nsl — T051 (US1).
+// S7: seq only inside func/proc.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// A `seq { }` block at module scope (outside a func/proc body)
+// violates S7.
+// when removable): replaceRange = SeqBlock::seqKwAndBracesRange,
+// replacement = `<stripped contents>`.
+
+
+module m_fail {
+  seq { }
+}

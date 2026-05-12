@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T120 — non-default config: `indent = "spaces2"` emits exactly
+// 2 spaces per indent level (rather than the default 4). Same
+// struct shape as the indent-tab fixture; only the config
+// changes.
+//
+// `LayoutPlanner::indentStep()` returns 2 for `Indent::Spaces2`;
+// the renderer's `emitIndent` emits `columnIndent` literal space
+// characters, so the per-line prefix is exactly two spaces.
+
+// RUN: rm -rf %t.s2 && mkdir -p %t.s2
+// RUN: printf 'indent = "spaces2"\n' > %t.s2/.nsl-fmt.toml
+// RUN: printf 'struct s { aaa[8]; bb[16]; };\n' > %t.s2/s.nsl
+// RUN: cd %t.s2 && nsl-fmt s.nsl | FileCheck %s --strict-whitespace
+//
+// `--strict-whitespace` makes CHECK match leading whitespace
+// exactly — without it FileCheck would accept ANY amount of
+// indentation and the test would silently pass under the default
+// 4-space mode.
+//
+// CHECK: struct s {
+// CHECK-NEXT: {{^  aaa}}
+// CHECK-NEXT: {{^  bb}}
+// CHECK-NEXT: };

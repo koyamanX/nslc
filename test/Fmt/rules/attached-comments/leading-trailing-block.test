@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T032 — R6 attached-comment preservation per formatting-rules.contract.md §6.
+//
+// Frozen invariants:
+//   * trailing line comment stays on the same line as the
+//     declaration that precedes it
+//   * leading block comment stays immediately above the
+//     declaration that follows it
+//   * inline comment between two tokens of a single statement
+//     (Session 2026-05-05 Q2) preserved byte-for-byte
+//
+// T051 (this commit) implements R6 — fixture flipped XFAIL→PASS.
+
+// RUN: printf 'module m {/* hdr */ reg q[8]; reg r[8]; // trailing\n}\n' | nsl-fmt --stdin | FileCheck %s
+// CHECK: /* hdr */
+// CHECK-NEXT: reg q[8];
+// CHECK: reg r[8]; // trailing

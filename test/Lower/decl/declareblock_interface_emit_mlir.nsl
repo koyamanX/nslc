@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Lower/decl/declareblock_interface_emit_mlir.nsl —
+// M4-amendment-10 follow-on (M5 visitor): the S20 `interface`
+// modifier on a `declare` block surfaces as the dialect's
+// `interface_clock` / `interface_reset` OptionalAttr<StrAttr> pair
+// on `nsl.declare`. Reset name preserves any polarity-hint suffix
+// (e.g., `_n`) verbatim — polarity interpretation is M6's
+// responsibility, not the visitor's.
+
+// RUN: %nslc -emit=mlir %s | %FileCheck %s
+
+declare interface(clock=my_clk, reset=my_rst_n) M {
+  input a[8];
+  output q[8];
+}
+
+// CHECK: nsl.declare @M
+// CHECK-SAME: interface_clock = "my_clk"
+// CHECK-SAME: interface_reset = "my_rst_n"
+// CHECK: nsl.input_port "a" : !nsl.bits<8>
+// CHECK: nsl.output_port "q" : !nsl.bits<8>
