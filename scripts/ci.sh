@@ -300,6 +300,7 @@ stage_static_checks() {
     "scripts/gen_treesitter_grammar.py" \
     "grammars/treesitter/grammar.js" \
     "grammars/treesitter/queries/highlights.scm" \
+    "grammars/treesitter/queries/locals.scm" \
     "test/tooling/treesitter/smoke/corpus.txt"; do
     [[ -f "${REPO_ROOT}/${p}" ]] && ts_paths+=("${p}")
   done

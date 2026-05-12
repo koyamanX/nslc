@@ -30,6 +30,14 @@ sites, and resolves the parser-note ambiguities (`N5`, `N2`, `N3`,
    `@function.proc`, `@function.func`, `@function.call.proc`,
    `@function.call.func`, `@label.state`) per Clarifications
    session 2026-05-05 Q3 → Option B.
+2a. **`grammars/treesitter/queries/locals.scm`** — companion
+    query file emitting `@local.scope` / `@local.definition.<NAME>`
+    / `@local.reference` captures. Tree-sitter-highlight walks the
+    scope chain to resolve every `@local.reference` identifier to
+    its nearest enclosing `@local.definition.<NAME>` and applies
+    `@<NAME>` to the reference site automatically — closing the
+    reference-side half of FR-007 / FR-008 / FR-009 without
+    duplicating reference-position patterns in `highlights.scm`.
 3. **`grammars/treesitter/parser.c`** (and companion
    `grammar.json` / `node-types.json`) — output of
    `tree-sitter generate`. Committed; CI verifies regenerate-and-diff.
@@ -285,7 +293,8 @@ grammars/                                       # EXISTING (T1) — extended at 
     ├── grammar.json                            # GENERATED & COMMITTED
     ├── node-types.json                         # GENERATED & COMMITTED
     └── queries/
-        └── highlights.scm                      # NEW — primary highlight artefact
+        ├── highlights.scm                      # NEW — primary highlight artefact
+        └── locals.scm                          # NEW — scope/definition/reference queries for reference-site capture resolution (closes the RHS-reference assertions in reg_vs_wire.nsl and control_terminal_s27.nsl)
 
 editors/                                        # EXISTING (T1) — extended at T8
 └── vscode/                                     # T1 (existing — language-configuration.json, syntaxes/)
