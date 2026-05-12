@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/emit_verilog/passes_failure.test — M7 US1 negative
+// fixture (T026). Asserts that a failure inside
+// `Compilation::runCIRCTPasses` (a stock-CIRCT pass verifier error
+// or in-pass `mlir::emitError`) routes through the project
+// DiagnosticEngine via DiagnosticBridge, NOT to a leaked second
+// stderr channel. Constitution Principle IV +
+// driver-emit-verilog.contract.md §5 + circt-passes.contract.md §4.
+//
+// **Open at landing time (TDD-RED + post-build tuning)**: M7
+// Phase 3 currently lacks a known-good hand-crafted failure input.
+// The fixture is expected-to-fail (XFAIL directive below) with a
+// TODO marker. Post-Phase-3 implementation (T031 + T040), the
+// maintainer crafts a real pass-failure input (e.g., an FSM with
+// no states — fails the FSM verifier between slot 1 and slot 2)
+// and removes the expected-to-fail directive.
+//
+// Alternative: drive the failure via nsl-opt with a hand-authored
+// .mlir surface that exercises the same pass pipeline but on
+// invalid IR. Decision deferred to T040.
+
+// XFAIL: *
+// RUN: not %nslc -emit=verilog %S/fixtures/single_module.nsl 2>&1 \
+// RUN:   | %FileCheck %s
+// CHECK: TODO: replace this fixture body with a real passes_failure case post-T040

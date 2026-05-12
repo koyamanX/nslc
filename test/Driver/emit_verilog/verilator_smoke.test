@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/emit_verilog/verilator_smoke.test — M7 US1 fixture
+// (T029). Asserts the emitted Verilog is syntactically valid per
+// Verilator's lint (`--lint-only` exits zero). spec.md User Story 1
+// acceptance scenario #3 + driver-emit-verilog.contract.md §7
+// (verilator_smoke.test row).
+//
+// **Requires `verilator` on PATH** — present only in `:dev-m7`
+// container (per Q3 → A; container-m7.contract.md §2). Pre-image-
+// bump runs MAY UNSUPPORTED out via the REQUIRES directive once a
+// canonical `verilator-available` lit feature exists. For now,
+// expected-to-fail (directive below) pending the M7 container PR
+// (Phase 2A T006-T011), which flips this to a passing fixture
+// once Verilator is on PATH.
+
+// XFAIL: *
+// RUN: %nslc -emit=verilog %S/fixtures/single_module.nsl -o %t.v
+// RUN: verilator --lint-only %t.v
+
+// Verification: verilator's exit code is the assertion.

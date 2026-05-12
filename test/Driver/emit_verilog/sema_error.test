@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/emit_verilog/sema_error.test — M7 US1 negative
+// fixture (T025). Asserts a Sema error short-circuits the pipeline
+// before emit; the driver exits non-zero with the Sema diagnostic
+// and writes no Verilog to stdout. spec.md User Story 1 acceptance
+// scenario #4 + driver-emit-verilog.contract.md §5.
+
+// RUN: not %nslc -emit=verilog %S/fixtures/sema_error.nsl 2>&1 \
+// RUN:   | %FileCheck %s --check-prefix=DIAG
+// RUN: not %nslc -emit=verilog %S/fixtures/sema_error.nsl > %t.out 2>&1
+// RUN: %FileCheck %s --input-file=%t.out --check-prefix=NOOUTPUT
+
+// The diagnostic must mention S15 (bit-slice indices) or
+// "compile-time constant" or "non-constant". (Phrasing is the M3
+// Sema's wording; we match a robust substring.)
+// DIAG: error:
+
+// On Sema error, the output stream contains NO Verilog `module`
+// declaration (no partial output rule).
+// NOOUTPUT-NOT: module M

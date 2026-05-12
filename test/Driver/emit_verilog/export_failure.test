@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/emit_verilog/export_failure.test — M7 US1 negative
+// fixture (T027). Asserts that an ExportVerilog rejection (e.g.,
+// reserved-keyword identifier that survives `prepareForEmission`)
+// routes through DiagnosticEngine. Constitution Principle IV +
+// driver-emit-verilog.contract.md §5.
+//
+// **Open at landing time (TDD-RED + post-build tuning)**: M7
+// Phase 3 currently lacks a known-good ExportVerilog-rejecting input.
+// `prepareForEmission` is supposed to rewrite reserved-keyword
+// identifiers, so finding a real rejector requires investigating
+// what survives. The fixture is expected-to-fail (XFAIL directive
+// below) with a TODO marker. Post-Phase-3 implementation (T032 +
+// T041), the maintainer crafts a real export-failure input and
+// removes the expected-to-fail directive.
+
+// XFAIL: *
+// RUN: not %nslc -emit=verilog %S/fixtures/single_module.nsl 2>&1 \
+// RUN:   | %FileCheck %s
+// CHECK: TODO: replace this fixture body with a real export_failure case post-T041

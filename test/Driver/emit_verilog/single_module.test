@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/emit_verilog/single_module.test — M7 US1 keystone
+// fixture (T020). Asserts that `nslc -emit=verilog` on a minimal
+// single-module source produces a syntactically valid Verilog
+// `module` body with the expected register + assign shape.
+//
+// Per `spec.md` § User Story 1 acceptance scenario #1 +
+// `driver-emit-verilog.contract.md` §7.
+//
+// **State at authoring (TDD; Constitution Principle VIII)**: RED.
+// At the time this fixture lands, `Compilation::runCIRCTPasses` +
+// `emitVerilog` bodies are wired and exporting via
+// `circt::exportVerilog`; the precise output shape (Verilog
+// statement formatting, signal-name escaping) is what
+// `circt::exportVerilog` emits and is *outside our control*. The
+// CHECK lines pin properties the pipeline must satisfy:
+//   - the module declaration appears with the input source's name
+//   - at least one always_ff block emits for the reg `r`
+//   - the output `q` gets a continuous assign
+
+// RUN: %nslc -emit=verilog %S/fixtures/single_module.nsl | %FileCheck %s
+
+// Verilog `module` declaration with our top name.
+// CHECK-LABEL: module M
+
+// Active-HIGH async reset on `r` per M6 Q2 → C convention
+// (the implicit `m_clock` + `p_reset` ports per nsl_lang.ebnf §15
+// lines 818, 820). Note: CIRCT's ExportVerilog emits SystemVerilog-
+// 2005-style `always` blocks (not the SV-strict `always_ff`); both
+// are accepted by iverilog -g2012 and verilator.
+// CHECK: always @(posedge m_clock or posedge p_reset)
+
+// Output `q` continuous-assigned from `r`.
+// CHECK: assign q
+
+// No `nsl.` / `fsm.` / `seq.` op residue — the M7 stock-CIRCT pass
+// pipeline lowered them out. (`sv.` is permitted: ExportVerilog
+// consumes it.)
+// CHECK-NOT: nsl.
+// CHECK-NOT: fsm.
+// CHECK-NOT: seq.

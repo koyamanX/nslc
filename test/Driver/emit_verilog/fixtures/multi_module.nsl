@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/emit_verilog/fixtures/multi_module.nsl — M7 US1
+// multi-module fixture source. Two modules so the `-o <dir>/`
+// split-file dispatch produces multiple `.v` files; per
+// `driver-emit-verilog.contract.md` §1.
+
+declare ModA {
+  output qa[8];
+}
+
+module ModA {
+  reg ra[8] = 0;
+
+  ra := ra + 1;
+  qa = ra;
+}
+
+declare ModB {
+  output qb[4];
+}
+
+module ModB {
+  reg rb[4] = 0;
+
+  rb := rb + 1;
+  qb = rb;
+}

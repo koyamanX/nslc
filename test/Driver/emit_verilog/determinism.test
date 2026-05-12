@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/emit_verilog/determinism.test — M7 US1 fixture (T024).
+// Asserts two consecutive `nslc -emit=verilog` invocations on the
+// same source with identical flags produce byte-identical Verilog
+// output. Constitution Principle V + spec.md FR-005 + FR-024 +
+// SC-002.
+//
+// This is the same-build determinism gate (companion to the
+// two-host-path gate `scripts/determinism_check_emit_hw.sh` —
+// the M7 sibling determinism script lands at T044 to extend the
+// two-host gate to `-emit=verilog`).
+//
+// Mirrors the M6 precedent at
+// `test/Lower/circt/round_trip/determinism_double_emit.test`.
+
+// RUN: %nslc -emit=verilog %S/fixtures/single_module.nsl > %t.1
+// RUN: %nslc -emit=verilog %S/fixtures/single_module.nsl > %t.2
+// RUN: diff -q %t.1 %t.2
+
+// Same for the multi-module fixture (different IR shape exercises a
+// different code path through CIRCT's split decisions).
+// RUN: %nslc -emit=verilog %S/fixtures/multi_module.nsl > %t.m1
+// RUN: %nslc -emit=verilog %S/fixtures/multi_module.nsl > %t.m2
+// RUN: diff -q %t.m1 %t.m2
