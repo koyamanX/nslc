@@ -114,6 +114,40 @@ TEST(DocLayoutTest, HardlineForcesGroupToBreak) {
 }
 
 // -----------------------------------------------------------------------------
+// DocComment renders inline regardless of mode. Regression guard
+// for PR-#18 CodeRabbit round-2 nitpick: the renderer has
+// dedicated DocComment handling in both width simulation and
+// rendering; lock that path down with one flat case and one
+// break case.
+// -----------------------------------------------------------------------------
+TEST(DocLayoutTest, CommentPreservedFlat) {
+  // concat({"a", comment("/*c*/"), "b"}) at maxLineLength=100
+  // renders as "a/*c*/b" — the comment is treated as opaque text
+  // by the layout engine (no implicit spacing).
+  DocPtr d = Doc::concat({
+      Doc::text("a"),
+      Doc::comment("/*c*/", /*leading=*/false, /*trailing=*/false),
+      Doc::text("b"),
+  });
+  EXPECT_EQ(renderer.render(d, /*maxLineLength=*/100, kDefaultIndent),
+            "a/*c*/b");
+}
+
+TEST(DocLayoutTest, CommentPreservedAcrossHardlineBreak) {
+  // The comment survives a hardline-forced break inside a group —
+  // it ends up on whichever side of the hardline its concat
+  // position places it.
+  DocPtr d = Doc::group(Doc::concat({
+      Doc::text("a"),
+      Doc::comment("/*c*/", /*leading=*/false, /*trailing=*/false),
+      Doc::hardline(),
+      Doc::text("b"),
+  }));
+  EXPECT_EQ(renderer.render(d, /*maxLineLength=*/100, /*indentSpaces=*/1),
+            "a/*c*/\nb");
+}
+
+// -----------------------------------------------------------------------------
 // Bonus: Align uses the current column.
 // -----------------------------------------------------------------------------
 TEST(DocLayoutTest, AlignSnapsIndentToColumn) {

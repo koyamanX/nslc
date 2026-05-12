@@ -308,7 +308,7 @@ implementation:
    architecture diagram is amended to show the directive-
    aware pre-pass as a stage *before* the CST-mode parser:
 
-   ```
+   ```text
    Source text
         │
         ▼
@@ -345,7 +345,7 @@ implementation:
 3. **`docs/CLAUDE.md` §7** — line ranges for the §5 section of
    `nsl_tooling_design.md` are recomputed if the §5.2 amendment
    shifts boundaries (likely a +20-line shift — re-grep
-   `^### \|^## ` after editing).
+   `` `^### \|^## ` `` after editing).
 
 ---
 

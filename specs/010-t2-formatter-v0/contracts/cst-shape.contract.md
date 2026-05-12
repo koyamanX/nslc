@@ -2,7 +2,7 @@
 
 # Contract: CST shape (T2 freeze)
 
-**Branch**: `010-t2-formatter-v0` | **Date**: 2026-05-04
+**Branch**: `010-t2-formatter-v0` | **Date**: 2026-05-04 | **Last updated**: 2026-05-12
 **Plan**: [../plan.md](../plan.md) | **Spec**: [../spec.md](../spec.md)
 **Data model**: [../data-model.md §1–§3](../data-model.md)
 **Research**: [../research.md §1–§2, §7](../research.md)
@@ -95,9 +95,9 @@ and `b` (following):
    `t` follows a newline.
 2. If `t` is a `LineComment` (`// …` or `# …` outside
    directives — note NSL's existing comment syntax; see
-   `nsl_lang.ebnf` §14): attach to `a.trailingTrivia` if `t`
-   appears on the same source line as `a`; otherwise attach to
-   `b.leadingTrivia`.
+   [`docs/spec/nsl_lang.ebnf`](../../../docs/spec/nsl_lang.ebnf) §14):
+   attach to `a.trailingTrivia` if `t` appears on the same
+   source line as `a`; otherwise attach to `b.leadingTrivia`.
 3. If `t` is a `BlockComment` (`/* … */`): attach to
    `b.leadingTrivia` (block comments are visually associated
    with what follows them, per the design doc §5.3 rule 6).
@@ -129,6 +129,13 @@ expected attachment.
 
 ## §5. DirectiveTok shape
 
+The nine `Opcode` values mirror the directive productions in
+[`docs/spec/nsl_pp.ebnf`](../../../docs/spec/nsl_pp.ebnf) §2:
+`#include` (§2.1), `#define` / `#undef` (§2.2), `#ifdef` /
+`#ifndef` / `#if` / `#else` / `#endif` (§2.3), and `#line`
+(§2.4 — the only directive that survives the preprocessor seam
+per P13 + N14 in `docs/spec/nsl_lang.ebnf`).
+
 ```cpp
 struct DirectiveTok {
     enum class Opcode { Include, Define, Undef, Ifdef, Ifndef, If, Else, Endif, Line };
@@ -141,14 +148,18 @@ struct DirectiveTok {
 - `rawText` includes the trailing newline of the directive line
   (or the final continuation line, if `\`-continued).
 - `rawText` does NOT have its leading whitespace stripped — if
-  the directive was indented (`    #include "foo.nsl"`), the
-  indent is preserved.
+  the directive was indented (for example, leading spaces
+  before `#include "foo.nsl"`), the indent is preserved.
 - The formatter MUST emit `rawText` verbatim on output. It MUST
   NOT re-normalise the directive's internal whitespace, even if
   the user's directive payload uses non-canonical spacing.
 
-**Spec mapping**: FR-012a (formatter MUST NOT reorder, deduplicate,
-or syntactically rewrite directives).
+**Spec mapping**: FR-012a (formatter MUST NOT reorder,
+deduplicate, or syntactically rewrite directives). Grammar
+source for directive productions:
+[`docs/spec/nsl_pp.ebnf`](../../../docs/spec/nsl_pp.ebnf) §2.
+The `%IDENT%` macro-splice form referenced in FR-012a is
+defined at `docs/spec/nsl_pp.ebnf` §4 (P3).
 
 ---
 

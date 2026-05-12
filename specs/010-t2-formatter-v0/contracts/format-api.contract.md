@@ -131,9 +131,15 @@ equals 10.
   the whole `format_buffer` call refuses; partial output is
   never emitted (clarified Session 2026-05-05 — Q1 strict
   refusal). Tolerated pre-parse byte sequences are limited to
-  those named in FR-012a (directive lines + `%IDENT%` splices);
-  any other byte sequence the lexer cannot tokenise (BOM,
-  vendor pragmas, etc.) triggers refusal.
+  those named in FR-012a — directive lines per
+  [`docs/spec/nsl_pp.ebnf`](../../../docs/spec/nsl_pp.ebnf) §2
+  (`#include` / `#define` / `#undef` / `#if` / `#ifdef` /
+  `#ifndef` / `#else` / `#endif` / `#line`) and `%IDENT%`
+  macro splices per `docs/spec/nsl_pp.ebnf` §4 (P3 — see also
+  the NSL-side seam at
+  [`docs/spec/nsl_lang.ebnf`](../../../docs/spec/nsl_lang.ebnf) §2
+  / P12 / N14); any other byte sequence the lexer cannot
+  tokenise (BOM, vendor pragmas, etc.) triggers refusal.
 - **Post (Error)**: `formattedText` is empty; `diagnostics`
   carries the internal failure cause (range-out-of-bounds,
   config malformed, IO failure). Caller MUST NOT consume
@@ -144,23 +150,42 @@ equals 10.
 
 ### `parse_config_file`
 
-- **Pre**: `tomlBuffer` is the full content of the TOML file;
+- **Pre**: `tomlBuffer` is the full content of the TOML file
+  (see [`docs/spec/nsl_pp.ebnf`](../../../docs/spec/nsl_pp.ebnf)
+  for the host preprocessor that produces the buffer at run
+  time when `.nsl-fmt.toml` resolution is in scope);
   `fileID` provides the `SourceRange` reference for diagnostics.
-  `out` is a non-null pointer to a `Configuration` instance the
-  function will overwrite on success.
+  `out` points to a `Configuration` instance the function will
+  overwrite on success. If `out == nullptr` the call fails
+  with `Status::Error` rather than crashing — see Post (Error)
+  below.
 - **Signature evolution (Session 2026-05-12)**: the third
   parameter `Configuration *out` was added during Phase 6
   implementation (T103) — the original two-param contract
   proposed returning the parsed config via a `ConfigParsed`
   diagnostic, but the implementation chose the simpler explicit
-  out-pointer form. `out` MUST be non-null (the implementation
-  asserts).
+  out-pointer form.
 - **Post (Success)**: `*out` is populated with the parsed
-  configuration; `formattedText` is empty; `status` is
-  `Success`.
-- **Post (Error)**: `*out` is left unchanged; `diagnostics`
-  carries the TOML parse error or out-of-range value
-  diagnostic; `status` is `Error`.
+  configuration (defaults overlaid with any keys the buffer
+  sets); `formattedText` is empty; `status` is `Success`.
+- **Post (Refused)**: TOML syntax error — the buffer is not a
+  valid TOML document. `*out` is left unchanged; `diagnostics`
+  carries the toml++ parse error with the offending
+  `SourceLocation`; `status` is `Refused`. Mirrors
+  `format_buffer`'s atomic refusal posture for unparseable
+  input.
+- **Post (Error)**: Semantic / range / type / unknown-key
+  failures detected on a syntactically-valid TOML buffer
+  (e.g. `indent = "potato"`, `max_line_length = -1`,
+  unrecognised key), OR a null `out` pointer. `*out` is either
+  unchanged (null-`out` case) or carries the default
+  configuration with partial overlays from any valid keys seen
+  before the failure (best-effort observable; do NOT rely on
+  the partial-overlay shape); `diagnostics` carries the
+  frozen `configuration value for '<key>' must be …` strings
+  per the rule↔key matrix in
+  [`formatting-rules.contract.md`](./formatting-rules.contract.md) §8;
+  `status` is `Error`.
 
 ### `discover_config`
 
@@ -245,7 +270,7 @@ filesystem); CI fixtures bypass it via `--config <path>`.
 
 ## §7. Error-flow diagram
 
-```
+```text
               format_buffer()
                     │
                     ▼
