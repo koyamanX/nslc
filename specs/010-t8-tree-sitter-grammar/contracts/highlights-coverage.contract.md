@@ -52,6 +52,22 @@ dedicated control-terminal capture for FR-009, distinct from
 #13–#20) provided their parents stay in this set
 (spec.md Assumptions, capture-name-namespace).
 
+**Reference-site resolution mechanism.** Captures #13–#20 in
+the table above fire at BOTH the declaration site (matched
+directly in `highlights.scm` via field bindings on the
+declarator rules) AND at reference sites resolved by scope
+walking. The reference-site resolution is implemented in
+`grammars/treesitter/queries/locals.scm` per the tree-sitter-
+highlight `@local.scope` / `@local.definition.<NAME>` /
+`@local.reference` convention: a definition annotated with
+`@local.definition.variable.register` (etc.) automatically
+propagates its highlight name to every reference identifier
+that resolves to it through the enclosing scope chain. This
+removes the need for the implementation to maintain duplicate
+reference-position patterns in `highlights.scm`, and is the
+mechanism by which the goldens `reg_vs_wire.nsl` and
+`control_terminal_s27.nsl` assert RHS-reference captures.
+
 ---
 
 ## 2. Specific FR-009 control-terminal capture

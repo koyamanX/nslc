@@ -14,10 +14,9 @@
 ; lexical tokens up through declaration / definition / reference
 ; sub-captures.
 ;
-; Reference-site resolution: pure-syntactic captures cannot resolve a
-; bare identifier in expression position to its declaration (register
-; vs wire vs proc_name vs func_name). The patterns below cover what
-; tree-sitter can express directly:
+; Reference-site resolution: pure-syntactic patterns in this file cover
+; declaration sites, operator-side LHS positions, and call-site
+; positions:
 ;
 ;   - DECLARATION-SITE captures via field bindings (always precise).
 ;   - OPERATOR-SIDE LHS captures (`:=` → register-or-variable; `=` →
@@ -27,14 +26,14 @@
 ;     proc; `call_expression` postfix in expression-position → func)
 ;     — precise by context.
 ;
-; The remaining cases — RHS reference resolution to a specific
-; declaration kind, and S27 control-terminal identifiers in expression
-; position — are handled at runtime by the VS Code semantic-tokens
-; provider (editors/vscode/treesitter/highlight-provider.ts) which has
-; full parse-tree access and can implement scope walking. Goldens that
-; assert reference-site captures may exercise only the LHS / definition
-; / dedicated-fixture sites until locals.scm or runtime resolution is
-; wired into `tree-sitter test`.
+; RHS reference resolution to a specific declaration kind (and S27
+; control-terminal identifiers in expression position) is handled by
+; `grammars/treesitter/queries/locals.scm` — the tree-sitter-highlight
+; library walks scopes, matches `(identifier) @local.reference` against
+; the nearest enclosing `@local.definition.<NAME>`, and applies
+; `@<NAME>` to the reference automatically. The VS Code semantic-tokens
+; provider (`editors/vscode/treesitter/highlight-provider.ts`)
+; consumes the same query set at runtime for theme-side overrides.
 
 ; ============================================================
 ; Lexical-token captures (#10–#12)
