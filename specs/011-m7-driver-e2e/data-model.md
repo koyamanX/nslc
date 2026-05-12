@@ -53,18 +53,36 @@ the pass run.
 
 ---
 
-## 3. `Compilation::emit` member function
+## 3. Verilog emission dispatch (in `nsl::driver::emitVerilog`)
+
+**Implementation deviation (2026-05-12)**: the original data-model
+entry named a `Compilation::emit(mlir::ModuleOp)` member function
+matching `docs/design/nsl_compiler_design.md` §11 line 1353. At M7
+implementation time, this member function was **not** added — the
+ExportVerilog dispatch lives directly inside the free function
+`nsl::driver::emitVerilog(...)` instead, matching the existing
+per-stage free-function pattern established at M1/M2/M5/M6
+(`emitTokens` / `emitAST` / `emitMLIR` / `emitHW`). Reason: a
+`Compilation::emit(mlir::ModuleOp)` member function would need an
+ostream parameter that doesn't match the design-doc signature; the
+existing free-function pattern is cleaner and matches how every
+prior emit stage works. The design-doc § 11 line 1353 signature is
+a historical anchor, not a load-bearing API contract — design-doc
+follow-on retrospective queued for Phase 7 T094 alongside the
+`convertFSMToSeq → convertFSMToSV` rename retrospective.
+
+The dispatch table itself (driven by the `-o` argument shape +
+filesystem state) is unchanged from `research.md §2` and
+`driver-emit-verilog.contract.md §1`:
 
 | Property | Value |
 |---|---|
-| Owner | `lib/Driver/EmitVerilog.cpp` (NEW M7 — note: the public driver-glue function `nsl::driver::emitVerilog` lives here; the `Compilation::emit` member function lives alongside it as a private helper invoked by `emitVerilog`) |
-| Signature | `mlir::LogicalResult emit(mlir::ModuleOp)` |
-| Declared in | `docs/design/nsl_compiler_design.md` §11 line 1353 (existing) |
-| Inputs | `mlir::ModuleOp` post-`runCIRCTPasses` (hw/comb/sv only) |
-| Outputs (success) | Verilog bytes written to either a single file, multiple files (split mode), or stdout per the dispatch table (research.md §2) |
-| Outputs (failure) | `mlir::failure()` plus a diagnostic |
-| Dispatch table | See research.md §2 (driven by `opts_.outputFile` shape + filesystem state) |
-| Validation | If split-mode, the target directory either pre-exists or is created via `llvm::sys::fs::create_directories`; failure to create routes through the diagnostic engine |
+| Owner | `lib/Driver/EmitVerilog.cpp` — `nsl::driver::emitVerilog()` free function (deviation from data-model.md's original member-function shape; see above) |
+| Helper | `classifyOutputSink(output_path) → enum {Stdout, SingleFile, SplitDirectory}` — unit-testable shape-dispatch decision |
+| Inputs | `mlir::ModuleOp` post-`runCIRCTPasses` (hw/comb/sv only); `output_path` (StringRef from `-o <path>`); `os` fallback (typically `llvm::outs()`) |
+| Outputs (success) | Verilog bytes written to: `os` (Stdout mode), opened-`raw_fd_ostream` (SingleFile mode), or split-directory via `circt::exportSplitVerilog` (SplitDirectory mode) |
+| Outputs (failure) | non-zero exit code + diagnostic through `basic::DiagnosticEngine` |
+| Validation | If split-mode and the target directory does not exist, the driver calls `llvm::sys::fs::create_directories(output_path)`; failure to create exits with code 4 (NEW M7) |
 
 ---
 

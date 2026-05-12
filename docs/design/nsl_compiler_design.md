@@ -1296,12 +1296,12 @@ The main lowering into CIRCT core dialects is done by a conversion pass (`NSLToC
 
 After this pass the module is entirely in CIRCT's `hw`/`comb`/`seq`/`fsm`/`sv` dialects. From here, the pipeline invokes stock CIRCT passes:
 
-1. `circt::fsm::convertFSMToSeq` — materializes state registers and next-state logic
-2. `circt::seq::lowerSeqToSV` — materializes clock/reset and register-write semantics
-3. `circt::sv::prepareForEmission` — cleans up for Verilog printing
-4. `circt::exportVerilog` — emits final `.v` / `.sv`
+1. `circt::createConvertFSMToSVPass` — materializes state registers and next-state logic. **Naming retrospective (2026-05-12, M7 implementation)**: the historical name in this doc was `circt::fsm::convertFSMToSeq`; the vendored upstream-CIRCT shipped under `ghcr.io/koyamanX/nsl-nslc:dev` ships the *post-rename* form `createConvertFSMToSVPass` in the flat `circt::` namespace (header `circt/Conversion/FSMToSV.h`, owning lib `CIRCTFSMToSV`). The behavioural-equivalence guarantee is identical: `fsm.machine` → state register + next-state combinational logic. The M7 driver commits to the vendored reality.
+2. `circt::createLowerSeqToSVPass` — materializes clock/reset and register-write semantics (header `circt/Conversion/SeqToSV.h`, owning lib `CIRCTSeqToSV`; flat `circt::` namespace). Pass-flag string `--lower-seq-to-sv` per `circt-opt`. Historical doc form `circt::seq::lowerSeqToSV` is wrong on both the namespace and the missing `Pass` suffix.
+3. ~~`circt::sv::prepareForEmission`~~ — **runs internally inside `circt::exportVerilog`** per upstream `circt/Conversion/Passes.td:76`. The M7 driver does NOT invoke this pass explicitly via the project's `PassManager` — explicit invocation would also fail because the pass is declared without a ModuleOp root-op binding and the vendored MLIR rejects scheduling it on `builtin.module`. The historical doc entry is stale.
+4. `circt::exportVerilog` / `circt::exportSplitVerilog` — emits final `.v` / `.sv` (header `circt/Conversion/ExportVerilog.h`, owning lib `CIRCTExportVerilog`). At M7 the project's `nsl::driver::emitVerilog` free function dispatches between these two entries based on the `-o` argument shape per `specs/011-m7-driver-e2e/contracts/driver-emit-verilog.contract.md §1`.
 
-The driver exposes each stage with a `-emit=` flag so a developer can halt the pipeline at any point and inspect IR.
+The driver exposes each stage with a `-emit=` flag so a developer can halt the pipeline at any point and inspect IR. **`Compilation::emit` member function (line 1353 in this doc's §11)**: the M7 implementation deviated from the design-doc signature — the ExportVerilog dispatch lives directly inside the `nsl::driver::emitVerilog` free function (matching the existing per-stage `emitTokens` / `emitAST` / `emitMLIR` / `emitHW` pattern). A `Compilation::emit(mlir::ModuleOp)` member function would need an ostream parameter that doesn't match the no-arg design-doc signature. The §11 line 1353 declaration is preserved here for historical-anchor purposes; it is NOT a load-bearing API contract.
 
 ---
 

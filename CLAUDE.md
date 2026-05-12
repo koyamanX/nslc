@@ -22,21 +22,45 @@ References to `lang.ebnf §X` are sections in
 `pp.ebnf §X` are sections in
 [`docs/spec/nsl_pp.ebnf`](./docs/spec/nsl_pp.ebnf).
 
-> **Status as of 2026-05-04**: M1, M2, M3, M4, M5, and M6 (this
-> branch, structurally feature-complete) are delivered. The "M5 (...)"
-> column entries — `%IDENT%` residue check (`NSLCheckSemanticsPass`),
-> `generate` unroll (`NSLExpandGeneratePass`), expression visitor
-> coverage, width / constant expressions (`NSLResolveParamsPass`) —
-> are all wired into the `Compilation::runNSLPasses` pipeline (slots
-> 1, 2, 6 of 6 per `008-m5-structural-passes/contracts/pass-pipeline.
-> contract.md` §2). The "M6 ✓" entries — the `nsl::*` → CIRCT
-> conversion pass (`NSLToCIRCTPass`) producing `hw`/`comb`/`seq`/
-> `fsm`/`sv` IR per `010-m6-circt-lowering/contracts/circt-lowering.
-> contract.md` §1 — are wired into `Compilation::lowerToCIRCT` and
-> exposed via `nslc -emit=hw`. 620 PASS + 3 XFAIL out of 623 lit
-> tests inside the dev container. M7 (`-emit=verilog` via stock
-> CIRCT passes + `circt::ExportVerilog`) and beyond remain
-> forward-looking.
+> **Status as of 2026-05-12**: M1, M2, M3, M4, M5, M6, and M7
+> (this branch, Phases 1–6 implementation-complete; Phases 5-final
+> + 2A-container + 7-polish forward-looking) are delivered. The
+> "M5 (...)" column entries — `%IDENT%` residue check
+> (`NSLCheckSemanticsPass`), `generate` unroll
+> (`NSLExpandGeneratePass`), expression visitor coverage, width /
+> constant expressions (`NSLResolveParamsPass`) — are wired into
+> the `Compilation::runNSLPasses` pipeline (slots 1, 2, 6 of 6 per
+> `008-m5-structural-passes/contracts/pass-pipeline.contract.md`
+> §2). The "M6 ✓" entries are wired into
+> `Compilation::lowerToCIRCT` and exposed via `nslc -emit=hw`.
+> **M7 deliverables (2026-05-12)**: `nsl::driver::emitVerilog`
+> chains `Compilation::runCIRCTPasses` (2 stock CIRCT passes:
+> `circt::createConvertFSMToSVPass` + `circt::createLowerSeqToSVPass`;
+> `PrepareForEmission` runs internally inside ExportVerilog) +
+> `circt::exportVerilog` / `circt::exportSplitVerilog` with `-o`
+> argument-shape dispatch per Q1 → B. P-VEN: 4 audited NSL
+> projects vendored (cpu16, mips32_single_cycle, ahb_lite_nsl,
+> turboV) under original-author grant of Apache-2.0 WITH
+> LLVM-exception (corpus narrowed from 7 → 4 per license audit;
+> rv32x_dev/mmcspi/SDRAM_Controler dropped — license-incompatible
+> or non-original-author). `cmake/AuditedCorpusLint.cmake` +
+> `cmake/CompatibleLicenses.cmake` enforce configure-time
+> structural lint per FR-013. `tools/vcd_diff.py` (Python 3.11+
+> stdlib only) is the semantic-equal VCD comparator per Q2 → B; 8
+> unittest cases pass. Phase 6 scaffold: 8 per-cell .test fixtures
+> at `test/audited/<project>_<simulator>.test` (4 projects × 2
+> simulators) UNSUPPORTED-out via `REQUIRES: iverilog/verilator`
+> until the `:dev-m7` container PR (Phase 2A T006-T011) ships
+> Verilator + iverilog. 645 lit tests total inside `:dev`
+> container: 630 PASS + 7 XFAIL + 8 UNSUPPORTED + 0 FAIL — zero
+> regressions from M6 baseline (623 = 620 PASS + 3 XFAIL).
+> Remaining for M7 acceptance: Phase 5 final (T062-T068; needs
+> upstream NSL toolchain access for golden VCD generation; turboV
+> via vendored Python reference simulator); Phase 2A
+> (`:dev-m7`-container PR via `gh workflow run publish-images.yml`);
+> Phase 7 polish (T094-T102; includes /nsl-coupling-audit +
+> /nsl-constitution-review). M8 (riscv-formal for turboV) + M9
+> (1.0.0 release) remain forward-looking.
 
 | Language area | Spec reference | Lex / parse / sema | Lower to dialect | Lower to CIRCT |
 |---|---|---|---|---|

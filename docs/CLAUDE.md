@@ -140,6 +140,12 @@ Rule of thumb: a typical task needs **2–4 sections totaling 200–600 lines**,
 - `design/nsl_compiler_design.md` lines **1405–1465** (§13 CMake layout, dependencies)
 - M5 sibling contract `-emit=mlir`: `specs/008-m5-structural-passes/contracts/driver-emit-mlir.contract.md`
 - M6 contract `-emit=hw`: `specs/010-m6-circt-lowering/contracts/driver-emit-hw.contract.md`
+- M7 contracts:
+  - `-emit=verilog` CLI: `specs/011-m7-driver-e2e/contracts/driver-emit-verilog.contract.md`
+  - Stock-CIRCT pass pipeline: `specs/011-m7-driver-e2e/contracts/circt-passes.contract.md`
+  - P-VEN + P-VCD + audited regression: `specs/011-m7-driver-e2e/contracts/audited-corpus.contract.md`
+  - `tools/vcd_diff.py`: `specs/011-m7-driver-e2e/contracts/vcd-diff.contract.md`
+  - `:dev-m7` container surface: `specs/011-m7-driver-e2e/contracts/container-m7.contract.md`
 
 ### Testing / CI
 - `design/nsl_compiler_design.md` lines **1466–1479** (compiler testing strategy)

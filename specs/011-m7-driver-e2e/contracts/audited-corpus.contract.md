@@ -32,15 +32,25 @@ test/audited/<project>/
 └── README.md                      # optional — narrative description
 ```
 
-The project list (cardinality = exactly 7 at M7 acceptance):
+The project list (cardinality = exactly 4 at M7 acceptance — see
+amendment note below):
 
 1. `cpu16`
 2. `mips32_single_cycle`
 3. `ahb_lite_nsl`
-4. `mmcspi`
-5. `SDRAM_Controler`
-6. `rv32x_dev`
-7. `turboV`
+4. `turboV`
+
+**Amendment (2026-05-12)**: the original contract listed 7
+projects. The license audit at M7 implementation T046 surfaced
+3 incompatible projects (`rv32x_dev`: GPL-3.0; `mmcspi` +
+`SDRAM_Controler`: forks with no upstream LICENSE file + no
+original-author-grant path). They are dropped from the M7
+acceptance gate and may be re-added via routine vendoring PRs
+once their upstream licensing is resolved, per §8 below +
+[`CONTRIBUTING.md`](../../../CONTRIBUTING.md) §2.1. The single
+edit point that adds a new project is
+[`cmake/AuditedCorpusLint.cmake`](../../../cmake/AuditedCorpusLint.cmake)'s
+`NSL_AUDITED_PROJECTS` list — no other infra changes required.
 
 Sources MUST be vendored as verbatim file copies from the
 upstream commit (no patches except those documented in
@@ -161,6 +171,14 @@ combination. Per-simulator XFAIL is NOT allowed. If a real-world
 divergence cannot be resolved during M7's window, the affected
 scenario is *removed* from `golden/` (and the removal is
 documented in `golden/REGEN.md`).
+
+**Cell count (post-amendment, 2026-05-12)**: 4 projects × 2
+simulators = **8 cells** total at M7 acceptance. The per-cell
+multiplier still scales with per-project scenario count: e.g.,
+`ahb_lite_nsl` may ship `ahb_read.vcd` + `ahb_write.vcd` →
+2 scenarios × 2 simulators = 4 cells for that project alone.
+SC-001 names the 8-cell minimum; the actual lit count at green
+will be higher if multiple scenarios per project land.
 
 ---
 
