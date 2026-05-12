@@ -80,6 +80,7 @@ test/Lower/m3_corpus/s29/pass.expected.mlir
 # convention (research §2) and IS checked.
 # -----------------------------------------------------------------------------
 test/tooling/textmate/package-lock.json
+editors/vscode/package-lock.json
 
 # -----------------------------------------------------------------------------
 # T8 — tree-sitter generator outputs and the npm lockfile

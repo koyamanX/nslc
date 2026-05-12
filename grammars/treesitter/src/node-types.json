@@ -3838,6 +3838,10 @@
           {
             "type": "identifier",
             "named": true
+          },
+          {
+            "type": "macro_identifier",
+            "named": true
           }
         ]
       },
@@ -4275,6 +4279,10 @@
         {
           "type": "identifier",
           "named": true
+        },
+        {
+          "type": "macro_identifier",
+          "named": true
         }
       ]
     }
@@ -4586,6 +4594,10 @@
         "types": [
           {
             "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "macro_identifier",
             "named": true
           }
         ]

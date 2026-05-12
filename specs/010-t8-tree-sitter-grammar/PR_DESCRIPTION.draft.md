@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception -->
+
 # T8 — Tree-sitter grammar + highlight queries + VS Code WASM consumer
 
 Closes the T8 milestone from `README.md` §Roadmap (T-track row). Delivers a second-tier semantic highlighter on top of T1's TextMate base, with three independently-testable user stories:

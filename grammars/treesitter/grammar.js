@@ -192,7 +192,7 @@ module.exports = grammar({
     ),
 
     signal_declarator: $ => seq(
-      field('name', $.identifier),
+      field('name', $._decl_name),
       optional(seq('[', $._expression, ']')),
     ),
 
@@ -254,10 +254,18 @@ module.exports = grammar({
     ),
 
     register_declarator: $ => seq(
-      field('name', $.identifier),
+      field('name', $._decl_name),
       optional(seq('[', field('width', $._expression), ']')),
       optional(seq('=', field('init', $._expression))),
     ),
+
+    // Hidden rule: a declarator name slot may carry either a bare
+    // `identifier` or a `%IDENT%` macro splice (nsl_pp.ebnf P3 — the
+    // macro_identifier token can stand wherever an identifier is
+    // expected; the fixture macro_splice_ident.nsl exercises this).
+    // Highlights queries target each alternative directly via its
+    // own node type; the field binding is preserved either way.
+    _decl_name: $ => choice($.identifier, $.macro_identifier),
 
     wire_declaration: $ => seq(
       'wire',
@@ -622,8 +630,13 @@ module.exports = grammar({
     // Visible (concrete) rule so highlights.scm can target the call-
     // name tail (last identifier in the dotted chain) via the `.`
     // anchor in tree-sitter query syntax.
+    //
+    // The head MAY be a `%IDENT%` macro_identifier per nsl_pp.ebnf
+    // P3 (e.g. `%NAME% := d;`); the tail dotted elements remain bare
+    // identifiers (struct fields / submodule ports are always
+    // identifier names, not macro splices).
     scoped_identifier: $ => prec.left(seq(
-      $.identifier,
+      choice($.identifier, $.macro_identifier),
       repeat(seq('.', $.identifier)),
     )),
 
