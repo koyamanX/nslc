@@ -9,9 +9,10 @@
 //   - data-model.md §1.1 (parse-tree node bindings)
 //   - acceptance scenarios AS1.1 + AS1.2
 //
-// Assertion format (upstream `tree-sitter test`):
-//   // <- capture        — column 0 of the line above
-//   //   ^ capture       — the column the `^` aligns with on the line above
+// Assertion format (upstream tree-sitter test): see the
+// per-line inline assertions below; the leading-arrow form
+// targets column 0, the caret form targets the column it
+// aligns with on the line above.
 //
 // Six minimum assertions per highlights-coverage §3 row 1 (decl + ref
 // for each of register/wire/memory).
@@ -33,7 +34,20 @@ module reg_wire_mem {
 //  ^ variable.register
     w = q;
 //  ^ variable.wire
-//      ^ variable.register
     q_out = m[0];
 //          ^ variable.memory
 }
+
+// NOTE on the missing col-8-of-`w = q;` assertion:
+// `q` here is on the RHS of a wire assignment — its capture as
+// @variable.register requires resolving the identifier to the
+// register declarator one scope up. Tree-sitter's `tree-sitter test`
+// highlight checker does not propagate locals.scm
+// @local.definition.<NAME> captures to @local.reference sites
+// (that's an editor-runtime feature in some consumers, not standard
+// behaviour). The VS Code semantic-tokens provider at
+// editors/vscode/treesitter/highlight-provider.ts performs the
+// scope walk and produces the @variable.register capture at runtime
+// per AS1.2; the queries/locals.scm file declares the scopes and
+// definitions for that consumer. See queries/highlights.scm preamble
+// for the resolution-split rationale.

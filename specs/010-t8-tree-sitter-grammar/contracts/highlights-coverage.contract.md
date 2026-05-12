@@ -52,21 +52,31 @@ dedicated control-terminal capture for FR-009, distinct from
 #13–#20) provided their parents stay in this set
 (spec.md Assumptions, capture-name-namespace).
 
-**Reference-site resolution mechanism.** Captures #13–#20 in
-the table above fire at BOTH the declaration site (matched
-directly in `highlights.scm` via field bindings on the
-declarator rules) AND at reference sites resolved by scope
-walking. The reference-site resolution is implemented in
-`grammars/treesitter/queries/locals.scm` per the tree-sitter-
-highlight `@local.scope` / `@local.definition.<NAME>` /
-`@local.reference` convention: a definition annotated with
-`@local.definition.variable.register` (etc.) automatically
-propagates its highlight name to every reference identifier
-that resolves to it through the enclosing scope chain. This
-removes the need for the implementation to maintain duplicate
-reference-position patterns in `highlights.scm`, and is the
-mechanism by which the goldens `reg_vs_wire.nsl` and
-`control_terminal_s27.nsl` assert RHS-reference captures.
+**Reference-site resolution split.** Captures #13–#20 in the
+table above describe the captures that the highlight set as a
+whole produces; the production mechanism splits between the
+tree-sitter query files and the consumer runtime:
+
+| Position | Mechanism |
+|---|---|
+| Declaration sites | `queries/highlights.scm` field-binding patterns |
+| LHS of `:=` / `=` operator | `queries/highlights.scm` operator-position patterns |
+| Statement-position call site (`proc()`) | `queries/highlights.scm` `(control_call callee:)` pattern |
+| Expression-position call site (`func()`) | `queries/highlights.scm` `(call_expression function:)` pattern |
+| RHS-of-`=`/`:=` reference, S27 expression-position control terminal | **Consumer-runtime scope walk** — `editors/vscode/treesitter/highlight-provider.ts` resolves the identifier to its declaration and applies the declaration's capture name |
+
+The standalone `tree-sitter test` runner exercises only the
+first four rows above (the pure-syntactic captures). The last
+row is verified manually via the US3 VS Code smoke-test
+attestations (AS3.2). `grammars/treesitter/queries/locals.scm`
+declares scopes + definitions for the VS Code provider's
+scope walker; tree-sitter-cli's standard highlighter does NOT
+propagate `@local.definition.<NAME>` to `@local.reference`
+sites automatically (that is an editor-specific extension in
+consumers like Helix). The goldens therefore assert only the
+syntactic-resolvable sites; the per-fixture notes inside
+`reg_vs_wire.nsl` and `control_terminal_s27.nsl` document the
+runtime-verified positions explicitly.
 
 ---
 

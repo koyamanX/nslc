@@ -26,14 +26,18 @@
 ;     proc; `call_expression` postfix in expression-position → func)
 ;     — precise by context.
 ;
-; RHS reference resolution to a specific declaration kind (and S27
-; control-terminal identifiers in expression position) is handled by
-; `grammars/treesitter/queries/locals.scm` — the tree-sitter-highlight
-; library walks scopes, matches `(identifier) @local.reference` against
-; the nearest enclosing `@local.definition.<NAME>`, and applies
-; `@<NAME>` to the reference automatically. The VS Code semantic-tokens
-; provider (`editors/vscode/treesitter/highlight-provider.ts`)
-; consumes the same query set at runtime for theme-side overrides.
+; RHS-reference resolution to a specific declaration kind (e.g. `q` on
+; the RHS of `w = q;` taking `@variable.register` from its declarator)
+; and the S27 expression-position control-terminal capture are NOT
+; verified by `tree-sitter test` — the standalone tree-sitter-cli
+; highlighter does not propagate `@local.definition.<NAME>` to
+; `@local.reference` sites. Those captures are delivered at runtime by
+; the VS Code semantic-tokens provider (`editors/vscode/treesitter/
+; highlight-provider.ts`) which walks scopes per
+; `grammars/treesitter/queries/locals.scm`. Per-fixture in-tree notes
+; document the runtime-verified positions. See
+; `specs/010-t8-tree-sitter-grammar/contracts/highlights-coverage.contract.md`
+; §1 "Reference-site resolution split" for the contract.
 
 ; ============================================================
 ; Lexical-token captures (#10–#12)
@@ -71,10 +75,14 @@
 ; #5 — @keyword.storage (parameter-storage keywords)
 ; ============================================================
 
+; NOTE — `parameter` (Verilog submodule header form) is reserved in
+; KeywordSet.def but NOT yet used in any grammar production; querying
+; it here would trip "Invalid node type" since tree-sitter prunes
+; unreferenced anonymous tokens. Add it back when the Verilog-submodule-
+; header production lands.
 [
   "param_int"
   "param_str"
-  "parameter"
 ] @keyword.storage
 
 ; ============================================================
@@ -90,13 +98,17 @@
 
 ; ============================================================
 ; #3 — @keyword.control.flow (goto, return, finish)
+; `finish` is wrapped in the `bare_finish` rule (spec
+; bare_finish_statement); querying the rule node fires the capture
+; whether the keyword appears bare or via the rule alias.
 ; ============================================================
 
 [
   "goto"
   "return"
-  "finish"
 ] @keyword.control.flow
+
+(bare_finish) @keyword.control.flow
 
 ; ============================================================
 ; #2 — @keyword.control (alt, any, if, else, seq, for, while, generate)
@@ -117,6 +129,10 @@
 ; #1 — @keyword (generic fallback for the remaining keyword set)
 ; ============================================================
 
+; NOTE — `label` / `invoke` / `m_clock` / `p_reset` are reserved in
+; KeywordSet.def but NOT yet used in any grammar production; tree-
+; sitter prunes unreferenced anonymous tokens and would reject them
+; here. Add them back when their productions land.
 [
   "declare"
   "module"
@@ -130,15 +146,11 @@
   "proc_name"
   "state"
   "state_name"
-  "label"
   "label_name"
   "first_state"
   "input"
   "output"
   "inout"
-  "invoke"
-  "m_clock"
-  "p_reset"
 ] @keyword
 
 ; ============================================================
@@ -168,6 +180,9 @@
 ; top of this file.
 ; ============================================================
 
+(proc_declarator
+  name: (identifier) @variable.builtin.terminal)
+
 (control_terminal_declaration
   name: (identifier) @variable.builtin.terminal)
 
@@ -195,11 +210,13 @@
   target: (identifier) @label.state)
 
 ; ============================================================
-; #16 — @function.proc at proc-definition + proc_name declaration sites
+; #16 — @function.proc at proc-definition site only.
+;
+; A `proc_name <name>;` declaration introduces a control-TERMINAL
+; (the procedure INSTANCE, a 1-bit observable per S27 — FR-009),
+; not a function. The capture for proc_declarator is therefore
+; `@variable.builtin.terminal`, applied below in the FR-009 block.
 ; ============================================================
-
-(proc_declarator
-  name: (identifier) @function.proc)
 
 (proc_definition
   name: (identifier) @function.proc)

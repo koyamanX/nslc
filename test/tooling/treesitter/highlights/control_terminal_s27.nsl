@@ -29,6 +29,7 @@ declare worker_s27 {
 
 module worker_s27 {
     proc_name work;
+//            ^ variable.builtin.terminal
 
     if (go) work.invoke();
 
@@ -40,5 +41,7 @@ module worker_s27 {
     }
 
     busy = work;
-//         ^ variable.builtin.terminal
+//         (the reference-site capture for `work` here is delivered
+//          at runtime by the VS Code semantic-tokens provider; see
+//          NOTE in reg_vs_wire.nsl for the resolution-split rationale.)
 }

@@ -14,7 +14,8 @@
         "nslh",
         "inc"
       ],
-      "highlights": "queries/highlights.scm"
+      "highlights": "queries/highlights.scm",
+      "locals": "queries/locals.scm"
     }
   ],
   "devDependencies": {

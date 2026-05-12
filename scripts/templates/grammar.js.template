@@ -80,25 +80,16 @@ module.exports = grammar({
   // conflicts resolution where possible.
   externals: $ => [],
 
-  // Tree-sitter conflict declarations. Tree-sitter's GLR-style
-  // ambiguity resolver needs an explicit hint for ambiguities that
-  // share a multi-token prefix:
-  //
-  //   - simple_lvalue vs _expression — both can begin with `identifier`;
-  //     the `:=` / `=` operator in register_transfer / wire_or_variable_transfer
-  //     resolves at the operator position.
-  //   - scoped_identifier vs field_access — both share the
-  //     `identifier "." identifier` shape; production-position
-  //     (statement-form `control_call` vs expression-form postfix access)
-  //     resolves at the trailing-tokens position.
-  //   - parenthesized_expression vs struct_cast_expr — both share the
-  //     `( ident )` prefix; the optional `( expr ) . ident` tail in
-  //     struct_cast_expr discriminates if present.
-  conflicts: $ => [
-    [$.simple_lvalue, $._expression],
-    [$.scoped_identifier, $.field_access],
-    [$.parenthesized_expression, $.struct_cast_expr],
-  ],
+  // No explicit conflict declarations are required: tree-sitter's
+  // generator confirmed (via `Warning: unnecessary conflicts` on
+  // 2026-05-12) that production-position and lookahead are
+  // sufficient to disambiguate the historically-anticipated
+  // ambiguities (simple_lvalue vs _expression at the `:=` / `=`
+  // operator; scoped_identifier vs field_access at the trailing-
+  // tokens position; parenthesized_expression vs struct_cast_expr
+  // by the `( expr ) . ident` tail). The conflicts: list is left
+  // empty for documentation purposes.
+  conflicts: $ => [],
 
   // Tree-sitter's keyword-extraction directive: any literal string in
   // a production that matches the `identifier` token's character set
@@ -331,10 +322,11 @@ module.exports = grammar({
       optional(seq('=', $._struct_init_value)),
     ),
 
-    _struct_init_value: $ => choice(
-      $._expression,
-      seq('{', $._expression, repeat(seq(',', $._expression)), '}'),
-    ),
+    // `_struct_init_value` is just any expression — including the
+    // `{a, b, c}` brace-list form via concat_expression. The explicit
+    // brace-list alternative was redundant with concat_expression and
+    // would trip a tree-sitter conflict; removed.
+    _struct_init_value: $ => $._expression,
 
     integer_declaration: $ => seq(
       'integer',
@@ -411,7 +403,6 @@ module.exports = grammar({
       $.return_statement,
       $.empty_statement,
       $.init_block,
-      $.state_definition,
     ),
 
     empty_statement: $ => ';',
@@ -425,6 +416,7 @@ module.exports = grammar({
     _parallel_block_item: $ => choice(
       $._internal_declaration,
       $._action_statement,
+      $.state_definition,
       $.preprocessor_directive,
     ),
 
@@ -846,8 +838,10 @@ module.exports = grammar({
     ),
 
     // Struct cast `(TypeName)(expr).member { . member }`. Rare; kept
-    // for completeness per nsl_lang.ebnf §11.
-    struct_cast_expr: $ => prec(16, seq(
+    // for completeness per nsl_lang.ebnf §11. Left-associative on the
+    // trailing dot-chain (tree-sitter would otherwise see an
+    // ambiguity between extending the chain and committing it).
+    struct_cast_expr: $ => prec.left(16, seq(
       '(', field('type', $.identifier), ')',
       '(', field('value', $._expression), ')',
       '.', $.identifier,

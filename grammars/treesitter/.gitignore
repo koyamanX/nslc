@@ -15,8 +15,10 @@
 #   minimal; downstream T11 editor integrations may opt back in.
 #
 # What IS committed: package.json, package-lock.json, grammar.js,
-# parser.c, grammar.json, node-types.json, queries/highlights.scm,
-# SPDX.NOTICE.
+# src/parser.c, src/grammar.json, src/node-types.json,
+# src/tree_sitter/parser.h (tree-sitter ABI header bundled by
+# `generate` for downstream C/wasm consumers), queries/highlights.scm,
+# queries/locals.scm, SPDX.NOTICE.
 #
 # See specs/010-t8-tree-sitter-grammar/research.md §1 (CLI pin)
 # and §2 (WASM lifecycle) for the rationale.
@@ -24,3 +26,18 @@
 node_modules/
 tree-sitter-nsl.wasm
 bindings/
+
+# Per-language packaging scaffolding emitted by `tree-sitter
+# generate` when run without `--no-bindings`. CI invokes the
+# generator with `--no-bindings` (per scripts/ci.sh
+# `treesitter-grammar-regen-diff` sub-step) so these files do not
+# appear on a clean run; the defensive ignores below cover the case
+# where a contributor forgets the flag.
+binding.gyp
+Cargo.toml
+Makefile
+Package.swift
+pyproject.toml
+setup.py
+.editorconfig
+.gitattributes

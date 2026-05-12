@@ -336,13 +336,13 @@ stage_static_checks() {
   elif ! command -v npx >/dev/null 2>&1; then
     log "  (skipping treesitter-grammar-regen-diff: npx not found on PATH)"
   else
-    log "  cd grammars/treesitter && npx tree-sitter generate && git diff --exit-code"
-    ( cd "${ts_grammar_dir}" && npx --no-install tree-sitter generate ) \
+    log "  cd grammars/treesitter && npx tree-sitter generate --no-bindings && git diff --exit-code"
+    ( cd "${ts_grammar_dir}" && npx --no-install tree-sitter generate --no-bindings ) \
       || rc=$?
     ( cd "${REPO_ROOT}" && git -c safe.directory=* diff --exit-code -- \
-        grammars/treesitter/parser.c \
-        grammars/treesitter/grammar.json \
-        grammars/treesitter/node-types.json ) \
+        grammars/treesitter/src/parser.c \
+        grammars/treesitter/src/grammar.json \
+        grammars/treesitter/src/node-types.json ) \
       || rc=$?
   fi
 
