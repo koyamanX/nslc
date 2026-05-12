@@ -1,28 +1,35 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// T035 — R3 proc_name argument-list wrapping per formatting-rules.contract.md §3.
+// T035 — R3 `proc_name` argument-list wrapping per
+// `formatting-rules.contract.md` §3 (amended Session 2026-05-12
+// — see `plan.md` Plan Revisions for the drop of the original
+// `[N]`-width sub-rule that the NSL grammar / parser do not
+// support; multi-line trigger is now `max_line_length`-only).
 //
 // Frozen invariants:
-//   * if ANY argument has a `[N]` width, every argument is on its
-//     own line, indented one step past the opening `(`
-//   * within the multi-line form, the `[N]` widths align (rule R2
-//     applied to the argument names)
-//   * the closing `);` goes on a new line at the original indent
+//   * single-line form when total reformatted line fits within
+//     `max_line_length` (the default 100 cols)
+//   * multi-line form when the single-line form would exceed
+//     `max_line_length`: each arg on its own line, indented one
+//     `indent` step past `(`; closing `);` on its own line at
+//     the original indent (matches the `proc_name` keyword
+//     column)
 //
-//     proc_name exec(
-//         pc   [32],
-//         inst [32],
-//         src1 [32],
-//         src2 [32]
-//     );
+// Input is a `proc_name` decl whose single-line form (under the
+// default config) clearly exceeds 100 cols; the canonical form
+// breaks the arg list across multiple lines.
 //
-// AUTHORED RED — XFAIL until T054 implements R3.
+// T054 (this commit) implements R3 — fixture flipped
+// XFAIL→PASS.
 
-// XFAIL: *
-// RUN: echo 'module m { proc_name exec(pc[32], inst[32], src1[32], src2[32]); }' | nsl-fmt --stdin | FileCheck %s
-// CHECK: proc_name exec(
-// CHECK-NEXT: pc   [32],
-// CHECK-NEXT: inst [32],
-// CHECK-NEXT: src1 [32],
-// CHECK-NEXT: src2 [32]
-// CHECK-NEXT: );
+// RUN: echo 'module m { reg argument_one[8]; reg argument_two[8]; reg argument_three[8]; reg argument_four[8]; reg argument_five[8]; reg argument_six[8]; reg argument_seven[8]; proc_name long_arg_proc(argument_one, argument_two, argument_three, argument_four, argument_five, argument_six, argument_seven); }' | nsl-fmt --stdin | FileCheck %s
+
+// CHECK:     proc_name long_arg_proc(
+// CHECK-NEXT:         argument_one,
+// CHECK-NEXT:         argument_two,
+// CHECK-NEXT:         argument_three,
+// CHECK-NEXT:         argument_four,
+// CHECK-NEXT:         argument_five,
+// CHECK-NEXT:         argument_six,
+// CHECK-NEXT:         argument_seven
+// CHECK-NEXT:     );

@@ -411,6 +411,59 @@ lines, formatter NORMALIZES to one.
 ✅ All nine principles still pass post-revision. Complexity Tracking
 section remains empty.
 
+### Session 2026-05-12 — amend R3 (drop `[N]`-width sub-rule)
+
+Discovered during T054 implementation: the original R3 wording in
+[`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md) §3
+showed canonical form as `proc_name exec(pc[32], inst[32], …)`
+and required "widths align in same column". The NSL grammar
+([`docs/spec/nsl_lang.ebnf §6`](../../docs/spec/nsl_lang.ebnf)) and
+the parser ([`lib/Parse/ParseDecl.cpp:893–923`](../../lib/Parse/ParseDecl.cpp))
+accept only **bare identifiers** as `proc_name` reg-args —
+`proc_name exec(pc[32], …)` errors with `expected ')' after
+proc_name reg-args`. The original §3 was therefore
+unimplementable without extending parser + AST + spec to support
+widths on `proc_name` args, which is out of T2 scope (and
+arguably out of NSL-language scope).
+
+**Resolution**: R3 simplified to a single-line vs multi-line
+decision driven by `max_line_length` only. The widths-align
+sub-rule is removed. The trailing-comma policy survives.
+
+  Affected artifacts:
+  * [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md)
+    §3 — amended (with the superseded text kept inline for
+    traceability per Principle VII).
+  * [`contracts/formatting-rules.contract.md`](./contracts/formatting-rules.contract.md)
+    §9 row R3 — `align_struct_members` removed from the key
+    list (no widths to align).
+  * [`test/Fmt/rules/proc-name-arg-wrap/`](../../test/Fmt/rules/proc-name-arg-wrap/)
+    T035 — rewritten to a valid-NSL input that overflows the
+    default 100-column line and triggers multi-line wrap on
+    bare identifiers.
+  * [`test/Fmt/config/non-default/trailing-commas-add/`](../../test/Fmt/config/non-default/trailing-commas-add/)
+    T122a + companion T122b — rewritten to valid NSL inputs
+    using the new max_line_length-overflow trigger.
+  * [`lib/Fmt/LayoutPlanner.cpp`](../../lib/Fmt/LayoutPlanner.cpp)
+    `formatNode(ProcNameDecl)` — implements the amended R3.
+
+Constitution Check delta:
+
+| Principle | Status | Note |
+|---|---|---|
+| I. Spec Is Authoritative | **Pass (vacuous)** | No new `Sn`/`Nn`/`Pn` — `proc_name` arg syntax unchanged. |
+| II. Layered Library Architecture | **Pass (confirmed)** | Implementation lives in `lib/Fmt/`; `Fmt.h` umbrella unchanged. |
+| III. Stock CIRCT Below | **Pass (vacuous)** | T2 still pre-dialect. |
+| IV. Source-Locating Diagnostics | **Pass (vacuous)** | R3 is layout-only; no diagnostics. |
+| V. Inspectable, Deterministic Pipeline | **Pass (confirmed)** | Single-line vs multi-line decision is a pure function of `(args, parent_indent, max_line_length)`. |
+| VI. Layered Test Discipline | **Pass (confirmed)** | T035/T122 rewrites land alongside the implementation; observed XFAIL → PASS in the same commit per Principle VIII no-retrofitted-tests carve-out for forced-amendment fixtures. |
+| VII. Spec ↔ Design Coupling | **Pass (confirmed)** | This Plan Revisions section IS the spec-to-design propagation for the §3 amendment. |
+| VIII. Test-First Development | **Pass (confirmed)** | The original RED fixtures (T035 + T122) were authored before T054 implementation; the rewrites preserve their assertion shape, only adjusting the input to syntactically-valid NSL. |
+| IX. Continuous Integration & Delivery | **Pass (vacuous)** | No CI-stage shape change. |
+
+✅ All nine principles still pass post-revision. Complexity
+Tracking section remains empty.
+
 ## Phase Cross-References
 
 - **Phase 0 (research)**: [`research.md`](./research.md) §§1–9 —

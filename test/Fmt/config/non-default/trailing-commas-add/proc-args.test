@@ -1,28 +1,26 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // T122 (a/b) — non-default config: `trailing_commas = "add"`
-// appends a comma after the LAST arg in a multi-line `proc_name`
-// argument list (per `formatting-rules.contract.md` §3 trailing-
-// comma policy + §9 rule↔key matrix row R3 ↔ `trailing_commas`).
+// appends a comma after the LAST arg in a multi-line
+// `proc_name` argument list (per
+// `formatting-rules.contract.md` §3 trailing-comma policy +
+// §9 rule↔key matrix row R3 ↔ `trailing_commas`; §3 amended
+// Session 2026-05-12 — see `plan.md` Plan Revisions).
 //
-// Default config is `trailing_commas = "preserve"` (no transform
-// to the post-format trailing comma state); this fixture flips
-// the knob and verifies the output adds a trailing comma.
+// Default config is `trailing_commas = "preserve"` (the
+// pre-format trailing-comma state is kept); this fixture flips
+// to `"add"` and verifies the output adds a trailing comma after
+// the last arg in the multi-line form. The multi-line form is
+// triggered by `max_line_length` overflow on the default 100-col
+// budget.
 //
-// AUTHORED RED — XFAIL until T054 implements R3 (`proc_name`
-// argument-list wrapping) AND the trailing-comma policy is wired
-// in `formatNode(ProcNameDecl)`. Today the verbatim fallback
-// leaves the source byte-for-byte (no comma added).
-
-// XFAIL: *
+// T054 (this commit) implements R3 — fixture flipped
+// XFAIL→PASS.
 
 // RUN: rm -rf %t.tc && mkdir -p %t.tc
 // RUN: printf 'trailing_commas = "add"\n' > %t.tc/.nsl-fmt.toml
-// RUN: printf 'module m { proc_name exec(pc[32], inst[32], src1[32], src2[32]); }\n' > %t.tc/m.nsl
+// RUN: printf 'module m { reg argument_one[8]; reg argument_two[8]; reg argument_three[8]; reg argument_four[8]; reg argument_five[8]; reg argument_six[8]; reg argument_seven[8]; proc_name long_arg_proc(argument_one, argument_two, argument_three, argument_four, argument_five, argument_six, argument_seven); }\n' > %t.tc/m.nsl
 // RUN: cd %t.tc && nsl-fmt m.nsl | FileCheck %s
 
-// CHECK:     pc   [32],
-// CHECK-NEXT:     inst [32],
-// CHECK-NEXT:     src1 [32],
-// CHECK-NEXT:     src2 [32],
-// CHECK-NEXT: );
+// CHECK:         argument_seven,
+// CHECK-NEXT:     );

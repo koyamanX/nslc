@@ -918,6 +918,105 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ProcDefn &node) {
   return interleaveChildren(node.loc(), children);
 }
 
+DocPtr
+LayoutPlanner::formatNode(const ::nsl::ast::ProcNameDecl &node) {
+  // R3 §3 (amended Session 2026-05-12 — see `plan.md` Plan
+  // Revisions): single-line form when total fits within
+  // `max_line_length`, otherwise multi-line form with each arg
+  // on its own line indented one `indent` step past `(`. The
+  // original §3 wording referenced `[N]`-width arg syntax that
+  // the NSL parser does not accept; the amended rule is
+  // `max_line_length`-driven and operates on bare-identifier
+  // arg lists, which is what the parser actually produces.
+  //
+  // `regArgs()` is a `std::vector<Identifier>` of bare names;
+  // there are no widths, no expressions to recurse into. The
+  // trailing-comma policy applies in the multi-line form:
+  //   * `Add`      — emit a `,` after the last arg
+  //   * `Remove`   — never emit a trailing comma
+  //   * `Preserve` — keep the pre-format state, which for
+  //                  `proc_name` is always "no trailing comma"
+  //                  (the parser rejects literal trailing
+  //                  commas in the source form), so `Preserve`
+  //                  is observably equivalent to `Remove` here.
+  // The single-line form never emits a trailing comma regardless
+  // of policy.
+
+  llvm::StringRef name = node.name();
+  const auto &args = node.regArgs();
+
+  // Bare `proc_name <name>;` (no parens) when there are no args.
+  if (args.empty()) {
+    return Doc::concat({
+        Doc::text(llvm::StringRef("proc_name ")),
+        Doc::text(name),
+        Doc::text(llvm::StringRef(";")),
+    });
+  }
+
+  // Estimate the single-line width. We don't track the renderer's
+  // running column, so assume the canonical parent indent is one
+  // `indentStep()` (`proc_name` decls always live inside a module
+  // body in valid NSL; the parser disallows top-level position).
+  const std::size_t parent_indent_cols =
+      static_cast<std::size_t>(indentStep());
+  std::size_t projected = parent_indent_cols +
+                          /* "proc_name " */ 10 + name.size() +
+                          /* "(" */ 1 + /* ");" */ 2;
+  for (std::size_t i = 0; i < args.size(); ++i) {
+    projected += args[i].size();
+    if (i + 1 < args.size()) {
+      projected += /* ", " */ 2;
+    }
+  }
+
+  const std::size_t max_cols =
+      cfg_.max_line_length > 0 ? static_cast<std::size_t>(cfg_.max_line_length)
+                               : std::size_t{100};
+  const bool multiline = projected > max_cols;
+
+  if (!multiline) {
+    std::vector<DocPtr> parts;
+    parts.reserve(args.size() * 2 + 4);
+    parts.push_back(Doc::text(llvm::StringRef("proc_name ")));
+    parts.push_back(Doc::text(name));
+    parts.push_back(Doc::text(llvm::StringRef("(")));
+    for (std::size_t i = 0; i < args.size(); ++i) {
+      if (i != 0) {
+        parts.push_back(Doc::text(llvm::StringRef(", ")));
+      }
+      parts.push_back(Doc::text(args[i]));
+    }
+    parts.push_back(Doc::text(llvm::StringRef(");")));
+    return Doc::concat(std::move(parts));
+  }
+
+  // Multi-line form.
+  using TC = Configuration::TrailingCommas;
+  const bool emit_trailing_comma = cfg_.trailing_commas == TC::Add;
+
+  std::vector<DocPtr> body;
+  body.reserve(args.size() * 3);
+  for (std::size_t i = 0; i < args.size(); ++i) {
+    body.push_back(Doc::hardline());
+    body.push_back(Doc::text(args[i]));
+    const bool is_last = i + 1 == args.size();
+    if (!is_last || emit_trailing_comma) {
+      body.push_back(Doc::text(llvm::StringRef(",")));
+    }
+  }
+
+  std::vector<DocPtr> top;
+  top.reserve(6);
+  top.push_back(Doc::text(llvm::StringRef("proc_name ")));
+  top.push_back(Doc::text(name));
+  top.push_back(Doc::text(llvm::StringRef("(")));
+  top.push_back(Doc::nest(indentStep(), Doc::concat(std::move(body))));
+  top.push_back(Doc::hardline());
+  top.push_back(Doc::text(llvm::StringRef(");")));
+  return Doc::concat(std::move(top));
+}
+
 DocPtr LayoutPlanner::formatNode(const ::nsl::ast::StateDefn &node) {
   // Recursion-only override paralleling `formatNode(FuncDefn)`.
   // `state <name> <body>` — recurse into the body.

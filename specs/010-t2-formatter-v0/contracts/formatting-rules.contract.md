@@ -80,40 +80,76 @@ struct csr_t {
 
 ## §3. Rule R3: `proc_name` argument-list wrapping
 
-**Source (canonical post-format)** — multi-line form when at
-least one arg has a width:
+**Amended Session 2026-05-12** — the original §3 (preserved
+below the rule body for traceability) assumed `proc_name` args
+could carry `[N]` widths (`proc_name exec(pc[32], inst[32]…)`).
+The NSL grammar at `lang.ebnf §6` and the parser at
+`lib/Parse/ParseDecl.cpp:893–923` accept only bare identifiers
+as `proc_name` reg-args — `proc_name exec(pc[32], …)` errors
+with `expected ')' after proc_name reg-args`. The width-trigger
+and "widths align" sub-rules are therefore unimplementable
+without first extending parser + AST + spec. R3 is simplified
+to a single-line vs multi-line decision driven by
+`max_line_length` only; the trailing-comma policy survives.
 
-```nsl
-proc_name exec(
-    pc   [32],
-    inst [32],
-    src1 [32],
-    src2 [32]
-);
-```
-
-**Source (canonical post-format)** — single-line form when no
-arg has a width AND total fits within `max_line_length`:
+**Source (canonical post-format)** — single-line form when the
+total reformatted line fits within `max_line_length` (default
+100 columns):
 
 ```nsl
 proc_name simple(a, b, c);
 ```
 
+**Source (canonical post-format)** — multi-line form when the
+single-line form would exceed `max_line_length`:
+
+```nsl
+proc_name long_arg_list(
+    arg_one,
+    arg_two,
+    arg_three,
+    arg_four_with_a_long_name,
+    arg_five
+);
+```
+
 **Frozen invariants**:
-- If ANY argument has a `[N]` width, every argument goes on its
-  own line, indented one `indent` level past the opening `(`.
-- Within the multi-line form, the `[N]` widths align in the
-  same column (rule R2 applied to argument names).
+- The single-line form is used iff the total reformatted line —
+  `proc_name <name>(<args>);` at the parent indent level — fits
+  within `max_line_length`.
+- The multi-line form puts every arg on its own line, indented
+  one `indent` level past the opening `(`.
 - The closing `)` and `;` go on a new line at the original
-  indent level (matches the `(` column).
-- The single-line form is used iff all args lack widths AND
-  the total reformatted line fits within `max_line_length`.
+  indent level (matches the `proc_name` keyword column).
 - Trailing-comma policy follows `trailing_commas`: with
   `Add`, the last arg gets a trailing comma in multi-line form;
   with `Remove`, no trailing comma; with `Preserve`, the
-  pre-format trailing-comma state is kept.
+  pre-format trailing-comma state is kept. The single-line form
+  never emits a trailing comma regardless of policy.
 
 **Test fixture**: `test/Fmt/rules/proc-name-arg-wrap/`
+
+**Superseded text (original Session 2026-05-04 wording)** — kept
+for traceability; do NOT implement against this version:
+
+> **Source (canonical post-format)** — multi-line form when at
+> least one arg has a width:
+>
+> ```nsl
+> proc_name exec(
+>     pc   [32],
+>     inst [32],
+>     src1 [32],
+>     src2 [32]
+> );
+> ```
+>
+> **Frozen invariants**:
+> - If ANY argument has a `[N]` width, every argument goes on
+>   its own line, indented one `indent` level past the opening
+>   `(`.
+> - Within the multi-line form, the `[N]` widths align in the
+>   same column (rule R2 applied to argument names).
 
 ---
 
@@ -286,7 +322,7 @@ Renaming a string later: amend the fixture in the same change.
 |---|---|
 | R1 (alt-arrow alignment) | `align_case_arrows` |
 | R2 (struct member alignment) | `align_struct_members`, `indent`, `max_line_length` |
-| R3 (proc_name wrapping) | `align_struct_members`, `indent`, `max_line_length`, `trailing_commas` |
+| R3 (proc_name wrapping) | `indent`, `max_line_length`, `trailing_commas` (Session 2026-05-12 — `align_struct_members` removed, no widths to align) |
 | R4 (bit-slice / concat spacing) | `spaces_inside_braces` |
 | R5 (operator spacing) | `spaces_around_binary_ops` |
 | R6 (attached-comment preservation) | `preserve_comments`, `blank_lines_between_modules` |

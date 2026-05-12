@@ -122,6 +122,7 @@ protected:
   DocPtr formatNode(const ::nsl::ast::DeclareBlock &node);
   DocPtr formatNode(const ::nsl::ast::FuncDefn &node);
   DocPtr formatNode(const ::nsl::ast::ProcDefn &node);
+  DocPtr formatNode(const ::nsl::ast::ProcNameDecl &node);
   DocPtr formatNode(const ::nsl::ast::StateDefn &node);
   DocPtr formatNode(const ::nsl::ast::SeqBlock &node);
   DocPtr formatNode(const ::nsl::ast::ParallelBlock &node);
