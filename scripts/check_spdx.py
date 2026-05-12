@@ -124,6 +124,23 @@ def _is_syntax_test_marker(line: str) -> bool:
     return line.startswith('// SYNTAX TEST "')
 
 
+def _is_llvm_banner(line: str) -> bool:
+    """LLVM-style file-header banner — the convention used across
+    LLVM, MLIR, CIRCT, and (post-PR #18) NSL's nsl-fmt sources. The
+    banner sits on line 1 and is followed by an empty `//` line, then
+    the SPDX line, then a closing banner. Treat the banner-form line
+    like a shebang — allowed before the SPDX header. Shape variants:
+
+      //===- Filename.h - Description -----------------*- C++ -*-=//
+      //===---------------------------------------------------------===//
+
+    The first form ends with `=//` (after the mode marker
+    `*- C++ -*-`); the second form ends with `===//`. Both begin
+    with `//===` and end with `//`. The check is permissive: line
+    starts with `//===` AND ends with `//`."""
+    return line.startswith("//===") and line.rstrip().endswith("//")
+
+
 def find_recipe(path: Path) -> Optional[tuple[str, Optional[str]]]:
     name = path.name
     if name in RECIPES_BY_BASENAME:
@@ -194,6 +211,7 @@ def check_one_file(
     # STARTS WITH `"_comment_top": "SPDX-License-Identifier: <id>`.
     is_json = path.suffix == ".json"
     try:
+        banner_seen = False
         with open(path, encoding="utf-8", errors="replace") as fh:
             for raw in fh:
                 line = raw.rstrip("\r\n")
@@ -204,6 +222,17 @@ def check_one_file(
                     continue
                 if _is_syntax_test_marker(line):
                     continue
+                if _is_llvm_banner(line):
+                    # LLVM banner is followed by an empty `//` filler
+                    # line. Set a flag to skip the immediately-next
+                    # stand-alone opener line.
+                    banner_seen = True
+                    continue
+                if banner_seen and stripped == opener:
+                    # The filler line after the banner — discard.
+                    banner_seen = False
+                    continue
+                banner_seen = False
                 if is_json:
                     # Skip the JSON object opener `{` (and any
                     # plain wrapper line) so the SPDX match falls
