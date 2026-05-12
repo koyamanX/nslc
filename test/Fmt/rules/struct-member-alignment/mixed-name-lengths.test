@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T034 — R2 struct member-bracket alignment per formatting-rules.contract.md §2.
+//
+// Frozen invariant: in a struct, the `[N]` bit-width brackets all
+// align to ONE SPACE past the longest member name's last char:
+//
+//     struct csr_t {
+//         mstatus  [32];
+//         mcause   [32];
+//         mtvec    [30];
+//         mepc     [32];
+//     };
+//
+// T053 (R2) made this GREEN: `lib/Fmt/LayoutPlanner.cpp` adds a
+// canonical-layout `formatNode(StructDecl)` that emits each member
+// on its own line, indented one step (per `Configuration::indent`),
+// with member names padded so all `[` brackets align at column
+// `max_name + 2` from the name's start (matching the canonical
+// example in `contracts/formatting-rules.contract.md` §2). The
+// `align_struct_members=false` toggle collapses to a single space
+// separator per the contract's suppression clause.
+
+// RUN: echo 'struct csr_t { mstatus[32]; mcause[32]; mtvec[30]; mepc[32]; };' | nsl-fmt --stdin | FileCheck %s
+// CHECK: mstatus  [32];
+// CHECK: mcause   [32];
+// CHECK: mtvec    [30];
+// CHECK: mepc     [32];

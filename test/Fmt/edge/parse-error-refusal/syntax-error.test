@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T039 (T059): malformed NSL → exit non-zero + an error
+// diagnostic on stderr (Q1 strict-refusal per Session 2026-05-05;
+// FR-012 atomic refusal).
+//
+// Input is `module foo {` with NO closing brace — the parser hits
+// EOF while expecting `}` and emits a parse-error diagnostic.
+
+// RUN: echo 'module foo {' | not nsl-fmt --stdin 2>&1 | FileCheck %s
+// CHECK: error

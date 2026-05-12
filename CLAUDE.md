@@ -141,6 +141,19 @@ editor integration), this section tells you when it lands.
 | LSP `formatting` / `rangeFormatting` integration | T5 |
 | Pre-commit hook recipe | T12 |
 
+> **Note on T2 architecture (per `specs/010-t2-formatter-v0/spec.md`
+> `## Clarifications` Sessions 2026-05-04 and 2026-05-05)**: the
+> formatter operates on **raw source pre-preprocessing** — directive
+> lines (`#include`, `#define`, `%IDENT%` splices, etc.) are
+> preserved as opaque CST tokens by a `DirectiveSplitter` pre-pass
+> (FR-012a); inter-directive NSL fragments are parsed by the
+> existing `libNSLFrontend.a` parser via a new `CSTSink` interface
+> on `Parser.h` (single public header preserved per Principle II).
+> Refusal is **strict and atomic**: any input the lex+parse
+> pipeline rejects causes `format_buffer` to return
+> `Status::Refused` with no partial output (FR-012). Output always
+> ends with exactly one trailing `\n` (R7 per Session 2026-05-05).
+
 ### 2.4 Syntax highlighting (per `nsl_tooling_design.md §4`)
 
 | Capability | Milestone |
@@ -163,45 +176,48 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `010-t3-lsp-skeleton` — land tooling-track
-milestone **T3**: the first user-visible LSP deliverable and the
-architectural seam every later LSP-track milestone (T4, T5, T9,
-T10, T11) builds on. Ships `tools/nsl-lsp/main.cpp` (thin entry
-point ≤ 70 lines), `lib/LSP/` (`libNSLLSP.a` — JSON-RPC framing,
-LSP-protocol layer, language-logic layer, TUScheduler + per-`NslTU`
-threading + cache, diagnostic-mapping + folding-range seams,
-position-encoding + cancellation-token + stderr-logger utilities),
-single public header at `include/nsl/LSP/Server.h` (per the
-Principle II single-public-header rule), and a new test layer at
-`test/lsp/` (four gtest binaries — `lifecycle_test`,
-`diagnostics_test`, `folding_test`, `cancellation_test` — driven
-by an in-tree `LspSession` harness that spawns `nsl-lsp` over
-stdio). Implements LSP methods `initialize` / `initialized` /
-`shutdown` / `exit` / `textDocument/{didOpen,didChange,didClose}` /
-`publishDiagnostics` / `textDocument/foldingRange` /
-`$/cancelRequest`. Per Clarifications session 2026-05-05: LSP 3.16
-floor (UTF-16 unconditionally; no `positionEncodings`); `Full`
-text sync only on `didChange`; `NSL_INCLUDE` env var read once at
-server startup for include-path discovery; stderr-only plain-text
-logging gated by `NSL_LSP_LOG_LEVEL`; **real** cancellation for
-`foldingRange` (the only cancellable T3 request). Reuses
-`libNSLFrontend.a` per Principle II — Sema diagnostics flow
-through the `DiagnosticEngine` → LSP `Diagnostic` mapper; folding
-ranges come from an `ASTVisitor` walk over the M2 parse tree. The
-test gate is the literal materialization of
-[`README.md`](./README.md) §Roadmap row T3: open a file with a
-Sema error, observe diagnostic; edit, observe re-diagnose. SC-003
-(determinism), SC-004 (250 ms didOpen→diagnostic), SC-007 (30 s
-combined CI), SC-008 (exact capability advertisement, asserted
-byte-equal against the frozen contract), SC-010 (200 ms
-cancellation budget) are the load-bearing measurable outcomes.
-For technologies, project structure, entity catalog, contracts,
-and quickstart, read the current plan:
-[`specs/010-t3-lsp-skeleton/plan.md`](./specs/010-t3-lsp-skeleton/plan.md).
+**Active feature**: `010-t2-formatter-v0` — land the first NSL
+code formatter: `nsl-fmt` CLI + `libNslFmt.a` (the first of the
+three Principle-II-named user-facing tooling binaries — `nsl-fmt`,
+`nsl-lsp`, `nsl-lint`). Implements
+[`docs/design/nsl_tooling_design.md`](./docs/design/nsl_tooling_design.md)
+§§2.4 and 5.1–5.4: the CST trivia layer, the Wadler–Leijen
+`Doc`-IR pretty-printer, the six NSL-specific layout rules, the
+ten `.nsl-fmt.toml` configuration knobs, and the seven CLI flags
+(`-i`, `-c`/`--check`, `--stdin`, `--config`, `--range`,
+positional file args, `--help`/`--version`). Three
+/speckit-clarify decisions land in this milestone: Q1 — the
+formatter parses *raw* source pre-preprocessing and treats each
+directive line as an opaque CST token (clang-format model — the
+only option compatible with SC-002 audited-corpus idempotence,
+since every audited file uses `#include`); Q2 — `--range LINE:LINE`
+ships at T2 (the layout engine already operates on subtrees,
+defining the full CLI surface now avoids retrofit at T5); Q3 —
+multi-file invocations continue past per-file errors, collect and
+report ALL offending files (gofmt / black --check style; CI logs
+surface the complete fix list in one round trip). **Session
+2026-05-05** adds three further clarifications: Q1 — strict
+refusal per FR-012 (any input the lex+parse pipeline rejects →
+exit non-zero; only directive lines + `%IDENT%` splices are
+tolerated pre-parse byte sequences; BOM + vendor pragmas + top-
+level system-task expressions are all parse errors); Q2 — inline
+comments between two tokens of a single statement are preserved
+byte-for-byte at the same token-relative position (no hoisting
+to leading/trailing); Q3 — output ALWAYS ends with exactly one
+trailing `\n` (gofmt / rustfmt / black convention; idempotent by
+construction). Public umbrella header `Fmt.h` exports 10 frozen
+symbols (3 types + 7 free functions); CST shape is internal but
+contractually frozen. T5 (LSP `textDocument/formatting`) is
+**out of scope** for T2; T2's `libNslFmt.a` is the API T5 will
+wrap. For technologies, project structure, entity catalog,
+contracts, and quickstart, read the current plan (which
+includes a Plan Revisions section logging the Session 2026-05-05
+amendments):
+[`specs/010-t2-formatter-v0/plan.md`](./specs/010-t2-formatter-v0/plan.md).
 Companion artifacts:
-[`spec.md`](./specs/010-t3-lsp-skeleton/spec.md),
-[`research.md`](./specs/010-t3-lsp-skeleton/research.md),
-[`data-model.md`](./specs/010-t3-lsp-skeleton/data-model.md),
-[`contracts/`](./specs/010-t3-lsp-skeleton/contracts/),
-[`quickstart.md`](./specs/010-t3-lsp-skeleton/quickstart.md).
+[`spec.md`](./specs/010-t2-formatter-v0/spec.md),
+[`research.md`](./specs/010-t2-formatter-v0/research.md),
+[`data-model.md`](./specs/010-t2-formatter-v0/data-model.md),
+[`contracts/`](./specs/010-t2-formatter-v0/contracts/),
+[`quickstart.md`](./specs/010-t2-formatter-v0/quickstart.md).
 <!-- SPECKIT END -->

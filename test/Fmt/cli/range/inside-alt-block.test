@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T084 — `nsl-fmt --range LINE:LINE file.nsl` reformats only the
+// requested lines; lines outside the range are emitted byte-
+// identical (FR-007). The fixture name is "inside-alt-block" per
+// the `tasks.md` description but the rule is range-mode-generic;
+// any canonical-rule rewrite confined to the in-range lines would
+// observe the same invariant.
+//
+// Input has R5-dirty formatting on BOTH the in-range and the out-
+// of-range transfer statements. The expected post-format output
+// applies R5 (operator spacing) only to the in-range line; the
+// other transfer is emitted byte-identical (no `+` spacing
+// applied), demonstrating that out-of-range bytes are preserved.
+//
+// T090 (CLI `--range` parsing + bounds check) and T091
+// (LayoutPlanner LineRange honoring) both landed; this fixture
+// is expected to pass without XFAIL.
+
+// RUN: printf '// line 1\n\
+// RUN: declare m {\n\
+// RUN:     input a[8];\n\
+// RUN:     input b[8];\n\
+// RUN:     output y[8];\n\
+// RUN:     output z[8];\n\
+// RUN: }\n\
+// RUN: module m {\n\
+// RUN:     y = a+b;\n\
+// RUN:     z = a+b;\n\
+// RUN: }\n' > %t.nsl
+// RUN: nsl-fmt --range 9:9 %t.nsl | FileCheck %s
+
+// CHECK:     y = a + b;
+// CHECK-NOT: z = a + b;
+// CHECK:     z = a+b;

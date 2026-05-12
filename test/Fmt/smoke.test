@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+# test/Fmt/smoke.test — Phase-1 sentinel fixture for the nsl-fmt lit
+# corpus. Exists so `lit /work/test/Fmt` finds at least one test and
+# does not error out with "did not discover any tests" before Phase 3
+# fixtures land. Per `test/lit.cfg.py` the auto-discovery picks up any
+# `.test` file recursively — when Phase 3 starts adding real fixtures
+# under `test/Fmt/rules/`, `test/Fmt/cli/`, etc., they are discovered
+# automatically with no edits to this file.
+#
+# This fixture's RUN line is intentionally trivial — it asserts only
+# that lit + the shell are wired (Phase-1 checkpoint per
+# `quickstart.md` §3 T-1: "ninja check-nsl-fmt runs zero tests
+# successfully" — clarified during /speckit-implement to mean "runs
+# at least one trivially-passing test", because lit refuses to run
+# zero tests).
+
+# RUN: true
+# CHECK: any-pattern-not-required-for-trivial-RUN

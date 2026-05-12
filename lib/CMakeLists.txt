@@ -20,3 +20,17 @@ add_subdirectory(Sema)
 add_subdirectory(Dialect/NSL/IR)
 add_subdirectory(Lower)
 add_subdirectory(Driver)
+
+# -----------------------------------------------------------------------------
+# Tool libraries (NOT Principle II compiler-track layers)
+# -----------------------------------------------------------------------------
+#
+# `nsl-fmt` (T2 milestone, branch 010-t2-formatter-v0) is the first
+# of three named user-facing tooling binaries (Principle II §
+# user-facing tooling: nsl-fmt, nsl-lsp, nsl-lint). The library uses
+# plain `add_library(...)` rather than `add_nsl_library(...)` because
+# the latter is hard-coded to the nine compiler-track layers per
+# Principle II's layer table; tool libraries are a separate category.
+# Future T-track tool libraries (libNslLsp.a at T3, libNslLint.a at T6)
+# drop in as additional `add_subdirectory()` lines below.
+add_subdirectory(Fmt)

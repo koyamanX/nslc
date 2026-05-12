@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Regression fixture: R5 (operator spacing) MUST fire on a
+// `TransferStmt` rhs nested inside a `proc` body — the
+// `formatNode(ProcDefn)` recursion override delegates to the
+// body Stmt (typically a `ParallelBlock` or `SeqBlock`), which
+// then routes the formatter into each item, and finally into
+// the inner `TransferStmt`. Same pattern as the func-body
+// fixture in `transfer-rhs.test`; this one pins the proc-body
+// path explicitly.
+
+// RUN: echo 'module m { reg q[8]; proc_name pn(q); proc pn { q:=a+b; } }' | nsl-fmt --stdin | FileCheck %s
+// CHECK: q := a + b;

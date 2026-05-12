@@ -302,20 +302,20 @@ amendments #9 + #10 + the M5/M6 commentary additions.
 | 360–462 | §4.2 TextMate Grammar Skeleton (JSON) |
 | 464–561 | §4.3 Tree-sitter Grammar Skeleton (JS + queries) |
 | 563–575 | §4.4 Editor Integration Matrix |
-| 578–597 | §5.1 Formatter design (opinionated, configurable) |
-| 598–664 | §5.2 Formatter Architecture (Wadler-Leijen + Doc IR) |
-| 666–701 | §5.3 NSL-Specific Formatting Rules |
-| 703–716 | §5.4 Diff-style CLI |
-| 719–752 | §6.1 Linter — Three Rule Tiers (W/S/H rules) |
-| 753–790 | §6.2 Linter Architecture |
-| 792–835 | §6.3 Rule Interface (C++) |
-| 836–859 | §6.4 Example Rule (UnusedRegRule) |
-| 861–879 | §6.5 Lint Configuration (TOML) |
-| 881–889 | §6.6 CI Integration |
-| 891–909 | §7 Cross-Tool Integration — LSP as hub |
-| 913–973 | §8 Shared Directory Layout |
-| 977–997 | §9 Milestone Plan (routing pointer to `../../README.md` §Roadmap, `../../CLAUDE.md` §2, and `../../CONTRIBUTING.md` §3.8–§3.9) |
-| 998–1015 | §10 Summary — Value Proposition |
+| 580–597 | §5.1 Formatter design (opinionated, configurable) |
+| 598–701 | §5.2 Formatter Architecture (Wadler-Leijen + Doc IR + directive-aware pre-pass) |
+| 702–738 | §5.3 NSL-Specific Formatting Rules |
+| 739–754 | §5.4 Diff-style CLI |
+| 757–788 | §6.1 Linter — Three Rule Tiers (W/S/H rules) |
+| 789–827 | §6.2 Linter Architecture |
+| 828–871 | §6.3 Rule Interface (C++) |
+| 872–896 | §6.4 Example Rule (UnusedRegRule) |
+| 897–916 | §6.5 Lint Configuration (TOML) |
+| 917–926 | §6.6 CI Integration |
+| 927–948 | §7 Cross-Tool Integration — LSP as hub |
+| 949–1012 | §8 Shared Directory Layout |
+| 1013–1033 | §9 Milestone Plan (routing pointer to `../../README.md` §Roadmap, `../../CLAUDE.md` §2, and `../../CONTRIBUTING.md` §3.8–§3.9) |
+| 1034–1051 | §10 Summary — Value Proposition |
 
 ---
 

@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T124 (b/b) — non-default config: `preserve_comments = "none"`
+// drops ALL comments — leading, trailing, inline, block, line
+// (per `formatting-rules.contract.md` §6 R6 + §9 rule↔key matrix
+// row R6 ↔ `preserve_comments`).
+//
+// Default config is `preserve_comments = "all"`; this fixture
+// flips to `"none"` and verifies every comment kind in the
+// source is dropped from the output.
+//
+// T051 (this commit) implements R6 + `preserve_comments` wiring —
+// fixture flipped XFAIL→PASS.
+
+// RUN: rm -rf %t.pc && mkdir -p %t.pc
+// RUN: printf 'preserve_comments = "none"\n' > %t.pc/.nsl-fmt.toml
+// RUN: printf 'module m {\n  /* leading */\n  reg q[8]; // trailing\n  reg /* inline */ r[8];\n}\n' > %t.pc/m.nsl
+// RUN: cd %t.pc && nsl-fmt m.nsl | FileCheck %s
+
+// CHECK: module m {
+// CHECK-NOT: /* leading */
+// CHECK-NOT: // trailing
+// CHECK-NOT: /* inline */
+// CHECK: reg q[8];
+// CHECK: reg r[8];
+// CHECK: }

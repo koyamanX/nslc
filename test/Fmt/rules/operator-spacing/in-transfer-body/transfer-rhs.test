@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Regression fixture: R5 (operator spacing) MUST fire on the rhs
+// of a `TransferStmt` (`q := <expr>;`), not just on `RegDecl`
+// initializers. Before `formatNode(TransferStmt)` was added, the
+// rhs of `:=` was emitted verbatim — `q:=a+b;` came out as
+// `q := a+b;` (the `:=` got the canonical spacing from the
+// transfer's own override, but the inner `+` did not).
+//
+// The fixture also pins the `:=` operator spacing itself
+// (`<lhs> := <rhs>;` — one space on each side of `:=`, no space
+// before the trailing `;`).
+
+// RUN: echo 'module m { reg q[8]; func f { q:=a+b; } }' | nsl-fmt --stdin | FileCheck %s
+// CHECK: q := a + b;

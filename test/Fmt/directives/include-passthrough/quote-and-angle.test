@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T044: both `#include "x.nsl"` (quoted) and `#include <x.nsl>`
+// (angle) directives survive the round-trip byte-for-byte
+// (FR-012a opaque-directive guarantee).
+
+// RUN: printf '#include "x.nsl"\n#include <x.nsl>\nmodule m {}\n' | nsl-fmt --stdin | FileCheck %s
+// CHECK: #include "x.nsl"
+// CHECK-NEXT: #include <x.nsl>
+// CHECK-NEXT: module m {}

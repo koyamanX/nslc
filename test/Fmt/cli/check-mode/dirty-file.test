@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T066: `nsl-fmt --check` on a non-canonical file emits a unified
+// diff to stdout and exits 1. Coverage backfill for the dirty-file
+// branch of `tools/nsl-fmt/main.cpp` `processInput()` (lines 167–
+// 178). The R5 BinaryExpr override (T049) rewrites `x+y` → `x + y`,
+// which is the canonical-rule firing this fixture exercises end-
+// to-end.
+
+// RUN: printf 'declare foo { } module foo { wire x[8]; wire y[8]; wire z[8]; z = x+y; }\n' > %t.nsl
+// RUN: not nsl-fmt --check %t.nsl | FileCheck %s
+
+// CHECK: ---
+// CHECK: +++
+// CHECK: @@
+// CHECK: -declare foo { } module foo { wire x[8]; wire y[8]; wire z[8]; z = x+y; }
+// CHECK: +declare foo { } module foo { wire x[8]; wire y[8]; wire z[8]; z = x + y; }

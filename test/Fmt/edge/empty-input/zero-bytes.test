@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T038: empty input → exit 0 with empty output. Verifies the
+// fast-path in `format_buffer()` for zero-byte buffers.
+
+// RUN: printf '' | nsl-fmt --stdin > %t.out
+// RUN: test ! -s %t.out
