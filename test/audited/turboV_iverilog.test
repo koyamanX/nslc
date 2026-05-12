@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/audited/turboV_iverilog.test — M7 US4 cell for
+// (turboV × iverilog). Phase 6 scaffold.
+//
+// turboV is a full RISC-V CPU. Its golden source is the vendored
+// upstream Python reference simulator at
+// `test/audited/turboV/simulator/ref_sim.py` (per FR-017 +
+// research.md §9). The audited regression compiles+runs an
+// instruction-stream test binary under iverilog and compares the
+// captured VCD against the reference simulator's hand-traced
+// golden.
+
+// REQUIRES: iverilog
+
+// 1. Emit Verilog from the turboV core sources. The CMakeLists.txt
+//    inside the project organizes the source list; here we
+//    extract the top-level via the project's src/core/turboV.nsl.
+// RUN: rm -rf %t-verilog && mkdir -p %t-verilog
+// RUN: %nslc -emit=verilog %S/turboV/src/core/turboV.nsl -o %t-verilog/
+
+// 2. Compile + simulate one of the instruction-family scenarios.
+//    The add scenario uses the vendored
+//    tests/csr_inst_test/crt0.S etc as the instruction stream.
+//    (Phase 5 T068 lands the actual scenario + binary build flow.)
+// RUN: iverilog -g2012 -o %t.vvp %t-verilog/*.v \
+// RUN:   %S/turboV/src/integration/clint.nsl \
+// RUN:   %S/turboV/src/integration/ram64x8K.nsl \
+// RUN:   %S/turboV/src/integration/rom64x2K.nsl \
+// RUN:   %S/turboV/src/integration/uart.nsl
+// RUN: cd %T && vvp %t.vvp +VCDFILE=%t.vcd
+
+// 3. Compare against the golden produced by the vendored Python
+//    reference simulator.
+// RUN: %vcd-diff %S/turboV/golden/add.vcd %t.vcd

@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/audited/cpu16_iverilog.test — M7 US4 per-cell regression
+// fixture for (cpu16 × iverilog). Per
+// `specs/011-m7-driver-e2e/contracts/audited-corpus.contract.md`
+// §5.
+//
+// **State (Phase 6 scaffold, 2026-05-12)**: this cell
+// UNSUPPORTED-outs in the `:dev` container because iverilog is
+// not on PATH. The cell turns into a real test once Phase 2A
+// (the `:dev-m7` container PR) lands.
+//
+// **Goldens (Phase 5 final dependency)**: this cell runs `nslc
+// -emit=verilog` + iverilog + vcd_diff against
+// `test/audited/cpu16/golden/cpu16_basic.vcd`. That golden does
+// not yet exist (Phase 5 T062 produces it from the upstream NSL
+// toolchain). Pre-Phase-5-final the cell also fails on missing-
+// golden in the vcd_diff step; the REQUIRES iverilog directive
+// alone is sufficient to UNSUPPORTED at this stage.
+
+// REQUIRES: iverilog
+
+// 1. Emit split-file Verilog into a per-cell temp directory.
+// RUN: rm -rf %t-verilog && mkdir -p %t-verilog
+// RUN: %nslc -emit=verilog %S/cpu16/cpu.nsl -o %t-verilog/
+
+// 2. Compile emitted Verilog + the project's simulation harness
+//    under iverilog (-g2012 SystemVerilog).
+// RUN: iverilog -g2012 -o %t.vvp %t-verilog/*.v %S/cpu16/cpu_sim.nsl
+
+// 3. Run the simulation, capturing VCD to a per-cell temp file.
+// RUN: cd %T && vvp %t.vvp +VCDFILE=%t.vcd
+
+// 4. Compare captured VCD against the golden (Phase 5 T062 lands
+//    the golden; vcd_diff signal-map optional).
+// RUN: %vcd-diff %S/cpu16/golden/cpu16_basic.vcd %t.vcd

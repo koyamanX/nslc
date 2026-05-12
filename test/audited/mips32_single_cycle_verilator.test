@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/audited/mips32_single_cycle_verilator.test — M7 US4 cell
+// for (mips32_single_cycle × verilator). Phase 6 scaffold.
+
+// REQUIRES: verilator
+
+// RUN: rm -rf %t-verilog && mkdir -p %t-verilog
+// RUN: %nslc -emit=verilog %S/mips32_single_cycle/src/mips32.nsl -o %t-verilog/
+// RUN: verilator --binary --build --top-module mips32 \
+// RUN:   -Mdir %t-verilator -o %t.verilator \
+// RUN:   %t-verilog/*.v %S/mips32_single_cycle/sim/mips_sim.nsl
+// RUN: cd %T && %t-verilator/%t.verilator +trace +VCDFILE=%t.vcd
+// RUN: %vcd-diff %S/mips32_single_cycle/golden/mips_hello.vcd %t.vcd

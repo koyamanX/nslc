@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/audited/turboV_verilator.test — M7 US4 cell for
+// (turboV × verilator). Phase 6 scaffold.
+
+// REQUIRES: verilator
+
+// RUN: rm -rf %t-verilog && mkdir -p %t-verilog
+// RUN: %nslc -emit=verilog %S/turboV/src/core/turboV.nsl -o %t-verilog/
+// RUN: verilator --binary --build --top-module turboV \
+// RUN:   -Mdir %t-verilator -o %t.verilator \
+// RUN:   %t-verilog/*.v \
+// RUN:   %S/turboV/src/integration/clint.nsl \
+// RUN:   %S/turboV/src/integration/ram64x8K.nsl \
+// RUN:   %S/turboV/src/integration/rom64x2K.nsl \
+// RUN:   %S/turboV/src/integration/uart.nsl
+// RUN: cd %T && %t-verilator/%t.verilator +trace +VCDFILE=%t.vcd
+// RUN: %vcd-diff %S/turboV/golden/add.vcd %t.vcd

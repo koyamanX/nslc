@@ -10,6 +10,7 @@
 
 import os
 import shlex
+import shutil
 
 import lit.formats
 
@@ -86,3 +87,25 @@ if nslc_src:
         ("%spdx_check",
          f"{shlex.quote(python)} "
          f"{shlex.quote(os.path.join(nslc_src, 'scripts', 'check_spdx.py'))}"))
+
+# M7 audited-corpus regression substitutions
+# (specs/011-m7-driver-e2e/contracts/audited-corpus.contract.md §5).
+#
+# `%vcd-diff` → tools/vcd_diff.py invocation (Python stdlib-only
+# semantic-equal VCD comparator per Clarifications Q2 → B).
+if nslc_src:
+    config.substitutions.append(
+        ("%vcd-diff",
+         f"{shlex.quote(python)} "
+         f"{shlex.quote(os.path.join(nslc_src, 'tools', 'vcd_diff.py'))}"))
+
+# Simulator-availability features for the audited-corpus regression.
+# Cells under test/audited/<project>_<simulator>.test use
+# `REQUIRES: iverilog` or `REQUIRES: verilator` to UNSUPPORTED out
+# pre-`:dev-m7` (which is the container that ships the simulators).
+# This keeps the cells reviewable as part of the M7 PR without
+# turning them RED in CI before the container bumps land.
+if shutil.which("iverilog"):
+    config.available_features.add("iverilog")
+if shutil.which("verilator"):
+    config.available_features.add("verilator")

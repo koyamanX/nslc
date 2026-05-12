@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/audited/cpu16_verilator.test — M7 US4 per-cell regression
+// fixture for (cpu16 × verilator). Per
+// `specs/011-m7-driver-e2e/contracts/audited-corpus.contract.md`
+// §5.
+//
+// **State (Phase 6 scaffold, 2026-05-12)**: UNSUPPORTED in `:dev`
+// (verilator not on PATH). Turns into a real test once Phase 2A
+// lands `:dev-m7`.
+
+// REQUIRES: verilator
+
+// RUN: rm -rf %t-verilog && mkdir -p %t-verilog
+// RUN: %nslc -emit=verilog %S/cpu16/cpu.nsl -o %t-verilog/
+
+// Verilator build + simulate. The `--binary` mode produces a
+// standalone simulation binary that dumps VCD when run.
+// RUN: verilator --binary --build --top-module cpu \
+// RUN:   -Mdir %t-verilator -o %t.verilator \
+// RUN:   %t-verilog/*.v %S/cpu16/cpu_sim.nsl
+
+// Run + capture VCD.
+// RUN: cd %T && %t-verilator/%t.verilator +trace +VCDFILE=%t.vcd
+
+// Compare against golden.
+// RUN: %vcd-diff %S/cpu16/golden/cpu16_basic.vcd %t.vcd

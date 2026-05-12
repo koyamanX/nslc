@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/audited/ahb_lite_nsl_iverilog.test — M7 US4 cell for
+// (ahb_lite_nsl × iverilog). Phase 6 scaffold.
+
+// REQUIRES: iverilog
+
+// 1. Emit Verilog from the project's master + slave NSL sources.
+// RUN: rm -rf %t-verilog && mkdir -p %t-verilog
+// RUN: %nslc -emit=verilog %S/ahb_lite_nsl/src/ahb_lite_master.nsl -o %t-verilog/
+// RUN: %nslc -emit=verilog %S/ahb_lite_nsl/src/ahb_lite_slave.nsl -o %t-verilog/
+
+// 2. Compile + simulate the master-to-slave end-to-end scenario.
+// RUN: iverilog -g2012 -o %t.vvp %t-verilog/*.v %S/ahb_lite_nsl/sim/ahb_lite_master_to_slave_sim.nsl
+
+// 3. Capture VCD.
+// RUN: cd %T && vvp %t.vvp +VCDFILE=%t.vcd
+
+// 4. Compare against the project's read+write scenario goldens
+//    (Phase 5 T064 lands the goldens).
+// RUN: %vcd-diff %S/ahb_lite_nsl/golden/ahb_read.vcd %t.vcd
