@@ -44,6 +44,7 @@
 add_library(NslFmt STATIC
   DirectiveSplitter.cpp
   CSTBuilder.cpp
+  CommentScanner.cpp     # T2 Phase 3-rules — R6 raw-source comment scanner (T051)
   Doc.cpp                # T2 Phase 2c — Wadler-Leijen IR (T024)
   LayoutRenderer.cpp     # T2 Phase 2c — ribbon-fitter (T025)
   LayoutPlanner.cpp      # T2 Phase 3-skeleton — AST → Doc IR visitor

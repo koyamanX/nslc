@@ -214,6 +214,17 @@ protected:
   DocPtr verbatimFromOffsets(std::uint32_t begin,
                              std::uint32_t end) const;
 
+  /// T051 R6 helper. Same as `verbatimFromOffsets` but, when
+  /// `cfg_.preserve_comments == CommentMode::None`, scans the gap
+  /// for `//`-line and `/* */`-block comments and elides them from
+  /// the emitted text (collapsing any immediately-surrounding
+  /// horizontal whitespace to a single space so adjacent tokens
+  /// don't fuse). Used by `interleaveChildren` so the `none`
+  /// policy also strips inline comments that sit BETWEEN two
+  /// tokens of a single decl (e.g., `reg /* inline */ q[8];`).
+  DocPtr verbatimGapFiltered(std::uint32_t begin,
+                             std::uint32_t end) const;
+
   /// Emit a parent node by interleaving verbatim source bytes
   /// (between children) with recursive child visits via
   /// `visitNode()`. The `children` list MUST be in source-position

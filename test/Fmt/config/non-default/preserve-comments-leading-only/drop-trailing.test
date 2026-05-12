@@ -10,11 +10,8 @@
 // flips to `"leading_only"` and verifies the trailing line
 // comment is dropped while the leading block comment survives.
 //
-// AUTHORED RED — XFAIL until T051 implements R6 (attached-
-// comment preservation) AND the `preserve_comments` policy is
-// wired through the trivia-emission helpers.
-
-// XFAIL: *
+// T051 (this commit) implements R6 + `preserve_comments` wiring —
+// fixture flipped XFAIL→PASS.
 
 // RUN: rm -rf %t.pc && mkdir -p %t.pc
 // RUN: printf 'preserve_comments = "leading_only"\n' > %t.pc/.nsl-fmt.toml

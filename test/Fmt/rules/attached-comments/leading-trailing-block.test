@@ -10,11 +10,9 @@
 //   * inline comment between two tokens of a single statement
 //     (Session 2026-05-05 Q2) preserved byte-for-byte
 //
-// AUTHORED RED — XFAIL until T051 implements R6.
+// T051 (this commit) implements R6 — fixture flipped XFAIL→PASS.
 
-// XFAIL: *
-// RUN: echo 'module m {/* hdr */ reg q[8]; reg r[8]; // trailing
-// RUN: }' | nsl-fmt --stdin | FileCheck %s
+// RUN: printf 'module m {/* hdr */ reg q[8]; reg r[8]; // trailing\n}\n' | nsl-fmt --stdin | FileCheck %s
 // CHECK: /* hdr */
 // CHECK-NEXT: reg q[8];
 // CHECK: reg r[8]; // trailing

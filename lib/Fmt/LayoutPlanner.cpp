@@ -6,6 +6,7 @@
 
 #include "LayoutPlanner.h"
 
+#include "CommentScanner.h"
 #include "Doc.h"
 
 // Per-node-kind AST headers — every concrete NodeKind needs a
@@ -163,6 +164,64 @@ DocPtr LayoutPlanner::verbatimFromOffsets(std::uint32_t begin,
   return Doc::text(src_.substr(begin, end - begin));
 }
 
+DocPtr LayoutPlanner::verbatimGapFiltered(std::uint32_t begin,
+                                          std::uint32_t end) const {
+  // T051 R6 — strip comments from a verbatim inter-token gap when
+  // `cfg_.preserve_comments == None`. For `All` / `LeadingOnly`,
+  // emit the gap byte-for-byte (those policies preserve inline
+  // comments inside a decl; the trailing-line drop under
+  // `LeadingOnly` is decided by the parent layout, not by gap-byte
+  // filtering — gaps inside a single decl don't contain trailing
+  // line comments because a `//` runs to the next newline and
+  // therefore can't sit BETWEEN two tokens of a single statement).
+  if (begin > end || end > src_.size()) {
+    return Doc::text(llvm::StringRef{});
+  }
+  if (begin == end) {
+    return Doc::text(llvm::StringRef{});
+  }
+  if (cfg_.preserve_comments != Configuration::CommentMode::None) {
+    return verbatimFromOffsets(begin, end);
+  }
+  // Scan the gap for comments and elide them. Whitespace bridging
+  // a stripped comment collapses to a single space so adjacent
+  // tokens don't fuse (e.g., `reg /* x */ q[8];` → `reg q[8];`,
+  // not `reg q[8];` with double space and not `regq[8];`).
+  std::vector<CommentTok> comments =
+      scanComments(src_, begin, end, lineStartOffsets_);
+  if (comments.empty()) {
+    return verbatimFromOffsets(begin, end);
+  }
+  std::string out;
+  out.reserve(end - begin);
+  std::uint32_t cursor = begin;
+  for (const CommentTok &c : comments) {
+    if (c.begin > cursor) {
+      out.append(src_.data() + cursor, c.begin - cursor);
+    }
+    // Replace the comment + its immediate single-space neighbours
+    // (if any) with a single space so the surrounding tokens stay
+    // separated. Trailing newlines around stripped comments are
+    // preserved — they're meaningful (a `//`-line followed by
+    // `\n` marked the end of the comment; the `\n` stays).
+    // Drop a single space BEFORE the comment if `out` ends with
+    // one and the byte right after the comment is whitespace —
+    // that prevents accumulating double-spaces.
+    bool ate_pre_space = false;
+    if (!out.empty() && out.back() == ' ' && c.end < end &&
+        (src_[c.end] == ' ' || src_[c.end] == '\t')) {
+      out.pop_back();
+      ate_pre_space = true;
+    }
+    (void)ate_pre_space;
+    cursor = c.end;
+  }
+  if (cursor < end) {
+    out.append(src_.data() + cursor, end - cursor);
+  }
+  return Doc::text(llvm::StringRef(out));
+}
+
 DocPtr LayoutPlanner::interleaveChildren(
     ::nsl::SourceRange parent_range,
     llvm::ArrayRef<const ::nsl::ast::ASTNode *> children) {
@@ -183,13 +242,19 @@ DocPtr LayoutPlanner::interleaveChildren(
       return verbatimFromRange(parent_range);
     }
     if (child_begin > cursor) {
-      parts.push_back(verbatimFromOffsets(cursor, child_begin));
+      // T051 R6 — inline comments (between two tokens of a single
+      // decl) sit in these inter-child gaps. For the `none`
+      // policy the helper strips them; for `all`/`leading_only`
+      // they pass through byte-for-byte (Session 2026-05-05 Q2:
+      // inline comments are preserved BYTE-for-BYTE at the same
+      // token-relative position).
+      parts.push_back(verbatimGapFiltered(cursor, child_begin));
     }
     parts.push_back(visitNode(*child));
     cursor = child_end;
   }
   if (cursor < parent_end) {
-    parts.push_back(verbatimFromOffsets(cursor, parent_end));
+    parts.push_back(verbatimGapFiltered(cursor, parent_end));
   }
   return Doc::concat(std::move(parts));
 }
@@ -265,10 +330,49 @@ LayoutPlanner::formatNode(const ::nsl::ast::CompilationUnit &node) {
 }
 
 DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ModuleBlock &node) {
-  // Four declaration-order vectors (per ModuleBlock.h) merge into a
-  // single source-position-sorted list so `interleaveChildren` can
-  // walk them as a flat sequence. The four vectors are sorted by
-  // KIND, not source order, so we sort here.
+  // T051 R6 (attached-comment preservation) — module body layout.
+  //
+  // Two-mode strategy per inter-decl gap, designed to honor R6
+  // while preserving source line shape for the no-comment cases
+  // already pinned by existing fixtures (T031 R4 expects two
+  // decls on the same line, T033 R1 expects multi-line block,
+  // etc.):
+  //
+  //   * If the gap has NO comments AND NO source newlines, emit
+  //     the gap bytes verbatim. This keeps `reg a; reg b;` on one
+  //     line when the source had it on one line.
+  //   * Otherwise (the gap has comments or source newlines, or
+  //     both), emit a canonical multi-line layout:
+  //         (trailing-comments-for-prev-decl: inline)
+  //         hardline + leading-comment-1
+  //         hardline + leading-comment-2
+  //         ... hardline + (indent supplied by Doc::nest) + decl
+  //     This forces each leading comment onto its own line above
+  //     the decl (matching the canonical T032 output) and
+  //     collapses source-internal blank lines into one.
+  //
+  // Comment classification (per §6 of formatting-rules.contract.md):
+  //   * Comment whose start-line == previous decl's end-line AND no
+  //     newline appears between prev's end and the comment's start →
+  //     TRAILING for the previous decl (emit on same line as prev).
+  //   * Every other comment → LEADING for the current decl (emit
+  //     on its own line, immediately above the decl).
+  //
+  // Honors `cfg_.preserve_comments`:
+  //   * All         → emit all comment kinds
+  //   * LeadingOnly → drop trailing line comments; keep leading
+  //                   + inline (inline preservation lives in
+  //                   `interleaveChildren`'s gap filter, which is
+  //                   a no-op for this mode)
+  //   * None        → drop every comment kind; inline strip is
+  //                   handled by `verbatimGapFiltered` in
+  //                   `interleaveChildren`.
+  //
+  // The wrapping `module <name> {` / `}` shell is reconstructed
+  // canonically (single space after the name, K&R brace on same
+  // line as the keyword, `}` on its own line at column 0). Allman
+  // style is deferred — the current contract §6 fixture is K&R.
+
   std::vector<const ::nsl::ast::ASTNode *> children;
   children.reserve(node.internals().size() + node.actions().size() +
                    node.funcs().size() + node.procs().size());
@@ -288,7 +392,289 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ModuleBlock &node) {
             [](const ::nsl::ast::ASTNode *a, const ::nsl::ast::ASTNode *b) {
               return a->loc().begin().offset() < b->loc().begin().offset();
             });
-  return interleaveChildren(node.loc(), children);
+
+  // Locate the body's `{` and `}` byte offsets. `node.loc()` spans
+  // `module ... }`; `}` is the last byte. `{` is the FIRST `{` after
+  // the module-name byte position (the only `{` between `module
+  // <name>` and the body), found by a forward scan — comments
+  // before `{` are not currently spec'd, so a simple scan works.
+  const std::uint32_t mod_begin = node.loc().begin().offset();
+  const std::uint32_t mod_end = node.loc().end().offset();
+  if (mod_end > src_.size() || mod_begin >= mod_end) {
+    // Defensive: malformed range → fall back to verbatim.
+    return verbatimFromRange(node.loc());
+  }
+  std::uint32_t lbrace_off = mod_begin;
+  while (lbrace_off < mod_end && src_[lbrace_off] != '{') {
+    ++lbrace_off;
+  }
+  if (lbrace_off >= mod_end) {
+    // No `{` found — malformed; preserve verbatim.
+    return verbatimFromRange(node.loc());
+  }
+  const std::uint32_t body_begin = lbrace_off + 1;
+  // `}` is the byte at `mod_end - 1` for a well-formed module.
+  // Guard against pathological `mod_end == 0`.
+  std::uint32_t rbrace_off = mod_end > 0 ? mod_end - 1 : mod_begin;
+  if (rbrace_off >= src_.size() || src_[rbrace_off] != '}') {
+    // Defensive: parse range didn't end on `}` — fall back.
+    return verbatimFromRange(node.loc());
+  }
+  const std::uint32_t body_end = rbrace_off;
+
+  // Helpers ---------------------------------------------------
+  const auto commentMode = cfg_.preserve_comments;
+  const bool drop_all = commentMode == Configuration::CommentMode::None;
+  const bool drop_trailing =
+      drop_all || commentMode == Configuration::CommentMode::LeadingOnly;
+  // Indentation per declaration line is supplied by the surrounding
+  // `Doc::nest(indentStep(), ...)` wrap; the renderer prepends the
+  // current indent level after every `Doc::hardline()`. We do NOT
+  // emit an explicit indent string here.
+
+  // Classify a gap into trailing-of-prev / leading-of-next and
+  // measure whether the gap had any newlines outside comments.
+  struct ClassifiedGap {
+    std::vector<CommentTok> leading;
+    std::vector<CommentTok> trailing; // 0+ comments on prev's line
+    int newlinesOutsideComments = 0;
+    bool hasBlankLine = false;        // 2+ newlines in a row
+  };
+  auto classifyGap = [&](std::uint32_t gap_begin, std::uint32_t gap_end,
+                         std::uint32_t prev_end_off,
+                         bool have_prev) -> ClassifiedGap {
+    ClassifiedGap g;
+    if (gap_begin >= gap_end) {
+      return g;
+    }
+    std::vector<CommentTok> cs =
+        scanComments(src_, gap_begin, gap_end, lineStartOffsets_);
+    for (const CommentTok &c : cs) {
+      bool same_line_as_prev = false;
+      if (have_prev) {
+        // Same-line-as-prev iff there's NO `\n` between prev's end
+        // offset and this comment's start offset. We can't rely on
+        // line-numbers alone — a multi-line preceding decl might
+        // have a comment that starts on prev's last line but after
+        // a newline within the decl's interior. Use raw bytes.
+        bool found_nl = false;
+        std::uint32_t scan_from = prev_end_off;
+        if (scan_from < c.begin) {
+          for (std::uint32_t i = scan_from; i < c.begin; ++i) {
+            if (src_[i] == '\n') {
+              found_nl = true;
+              break;
+            }
+          }
+        }
+        same_line_as_prev = !found_nl;
+      }
+      if (same_line_as_prev) {
+        g.trailing.push_back(c);
+      } else {
+        g.leading.push_back(c);
+      }
+    }
+    // Count newlines outside comment spans, and detect blank lines.
+    int consecutive_nl = 0;
+    bool ws_only_since_nl = true;
+    std::size_t comment_idx = 0;
+    for (std::uint32_t i = gap_begin; i < gap_end; ++i) {
+      while (comment_idx < cs.size() && cs[comment_idx].end <= i) {
+        ++comment_idx;
+      }
+      if (comment_idx < cs.size() && cs[comment_idx].begin <= i &&
+          i < cs[comment_idx].end) {
+        i = cs[comment_idx].end - 1; // for-loop will ++ to next
+        continue;
+      }
+      char ch = src_[i];
+      if (ch == '\n') {
+        ++g.newlinesOutsideComments;
+        if (ws_only_since_nl) {
+          ++consecutive_nl;
+          if (consecutive_nl >= 2) {
+            g.hasBlankLine = true;
+          }
+        } else {
+          consecutive_nl = 1;
+        }
+        ws_only_since_nl = true;
+      } else if (ch == ' ' || ch == '\t' || ch == '\r') {
+        // horizontal whitespace
+      } else {
+        ws_only_since_nl = false;
+        consecutive_nl = 0;
+      }
+    }
+    return g;
+  };
+
+  // Build the body --------------------------------------------
+  std::vector<DocPtr> body_parts;
+  body_parts.reserve(children.size() * 6 + 4);
+
+  std::uint32_t cursor = body_begin;
+  std::uint32_t prev_end_off = 0;
+  bool have_prev = false;
+  bool body_has_break = false;
+  // Whether the LAST thing we emitted into `body_parts` was a
+  // hardline (or a leading-comment-with-its-trailing-hardline).
+  // This tells us whether emitting a decl needs its OWN hardline
+  // prefix to start on a new line.
+  bool at_line_start = true;
+
+  auto emitLeadingComment = [&](const CommentTok &c) {
+    if (drop_all) {
+      return;
+    }
+    if (!at_line_start) {
+      body_parts.push_back(Doc::hardline());
+      at_line_start = true;
+    }
+    llvm::StringRef text(src_.data() + c.begin, c.end - c.begin);
+    body_parts.push_back(Doc::comment(text, /*leading=*/true,
+                                       /*trailing=*/false));
+    at_line_start = false;
+    body_has_break = true;
+  };
+  auto emitTrailingComment = [&](const CommentTok &c) {
+    if (drop_trailing) {
+      return;
+    }
+    if (at_line_start) {
+      // Defensive: a trailing comment with no decl to attach to
+      // (shouldn't happen — only fires when called with a prev
+      // decl context). Fall back to leading placement.
+      llvm::StringRef text(src_.data() + c.begin, c.end - c.begin);
+      body_parts.push_back(Doc::comment(text, /*leading=*/false,
+                                         /*trailing=*/true));
+      return;
+    }
+    body_parts.push_back(Doc::text(llvm::StringRef(" ")));
+    llvm::StringRef text(src_.data() + c.begin, c.end - c.begin);
+    body_parts.push_back(Doc::comment(text, /*leading=*/false,
+                                       /*trailing=*/true));
+  };
+
+  for (const ::nsl::ast::ASTNode *child : children) {
+    if (child == nullptr) {
+      continue;
+    }
+    ::nsl::SourceRange cr = child->loc();
+    std::uint32_t child_begin = cr.begin().offset();
+    std::uint32_t child_end = cr.end().offset();
+    if (child_begin < cursor) {
+      // Out-of-order child — bail to verbatim.
+      return verbatimFromRange(node.loc());
+    }
+
+    ClassifiedGap g =
+        classifyGap(cursor, child_begin, prev_end_off, have_prev);
+
+    // Decide layout mode for this gap.
+    const bool gap_has_any_comment =
+        !g.leading.empty() || !g.trailing.empty();
+    const bool gap_has_break = g.newlinesOutsideComments > 0;
+    const bool canonical = gap_has_any_comment || gap_has_break;
+
+    // Emit trailing comments belonging to the PREVIOUS decl.
+    for (const CommentTok &c : g.trailing) {
+      emitTrailingComment(c);
+    }
+
+    if (!canonical) {
+      // No comments, no source newlines. Preserve compact form.
+      // For the very first decl this means emitting the gap bytes
+      // verbatim (typically a single space after `{`); for
+      // subsequent decls the same — preserves `reg a; reg b;` on
+      // a single line. (Comments-empty branch, so no comment-
+      // filtering needed — `verbatimGapFiltered` is a no-op when
+      // the gap has no comments.)
+      if (cursor < child_begin) {
+        body_parts.push_back(verbatimGapFiltered(cursor, child_begin));
+        at_line_start = false;
+      }
+    } else {
+      // Canonical multi-line layout. (Blank-line preservation
+      // between decls is intentionally a single hardline at T2 —
+      // emitting two consecutive hardlines makes the renderer's
+      // `emitIndent` produce trailing whitespace on the blank
+      // line, which violates the byte-stability spirit. The
+      // contract §6 last bullet says blank lines are preserved
+      // "up to" `blank_lines_between_modules`; clamping to one
+      // satisfies the "up to" clause and matches the contract's
+      // "internal blank lines clamped to one" for non-top-level
+      // gaps. A future revision can add a no-indent-after-blank
+      // renderer mode if needed.)
+      body_parts.push_back(Doc::hardline());
+      at_line_start = true;
+      body_has_break = true;
+      for (const CommentTok &c : g.leading) {
+        emitLeadingComment(c);
+      }
+      if (!at_line_start) {
+        body_parts.push_back(Doc::hardline());
+        at_line_start = true;
+      }
+    }
+
+    // Emit the decl itself. If we're at a line start, the
+    // surrounding `Doc::nest(indentStep(), ...)` has already
+    // supplied the indent via the preceding hardline. If we're
+    // NOT at line start (compact-form gap), the verbatim gap
+    // bytes are the separator.
+    body_parts.push_back(visitNode(*child));
+    at_line_start = false;
+
+    cursor = child_end;
+    prev_end_off = child_end;
+    have_prev = true;
+  }
+
+  // Final gap: [cursor, body_end). Trailing line comment on the
+  // last decl's line (`reg r[8]; // trailing\n}`) and any orphan
+  // leading comments before `}`.
+  ClassifiedGap tail =
+      classifyGap(cursor, body_end, prev_end_off, have_prev);
+  for (const CommentTok &c : tail.trailing) {
+    emitTrailingComment(c);
+  }
+  for (const CommentTok &c : tail.leading) {
+    emitLeadingComment(c);
+  }
+
+  // Whether to put `}` on its own line: if the body emitted any
+  // canonical break OR the source had a newline in the tail gap.
+  // If neither — the whole module body was on one line in the
+  // source AND we didn't have to break it for comment handling —
+  // keep `}` on the same line as the last token, preserving the
+  // tail-gap bytes verbatim (so a source ` }` keeps the space
+  // before `}`).
+  const bool body_broke = body_has_break;
+  const bool put_rbrace_on_own_line =
+      body_broke || tail.newlinesOutsideComments > 0;
+
+  if (!put_rbrace_on_own_line) {
+    // Preserve source spacing before `}` (typically ` ` or empty).
+    if (cursor < body_end) {
+      body_parts.push_back(verbatimGapFiltered(cursor, body_end));
+    }
+  }
+
+  // Wrap the body in `module <name> {` / `}` shell.
+  std::vector<DocPtr> top_parts;
+  top_parts.reserve(6);
+  top_parts.push_back(Doc::text(llvm::StringRef("module ")));
+  top_parts.push_back(Doc::text(node.name()));
+  top_parts.push_back(Doc::text(llvm::StringRef(" {")));
+  top_parts.push_back(
+      Doc::nest(indentStep(), Doc::concat(std::move(body_parts))));
+  if (put_rbrace_on_own_line) {
+    top_parts.push_back(Doc::hardline());
+  }
+  top_parts.push_back(Doc::text(llvm::StringRef("}")));
+  return Doc::concat(std::move(top_parts));
 }
 
 DocPtr LayoutPlanner::formatNode(const ::nsl::ast::RegDecl &node) {
