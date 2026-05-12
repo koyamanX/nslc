@@ -372,7 +372,35 @@ stage_unit_tests() {
   # container does not block the rest of stage 3.
   stage_tooling_textmate || rc=$?
 
+  # M7 (T061) — vcd_diff.py unittest gate. Python 3.11+ stdlib-only
+  # comparator (specs/011-m7-driver-e2e/contracts/vcd-diff.contract.md
+  # §7). 8 unittest cases verify the semantic-equal policy.
+  stage_vcd_diff_tests || rc=$?
+
   return "${rc}"
+}
+
+# -----------------------------------------------------------------------------
+# Stage 3 sub-step: vcd_diff.py unittests (M7)
+# -----------------------------------------------------------------------------
+# Runs the Python unittest suite for the M7 audited-corpus VCD
+# comparator. Per FR-021 + vcd-diff.contract.md §7 + §8: stdlib-only,
+# no PyPI deps. Python 3.11+ required (tomllib stdlib module).
+
+stage_vcd_diff_tests() {
+  log "stage 3 sub-step: vcd_diff.py unittests (M7)"
+  if [[ ! -f "${REPO_ROOT}/tools/test_vcd_diff.py" ]]; then
+    log "  (skipping vcd_diff tests: tools/test_vcd_diff.py not present)"
+    return 0
+  fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    log "  (skipping vcd_diff tests: python3 not on PATH)"
+    return 0
+  fi
+  (
+    cd "${REPO_ROOT}"
+    python3 -m unittest discover -s tools/ -p 'test_*.py' -v
+  )
 }
 
 # -----------------------------------------------------------------------------
