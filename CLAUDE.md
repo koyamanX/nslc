@@ -163,52 +163,58 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `010-m6-circt-lowering` — `nsl-lower` part 2
-(layer 8b) **structurally feature-complete (Phase 8 close-out
-2026-05-04; PR-ready)**: the **`NSLToCIRCTPass`** conversion pass
-consumes M5's `nsl::*` IR and produces `mlir::ModuleOp` populated
-entirely by ops from CIRCT's `hw`, `comb`, `seq`, `fsm`, `sv`
-dialects. User-visible deliverable: `nslc -emit=hw input.nsl`
-operational + byte-stable + verifier-clean across all five CIRCT
-dialects + survives stock CIRCT pass round-trip
-(`circt-opt --convert-fsm-to-sv --lower-seq-to-sv`) externally
-(`--convert-fsm-to-seq` is the doc-canonical name; vendored CIRCT
-ships `--convert-fsm-to-sv` — same effect). Driven via MLIR
-`DialectConversion` framework in full-conversion mode;
-`CIRCTTypeConverter` maps `!nsl.bits<W>` → `iW` and `!nsl.struct<@T>`
-→ packed `iN` (S18 MSB-first). Pattern families delivered:
-ModulePatterns (US2), FSMPatterns (US3 — `nsl.proc`/`nsl.state`/
-`nsl.seq` → `fsm.machine`), StatePatterns + ArithPatterns +
-BitOpPatterns + ControlPatterns + SimPatterns + ParamPatterns
-(US4 — leaf-op coverage of design §10's mapping table, ~40 rows).
-Three /speckit-clarify decisions pinned conventions: Q1 → A
-`comb`-only arithmetic (no `hwarith`, no `CIRCTHwArith` link
-dep); Q2 → C async **active-HIGH** default reset on `seq.firreg`
-(no-`interface` path) wired through implicit ports `m_clock` +
-`p_reset` per `nsl_lang.ebnf` §15 lines 818, 820 (the `p_`
-prefix indicates positive/active-HIGH polarity; PR #14 Round-1
-review correction superseded the original active-LOW
-`clk`/`rst_n` choice); Q3 → A mux-on-data for `nsl.if`-over-reg-LHS
-(one `seq.firreg` per `nsl.reg` regardless of conditional
-nesting). Two specify-time decisions: `_init` block (S29) →
-`sv.initial` under `sv.ifdef "SIMULATION"` (sim-only); `-emit=hw`
-halts strictly at the nsl→CIRCT conversion boundary — stock
-CIRCT passes are M7's responsibility. Wired new
-`Compilation::lowerToCIRCT` member function. Public umbrella
-header `Lower.h` grew from M5's 8 symbols to **10** (adds
-`createNSLToCIRCTPass` + `registerNSLToCIRCTPass`); M4 dialect
-contract gained M4-amendments #9 (`nsl::DeclareOp` + 3 port-info
-ops, closing a Principle VII coupling gap from /speckit-plan)
-and #10 (S20 `interface_clock`/`interface_reset` attrs on
-`nsl::DeclareOp`); M5 pass-pipeline contract is unchanged. Final
-lit gate: **620 PASS + 3 XFAIL out of 623**. For technologies,
-project structure, entity catalog, contracts, and quickstart,
-read the current plan:
-[`specs/010-m6-circt-lowering/plan.md`](./specs/010-m6-circt-lowering/plan.md).
+**Active feature**: `011-m7-driver-e2e` — M7 *demonstration
+moment* (planning phase complete 2026-05-11; implementation phase
+opens with /speckit-tasks). M7 delivers four orthogonal
+sub-deliverables converging on a single Constitution Principle VI
+NON-NEGOTIABLE acceptance gate (the audited-corpus regression):
+(1) **`nsl-driver` end-to-end (layer 9 close-out)** — new
+`nslc -emit=verilog` flag chains M6's CIRCT IR through three
+stock CIRCT passes (`createConvertFSMToSVPass` →
+`createLowerSeqToSVPass` → `createPrepareForEmissionPass`) into
+`circt::exportVerilog` / `circt::exportSplitVerilog`. New
+public header `EmitVerilog.h` mirroring M6's `EmitHW.h`; new
+`Compilation::runCIRCTPasses` + `Compilation::emit` bodies.
+Four new CIRCT `LINK_LIBS` entries: `CIRCTExportVerilog`,
+`CIRCTSeqTransforms`, `CIRCTSVTransforms`, `CIRCTFSMTransforms`.
+(2) **P-VEN (vendoring)** — seven audited NSL projects
+(`cpu16`, `mips32_single_cycle`, `ahb_lite_nsl`, `mmcspi`,
+`SDRAM_Controler`, `rv32x_dev`, `turboV`) copied verbatim under
+`test/audited/<project>/` with `PROVENANCE.md` (URL + SHA +
+License + Vendored-At). No submodules, no FetchContent.
+(3) **P-VCD (golden VCDs)** — externally sourced VCDs at
+`golden/<scenario>.vcd` with `REGEN.md` per project; no
+self-referential goldens (CI lint blocks `nslc` invocations in
+REGEN.md). (4) **Audited-corpus regression** — `cmake --build
+build --target check-audited` runs 14 cells (7 projects × 2
+simulators: Icarus + Verilator), each compiling+simulating
+emitted Verilog against the project's testbench and comparing
+the resulting VCD to the golden via the vendored
+`tools/vcd_diff.py` (Python 3.11+ stdlib-only semantic-equal
+comparator; ignores `$date`/`$version`/`$timescale`/`$comment`;
+intersects signal sets with optional per-project
+`SIGNAL_MAP.toml` aliasing). Three /speckit-clarify decisions
+pinned conventions: Q1 → B hybrid `-o` dispatch (directory ⇒
+split-file via `exportSplitVerilog`; regular file ⇒ single
+combined via `exportVerilog`; stdout/omitted ⇒ single combined);
+Q2 → B `tools/vcd_diff.py` semantic-equal with optional
+`SIGNAL_MAP.toml` aliasing; Q3 → A extend `Dockerfile.dev` with
+Verilator v5.024 + `riscv-tests` binaries via the established
+`PARENT_IMAGE` build-arg pattern (`project_publish_images_buildx_isolation.md`).
+New container tag `ghcr.io/koyamanX/nsl-nslc:dev-m7` —
+non-rolling for M7 PR's review cycle; follow-on PR bumps `:dev`
+post-merge. Wall-clock budget for `check-audited`: ≤ 15 min
+on a standard CI runner. Two-simulator parity rule: a cell
+PASSes only if BOTH simulators PASS — no per-simulator XFAILs.
+Adding an 8th project post-M7 is a routine vendoring-only PR
+with zero infra edits (auto-discovery via directory glob). For
+technologies, project structure, entity catalog, contracts,
+and quickstart, read the current plan:
+[`specs/011-m7-driver-e2e/plan.md`](./specs/011-m7-driver-e2e/plan.md).
 Companion artifacts:
-[`spec.md`](./specs/010-m6-circt-lowering/spec.md),
-[`research.md`](./specs/010-m6-circt-lowering/research.md),
-[`data-model.md`](./specs/010-m6-circt-lowering/data-model.md),
-[`contracts/`](./specs/010-m6-circt-lowering/contracts/),
-[`quickstart.md`](./specs/010-m6-circt-lowering/quickstart.md).
+[`spec.md`](./specs/011-m7-driver-e2e/spec.md),
+[`research.md`](./specs/011-m7-driver-e2e/research.md),
+[`data-model.md`](./specs/011-m7-driver-e2e/data-model.md),
+[`contracts/`](./specs/011-m7-driver-e2e/contracts/),
+[`quickstart.md`](./specs/011-m7-driver-e2e/quickstart.md).
 <!-- SPECKIT END -->
