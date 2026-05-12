@@ -75,6 +75,31 @@ TEST(DocLayoutTest, NestIndentEmitsFourSpaces) {
 }
 
 // -----------------------------------------------------------------------------
+// Tab-mode (`indentSpaces == -1`) emits one literal `\t` per indent unit.
+// Regression guard for PR-#18 CodeRabbit Major-#2: prior code emitted
+// exactly one `\t` regardless of nest depth, collapsing all nested
+// blocks to a single tab. The renderer now emits `columnIndent` tabs.
+// -----------------------------------------------------------------------------
+TEST(DocLayoutTest, TabModeOneTabPerNestLevel) {
+  // nest(1, nest(1, hardline + "x")) at indentSpaces=-1 (tab mode):
+  //   - depth 2 → emits two literal tabs after the hardline.
+  DocPtr d = Doc::nest(
+      1, Doc::nest(1, Doc::concat({Doc::hardline(), Doc::text("x")})));
+  EXPECT_EQ(renderer.render(d, kDefaultWidth, /*indentSpaces=*/-1),
+            "\n\t\tx");
+
+  // Single level → one tab.
+  DocPtr d1 = Doc::nest(1, Doc::concat({Doc::hardline(), Doc::text("x")}));
+  EXPECT_EQ(renderer.render(d1, kDefaultWidth, /*indentSpaces=*/-1),
+            "\n\tx");
+
+  // Zero indent → no tab (no leading whitespace at column 0).
+  DocPtr d0 = Doc::concat({Doc::hardline(), Doc::text("x")});
+  EXPECT_EQ(renderer.render(d0, kDefaultWidth, /*indentSpaces=*/-1),
+            "\nx");
+}
+
+// -----------------------------------------------------------------------------
 // Bonus: hardline forces break inside Group regardless of width.
 // -----------------------------------------------------------------------------
 TEST(DocLayoutTest, HardlineForcesGroupToBreak) {

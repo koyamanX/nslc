@@ -82,7 +82,8 @@ FormatResult format_buffer(llvm::StringRef        sourceBuffer,
                            std::optional<LineRange> range = std::nullopt);
 
 FormatResult parse_config_file(llvm::StringRef tomlBuffer,
-                               basic::FileID   fileID);
+                               basic::FileID   fileID,
+                               Configuration *out);
 
 std::optional<std::string> discover_config(llvm::StringRef startDir);
 
@@ -144,18 +145,22 @@ equals 10.
 ### `parse_config_file`
 
 - **Pre**: `tomlBuffer` is the full content of the TOML file;
-  `fileID` provides the `SourceRange` reference for
-  diagnostics.
-- **Post (Success)**: `formattedText` carries a serialised
-  `Configuration` (NOT used by callers — the parsed config is
-  reachable via `diagnostics` of kind `ConfigParsed` carrying
-  the value). **NOTE**: this is a slight abuse of the
-  `FormatResult` shape; an alternative would be a dedicated
-  `ConfigResult`. Decision: deliberately reuse the shape so
-  callers have one error-handling path. Reconsider at T5 if it
-  proves awkward.
-- **Post (Error)**: `diagnostics` carries the TOML parse
-  error or out-of-range value diagnostic.
+  `fileID` provides the `SourceRange` reference for diagnostics.
+  `out` is a non-null pointer to a `Configuration` instance the
+  function will overwrite on success.
+- **Signature evolution (Session 2026-05-12)**: the third
+  parameter `Configuration *out` was added during Phase 6
+  implementation (T103) — the original two-param contract
+  proposed returning the parsed config via a `ConfigParsed`
+  diagnostic, but the implementation chose the simpler explicit
+  out-pointer form. `out` MUST be non-null (the implementation
+  asserts).
+- **Post (Success)**: `*out` is populated with the parsed
+  configuration; `formattedText` is empty; `status` is
+  `Success`.
+- **Post (Error)**: `*out` is left unchanged; `diagnostics`
+  carries the TOML parse error or out-of-range value
+  diagnostic; `status` is `Error`.
 
 ### `discover_config`
 

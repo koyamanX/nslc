@@ -147,6 +147,36 @@ while IFS= read -r found; do
   fi
 done < <(printf '%s\n' "${stripped}" | sed -nE 's/^(struct|class) ([A-Za-z_][A-Za-z0-9_]*).*/\2/p')
 
+# Detect UNEXPECTED top-level free-function declarations. Anything
+# matching `<return-type> <Name>(` at column 0 whose Name is not in
+# EXPECTED_FUNC_ANCHORS is flagged. The regex captures one return-
+# type token followed by the function name plus an opening `(`; it
+# deliberately stays loose on the return type (it can contain `::`,
+# `<`, `>`, `&`, `*`) so any non-trivial return type still parses.
+EXPECTED_FUNC_NAMES=(
+  "format_buffer"
+  "parse_config_file"
+  "discover_config"
+  "emit_unified_diff"
+  "default_configuration"
+  "config_key_names"
+  "version_string"
+)
+while IFS= read -r fn; do
+  if [[ -z "${fn}" ]]; then continue; fi
+  expected=0
+  for f in "${EXPECTED_FUNC_NAMES[@]}"; do
+    if [[ "${fn}" == "${f}" ]]; then
+      expected=1
+      break
+    fi
+  done
+  if (( expected == 0 )); then
+    EXTRAS+=("fn:${fn}")
+  fi
+done < <(printf '%s\n' "${stripped}" \
+  | sed -nE 's/^[A-Za-z_:<>,&* ]+[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)\(.*/\1/p')
+
 # -----------------------------------------------------------------------------
 # Report + exit
 # -----------------------------------------------------------------------------

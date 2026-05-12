@@ -35,7 +35,7 @@ M5+ lands).
 
 ## Planned sub-tree (per `data-model.md` §9 + `tasks.md` Phase 3+)
 
-```
+```text
 test/Fmt/
 ├── rules/                  # FR-009 / FR-020 — six §5.3 rules
 │   ├── alt-case-alignment/

@@ -49,7 +49,7 @@ ninja -C build-noasan check-fmt-lit
 ninja -C build-noasan check-fmt-unit
 
 # Run the determinism CI grep on lib/Fmt/:
-./scripts/audit_determinism.sh lib/Fmt/
+./scripts/audit_determinism.sh
 
 # Run the full T2-related CI subset:
 ./scripts/ci.sh --subset=t2
@@ -256,7 +256,7 @@ here so they don't get forgotten:
   implementation commits (Principle VIII).
 - [ ] `ninja -C build-noasan check` is green inside the dev
   container.
-- [ ] `./scripts/audit_determinism.sh lib/Fmt/` reports zero
+- [ ] `./scripts/audit_determinism.sh` reports zero
   hits.
 - [ ] `./scripts/audit_fmt_api.sh` reports exactly 10 public
   symbols.

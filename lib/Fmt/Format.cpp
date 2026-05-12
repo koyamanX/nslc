@@ -65,8 +65,6 @@ namespace nsl::fmt {
 FormatResult format_buffer(llvm::StringRef sourceBuffer,
                            const Configuration &config, ::nsl::FileID fileID,
                            std::optional<LineRange> range) {
-  (void)config;
-
   FormatResult result;
 
   // Empty input → empty output, success. The directive splitter

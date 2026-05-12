@@ -606,7 +606,7 @@ parsed by the existing `libNSLFrontend.a` lexer + parser pipeline
 (no parallel parser implementation; Constitution Principle II
 no-duplication rule preserved).
 
-```
+```text
      Source text (raw, pre-preprocessor)
           │
           ▼

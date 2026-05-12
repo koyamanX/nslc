@@ -40,10 +40,11 @@ namespace {
 // payload contributes the per-level width directly.
 void emitIndent(std::string &out, int columnIndent, int indentSpaces) {
   if (indentSpaces < 0) {
-    // Tab mode: one '\t' per indent step. A single tab at the
-    // start of the line; renderers interpret tab width per their
-    // own convention.
-    if (columnIndent > 0) {
+    // Tab mode: emit one `\t` per indent level. `LayoutPlanner::
+    // indentStep()` returns 1 for `Indent::Tab`, so `columnIndent`
+    // equals the current Doc::nest depth — one literal tab per
+    // level keeps nested blocks visually distinguishable.
+    for (int i = 0; i < columnIndent; ++i) {
       out.push_back('\t');
     }
     return;

@@ -7,5 +7,6 @@
 
 // RUN: printf 'indent = "potato"\n' > %t.toml
 // RUN: printf 'module foo {}\n' > %t.nsl
-// RUN: not nsl-fmt --config %t.toml %t.nsl 2>&1 | FileCheck %s
+// RUN: sh -c 'nsl-fmt --config %t.toml %t.nsl > /dev/null 2> %t.err; test $? -eq 2'
+// RUN: FileCheck %s < %t.err
 // CHECK: error: configuration value for 'indent' must be

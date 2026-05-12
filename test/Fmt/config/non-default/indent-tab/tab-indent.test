@@ -9,9 +9,10 @@
 // `emitIndent` machinery.
 //
 // `LayoutPlanner::indentStep()` returns 1 for `Indent::Tab`; the
-// renderer's `emitIndent` checks `columnIndent > 0` and emits a
-// single `\t` regardless of count, so the per-line prefix is
-// exactly one tab character.
+// renderer's `emitIndent` emits one literal `\t` per
+// `columnIndent` unit in tab mode, so a nest depth of N produces
+// N tabs. The struct body below is at depth 1 → one tab per
+// member line.
 
 // RUN: rm -rf %t.tab && mkdir -p %t.tab
 // RUN: printf 'indent = "tab"\n' > %t.tab/.nsl-fmt.toml

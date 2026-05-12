@@ -20,7 +20,7 @@ are load-bearing for every layout fixture and for FR-008
 A CST root has type `nsl::fmt::SourceFile` and contains a
 sequence of slices:
 
-```
+```text
 SourceFile
 └── slices: vector<Slice>
     Slice = DirectiveTok | NSLFragmentRoot
@@ -195,7 +195,7 @@ reconstitution of source from a CST: emit every leaf token
 followed by its trailing trivia, plus the leading trivia of
 the next leaf, in source order. Then:
 
-```
+```text
 For every accepted SourceFile sf:
     serialize(parse_cst(sf.bytes)) == sf.bytes      (CST round-trip)
 ```

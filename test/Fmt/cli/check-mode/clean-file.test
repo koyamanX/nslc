@@ -8,4 +8,6 @@
 // match the canonical form.
 
 // RUN: printf 'module foo {}\n' > %t.nsl
-// RUN: nsl-fmt --check %t.nsl
+// RUN: nsl-fmt --check %t.nsl > %t.out 2> %t.err
+// RUN: test ! -s %t.out
+// RUN: test ! -s %t.err
