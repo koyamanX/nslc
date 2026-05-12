@@ -42,7 +42,7 @@ dev-container.
 **Alternatives considered**:
 - **Pin `latest`** (Q1 Option A) — rejected: floats the
   regenerate-and-diff gate; SC-008 byte-identity becomes
-  un-asserstable across CI runs separated by an upstream
+  un-assertable across CI runs separated by an upstream
   release. Per the Q1 → Option B answer.
 - **Pin exact patch** (Q1 Option C) — rejected: creates
   weekly-cadence churn from upstream patch releases that

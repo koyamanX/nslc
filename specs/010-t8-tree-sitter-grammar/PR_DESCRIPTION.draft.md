@@ -46,7 +46,7 @@ The standalone `tree-sitter test` runner exercises only the first four rows; the
 
 ## Trailers
 
-```
+```text
 Linear: NSL-<N>           ← post via `/speckit-taskstoissues` if not already filed
 Assisted-by: Claude Code  ← per CONTRIBUTING.md §5
 ```

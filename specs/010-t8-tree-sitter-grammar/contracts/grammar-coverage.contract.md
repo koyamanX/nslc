@@ -60,8 +60,8 @@ the same change (Principle VII coupling).
 | §11 / 595–700 | zero_extend_expr | `zero_extend_expr` | `'expr` form |
 | §11 / 595–700 | concat_expression | `concat_expression` | `{a, b, c}` |
 | §11 / 595–700 | dot_aggregate | `dot_aggregate` | `.{...}` per N3 (two-character lookahead) |
-| §11 / 595–700 | reduction_op | `reduction_op` | unary `&`/`|`/`^` per N2 |
-| §11 / 595–700 | bitwise_binary_op | `bitwise_binary_op` | binary `&`/`|`/`^` per N2 |
+| §11 / 595–700 | reduction_op | `reduction_op` | unary `&` / `\|` / `^` per N2 |
+| §11 / 595–700 | bitwise_binary_op | `bitwise_binary_op` | binary `&` / `\|` / `^` per N2 |
 | §11 / 595–700 | proc_method_access | `proc_method_access` | `instance.finish()` / `instance.invoke()` per N6 + S21 |
 | §12 / 707–712 | width_expr | `width_expr` | constant expressions (parser accepts; Sema constant-evaluates) |
 | §12 / 707–712 | constant_expr | `constant_expr` | same |
@@ -94,7 +94,7 @@ the same change (Principle VII coupling).
 | Note | About | Tree-sitter handling |
 |---|---|---|
 | **N1** | `if` statement-vs-expression | `if_statement` named-rule and `conditional_expression` named-rule are distinct; production-position determines which fires (no regex disambiguation needed) |
-| **N2** | `&` `|` `^` reduction-vs-bitwise | `reduction_op` (unary, expression-prefix position) vs `bitwise_binary_op` (binary, expression-infix); tree-sitter precedence levels disambiguate |
+| **N2** | `&` `\|` `^` reduction-vs-bitwise | `reduction_op` (unary, expression-prefix position) vs `bitwise_binary_op` (binary, expression-infix); tree-sitter precedence levels disambiguate |
 | **N3** | `.{` two-character lookahead | `dot_aggregate` rule uses `prec.dynamic()` + tree-sitter's native lookahead; correct by construction (T1 marked best-effort) |
 | **N5** | `#` line-marker vs sign-extend | `preprocessor_directive` matched at line-start with `prec` boost; `sign_extend_expr` matched in expression position; correct by construction (T1 marked best-effort) |
 | **N6** | proc-instance method access | `proc_method_access` rule with named `instance` and `method` children |

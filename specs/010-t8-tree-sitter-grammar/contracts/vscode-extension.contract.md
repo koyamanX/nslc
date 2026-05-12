@@ -104,8 +104,9 @@ the 20 from data-model.md §1.4 (captures #1–#20) plus the
 FR-009 control-terminal capture (#21,
 `variable.builtin.terminal`, per
 `highlights-coverage.contract.md` §2). The order is fixed:
-#1–#20 in source order followed by #21. The legend's index
-= the `tokenType` parameter in `pushLegend()` calls.
+entries 1 through 20 in source order followed by entry 21.
+The legend's index = the `tokenType` parameter in
+`pushLegend()` calls.
 
 ---
 

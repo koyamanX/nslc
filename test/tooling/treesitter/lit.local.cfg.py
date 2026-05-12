@@ -19,4 +19,4 @@
 # specific suffixes or substitutions". This is the `tooling/
 # treesitter/` layer.
 
-config.suffixes = []
+config.suffixes = []  # noqa: F821 — `config` is injected by lit at load time

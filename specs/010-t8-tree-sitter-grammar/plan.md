@@ -289,12 +289,17 @@ grammars/                                       # EXISTING (T1) — extended at 
     ├── package.json                            # pins tree-sitter-cli@0.22.x in devDependencies
     ├── package-lock.json                       # CI-installed lockfile (committed)
     ├── grammar.js                              # NEW — primary T8 source artefact
-    ├── parser.c                                # GENERATED & COMMITTED — output of tree-sitter generate
-    ├── grammar.json                            # GENERATED & COMMITTED
-    ├── node-types.json                         # GENERATED & COMMITTED
+    ├── src/                                    # tree-sitter 0.22 generator output dir
+    │   ├── parser.c                            # GENERATED & COMMITTED — output of `tree-sitter generate --no-bindings`
+    │   ├── grammar.json                        # GENERATED & COMMITTED
+    │   ├── node-types.json                     # GENERATED & COMMITTED
+    │   └── tree_sitter/                        # bundled tree-sitter ABI headers (upstream content; SPDX-exempted-via-NOTICE)
+    │       ├── alloc.h
+    │       ├── array.h
+    │       └── parser.h
     └── queries/
         ├── highlights.scm                      # NEW — primary highlight artefact
-        └── locals.scm                          # NEW — scope/definition/reference queries for reference-site capture resolution (closes the RHS-reference assertions in reg_vs_wire.nsl and control_terminal_s27.nsl)
+        └── locals.scm                          # NEW — scope/definition/reference queries for reference-site capture resolution; tree-sitter-cli's `tree-sitter test` does NOT propagate `@local.definition.<NAME>` to `@local.reference` sites (that's an editor-runtime feature in some consumers, not standard) — consumed by `editors/vscode/treesitter/highlight-provider.ts` at runtime
 
 editors/                                        # EXISTING (T1) — extended at T8
 └── vscode/                                     # T1 (existing — language-configuration.json, syntaxes/)
