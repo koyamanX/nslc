@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/folding_parse_error.nsl - exercises folding's
+// partial-AST handling per folding-range.contract.md §6 (FR-017).
+// The outer `module m {` opens cleanly and the inner `func f { ... }`
+// closes cleanly, but the file is missing the outer `}` so the M2
+// parser drops into error-recovery and produces a partial AST.
+// FoldingRangeBuilder must walk what the parser DID recognize
+// (every block-opener carries a valid SourceRange) and emit folds
+// for them — without crashing or returning a JSON-RPC error.
+
+module m {
+  func f {
+    a = b;
+  }
+  func g {
+    c = d;
+  }
+// missing outer `}` here — the file ends before the module closes.

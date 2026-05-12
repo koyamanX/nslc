@@ -132,15 +132,78 @@ include_directories(SYSTEM ${MLIR_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS} ${CIRCT_INC
 # Subdirectories
 # -----------------------------------------------------------------------------
 
+# Vendored third-party dependencies. Currently only `tomlpp` (toml++
+# v3.4 single-header TOML parser, MIT-licensed; vendored at T2 per
+# `third_party/tomlpp/PROVENANCE.md`). MUST be added BEFORE
+# `add_subdirectory(lib)` because `lib/Fmt/CMakeLists.txt` references
+# the `tomlpp` INTERFACE target.
+add_subdirectory(third_party/tomlpp)
+
 add_subdirectory(lib)
+
+# T-track tooling library (`libNSLLSP.a`) — outside the §3 layer
+# table that `lib/CMakeLists.txt` aggregates via `add_nsl_library`.
+# Per Constitution Principle II §3, T-track tools (`nsl-lsp`,
+# `nsl-fmt`, `nsl-lint`) reuse `libNSLFrontend.a` rather than
+# duplicate frontend layers. Wired here from the top-level so
+# `lib/CMakeLists.txt` retains its documented "aggregator for the
+# nine compiler-track layer libraries" scope.
+add_subdirectory(lib/LSP)
+
 add_subdirectory(tools)
 
 if(NSL_BUILD_TESTS)
   enable_testing()
   add_subdirectory(test)
   add_subdirectory(test_unit)
+
   # M6 (FR-033 + tasks.md T028): per-family conversion-pattern ↔
   # fixture bijection guard. Configure-time check with
   # FATAL_ERROR on violation.
   include(${CMAKE_SOURCE_DIR}/test/Lower/circt/coverage_guard.cmake)
+
+  # -----------------------------------------------------------------------------
+  # Per-feature roll-up ninja targets (T2 — `check-nsl-fmt`)
+  # -----------------------------------------------------------------------------
+  #
+  # `check-nslc` (defined in test/CMakeLists.txt) runs the full lit
+  # suite. T2 adds three sub-targets so a contributor working on the
+  # formatter can iterate without rebuilding the rest:
+  #
+  #   * check-fmt-lit  — runs only `test/Fmt/` lit fixtures
+  #   * check-fmt-unit — runs only `test_unit/Fmt/` GoogleTest binaries
+  #   * check-nsl-fmt  — umbrella that depends on both
+  #
+  # The lit subset must invoke lit through the BUILD-tree
+  # `test/lit.site.cfg.py` (which configure_file populates with
+  # `config.nslc_binary_dir` etc.) so the `bin/` dir is on PATH and
+  # the `nsl-fmt` invocations in fixtures resolve. Pointing lit at
+  # the source tree directly bypasses the site config and PATH
+  # extension does not happen — fixtures fail with "command not found".
+  #
+  # We use `--filter` to restrict the run to the `Fmt/` subset
+  # while still loading the site config. Empty filter result is
+  # tolerated by lit (exits 0).
+  add_custom_target(check-fmt-lit
+    COMMAND ${LLVM_EXTERNAL_LIT} -sv "${CMAKE_BINARY_DIR}/test" --filter "Fmt/"
+    DEPENDS nsl-fmt FileCheck
+    USES_TERMINAL
+    COMMENT "Running the nsl-fmt lit fixtures (filtered subset of check-nslc)")
+
+  # `check-fmt-unit` runs every GoogleTest binary tagged with the
+  # `Fmt` ctest label. Per-suite CMakeLists.txt files under
+  # `test_unit/Fmt/` register their binaries in the
+  # `_NSL_FMT_GTEST_BINARIES` global property + label their tests
+  # `LABELS Fmt`, so this target picks them up automatically as
+  # Phase 2+ adds more suites — no edits to this file needed.
+  get_property(_nsl_fmt_gtest_bins GLOBAL PROPERTY _NSL_FMT_GTEST_BINARIES)
+  add_custom_target(check-fmt-unit
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L Fmt
+    DEPENDS ${_nsl_fmt_gtest_bins}
+    USES_TERMINAL
+    COMMENT "Running all test_unit/Fmt/ GoogleTest binaries")
+
+  add_custom_target(check-nsl-fmt
+    DEPENDS check-fmt-lit check-fmt-unit
+    COMMENT "Run the full nsl-fmt regression: lit + GoogleTest")
 endif()

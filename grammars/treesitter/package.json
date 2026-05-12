@@ -1,0 +1,33 @@
+{
+  "_comment_top": "SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception. JSON has no comment syntax; the SPDX header rides on this top-level key per specs/010-t8-tree-sitter-grammar/research.md §9 (and the T1 precedent at test/tooling/textmate/package.json). This package.json declares the tree-sitter-cli toolchain (devDependency, build-time only) and the web-tree-sitter runtime (dependency, consumed by the VS Code extension shell at editors/vscode/treesitter/). It is NOT a publishable npm package; the publishable artefact is the VS Code extension which packages the WASM build separately. The tree-sitter-cli minor-version pin is locked by Clarifications session 2026-05-05 Q1 → Option B; the package-lock.json governs the exact patch installed in CI per Constitution Principle V.",
+  "name": "tree-sitter-nsl",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Tree-sitter grammar for NSL (Next Synthesis Language). Source artefacts (grammar.js, queries/highlights.scm) plus generator-output (parser.c, grammar.json, node-types.json). Consumed by editor integrations: VS Code via editors/vscode/treesitter/ at T8; Neovim/Emacs/Sublime at T11.",
+  "license": "Apache-2.0 WITH LLVM-exception",
+  "main": "bindings/node",
+  "tree-sitter": [
+    {
+      "scope": "source.nsl",
+      "file-types": [
+        "nsl",
+        "nslh",
+        "inc"
+      ],
+      "highlights": "queries/highlights.scm",
+      "locals": "queries/locals.scm"
+    }
+  ],
+  "devDependencies": {
+    "tree-sitter-cli": "^0.22.0"
+  },
+  "dependencies": {
+    "web-tree-sitter": "^0.22.0"
+  },
+  "scripts": {
+    "build": "tree-sitter generate",
+    "build-wasm": "tree-sitter build-wasm --docker",
+    "parse": "tree-sitter parse",
+    "test": "tree-sitter test"
+  }
+}

@@ -109,3 +109,33 @@ if shutil.which("iverilog"):
     config.available_features.add("iverilog")
 if shutil.which("verilator"):
     config.available_features.add("verilator")
+
+# -----------------------------------------------------------------------------
+# Audited-corpus features (T2 T109 — auto-activates on M7 P-VEN vendoring)
+# -----------------------------------------------------------------------------
+#
+# Each Principle-VI-named audited project exposes a lit feature
+# `audited-<project>` iff `test/audited/<project>/` exists in the
+# source tree. T2's audited idempotence fixtures gate on the
+# corresponding feature with `REQUIRES:`, so they auto-activate the
+# moment M7 vendors the project tree — no T2-side edit required.
+# **Note**: the list below is the *original-pre-narrowing 7-set* —
+# the constitution v1.8.0 amendment (2026-05-12) narrowed the M7
+# acceptance corpus to 4 (cpu16, mips32_single_cycle, ahb_lite_nsl,
+# turboV); the other 3 (`rv32x_dev`, `mmcspi`, `SDRAM_Controler`)
+# may re-enter via routine vendoring PRs per the v1.8.0 re-addition
+# path. The list here stays at 7 so re-additions auto-feature
+# without lit.cfg.py edits.
+_audited_projects = [
+    "rv32x_dev",
+    "turboV",
+    "mmcspi",
+    "SDRAM_Controler",
+    "mips32_single_cycle",
+    "ahb_lite_nsl",
+    "cpu16",
+]
+_audited_root = os.path.join(config.test_source_root, "audited")
+for _proj in _audited_projects:
+    if os.path.isdir(os.path.join(_audited_root, _proj)):
+        config.available_features.add(f"audited-{_proj}")

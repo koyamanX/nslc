@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T123 — non-default config: `spaces_inside_braces = true` adds
+// one space pad on EACH side of a `ConcatExpr`'s `{` / `}`
+// (per `formatting-rules.contract.md` §4 ConcatExpr toggle).
+// Default behavior is no inside-padding; this fixture flips the
+// knob and verifies the output reflects the change.
+//
+// `formatNode(ConcatExpr)` reads `cfg_.spaces_inside_braces` and
+// switches the open/close braces between `{`/`}` (default) and
+// `{ `/` }` (toggle on); the inter-element comma+space stays at
+// `, ` either way.
+//
+// Default canonical: `{a, b, c}`
+// Toggle-on canonical: `{ a, b, c }`
+
+// RUN: rm -rf %t.sib && mkdir -p %t.sib
+// RUN: printf 'spaces_inside_braces = true\n' > %t.sib/.nsl-fmt.toml
+// RUN: printf 'module m { reg q[24] = {a, b, c}; }\n' > %t.sib/m.nsl
+// RUN: cd %t.sib && nsl-fmt m.nsl | FileCheck %s
+//
+// CHECK: { a, b, c }

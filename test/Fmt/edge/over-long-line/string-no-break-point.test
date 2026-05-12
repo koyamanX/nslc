@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T042: a well-formed NSL line longer than `max_line_length`
+// (default 100) is emitted as-is rather than corrupted by an
+// unsafe break. Q1 strict-refusal (Session 2026-05-05) requires
+// this fixture to use VALID NSL — the Phase-3a draft used
+// top-level `_display(...);` which the parser rejects. The
+// rewrite uses a single long-named module declaration (180+
+// chars, no break point) which is valid NSL and exercises the
+// same "preserve over-long line verbatim" guarantee.
+
+// RUN: echo 'module ridiculously_long_module_name_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx {}' | nsl-fmt --stdin | FileCheck %s
+// CHECK: module ridiculously_long_module_name_x{{x+}} {}

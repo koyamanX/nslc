@@ -1,0 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T071: `--stdin` + positional file argument is mutually exclusive.
+
+// RUN: not nsl-fmt --stdin %t.nsl 2>&1 | FileCheck %s
+// CHECK: error: --stdin cannot be combined with positional file arguments

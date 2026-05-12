@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T100: an unknown TOML key triggers a stderr warning but
+// formatting still proceeds successfully (FR-015).
+// Exit code MUST be 0; stdout MUST contain the formatted file;
+// stderr MUST contain "warning: unknown configuration key".
+
+// RUN: printf 'definitely_not_a_real_key = "x"\n' > %t.toml
+// RUN: printf 'module foo {}\n' > %t.nsl
+// RUN: nsl-fmt --config %t.toml %t.nsl > %t.out 2> %t.err
+// RUN: FileCheck --check-prefix=STDOUT %s < %t.out
+// RUN: FileCheck --check-prefix=STDERR %s < %t.err
+// STDOUT: module foo {}
+// STDERR: warning: unknown configuration key 'definitely_not_a_real_key'

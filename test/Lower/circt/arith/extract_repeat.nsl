@@ -2,23 +2,29 @@
 //
 // test/Lower/circt/arith/extract_repeat.nsl — M6 Phase 6 fixture (T078).
 // `nsl.extract` → `comb.extract`; `nsl.repeat` → `comb.replicate`.
+//
+// History note: at M6 Phase 6 land this fixture covered only the
+// extract path because M5's visitor stubbed `RepeatExpr`. The M5
+// visitor extension on branch `m5-visitor-repeat-funccall` lit up
+// the `4{a}` source path, so this fixture is extended to assert the
+// full `comb.replicate` lowering as well — closing the M6
+// deferred-work item "nsl.repeat unreachable from NSL source".
 
 // RUN: %nslc -emit=hw %s | %FileCheck %s
 
 declare M {
   input a[8];
+  input b[2];
   output qe[4];
+  output qr[8];
 }
 
 module M {
   qe = a[3:0];
+  qr = 4{b};
 }
 
 // CHECK-LABEL: hw.module @M
-// CHECK: comb.extract %a from 0 : (i8) -> i4
+// CHECK-DAG: comb.extract %a from 0 : (i8) -> i4
+// CHECK-DAG: comb.replicate %b : (i2) -> i8
 // CHECK-NOT: nsl.
-
-// Note: nsl.repeat (NSL `N{a}` per §11 line 700) is not yet emitted
-// by M5's visitor for non-trivial repeat counts as of Phase 6 land;
-// when the visitor is amended, this fixture extends to also assert
-// the `comb.replicate` lowering.

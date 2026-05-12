@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s25_goto_target.nsl — T051 (US1).
+// S25: goto target scoping.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// variant. Inside a state body, `goto` must target a state_name —
+// targeting a label_name (which is a seq-block-local construct)
+// is the cross-kind violation.
+
+
+module m_fail {
+  proc_name p;
+  proc p {
+    state_name s1;
+    state s1 {
+      goto lab;
+    }
+  }
+}

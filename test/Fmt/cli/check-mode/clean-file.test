@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T067: `nsl-fmt --check` on an already-canonical file exits 0
+// with empty stdout/stderr. At Phase 3a-CLI every input is
+// "canonical" (byte-passthrough) so this test passes trivially.
+// Phase 3 makes the canonicalisation real, at which point this
+// fixture stays meaningful: the file's bytes happen to already
+// match the canonical form.
+
+// RUN: printf 'module foo {}\n' > %t.nsl
+// RUN: nsl-fmt --check %t.nsl > %t.out 2> %t.err
+// RUN: test ! -s %t.out
+// RUN: test ! -s %t.err

@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T019 fixture — FR-009 dedicated control-terminal capture for control-
+// terminal names (proc_name / func_in / func_out / func_self) appearing
+// in expression position.
+//
+// Cross-references:
+//   - spec FR-009 (dedicated control-terminal capture)
+//   - contracts/highlights-coverage.contract.md §2 (capture-name choice)
+//   - spec/nsl_lang.ebnf §S27 (constructive: control-terminal names as
+//     1-bit values in expression position)
+//   - acceptance scenario AS1.5
+//   - examples/18_proc_methods.nsl line 47 (`busy = work;` — canonical
+//     S27 case: a proc_name in expression position evaluates to 1 when
+//     the procedure is running, 0 otherwise)
+//
+// Capture name (plan-level, locked here for highlights.scm):
+//   variable.builtin.terminal
+//
+// The choice MUST stay distinct from captures #13–#20 in §1 of the
+// highlights-coverage contract; "variable.builtin.terminal" is a
+// sub-capture under @variable, sibling of @variable.register / .wire /
+// .memory but distinguished by the .builtin.terminal sub-tail.
+
+declare worker_s27 {
+    input  go;
+    output busy;
+}
+
+module worker_s27 {
+    proc_name work;
+//            ^ variable.builtin.terminal
+
+    if (go) work.invoke();
+
+    proc work {
+        state_name s0, s1;
+        first_state s0;
+        state s0 { goto s1; }
+        state s1 { finish; }
+    }
+
+    busy = work;
+//         (the reference-site capture for `work` here is delivered
+//          at runtime by the VS Code semantic-tokens provider; see
+//          NOTE in reg_vs_wire.nsl for the resolution-split rationale.)
+}

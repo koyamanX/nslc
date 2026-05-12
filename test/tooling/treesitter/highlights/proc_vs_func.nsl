@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T017 fixture — @function.proc / @function.func / @function.call.proc /
+// @function.call.func captures.
+//
+// Cross-references:
+//   - spec FR-007 (sub-captures) and Clarifications session 2026-05-05 Q3 → Option B
+//   - contracts/highlights-coverage.contract.md §3 row 2
+//   - contracts/grammar-coverage.contract.md §1 row "control_call" — sub-typing
+//     in highlights.scm via callee binding lookup (proc_definition vs
+//     func_definition resolution); fixture asserts the resolved sub-capture.
+//   - acceptance scenario AS1.3
+//   - examples/07_function.nsl (func_in + func), examples/09_proc_seq.nsl
+//     (proc_name + bare control_call do_seq()).
+//
+// Four minimum assertions per highlights-coverage §3 row 2 (definition
+// + call site for each of proc/func).
+
+declare proc_func_demo {
+    input  start;
+    input  a[8], b[8];
+    output sum[9];
+    output step[2];
+    func_in add(a, b) : sum;
+}
+
+module proc_func_demo {
+    proc_name compute;
+    reg cur[2] = 0;
+
+    if (start) compute();
+//             ^ function.call.proc
+
+    proc compute seq {
+//       ^ function.proc
+        label_name s0, s1;
+        s0: cur := 2'd1;
+        s1: cur := 2'd2;
+        finish;
+    }
+
+    func add { return 9'(a) + 9'(b); }
+//       ^ function.func
+
+    sum  = add(a, b);
+//         ^ function.call.func
+    step = cur;
+}

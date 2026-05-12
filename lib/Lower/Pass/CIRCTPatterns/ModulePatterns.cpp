@@ -55,7 +55,6 @@
 
 #include "../CIRCTTypeConverter.h"
 #include "../NSLToCIRCTPass.h"
-
 #include "circt/Dialect/Comb/CombOps.h"
 #include "circt/Dialect/HW/HWAttributes.h"
 #include "circt/Dialect/HW/HWOps.h"
@@ -64,12 +63,10 @@
 #include "circt/Dialect/SV/SVOps.h"
 #include "circt/Dialect/Seq/SeqOps.h"
 #include "circt/Dialect/Seq/SeqTypes.h"
-
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Transforms/DialectConversion.h"
-
 #include "nsl/Dialect/NSL/IR/NSLDialect.h"
 
 #include "llvm/ADT/DenseMap.h"
@@ -83,8 +80,7 @@ namespace {
 /// Find the `nsl::DeclareOp` whose `pair_name` matches `moduleSymName`
 /// among the direct children of the enclosing `mlir::ModuleOp`.
 nsl::dialect::DeclareOp findPairedDeclare(nsl::dialect::ModuleOp moduleOp) {
-  auto parent =
-      llvm::dyn_cast_or_null<mlir::ModuleOp>(moduleOp->getParentOp());
+  auto parent = llvm::dyn_cast_or_null<mlir::ModuleOp>(moduleOp->getParentOp());
   if (!parent) {
     return nullptr;
   }
@@ -119,16 +115,14 @@ void buildPortInfo(nsl::dialect::DeclareOp declareOp,
         p.dir = circt::hw::ModulePort::Direction::Input;
         p.loc = in.getLoc();
         inputs.push_back(p);
-      } else if (auto inout =
-                     llvm::dyn_cast<nsl::dialect::InoutPortOp>(op)) {
+      } else if (auto inout = llvm::dyn_cast<nsl::dialect::InoutPortOp>(op)) {
         circt::hw::PortInfo p;
         p.name = mlir::StringAttr::get(ctx, inout.getName());
         p.type = bitsToInteger(inout.getResult().getType());
         p.dir = circt::hw::ModulePort::Direction::InOut;
         p.loc = inout.getLoc();
         inputs.push_back(p);
-      } else if (auto out =
-                     llvm::dyn_cast<nsl::dialect::OutputPortOp>(op)) {
+      } else if (auto out = llvm::dyn_cast<nsl::dialect::OutputPortOp>(op)) {
         circt::hw::PortInfo p;
         p.name = mlir::StringAttr::get(ctx, out.getName());
         p.type = bitsToInteger(out.getResult().getType());
@@ -201,8 +195,8 @@ mlir::ArrayAttr collectInstanceParameters(mlir::ModuleOp parentModule,
   for (auto &op : parentModule.getBody()->getOperations()) {
     if (auto pi = llvm::dyn_cast<nsl::dialect::ParamIntOp>(op)) {
       auto i32 = mlir::IntegerType::get(ctx, 32);
-      auto valueAttr = mlir::IntegerAttr::get(
-          i32, static_cast<int32_t>(pi.getValue()));
+      auto valueAttr =
+          mlir::IntegerAttr::get(i32, static_cast<int32_t>(pi.getValue()));
       params.push_back(circt::hw::ParamDeclAttr::get(
           mlir::StringAttr::get(ctx, pi.getSymName()), valueAttr));
     } else if (auto ps = llvm::dyn_cast<nsl::dialect::ParamStrOp>(op)) {
@@ -274,9 +268,9 @@ struct ModuleLoweringCtx {
     llvm::StringRef name;
     mlir::Value origResult;
     std::optional<mlir::Location> loc;
-    mlir::IntegerType intType;     // wire data type (iW)
-    mlir::Value pendingDriver;     // running mux chain (most-recent write)
-    circt::hw::WireOp hwWireOp;    // populated by finaliseWires
+    mlir::IntegerType intType;  // wire data type (iW)
+    mlir::Value pendingDriver;  // running mux chain (most-recent write)
+    circt::hw::WireOp hwWireOp; // populated by finaliseWires
   };
   llvm::SmallVector<WireInfo, 4> wires;
 
@@ -319,8 +313,7 @@ void recordValueMapping(ModuleLoweringCtx &ctx, mlir::Value from,
 }
 
 /// Get-or-create a `seq::ToClockOp` from the i1 clk block-arg.
-mlir::Value getOrBuildClockSeq(ModuleLoweringCtx &ctx,
-                               mlir::OpBuilder &builder,
+mlir::Value getOrBuildClockSeq(ModuleLoweringCtx &ctx, mlir::OpBuilder &builder,
                                mlir::Location loc) {
   if (ctx.clockSeq) {
     return ctx.clockSeq;
@@ -358,30 +351,30 @@ mlir::Value getOrBuildResetCond(ModuleLoweringCtx &ctx,
 /// Get-or-create the SIMULATION macro decl at the outer mlir.module
 /// level (idempotent across multiple hw.modules in the same compile).
 void ensureSimulationMacroDecl(circt::hw::HWModuleOp hwModuleOp,
-                                mlir::OpBuilder &builder) {
-  auto outer = llvm::dyn_cast_or_null<mlir::ModuleOp>(
-      hwModuleOp->getParentOp());
+                               mlir::OpBuilder &builder) {
+  auto outer =
+      llvm::dyn_cast_or_null<mlir::ModuleOp>(hwModuleOp->getParentOp());
   if (!outer) {
     return;
   }
   // Symbol-table lookup (the MacroDeclOp uses `sym_name`).
-  if (auto *existing = mlir::SymbolTable::lookupSymbolIn(
-          outer.getOperation(), "SIMULATION")) {
+  if (auto *existing = mlir::SymbolTable::lookupSymbolIn(outer.getOperation(),
+                                                         "SIMULATION")) {
     (void)existing;
     return;
   }
   mlir::OpBuilder::InsertionGuard g(builder);
   builder.setInsertionPointToStart(outer.getBody());
   circt::sv::MacroDeclOp::create(builder, hwModuleOp.getLoc(),
-                                   llvm::StringRef("SIMULATION"));
+                                 llvm::StringRef("SIMULATION"));
 }
 
 /// Get-or-create the per-module SIMULATION ifdef. The ifdef sits at
 /// the END of the hw.module body (after synthesizable ops); insertion
 /// is idempotent — repeated calls return the same op + body region.
 circt::sv::IfDefOp getOrBuildSimIfDef(ModuleLoweringCtx &ctx,
-                                       mlir::OpBuilder &builder,
-                                       mlir::Location loc) {
+                                      mlir::OpBuilder &builder,
+                                      mlir::Location loc) {
   if (ctx.simIfDef) {
     return ctx.simIfDef;
   }
@@ -390,8 +383,8 @@ circt::sv::IfDefOp getOrBuildSimIfDef(ModuleLoweringCtx &ctx,
   // Insert before the (existing) hw.output terminator.
   auto *terminator = ctx.hwModuleOp.getBodyBlock()->getTerminator();
   builder.setInsertionPoint(terminator);
-  ctx.simIfDef = circt::sv::IfDefOp::create(builder, loc,
-                                             llvm::StringRef("SIMULATION"));
+  ctx.simIfDef =
+      circt::sv::IfDefOp::create(builder, loc, llvm::StringRef("SIMULATION"));
   return ctx.simIfDef;
 }
 
@@ -517,8 +510,8 @@ mlir::LogicalResult lowerArithOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
     auto rhs = lookupValue(ctx, op->getOperand(1));
     auto pred = icmpPredicateFor(op);
     auto res = circt::comb::ICmpOp::create(builder, loc, pred, lhs, rhs,
-                                            /*twoState=*/false)
-                  .getResult();
+                                           /*twoState=*/false)
+                   .getResult();
     ctx.valueMap[op->getResult(0)] = res;
     ctx.pendingErase.push_back(op);
     return mlir::success();
@@ -557,7 +550,7 @@ mlir::LogicalResult lowerBitOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
         intType, llvm::APInt::getAllOnes(intType.getWidth()));
     auto allOnes = circt::hw::ConstantOp::create(builder, loc, allOnesAttr);
     auto res = circt::comb::XorOp::create(builder, loc, a, allOnes.getResult())
-                  .getResult();
+                   .getResult();
     ctx.valueMap[notOp.getResult()] = res;
     ctx.pendingErase.push_back(op);
     return mlir::success();
@@ -568,9 +561,8 @@ mlir::LogicalResult lowerBitOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
     auto intType = mlir::cast<mlir::IntegerType>(a.getType());
     auto zeroAttr = mlir::IntegerAttr::get(intType, 0);
     auto zero = circt::hw::ConstantOp::create(builder, loc, zeroAttr);
-    auto res =
-        circt::comb::SubOp::create(builder, loc, zero.getResult(), a)
-            .getResult();
+    auto res = circt::comb::SubOp::create(builder, loc, zero.getResult(), a)
+                   .getResult();
     ctx.valueMap[neg.getResult()] = res;
     ctx.pendingErase.push_back(op);
     return mlir::success();
@@ -581,10 +573,10 @@ mlir::LogicalResult lowerBitOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
     auto intType = mlir::cast<mlir::IntegerType>(a.getType());
     auto zeroAttr = mlir::IntegerAttr::get(intType, 0);
     auto zero = circt::hw::ConstantOp::create(builder, loc, zeroAttr);
-    auto res = circt::comb::ICmpOp::create(
-                    builder, loc, circt::comb::ICmpPredicate::eq, a,
-                    zero.getResult(), /*twoState=*/false)
-                  .getResult();
+    auto res = circt::comb::ICmpOp::create(builder, loc,
+                                           circt::comb::ICmpPredicate::eq, a,
+                                           zero.getResult(), /*twoState=*/false)
+                   .getResult();
     ctx.valueMap[lnot.getResult()] = res;
     ctx.pendingErase.push_back(op);
     return mlir::success();
@@ -597,9 +589,9 @@ mlir::LogicalResult lowerBitOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
         intType, llvm::APInt::getAllOnes(intType.getWidth()));
     auto allOnes = circt::hw::ConstantOp::create(builder, loc, allOnesAttr);
     auto res = circt::comb::ICmpOp::create(
-                    builder, loc, circt::comb::ICmpPredicate::eq, a,
-                    allOnes.getResult(), /*twoState=*/false)
-                  .getResult();
+                   builder, loc, circt::comb::ICmpPredicate::eq, a,
+                   allOnes.getResult(), /*twoState=*/false)
+                   .getResult();
     ctx.valueMap[rand.getResult()] = res;
     ctx.pendingErase.push_back(op);
     return mlir::success();
@@ -610,10 +602,10 @@ mlir::LogicalResult lowerBitOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
     auto intType = mlir::cast<mlir::IntegerType>(a.getType());
     auto zeroAttr = mlir::IntegerAttr::get(intType, 0);
     auto zero = circt::hw::ConstantOp::create(builder, loc, zeroAttr);
-    auto res = circt::comb::ICmpOp::create(
-                    builder, loc, circt::comb::ICmpPredicate::ne, a,
-                    zero.getResult(), /*twoState=*/false)
-                  .getResult();
+    auto res = circt::comb::ICmpOp::create(builder, loc,
+                                           circt::comb::ICmpPredicate::ne, a,
+                                           zero.getResult(), /*twoState=*/false)
+                   .getResult();
     ctx.valueMap[ror.getResult()] = res;
     ctx.pendingErase.push_back(op);
     return mlir::success();
@@ -632,9 +624,8 @@ mlir::LogicalResult lowerBitOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
   if (auto se = llvm::dyn_cast<nsl::dialect::SignExtendOp>(op)) {
     auto a = lookupValue(ctx, se.getOperand());
     auto srcType = mlir::cast<mlir::IntegerType>(a.getType());
-    auto dstWidth = mlir::cast<nsl::dialect::BitsType>(
-                          se.getResult().getType())
-                          .getWidth();
+    auto dstWidth =
+        mlir::cast<nsl::dialect::BitsType>(se.getResult().getType()).getWidth();
     if (dstWidth == srcType.getWidth()) {
       // No-op extension.
       ctx.valueMap[se.getResult()] = a;
@@ -644,18 +635,17 @@ mlir::LogicalResult lowerBitOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
     // Extract MSB.
     auto i1 = builder.getI1Type();
     auto msb = circt::comb::ExtractOp::create(builder, loc, i1, a,
-                                                srcType.getWidth() - 1)
-                  .getResult();
+                                              srcType.getWidth() - 1)
+                   .getResult();
     // Replicate MSB by (dstWidth - srcWidth) times.
     unsigned padBits = dstWidth - srcType.getWidth();
     auto padType = mlir::IntegerType::get(builder.getContext(), padBits);
-    auto rep =
-        circt::comb::ReplicateOp::create(builder, loc, padType, msb)
-            .getResult();
+    auto rep = circt::comb::ReplicateOp::create(builder, loc, padType, msb)
+                   .getResult();
     auto dstType = mlir::IntegerType::get(builder.getContext(), dstWidth);
     auto cat = circt::comb::ConcatOp::create(builder, loc, dstType,
-                                               mlir::ValueRange{rep, a})
-                  .getResult();
+                                             mlir::ValueRange{rep, a})
+                   .getResult();
     ctx.valueMap[se.getResult()] = cat;
     ctx.pendingErase.push_back(op);
     return mlir::success();
@@ -664,9 +654,8 @@ mlir::LogicalResult lowerBitOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
   if (auto ze = llvm::dyn_cast<nsl::dialect::ZeroExtendOp>(op)) {
     auto a = lookupValue(ctx, ze.getOperand());
     auto srcType = mlir::cast<mlir::IntegerType>(a.getType());
-    auto dstWidth = mlir::cast<nsl::dialect::BitsType>(
-                          ze.getResult().getType())
-                          .getWidth();
+    auto dstWidth =
+        mlir::cast<nsl::dialect::BitsType>(ze.getResult().getType()).getWidth();
     if (dstWidth == srcType.getWidth()) {
       ctx.valueMap[ze.getResult()] = a;
       ctx.pendingErase.push_back(op);
@@ -679,7 +668,7 @@ mlir::LogicalResult lowerBitOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
     auto dstType = mlir::IntegerType::get(builder.getContext(), dstWidth);
     auto cat =
         circt::comb::ConcatOp::create(builder, loc, dstType,
-                                        mlir::ValueRange{zeros.getResult(), a})
+                                      mlir::ValueRange{zeros.getResult(), a})
             .getResult();
     ctx.valueMap[ze.getResult()] = cat;
     ctx.pendingErase.push_back(op);
@@ -691,8 +680,8 @@ mlir::LogicalResult lowerBitOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
     auto thenV = lookupValue(ctx, mux.getThenValue());
     auto elseV = lookupValue(ctx, mux.getElseValue());
     auto res = circt::comb::MuxOp::create(builder, loc, cond, thenV, elseV,
-                                            /*twoState=*/false)
-                  .getResult();
+                                          /*twoState=*/false)
+                   .getResult();
     ctx.valueMap[mux.getResult()] = res;
     ctx.pendingErase.push_back(op);
     return mlir::success();
@@ -703,13 +692,12 @@ mlir::LogicalResult lowerBitOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
     for (auto v : concat.getOperands()) {
       mapped.push_back(lookupValue(ctx, v));
     }
-    auto dstWidth = mlir::cast<nsl::dialect::BitsType>(
-                          concat.getResult().getType())
-                          .getWidth();
+    auto dstWidth =
+        mlir::cast<nsl::dialect::BitsType>(concat.getResult().getType())
+            .getWidth();
     auto dstType = mlir::IntegerType::get(builder.getContext(), dstWidth);
-    auto res =
-        circt::comb::ConcatOp::create(builder, loc, dstType, mapped)
-            .getResult();
+    auto res = circt::comb::ConcatOp::create(builder, loc, dstType, mapped)
+                   .getResult();
     ctx.valueMap[concat.getResult()] = res;
     ctx.pendingErase.push_back(op);
     return mlir::success();
@@ -717,14 +705,14 @@ mlir::LogicalResult lowerBitOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
   // Extract → comb.extract.
   if (auto ext = llvm::dyn_cast<nsl::dialect::ExtractOp>(op)) {
     auto a = lookupValue(ctx, ext.getOperand());
-    auto resWidth = mlir::cast<nsl::dialect::BitsType>(
-                          ext.getResult().getType())
-                          .getWidth();
+    auto resWidth =
+        mlir::cast<nsl::dialect::BitsType>(ext.getResult().getType())
+            .getWidth();
     auto resType = mlir::IntegerType::get(builder.getContext(), resWidth);
-    auto res = circt::comb::ExtractOp::create(
-                    builder, loc, resType, a,
-                    static_cast<int32_t>(ext.getLowBit()))
-                  .getResult();
+    auto res =
+        circt::comb::ExtractOp::create(builder, loc, resType, a,
+                                       static_cast<int32_t>(ext.getLowBit()))
+            .getResult();
     ctx.valueMap[ext.getResult()] = res;
     ctx.pendingErase.push_back(op);
     return mlir::success();
@@ -735,10 +723,9 @@ mlir::LogicalResult lowerBitOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
     auto count = static_cast<int32_t>(rep.getCount());
     auto srcType = mlir::cast<mlir::IntegerType>(a.getType());
     auto resType = mlir::IntegerType::get(builder.getContext(),
-                                            srcType.getWidth() * count);
+                                          srcType.getWidth() * count);
     auto res =
-        circt::comb::ReplicateOp::create(builder, loc, resType, a)
-            .getResult();
+        circt::comb::ReplicateOp::create(builder, loc, resType, a).getResult();
     ctx.valueMap[rep.getResult()] = res;
     ctx.pendingErase.push_back(op);
     return mlir::success();
@@ -753,7 +740,7 @@ mlir::LogicalResult lowerBitOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
 //===----------------------------------------------------------------------===//
 
 ModuleLoweringCtx::RegInfo *findRegInfo(ModuleLoweringCtx &ctx,
-                                         llvm::StringRef name) {
+                                        llvm::StringRef name) {
   for (auto &kv : ctx.regs) {
     if (kv.first == name) {
       return &kv.second;
@@ -807,8 +794,8 @@ mlir::LogicalResult lowerRegOp(nsl::dialect::RegOp regOp,
     builder.setInsertionPointAfterValue(rstFires);
     auto rstValAttr =
         mlir::IntegerAttr::get(intType, info.initValue.value_or(0));
-    auto rstVal = circt::hw::ConstantOp::create(builder, loc, rstValAttr)
-                      .getResult();
+    auto rstVal =
+        circt::hw::ConstantOp::create(builder, loc, rstValAttr).getResult();
     // Initial data input: the reset value (pre-loop placeholder).
     // We will swap to the real data SSA via setOperand at end.
     auto nameStrAttr = builder.getStringAttr(regOp.getName());
@@ -833,12 +820,11 @@ mlir::LogicalResult lowerRegOp(nsl::dialect::RegOp regOp,
     auto clkV = ctx.clkArg;
     auto rstV = ctx.rstnArg;
     // Convert clk to ClockType.
-    auto clkSeq = circt::seq::ToClockOp::create(builder, loc, clkV)
-                       .getResult();
+    auto clkSeq = circt::seq::ToClockOp::create(builder, loc, clkV).getResult();
     auto rstValAttr =
         mlir::IntegerAttr::get(intType, info.initValue.value_or(0));
-    auto rstVal = circt::hw::ConstantOp::create(builder, loc, rstValAttr)
-                      .getResult();
+    auto rstVal =
+        circt::hw::ConstantOp::create(builder, loc, rstValAttr).getResult();
     // CompRegOp builder takes (input, clk, reset, rstValue, name).
     auto compReg = circt::seq::CompRegOp::create(
         builder, loc, /*input=*/rstVal, /*clk=*/clkSeq,
@@ -869,8 +855,7 @@ mlir::LogicalResult lowerWireOp(nsl::dialect::WireOp wireOp,
   wi.name = wireOp.getName();
   wi.origResult = wireOp.getResult();
   wi.loc = wireOp.getLoc();
-  auto bits =
-      mlir::cast<nsl::dialect::BitsType>(wireOp.getResult().getType());
+  auto bits = mlir::cast<nsl::dialect::BitsType>(wireOp.getResult().getType());
   wi.intType = mlir::IntegerType::get(wireOp.getContext(), bits.getWidth());
   ctx.wires.push_back(wi);
   ctx.pendingErase.push_back(wireOp);
@@ -887,9 +872,9 @@ mlir::LogicalResult lowerMemOp(nsl::dialect::MemOp memOp,
   uint64_t depth = memType.getDepth();
   uint32_t width = elemBits.getWidth();
 
-  auto firMemType = circt::seq::FirMemType::get(
-      builder.getContext(), depth, width,
-      /*maskWidth=*/std::nullopt);
+  auto firMemType =
+      circt::seq::FirMemType::get(builder.getContext(), depth, width,
+                                  /*maskWidth=*/std::nullopt);
 
   mlir::OpBuilder::InsertionGuard g(builder);
   builder.setInsertionPoint(memOp);
@@ -913,10 +898,10 @@ mlir::LogicalResult lowerTransferOp(nsl::dialect::TransferOp xfer,
                                     mlir::OpBuilder &builder,
                                     mlir::Value condGate);
 
-mlir::LogicalResult
-lowerClockedTransferOp(nsl::dialect::ClockedTransferOp xfer,
-                        ModuleLoweringCtx &ctx, mlir::OpBuilder &builder,
-                        mlir::Value condGate);
+mlir::LogicalResult lowerClockedTransferOp(nsl::dialect::ClockedTransferOp xfer,
+                                           ModuleLoweringCtx &ctx,
+                                           mlir::OpBuilder &builder,
+                                           mlir::Value condGate);
 
 /// Get the output-port name for a SSA value `v` if it's an
 /// nsl.output_port result; empty StringRef otherwise.
@@ -956,13 +941,12 @@ mlir::LogicalResult lowerTransferOp(nsl::dialect::TransferOp xfer,
         // Default to zero of the appropriate width.
         auto t = mlir::cast<mlir::IntegerType>(srcMapped.getType());
         auto zAttr = mlir::IntegerAttr::get(t, 0);
-        prev =
-            circt::hw::ConstantOp::create(builder, xfer.getLoc(), zAttr)
-                .getResult();
+        prev = circt::hw::ConstantOp::create(builder, xfer.getLoc(), zAttr)
+                   .getResult();
       }
-      auto muxed = circt::comb::MuxOp::create(builder, xfer.getLoc(),
-                                                condGate, srcMapped, prev,
-                                                /*twoState=*/false)
+      auto muxed = circt::comb::MuxOp::create(builder, xfer.getLoc(), condGate,
+                                              srcMapped, prev,
+                                              /*twoState=*/false)
                        .getResult();
       // Update or append.
       bool updated = false;
@@ -1012,13 +996,12 @@ mlir::LogicalResult lowerTransferOp(nsl::dialect::TransferOp xfer,
       if (!prev) {
         // No prior write — default to zero.
         auto zAttr = mlir::IntegerAttr::get(wInfo->intType, 0);
-        prev = circt::hw::ConstantOp::create(builder, xfer.getLoc(),
-                                              zAttr)
+        prev = circt::hw::ConstantOp::create(builder, xfer.getLoc(), zAttr)
                    .getResult();
       }
-      newDriver = circt::comb::MuxOp::create(builder, xfer.getLoc(),
-                                              condGate, srcMapped, prev,
-                                              /*twoState=*/false)
+      newDriver = circt::comb::MuxOp::create(builder, xfer.getLoc(), condGate,
+                                             srcMapped, prev,
+                                             /*twoState=*/false)
                       .getResult();
     } else {
       // Unconditional write: last-wins.
@@ -1037,10 +1020,10 @@ mlir::LogicalResult lowerTransferOp(nsl::dialect::TransferOp xfer,
       "transfer destination not a recognised output port or wire");
 }
 
-mlir::LogicalResult
-lowerClockedTransferOp(nsl::dialect::ClockedTransferOp xfer,
-                        ModuleLoweringCtx &ctx, mlir::OpBuilder &builder,
-                        mlir::Value condGate) {
+mlir::LogicalResult lowerClockedTransferOp(nsl::dialect::ClockedTransferOp xfer,
+                                           ModuleLoweringCtx &ctx,
+                                           mlir::OpBuilder &builder,
+                                           mlir::Value condGate) {
   // Find which reg the LHS refers to. The LHS's defining op should
   // have been a nsl.reg → seq.firreg (already mapped). We need the
   // register's RegInfo record.
@@ -1062,10 +1045,9 @@ lowerClockedTransferOp(nsl::dialect::ClockedTransferOp xfer,
   // Compose the new pendingNext: if condGate, mux(condGate, srcMapped,
   // pendingNext); else override (unconditional => last write wins).
   if (condGate) {
-    auto muxed = circt::comb::MuxOp::create(builder, xfer.getLoc(),
-                                              condGate, srcMapped,
-                                              info->pendingNext,
-                                              /*twoState=*/false)
+    auto muxed = circt::comb::MuxOp::create(builder, xfer.getLoc(), condGate,
+                                            srcMapped, info->pendingNext,
+                                            /*twoState=*/false)
                      .getResult();
     info->pendingNext = muxed;
   } else {
@@ -1090,17 +1072,21 @@ mlir::LogicalResult lowerControlOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
                                    mlir::Value condGate);
 
 /// Combine two i1 conditions: condGate AND extraCond (fresh comb.and).
+/// Parameter name is `extraCond` (not `extra`) so call-site arg names
+/// like `cond` cannot trigger clang-tidy's
+/// `readability-suspicious-call-argument` heuristic — a 4-character
+/// shared substring with `condGate` confused the diagnostic into
+/// flagging swapped 3rd/4th args.
 mlir::Value andConds(mlir::OpBuilder &builder, mlir::Location loc,
-                     mlir::Value condGate, mlir::Value extra) {
+                     mlir::Value condGate, mlir::Value extraCond) {
   if (!condGate) {
-    return extra;
+    return extraCond;
   }
-  return circt::comb::AndOp::create(builder, loc, condGate, extra)
+  return circt::comb::AndOp::create(builder, loc, condGate, extraCond)
       .getResult();
 }
 
-mlir::LogicalResult lowerIfOp(nsl::dialect::IfOp ifOp,
-                              ModuleLoweringCtx &ctx,
+mlir::LogicalResult lowerIfOp(nsl::dialect::IfOp ifOp, ModuleLoweringCtx &ctx,
                               mlir::OpBuilder &builder,
                               mlir::Value parentCondGate) {
   auto cond = lookupValue(ctx, ifOp.getCond());
@@ -1111,11 +1097,10 @@ mlir::LogicalResult lowerIfOp(nsl::dialect::IfOp ifOp,
   {
     auto t = mlir::cast<mlir::IntegerType>(cond.getType());
     auto zAttr = mlir::IntegerAttr::get(t, 0);
-    auto z =
-        circt::hw::ConstantOp::create(builder, loc, zAttr).getResult();
+    auto z = circt::hw::ConstantOp::create(builder, loc, zAttr).getResult();
     notCond = circt::comb::ICmpOp::create(builder, loc,
-                                            circt::comb::ICmpPredicate::eq,
-                                            cond, z, /*twoState=*/false)
+                                          circt::comb::ICmpPredicate::eq, cond,
+                                          z, /*twoState=*/false)
                   .getResult();
   }
   auto elseCond = andConds(builder, loc, parentCondGate, notCond);
@@ -1136,8 +1121,7 @@ mlir::LogicalResult lowerIfOp(nsl::dialect::IfOp ifOp,
 }
 
 mlir::LogicalResult lowerAltOp(nsl::dialect::AltOp altOp,
-                               ModuleLoweringCtx &ctx,
-                               mlir::OpBuilder &builder,
+                               ModuleLoweringCtx &ctx, mlir::OpBuilder &builder,
                                mlir::Value parentCondGate) {
   // Priority semantics: case A wins over B over default. Each case's
   // body runs only if all prior cases' conditions failed AND its own
@@ -1162,9 +1146,9 @@ mlir::LogicalResult lowerAltOp(nsl::dialect::AltOp altOp,
         auto zero =
             circt::hw::ConstantOp::create(builder, loc, zAttr).getResult();
         notCovered = circt::comb::ICmpOp::create(
-                          builder, loc, circt::comb::ICmpPredicate::eq,
-                          coveredSoFar, zero, /*twoState=*/false)
-                        .getResult();
+                         builder, loc, circt::comb::ICmpPredicate::eq,
+                         coveredSoFar, zero, /*twoState=*/false)
+                         .getResult();
       }
       auto fires =
           circt::comb::AndOp::create(builder, loc, notCovered, caseCond)
@@ -1197,8 +1181,8 @@ mlir::LogicalResult lowerAltOp(nsl::dialect::AltOp altOp,
         auto zero =
             circt::hw::ConstantOp::create(builder, loc, zAttr).getResult();
         auto notCov = circt::comb::ICmpOp::create(
-                            builder, loc, circt::comb::ICmpPredicate::eq,
-                            coveredSoFar, zero, /*twoState=*/false)
+                          builder, loc, circt::comb::ICmpPredicate::eq,
+                          coveredSoFar, zero, /*twoState=*/false)
                           .getResult();
         gated = andConds(builder, loc, parentCondGate, notCov);
       }
@@ -1222,10 +1206,10 @@ mlir::LogicalResult lowerAltOp(nsl::dialect::AltOp altOp,
 /// transfer / clocked_transfer at end, replacing the priority-encoded
 /// fall-through previously inherited from `lowerAltOp`.
 struct AnyTargetAccum {
-  mlir::Value target;       // nsl LHS (output_port / wire / reg result)
-  mlir::Value orAccum;      // running OR chain (i<W>)
+  mlir::Value target;  // nsl LHS (output_port / wire / reg result)
+  mlir::Value orAccum; // running OR chain (i<W>)
   mlir::Location loc;
-  bool isClocked = false;   // ClockedTransferOp (`:=`) vs TransferOp (`=`)
+  bool isClocked = false; // ClockedTransferOp (`:=`) vs TransferOp (`=`)
   mlir::IntegerType intType;
 };
 
@@ -1251,13 +1235,12 @@ accumulateAnyCaseBody(mlir::Block &caseBody, ModuleLoweringCtx &ctx,
       auto intType = mlir::cast<mlir::IntegerType>(src.getType());
       // Build mux(caseCond, src, 0).
       auto zAttr = mlir::IntegerAttr::get(intType, 0);
-      auto z = circt::hw::ConstantOp::create(builder, xfer.getLoc(),
-                                              zAttr)
+      auto z = circt::hw::ConstantOp::create(builder, xfer.getLoc(), zAttr)
                    .getResult();
-      auto envelope = circt::comb::MuxOp::create(
-                          builder, xfer.getLoc(), caseCond, src, z,
-                          /*twoState=*/false)
-                          .getResult();
+      auto envelope =
+          circt::comb::MuxOp::create(builder, xfer.getLoc(), caseCond, src, z,
+                                     /*twoState=*/false)
+              .getResult();
       // Find or create accumulator for this target.
       AnyTargetAccum *acc = nullptr;
       for (auto &a : accums) {
@@ -1270,9 +1253,9 @@ accumulateAnyCaseBody(mlir::Block &caseBody, ModuleLoweringCtx &ctx,
         accums.push_back({xfer.getDst(), envelope, xfer.getLoc(),
                           /*isClocked=*/false, intType});
       } else {
-        acc->orAccum = circt::comb::OrOp::create(
-                            builder, xfer.getLoc(), acc->orAccum, envelope)
-                            .getResult();
+        acc->orAccum = circt::comb::OrOp::create(builder, xfer.getLoc(),
+                                                 acc->orAccum, envelope)
+                           .getResult();
       }
       ctx.pendingErase.push_back(&op);
     } else if (auto cxfer =
@@ -1284,13 +1267,12 @@ accumulateAnyCaseBody(mlir::Block &caseBody, ModuleLoweringCtx &ctx,
       }
       auto intType = mlir::cast<mlir::IntegerType>(src.getType());
       auto zAttr = mlir::IntegerAttr::get(intType, 0);
-      auto z = circt::hw::ConstantOp::create(builder, cxfer.getLoc(),
-                                              zAttr)
+      auto z = circt::hw::ConstantOp::create(builder, cxfer.getLoc(), zAttr)
                    .getResult();
-      auto envelope = circt::comb::MuxOp::create(
-                          builder, cxfer.getLoc(), caseCond, src, z,
-                          /*twoState=*/false)
-                          .getResult();
+      auto envelope =
+          circt::comb::MuxOp::create(builder, cxfer.getLoc(), caseCond, src, z,
+                                     /*twoState=*/false)
+              .getResult();
       AnyTargetAccum *acc = nullptr;
       for (auto &a : accums) {
         if (a.target == cxfer.getDst() && a.isClocked) {
@@ -1302,9 +1284,9 @@ accumulateAnyCaseBody(mlir::Block &caseBody, ModuleLoweringCtx &ctx,
         accums.push_back({cxfer.getDst(), envelope, cxfer.getLoc(),
                           /*isClocked=*/true, intType});
       } else {
-        acc->orAccum = circt::comb::OrOp::create(
-                            builder, cxfer.getLoc(), acc->orAccum, envelope)
-                            .getResult();
+        acc->orAccum = circt::comb::OrOp::create(builder, cxfer.getLoc(),
+                                                 acc->orAccum, envelope)
+                           .getResult();
       }
       ctx.pendingErase.push_back(&op);
     } else {
@@ -1322,8 +1304,7 @@ accumulateAnyCaseBody(mlir::Block &caseBody, ModuleLoweringCtx &ctx,
 }
 
 mlir::LogicalResult lowerAnyOp(nsl::dialect::AnyOp anyOp,
-                               ModuleLoweringCtx &ctx,
-                               mlir::OpBuilder &builder,
+                               ModuleLoweringCtx &ctx, mlir::OpBuilder &builder,
                                mlir::Value parentCondGate) {
   // Round-1 review fix for PR #14 Finding #11: S13 PARALLEL semantics.
   // Each case fires independently; per-target contributions OR
@@ -1341,8 +1322,7 @@ mlir::LogicalResult lowerAnyOp(nsl::dialect::AnyOp anyOp,
     }
     auto i1 = builder.getI1Type();
     auto oneAttr = mlir::IntegerAttr::get(i1, 1);
-    oneI1 =
-        circt::hw::ConstantOp::create(builder, loc, oneAttr).getResult();
+    oneI1 = circt::hw::ConstantOp::create(builder, loc, oneAttr).getResult();
     return oneI1;
   };
 
@@ -1351,7 +1331,7 @@ mlir::LogicalResult lowerAnyOp(nsl::dialect::AnyOp anyOp,
       auto caseCond = lookupValue(ctx, caseOp.getCond());
       auto gated = andConds(builder, loc, parentCondGate, caseCond);
       if (mlir::failed(accumulateAnyCaseBody(caseOp.getBody().front(), ctx,
-                                              builder, gated, accums))) {
+                                             builder, gated, accums))) {
         return mlir::failure();
       }
       ctx.pendingErase.push_back(caseOp);
@@ -1359,7 +1339,7 @@ mlir::LogicalResult lowerAnyOp(nsl::dialect::AnyOp anyOp,
       // Default in an `any` always fires (parallel semantics).
       auto gated = parentCondGate ? parentCondGate : getOneI1();
       if (mlir::failed(accumulateAnyCaseBody(defOp.getBody().front(), ctx,
-                                              builder, gated, accums))) {
+                                             builder, gated, accums))) {
         return mlir::failure();
       }
       ctx.pendingErase.push_back(defOp);
@@ -1393,9 +1373,8 @@ mlir::LogicalResult lowerAnyOp(nsl::dialect::AnyOp anyOp,
       // data fix), OR'ing an i<W> envelope against the i<W> prev is
       // semantically the union of writes — matches `any` parallel.
       info->pendingNext = circt::comb::OrOp::create(
-                                builder, acc.loc, info->pendingNext,
-                                acc.orAccum)
-                                .getResult();
+                              builder, acc.loc, info->pendingNext, acc.orAccum)
+                              .getResult();
     } else {
       // Combinational target: the OR'd envelope IS the new value.
       // Route through the regular transfer path with no condGate
@@ -1412,9 +1391,9 @@ mlir::LogicalResult lowerAnyOp(nsl::dialect::AnyOp anyOp,
         }
         mlir::Value combined = acc.orAccum;
         if (prior) {
-          combined = circt::comb::OrOp::create(builder, acc.loc, prior,
-                                                  acc.orAccum)
-                          .getResult();
+          combined =
+              circt::comb::OrOp::create(builder, acc.loc, prior, acc.orAccum)
+                  .getResult();
         }
         bool updated = false;
         for (auto &kv : ctx.outputAssignments) {
@@ -1446,7 +1425,7 @@ mlir::LogicalResult lowerAnyOp(nsl::dialect::AnyOp anyOp,
       } else {
         wInfo->pendingDriver =
             circt::comb::OrOp::create(builder, acc.loc, wInfo->pendingDriver,
-                                        acc.orAccum)
+                                      acc.orAccum)
                 .getResult();
       }
       ctx.valueMap[wInfo->origResult] = wInfo->pendingDriver;
@@ -1476,15 +1455,13 @@ mlir::LogicalResult lowerCallOp(nsl::dialect::CallOp callOp,
     validSrc = condGate;
   } else {
     auto oneAttr = mlir::IntegerAttr::get(i1, 1);
-    validSrc =
-        circt::hw::ConstantOp::create(builder, loc, oneAttr).getResult();
+    validSrc = circt::hw::ConstantOp::create(builder, loc, oneAttr).getResult();
   }
-  auto validName =
-      builder.getStringAttr((callOp.getCallee().str() + "_valid"));
+  auto validName = builder.getStringAttr((callOp.getCallee().str() + "_valid"));
   auto wire = circt::hw::WireOp::create(builder, loc, validSrc,
-                                          /*name=*/validName,
-                                          /*innerSym=*/
-                                          circt::hw::InnerSymAttr{});
+                                        /*name=*/validName,
+                                        /*innerSym=*/
+                                        circt::hw::InnerSymAttr{});
   (void)wire;
   ctx.pendingErase.push_back(callOp);
   return mlir::success();
@@ -1500,10 +1477,10 @@ mlir::LogicalResult lowerControlOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
   mlir::OpBuilder::InsertionGuard g(builder);
   mlir::Operation *insertAnchor = op;
   for (auto *p = op->getParentOp(); p; p = p->getParentOp()) {
-    if (llvm::isa<nsl::dialect::AltOp, nsl::dialect::AnyOp,
-                  nsl::dialect::IfOp, nsl::dialect::CaseOp,
-                  nsl::dialect::DefaultOp, nsl::dialect::ParallelOp,
-                  nsl::dialect::SeqOp, nsl::dialect::FuncOp>(p)) {
+    if (llvm::isa<nsl::dialect::AltOp, nsl::dialect::AnyOp, nsl::dialect::IfOp,
+                  nsl::dialect::CaseOp, nsl::dialect::DefaultOp,
+                  nsl::dialect::ParallelOp, nsl::dialect::SeqOp,
+                  nsl::dialect::FuncOp>(p)) {
       insertAnchor = p;
     } else {
       break;
@@ -1527,20 +1504,20 @@ mlir::LogicalResult lowerControlOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
     return mlir::success();
   }
   // Arith / bit-op family.
-  if (llvm::isa<nsl::dialect::AddOp, nsl::dialect::SubOp,
-                nsl::dialect::MulOp, nsl::dialect::AndOp, nsl::dialect::OrOp,
-                nsl::dialect::XorOp, nsl::dialect::ShlOp, nsl::dialect::ShrOp,
-                nsl::dialect::EqOp, nsl::dialect::NeOp, nsl::dialect::LtOp,
-                nsl::dialect::LeOp, nsl::dialect::GtOp, nsl::dialect::GeOp,
-                nsl::dialect::LandOp, nsl::dialect::LorOp>(op)) {
+  if (llvm::isa<nsl::dialect::AddOp, nsl::dialect::SubOp, nsl::dialect::MulOp,
+                nsl::dialect::AndOp, nsl::dialect::OrOp, nsl::dialect::XorOp,
+                nsl::dialect::ShlOp, nsl::dialect::ShrOp, nsl::dialect::EqOp,
+                nsl::dialect::NeOp, nsl::dialect::LtOp, nsl::dialect::LeOp,
+                nsl::dialect::GtOp, nsl::dialect::GeOp, nsl::dialect::LandOp,
+                nsl::dialect::LorOp>(op)) {
     return lowerArithOp(op, ctx, builder);
   }
-  if (llvm::isa<nsl::dialect::NotOp, nsl::dialect::NegOp,
-                nsl::dialect::LnotOp, nsl::dialect::ReduceAndOp,
-                nsl::dialect::ReduceOrOp, nsl::dialect::ReduceXorOp,
-                nsl::dialect::SignExtendOp, nsl::dialect::ZeroExtendOp,
-                nsl::dialect::MuxOp, nsl::dialect::ConcatOp,
-                nsl::dialect::ExtractOp, nsl::dialect::RepeatOp>(op)) {
+  if (llvm::isa<nsl::dialect::NotOp, nsl::dialect::NegOp, nsl::dialect::LnotOp,
+                nsl::dialect::ReduceAndOp, nsl::dialect::ReduceOrOp,
+                nsl::dialect::ReduceXorOp, nsl::dialect::SignExtendOp,
+                nsl::dialect::ZeroExtendOp, nsl::dialect::MuxOp,
+                nsl::dialect::ConcatOp, nsl::dialect::ExtractOp,
+                nsl::dialect::RepeatOp>(op)) {
     return lowerBitOp(op, ctx, builder);
   }
   // Transfer ops.
@@ -1565,8 +1542,7 @@ mlir::LogicalResult lowerControlOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
   }
   // Parallel: a transparent par-block. Lower its children in order.
   if (auto par = llvm::dyn_cast<nsl::dialect::ParallelOp>(op)) {
-    for (auto &c :
-         llvm::make_early_inc_range(par.getBody().front())) {
+    for (auto &c : llvm::make_early_inc_range(par.getBody().front())) {
       if (mlir::failed(lowerControlOp(&c, ctx, builder, condGate))) {
         return mlir::failure();
       }
@@ -1579,8 +1555,7 @@ mlir::LogicalResult lowerControlOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
   // they participate in the outer mux chain. Func's symbol lives on
   // for callee-lookup.
   if (auto fn = llvm::dyn_cast<nsl::dialect::FuncOp>(op)) {
-    for (auto &c :
-         llvm::make_early_inc_range(fn.getBody().front())) {
+    for (auto &c : llvm::make_early_inc_range(fn.getBody().front())) {
       if (mlir::failed(lowerControlOp(&c, ctx, builder, condGate))) {
         return mlir::failure();
       }
@@ -1593,11 +1568,10 @@ mlir::LogicalResult lowerControlOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
   // If we encounter one of THOSE here it was nested inside a control
   // container, which is also fine — but they should already have
   // been visited at the outer body walk.
-  if (llvm::isa<nsl::dialect::RegOp, nsl::dialect::WireOp,
-                nsl::dialect::MemOp, nsl::dialect::SubmoduleOp,
-                nsl::dialect::ProcOp, nsl::dialect::FuncInOp,
-                nsl::dialect::FuncOutOp, nsl::dialect::FuncSelfOp,
-                nsl::dialect::FirstStateOp,
+  if (llvm::isa<nsl::dialect::RegOp, nsl::dialect::WireOp, nsl::dialect::MemOp,
+                nsl::dialect::SubmoduleOp, nsl::dialect::ProcOp,
+                nsl::dialect::FuncInOp, nsl::dialect::FuncOutOp,
+                nsl::dialect::FuncSelfOp, nsl::dialect::FirstStateOp,
                 nsl::dialect::StateOp>(op)) {
     return mlir::success();
   }
@@ -1620,9 +1594,8 @@ mlir::LogicalResult lowerControlOp(mlir::Operation *op, ModuleLoweringCtx &ctx,
   // a parent control op iterating its children with
   // `make_early_inc_range` may surface previously-emitted CIRCT
   // ops that happen to live in the same block).
-  if (op->getDialect() &&
-      op->getDialect()->getNamespace() ==
-          nsl::dialect::NSLDialect::getDialectNamespace()) {
+  if (op->getDialect() && op->getDialect()->getNamespace() ==
+                              nsl::dialect::NSLDialect::getDialectNamespace()) {
     return op->emitError()
            << "unhandled nsl op in lowerControlOp dispatch: '"
            << op->getName().getStringRef()
@@ -1642,8 +1615,9 @@ mlir::LogicalResult lowerSimInitOp(nsl::dialect::SimInitOp simInit,
                                    ModuleLoweringCtx &ctx,
                                    mlir::OpBuilder &builder);
 
-mlir::LogicalResult lowerSimOpsInside(mlir::Block &block, ModuleLoweringCtx &ctx,
-                                       mlir::OpBuilder &builder);
+mlir::LogicalResult lowerSimOpsInside(mlir::Block &block,
+                                      ModuleLoweringCtx &ctx,
+                                      mlir::OpBuilder &builder);
 
 mlir::LogicalResult lowerSimDisplayOp(nsl::dialect::SimDisplayOp dis,
                                       ModuleLoweringCtx &ctx,
@@ -1657,8 +1631,7 @@ mlir::LogicalResult lowerSimDisplayOp(nsl::dialect::SimDisplayOp dis,
     mapped.push_back(lookupValue(ctx, v));
   }
   circt::sv::FWriteOp::create(builder, loc, fd,
-                                builder.getStringAttr(dis.getFormat()),
-                                mapped);
+                              builder.getStringAttr(dis.getFormat()), mapped);
   ctx.pendingErase.push_back(dis);
   return mlir::success();
 }
@@ -1685,8 +1658,8 @@ mlir::LogicalResult lowerSimDelayOp(nsl::dialect::SimDelayOp del,
 }
 
 mlir::LogicalResult lowerSimOpsInside(mlir::Block &block,
-                                       ModuleLoweringCtx &ctx,
-                                       mlir::OpBuilder &builder) {
+                                      ModuleLoweringCtx &ctx,
+                                      mlir::OpBuilder &builder) {
   for (auto &op : llvm::make_early_inc_range(block)) {
     if (auto dis = llvm::dyn_cast<nsl::dialect::SimDisplayOp>(&op)) {
       if (mlir::failed(lowerSimDisplayOp(dis, ctx, builder))) {
@@ -1730,8 +1703,8 @@ mlir::LogicalResult lowerSimInitOp(nsl::dialect::SimInitOp simInit,
 
 /// Lower a top-level (module-direct) sim op into the sim ifdef.
 mlir::LogicalResult lowerTopLevelSimOp(mlir::Operation *op,
-                                        ModuleLoweringCtx &ctx,
-                                        mlir::OpBuilder &builder) {
+                                       ModuleLoweringCtx &ctx,
+                                       mlir::OpBuilder &builder) {
   auto loc = op->getLoc();
   // sim_display / sim_finish / sim_delay at module top-level go
   // inside the ifdef directly (as procedural ops they'd need an
@@ -1881,21 +1854,18 @@ void finaliseWires(ModuleLoweringCtx &ctx, mlir::OpBuilder &builder) {
       // consumers) see a defined value. The zero constant is
       // inserted immediately before the wire op.
       mlir::OpBuilder::InsertionGuard g(builder);
-      auto *terminator =
-          ctx.hwModuleOp.getBodyBlock()->getTerminator();
+      auto *terminator = ctx.hwModuleOp.getBodyBlock()->getTerminator();
       builder.setInsertionPoint(terminator);
       auto loc = wi.loc.value_or(ctx.hwModuleOp.getLoc());
       auto zAttr = mlir::IntegerAttr::get(wi.intType, 0);
-      auto z = circt::hw::ConstantOp::create(builder, loc, zAttr)
-                   .getResult();
+      auto z = circt::hw::ConstantOp::create(builder, loc, zAttr).getResult();
       auto nameAttr = builder.getStringAttr(wi.name);
-      wi.hwWireOp = circt::hw::WireOp::create(
-          builder, loc, z, /*name=*/nameAttr,
-          /*innerSym=*/circt::hw::InnerSymAttr{});
+      wi.hwWireOp =
+          circt::hw::WireOp::create(builder, loc, z, /*name=*/nameAttr,
+                                    /*innerSym=*/circt::hw::InnerSymAttr{});
     } else {
       mlir::OpBuilder::InsertionGuard g(builder);
-      auto *terminator =
-          ctx.hwModuleOp.getBodyBlock()->getTerminator();
+      auto *terminator = ctx.hwModuleOp.getBodyBlock()->getTerminator();
       builder.setInsertionPoint(terminator);
       auto loc = wi.loc.value_or(ctx.hwModuleOp.getLoc());
       auto nameAttr = builder.getStringAttr(wi.name);
@@ -1936,7 +1906,7 @@ void finaliseRegs(ModuleLoweringCtx &ctx) {
   for (auto &kv : ctx.regs) {
     auto &info = kv.second;
     mlir::Operation *regOp = info.firRegOp ? info.firRegOp.getOperation()
-                                              : info.compRegOp.getOperation();
+                                           : info.compRegOp.getOperation();
     if (!regOp) {
       continue;
     }
@@ -1979,8 +1949,7 @@ mlir::LogicalResult lowerOneModule(nsl::dialect::ModuleOp moduleOp,
   circt::hw::ModulePortInfo ports(portInfos);
 
   // Step 2: hw.module creation.
-  auto parentModuleOp =
-      llvm::cast<mlir::ModuleOp>(moduleOp->getParentOp());
+  auto parentModuleOp = llvm::cast<mlir::ModuleOp>(moduleOp->getParentOp());
   mlir::ArrayAttr declaredParams =
       collectInstanceParameters(parentModuleOp, builder);
   builder.setInsertionPoint(moduleOp);
@@ -1994,8 +1963,7 @@ mlir::LogicalResult lowerOneModule(nsl::dialect::ModuleOp moduleOp,
   bool ifaceClk = declareOp && declareOp.getInterfaceClock().has_value();
   bool ifaceRst = declareOp && declareOp.getInterfaceReset().has_value();
   ctx.hasInterface = ifaceClk && ifaceRst;
-  llvm::SmallVector<std::pair<llvm::StringRef, mlir::Value>, 8>
-      inputBindings;
+  llvm::SmallVector<std::pair<llvm::StringRef, mlir::Value>, 8> inputBindings;
   {
     mlir::Block *entry = hwModuleOp.getBodyBlock();
     unsigned argIdx = 0;
@@ -2073,24 +2041,20 @@ mlir::LogicalResult lowerOneModule(nsl::dialect::ModuleOp moduleOp,
       collectInstanceParameters(parentModuleOp, builder);
   // Pre-process: handle submodule first (these don't depend on any
   // body data values; defer them to be sequentially handled).
-  for (auto &op :
-       llvm::make_early_inc_range(*hwModuleOp.getBodyBlock())) {
+  for (auto &op : llvm::make_early_inc_range(*hwModuleOp.getBodyBlock())) {
     if (auto sub = llvm::dyn_cast<nsl::dialect::SubmoduleOp>(&op)) {
-      auto target =
-          parentModuleOp.lookupSymbol<circt::hw::HWModuleOp>(
-              sub.getTemplateRef());
+      auto target = parentModuleOp.lookupSymbol<circt::hw::HWModuleOp>(
+          sub.getTemplateRef());
       if (!target) {
-        sub.emitError()
-            << "submodule target @" << sub.getTemplateRef()
-            << " not yet lowered to hw.module";
+        sub.emitError() << "submodule target @" << sub.getTemplateRef()
+                        << " not yet lowered to hw.module";
         return mlir::failure();
       }
       mlir::OpBuilder::InsertionGuard g(builder);
       builder.setInsertionPoint(&op);
       llvm::SmallVector<mlir::Value, 0> emptyInputs;
       circt::hw::InstanceOp::create(
-          builder, sub.getLoc(), target.getOperation(),
-          sub.getSymNameAttr(),
+          builder, sub.getLoc(), target.getOperation(), sub.getSymNameAttr(),
           llvm::ArrayRef<mlir::Value>(emptyInputs), instanceParams);
       sub.erase();
     }
@@ -2189,8 +2153,7 @@ mlir::LogicalResult lowerOneModule(nsl::dialect::ModuleOp moduleOp,
 
 } // namespace
 
-mlir::LogicalResult
-lowerNSLModulesToHWModules(mlir::ModuleOp parentModule) {
+mlir::LogicalResult lowerNSLModulesToHWModules(mlir::ModuleOp parentModule) {
   mlir::OpBuilder builder(parentModule);
 
   llvm::SmallVector<nsl::dialect::ModuleOp, 4> nslModules;

@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/clean_module.nsl — error-free NSL module used
+// by `DiagnosticsSuite::EmptyArrayOnClean` (T057). Per
+// `specs/010-t3-lsp-skeleton/contracts/lsp-test-harness.contract.md`
+// §3.
+
+module clean {
+  reg q[8] = 0;
+  func clk { q := q + 1; }
+}

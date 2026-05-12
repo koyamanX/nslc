@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T125 (added during /speckit-analyze remediation, finding C4):
+// numeric literal preservation per FR-011. Decimal, hex, binary,
+// NSL value literals (8'b...), and Z/X/U value literals (Z = high-
+// impedance, X = unknown, U = uninitialized) MUST all survive the
+// round-trip byte-for-byte. Until the LayoutPlanner lands and
+// reformats expressions, this is satisfied trivially by the byte-
+// passthrough emission. Once the planner lands, the lexer's
+// existing byte-fidelity (cst-shape contract §3) carries the
+// literals through unchanged.
+
+// RUN: printf 'module lit_test {\n  reg dec[8] = 42;\n  reg hex[8] = 0xFF;\n  reg bin[8] = 0b1010;\n  reg val[4] = 4'\''b1010;\n  reg zhi[4] = 4'\''bZZZZ;\n  reg unk[4] = 4'\''bXXXX;\n  reg uin[4] = 4'\''bUUUU;\n}\n' | nsl-fmt --stdin | FileCheck %s
+// CHECK: reg dec[8] = 42;
+// CHECK: reg hex[8] = 0xFF;
+// CHECK: reg bin[8] = 0b1010;
+// CHECK: reg val[4] = 4'b1010;
+// CHECK: reg zhi[4] = 4'bZZZZ;
+// CHECK: reg unk[4] = 4'bXXXX;
+// CHECK: reg uin[4] = 4'bUUUU;

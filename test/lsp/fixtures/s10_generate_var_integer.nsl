@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s10_generate_var_integer.nsl — T051 (US1).
+// S10: generate var must be 'integer'.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// violates S10.
+
+
+module m_fail {
+  reg i;
+  generate (i = 0; i < 1; i = i + 1) { }
+}

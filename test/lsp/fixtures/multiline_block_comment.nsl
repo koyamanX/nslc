@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/multiline_block_comment.nsl — multi-line
+// block comment fold; the `/* … */` pair below spans two lines.
+
+/* this comment
+   spans two lines */
+module m { }

@@ -1,0 +1,24 @@
+{
+  "_comment_top": "SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception. JSON has no comment syntax; the SPDX header rides on this top-level key per specs/010-t8-tree-sitter-grammar/research.md §9 (and the T1 precedent at editors/vscode/package.json). TypeScript build config for the T8 VS Code extension shell — drives the `npm run compile` script in editors/vscode/package.json (T041) and produces extension.js + highlight-provider.js (CommonJS, the VS Code extension-host module format). target es2020 matches Node 20 (the engines.vscode floor of ^1.84.0 ships Node 20 in its bundled extension host). strict mode on; sourceMap on so VS Code's developer tools can break in original .ts. outDir is the same directory as the sources so the folder-drop install model (T1 precedent + Q2 → Option C) ships .ts + .js + .js.map together.",
+  "compilerOptions": {
+    "target": "es2020",
+    "lib": ["es2020"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": ".",
+    "rootDir": ".",
+    "strict": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "declaration": false
+  },
+  "include": ["./*.ts"],
+  "exclude": ["node_modules", "**/*.test.ts"]
+}

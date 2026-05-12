@@ -46,8 +46,12 @@ RECIPES_BY_EXT: dict[str, tuple[str, Optional[str]]] = {
     ".py":     ("#",    None),
     ".sh":     ("#",    None),
     ".bash":   ("#",    None),
+    ".js":     ("//",   None),  # T8 hand-authored grammar.js + generated mirror
+    ".ts":     ("//",   None),  # T8 VS Code extension TypeScript shell
+    ".scm":    (";",    None),  # T8 tree-sitter highlight queries (Scheme)
     ".ebnf":   ("(*",   "*)"),
     ".nsl":    ("//",   None),
+    ".nslh":   ("//",   None),
     ".yml":    ("#",    None),
     ".yaml":   ("#",    None),
     ".toml":   ("#",    None),
@@ -83,6 +87,14 @@ AUTO_EXEMPT_BASENAMES = {
     "LICENSE",          # the project license itself
     ".keep",            # placeholder marker for empty dirs
     ".gitkeep",
+    "SPDX.NOTICE",      # T8 — companion NOTICE files documenting
+                        # license inheritance for generator-output
+                        # artefacts that cannot carry per-file SPDX
+                        # headers (per
+                        # specs/010-t8-tree-sitter-grammar/research.md
+                        # §9). The NOTICE itself MAY carry an SPDX
+                        # line on line 1 by convention but is not
+                        # subject to header validation here.
 }
 
 
@@ -112,13 +124,33 @@ def _is_syntax_test_marker(line: str) -> bool:
     return line.startswith('// SYNTAX TEST "')
 
 
+def _is_llvm_banner(line: str) -> bool:
+    """LLVM-style file-header banner — the convention used across
+    LLVM, MLIR, CIRCT, and (post-PR #18) NSL's nsl-fmt sources. The
+    banner sits on line 1 and is followed by an empty `//` line, then
+    the SPDX line, then a closing banner. Treat the banner-form line
+    like a shebang — allowed before the SPDX header. Shape variants:
+
+      //===- Filename.h - Description -----------------*- C++ -*-=//
+      //===---------------------------------------------------------===//
+
+    The first form ends with `=//` (after the mode marker
+    `*- C++ -*-`); the second form ends with `===//`. Both begin
+    with `//===` and end with `//`. The check is permissive: line
+    starts with `//===` AND ends with `//`."""
+    return line.startswith("//===") and line.rstrip().endswith("//")
+
+
 def find_recipe(path: Path) -> Optional[tuple[str, Optional[str]]]:
     name = path.name
     if name in RECIPES_BY_BASENAME:
         return RECIPES_BY_BASENAME[name]
-    # Strip `.in` template suffix: Version.h.in → look up `.h`.
+    # Strip template suffix: Version.h.in → look up `.h`;
+    # grammar.js.template → look up `.js`. Both `.in` and
+    # `.template` are project-wide template-suffix conventions
+    # (T8 introduces `.template`).
     suffixes = path.suffixes
-    if len(suffixes) >= 2 and suffixes[-1] == ".in":
+    if len(suffixes) >= 2 and suffixes[-1] in (".in", ".template"):
         return RECIPES_BY_EXT.get(suffixes[-2])
     if path.suffix in RECIPES_BY_EXT:
         return RECIPES_BY_EXT[path.suffix]
@@ -179,6 +211,7 @@ def check_one_file(
     # STARTS WITH `"_comment_top": "SPDX-License-Identifier: <id>`.
     is_json = path.suffix == ".json"
     try:
+        banner_seen = False
         with open(path, encoding="utf-8", errors="replace") as fh:
             for raw in fh:
                 line = raw.rstrip("\r\n")
@@ -189,6 +222,17 @@ def check_one_file(
                     continue
                 if _is_syntax_test_marker(line):
                     continue
+                if _is_llvm_banner(line):
+                    # LLVM banner is followed by an empty `//` filler
+                    # line. Set a flag to skip the immediately-next
+                    # stand-alone opener line.
+                    banner_seen = True
+                    continue
+                if banner_seen and stripped == opener:
+                    # The filler line after the banner — discard.
+                    banner_seen = False
+                    continue
+                banner_seen = False
                 if is_json:
                     # Skip the JSON object opener `{` (and any
                     # plain wrapper line) so the SPDX match falls

@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T124 (a/b) — non-default config: `preserve_comments =
+// "leading_only"` drops trailing line comments while keeping
+// leading block / line comments above declarations (per
+// `formatting-rules.contract.md` §6 R6 + §9 rule↔key matrix row
+// R6 ↔ `preserve_comments`).
+//
+// Default config is `preserve_comments = "all"`; this fixture
+// flips to `"leading_only"` and verifies the trailing line
+// comment is dropped while the leading block comment survives.
+//
+// T051 (this commit) implements R6 + `preserve_comments` wiring —
+// fixture flipped XFAIL→PASS.
+
+// RUN: rm -rf %t.pc && mkdir -p %t.pc
+// RUN: printf 'preserve_comments = "leading_only"\n' > %t.pc/.nsl-fmt.toml
+// RUN: printf 'module m {\n  /* leading */\n  reg q[8]; // trailing\n}\n' > %t.pc/m.nsl
+// RUN: cd %t.pc && nsl-fmt m.nsl | FileCheck %s
+
+// CHECK: /* leading */
+// CHECK-NEXT: reg q[8];
+// CHECK-NOT: // trailing

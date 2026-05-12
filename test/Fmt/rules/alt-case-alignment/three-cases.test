@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T033 — R1 alt/any case-arrow alignment per formatting-rules.contract.md §1.
+//
+// Frozen invariant: in an `alt` block with N cases, the `:`
+// separators all align to the column ONE SPACE past the longest
+// condition's last char. With three cases of varying width:
+//
+//     alt {
+//         phase == IDLE    : reg := 0;
+//         phase == RUNNING : reg := 1;
+//         phase == DONE    : reg := 2;
+//     }
+//
+// T052 (R1) made this GREEN: `lib/Fmt/LayoutPlanner.cpp` adds
+// `formatNode(AltBlock)` / `formatNode(AnyBlock)` (delegating to
+// the shared `formatCondCaseBlock` helper) plus four
+// recursion-only overrides — `FuncDefn`, `SeqBlock`,
+// `ParallelBlock` (the parser models a brace-enclosed `func`
+// body as a `ParallelBlock`, NOT a `SeqBlock`), and the existing
+// `ModuleBlock` — so the rule actually fires on a nested
+// `module > func > { alt { ... } }` shape.
+//
+// **Identifier-name workaround.** The canonical example in
+// `formatting-rules.contract.md` §1 uses `state` for the
+// case-machine variable and `reg` for the assignment target —
+// BOTH of which are reserved keywords in NSL (lang.ebnf §15).
+// The lexer produces `tk_state` / `tk_reg`, not `tk_identifier`,
+// when it sees the barewords; putting either in expression /
+// transfer-LHS position triggers a separate, pre-existing parser
+// bug that locks the parser in a recovery loop (the formatter
+// then OOM-kills under any reasonable memory budget). This
+// fixture works around the bug by substituting `phase` (for
+// `state`) and `q` (for `reg`); both are plain identifiers. The
+// R1 rule itself is unchanged — alignment math is
+// identifier-agnostic. Restoring the canonical spellings here
+// will be safe once the keyword-as-identifier parser bug is
+// fixed.
+
+// RUN: echo 'module m { func f { alt { phase == IDLE : q := 0; phase == RUNNING : q := 1; phase == DONE : q := 2; } } }' | nsl-fmt --stdin | FileCheck %s
+// CHECK: phase == IDLE    :
+// CHECK: phase == RUNNING :
+// CHECK: phase == DONE    :

@@ -65,9 +65,13 @@ readonly REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # surface to lib/Driver (per specs/011-m7-driver-e2e/tasks.md T019)
 # because M7 adds new TUs there (EmitVerilog.cpp, RunCIRCTPasses.cpp)
 # whose Verilog-bytes output must be byte-deterministic per FR-005.
+# T2 Phase 2c (T028) further extended to `lib/Fmt/` — the formatter
+# is a deterministic stage (same source bytes + same config + same
+# flags ⇒ same output bytes).
 readonly LOWER_ROOT="${REPO_ROOT}/lib/Lower"
 readonly DRIVER_ROOT="${REPO_ROOT}/lib/Driver"
-readonly AUDIT_ROOTS=("${LOWER_ROOT}" "${DRIVER_ROOT}")
+readonly FMT_ROOT="${REPO_ROOT}/lib/Fmt"
+readonly AUDIT_ROOTS=("${LOWER_ROOT}" "${DRIVER_ROOT}" "${FMT_ROOT}")
 
 QUIET=0
 VERBOSE=0
@@ -91,6 +95,10 @@ for root in "${AUDIT_ROOTS[@]}"; do
     exit 2
   fi
 done
+
+# `lib/Fmt/` is allowed to be absent (during early scaffolding
+# when this script runs against an old commit) — only enforce its
+# scan when the directory exists.
 
 # -----------------------------------------------------------------------------
 # Forbidden patterns table (research.md §13)
@@ -137,27 +145,35 @@ declare -A RATIONALE=(
 FAIL=0
 TOTAL_MATCHES=0
 
+# Scan roots: lib/Lower (M5 origin), lib/Fmt (T2 Phase 2c onward).
+# `lib/Fmt/` is conditional — see existence guard above.
+SCAN_ROOTS=("${LOWER_ROOT}")
+if [[ -d "${FMT_ROOT}" ]]; then
+  SCAN_ROOTS+=("${FMT_ROOT}")
+fi
+
 for pattern in "${FORBIDDEN[@]}"; do
-  detail "scanning lib/Lower/ + lib/Driver/ for: ${pattern}"
-  # `--include` keeps us on translation-unit and header source only;
-  # `--exclude-dir build` defends against an accidental in-tree build.
-  # M7 (T019): scan both lib/Lower (M5/M6 origin) and lib/Driver
-  # (M7 new TUs: EmitVerilog.cpp, RunCIRCTPasses.cpp).
-  if matches="$(grep -rEn \
-      --include='*.cpp' --include='*.h' \
-      --include='*.cc' --include='*.hpp' \
-      --exclude-dir=build \
-      "${pattern}" "${AUDIT_ROOTS[@]}" 2>/dev/null)"; then
-    if [[ -n "${matches}" ]]; then
-      printf '[audit_determinism] FORBIDDEN PATTERN: %s\n' "${pattern}" >&2
-      printf '%s\n' "${matches}" >&2
-      printf '  rationale: %s\n' "${RATIONALE[${pattern}]}" >&2
-      printf '\n' >&2
-      n="$(printf '%s\n' "${matches}" | grep -c .)"
-      TOTAL_MATCHES=$(( TOTAL_MATCHES + n ))
-      FAIL=1
+  for root in "${AUDIT_ROOTS[@]}"; do
+    detail "scanning ${root#${REPO_ROOT}/} for: ${pattern}"
+    # `--include` keeps us on translation-unit and header source only;
+    # `--exclude-dir build` defends against an accidental in-tree build.
+    if matches="$(grep -rEn \
+        --include='*.cpp' --include='*.h' \
+        --include='*.cc' --include='*.hpp' \
+        --exclude-dir=build \
+        "${pattern}" "${root}" 2>/dev/null)"; then
+      if [[ -n "${matches}" ]]; then
+        printf '[audit_determinism] FORBIDDEN PATTERN: %s (in %s)\n' \
+          "${pattern}" "${root#${REPO_ROOT}/}" >&2
+        printf '%s\n' "${matches}" >&2
+        printf '  rationale: %s\n' "${RATIONALE[${pattern}]}" >&2
+        printf '\n' >&2
+        n="$(printf '%s\n' "${matches}" | grep -c .)"
+        TOTAL_MATCHES=$(( TOTAL_MATCHES + n ))
+        FAIL=1
+      fi
     fi
-  fi
+  done
 done
 
 # -----------------------------------------------------------------------------
@@ -165,7 +181,11 @@ done
 # -----------------------------------------------------------------------------
 
 if (( FAIL == 0 )); then
-  log "OK: zero forbidden patterns in lib/Lower/ + lib/Driver/ (${#FORBIDDEN[@]} pattern(s) scanned)"
+  scanned_summary="lib/Lower/ + lib/Driver/"
+  if [[ -d "${FMT_ROOT}" ]]; then
+    scanned_summary="${scanned_summary} + lib/Fmt/"
+  fi
+  log "OK: zero forbidden patterns in ${scanned_summary} (${#FORBIDDEN[@]} pattern(s) scanned)"
   exit 0
 fi
 

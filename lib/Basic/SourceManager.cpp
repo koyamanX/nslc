@@ -13,6 +13,7 @@
 #include "llvm/Support/ErrorOr.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
@@ -90,6 +91,13 @@ public:
     FileID included;
   };
   std::vector<IncludeFrame> include_stack;
+
+  // Permanent record of "this FileID was first pulled in by an
+  // `#include` at this location" — used by post-preprocessing
+  // consumers (Sema, MLIR, LSP) for FR-026 include-from notes.
+  // Indexed by `FileID::raw()`; entries default to invalid
+  // SourceLocation. FileIDs are bounded to [0, 255] per data-model.
+  std::array<SourceLocation, 256> permanent_include_sites;
 
   Impl() {
     // Seat the index-0 sentinel.
@@ -270,6 +278,16 @@ void SourceManager::pushIncludeFrame(SourceLocation include_directive_loc,
                                      FileID included) {
   impl_->include_stack.push_back(
       Impl::IncludeFrame{include_directive_loc, included});
+  // Permanent record (FR-026 post-preprocessing queries). The
+  // first-seen include site wins on the unlikely case that the
+  // same FileID is re-pushed; in practice `loadFile` is idempotent
+  // and a file is only re-included after an intervening pop.
+  if (included.isValid()) {
+    auto &slot = impl_->permanent_include_sites[included.raw()];
+    if (!slot.isValid()) {
+      slot = include_directive_loc;
+    }
+  }
 }
 
 void SourceManager::popIncludeFrame() {
@@ -295,6 +313,44 @@ std::vector<SourceLocation> SourceManager::getIncludeStackFor(FileID f) const {
       continue;
     }
     out.push_back(it->include_directive_loc);
+  }
+  return out;
+}
+
+FileID SourceManager::findFileIDByPath(llvm::StringRef path) const {
+  // Skip the index-0 sentinel.
+  for (size_t i = 1; i < impl_->buffers.size(); ++i) {
+    const auto &buf = impl_->buffers[i];
+    if (buf && buf->path == path) {
+      return FileID(static_cast<uint8_t>(i));
+    }
+  }
+  return {};
+}
+
+std::vector<SourceLocation>
+SourceManager::getOriginalIncludeStackFor(FileID f) const {
+  // Walk the permanent include-site map upward from `f` until we
+  // hit a file that was not registered as included (i.e., the root
+  // input). Innermost first, matching `getIncludeStackFor`'s order.
+  std::vector<SourceLocation> out;
+  FileID cursor = f;
+  // Bound the walk by the buffer count to avoid pathological loops
+  // in the unlikely event the permanent map ever forms a cycle.
+  for (size_t i = 0; i < impl_->buffers.size(); ++i) {
+    if (!cursor.isValid()) {
+      break;
+    }
+    SourceLocation site = impl_->permanent_include_sites[cursor.raw()];
+    if (!site.isValid()) {
+      break;
+    }
+    out.push_back(site);
+    FileID parent = site.file();
+    if (parent == cursor) {
+      break;
+    }
+    cursor = parent;
   }
   return out;
 }

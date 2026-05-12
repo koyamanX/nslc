@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s05_funcin_return_dir.nsl — T051 (US1).
+// S5: func_in return-terminal direction.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// `func_in` return-value terminal must be `output` or `inout`; an
+// `input` here violates S5.
+
+
+declare d {
+  input a;
+  func_in start() : a;
+}

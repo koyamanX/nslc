@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T101: `indent = "potato"` (known key, unknown enum value)
+// aborts with exit 2 + the frozen "must be" diagnostic on stderr
+// (FR-016 — silently using a default would hide the user's
+// mistake).
+
+// RUN: printf 'indent = "potato"\n' > %t.toml
+// RUN: printf 'module foo {}\n' > %t.nsl
+// RUN: sh -c 'nsl-fmt --config %t.toml %t.nsl > /dev/null 2> %t.err; test $? -eq 2'
+// RUN: FileCheck %s < %t.err
+// CHECK: error: configuration value for 'indent' must be

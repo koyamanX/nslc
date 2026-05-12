@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T121 — non-default config: `brace_style = "allman"` opens `{`
+// on its own line for every block whose canonical layout the
+// formatter controls (currently `struct`, `alt`, `any`).
+//
+// **Scope note**: this fixture only exercises the blocks the
+// LayoutPlanner formats canonically. `module`, `func`, `proc`,
+// `seq`, `par` etc. still use the verbatim-fallback layout
+// (parent `interleaveChildren` preserving source-shape gaps), so
+// their brace style is whatever the source had — `brace_style`
+// has no effect on them yet. Closing that gap requires landing
+// canonical-layout overrides for each container, which is T055
+// (the ~25-visitor implementation push). The `align_struct`
+// and `align_case_arrows` toggles are independent of brace_style
+// and are still respected here.
+
+// RUN: rm -rf %t.allman && mkdir -p %t.allman
+// RUN: printf 'brace_style = "allman"\n' > %t.allman/.nsl-fmt.toml
+// RUN: printf 'struct s { aaa[8]; bb[16]; };\n' > %t.allman/s.nsl
+// RUN: cd %t.allman && nsl-fmt s.nsl | FileCheck %s --check-prefix=STRUCT
+//
+// Expected struct output (Allman): keyword on line 1, brace on
+// its own line 2, body on lines 3–4, close on line 5.
+//
+// STRUCT:      struct s
+// STRUCT-NEXT: {
+// STRUCT-NEXT: aaa [8];
+// STRUCT-NEXT: bb  [16];
+// STRUCT-NEXT: };
+
+// And the alt/any block:
+
+// RUN: printf 'module m { alt { a == b : c := 0; d == e : f := 1; } }\n' > %t.allman/m.nsl
+// RUN: cd %t.allman && nsl-fmt m.nsl | FileCheck %s --check-prefix=ALT
+//
+// In Allman mode the `alt` keyword and its `{` go on separate
+// lines. The leading `module m { ` text is verbatim-emitted by
+// the parent (verbatim path doesn't honor brace_style — see
+// scope note above), so the `alt`-line position depends on
+// whether the source put it on its own line. The CHECK below is
+// just looking for the keyword/brace split.
+//
+// ALT:      alt
+// ALT-NEXT: {
+// ALT:      }

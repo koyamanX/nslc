@@ -47,6 +47,7 @@
 #include "nsl/AST/ProcDefn.h"
 #include "nsl/AST/ProcNameDecl.h"
 #include "nsl/AST/RegDecl.h"
+#include "nsl/AST/RepeatExpr.h"
 #include "nsl/AST/SeqBlock.h"
 #include "nsl/AST/SignExtendExpr.h"
 #include "nsl/AST/SliceExpr.h"
@@ -1356,8 +1357,67 @@ mlir::Value ASTToMLIR::lowerExpr(const ast::Expr *expr, mlir::Type typeHint) {
     return nsl::dialect::FieldOp::create(builder_, loc, field_ty, obj_val, idx)
         .getResult();
   }
-  // Other expression-position kinds (Repeat/Call/IncDec/SystemVar) —
-  // T055.
+  if (expr->kind() == ast::RepeatExpr::kKind) {
+    // FR-007 row "RepeatExpr → nsl.repeat". NSL `N{a}` per §11 line
+    // 700: operand `a` is repeated `N` times left-to-right, result
+    // width is `N × operand_width`. Per S15, `N` is a compile-time
+    // constant — at the AST level that's a `LiteralExpr` decimal or
+    // an `IdentifierExpr` referring to a `param_int` (resolved
+    // eagerly via `paramTable_`, mirroring `visit(StructuralGenerate)`'s
+    // bound-resolution policy so the count lands as a literal
+    // `I64Attr` and `NSLResolveParamsPass` has no work to do here).
+    //
+    // Compile-time helpers (`_int(...)`, `_pow(...)`, etc., per
+    // pp.ebnf §3) are already substituted to a literal by the M1
+    // preprocessor by the time we see them here, so they reach this
+    // path as `LiteralExpr` Decimal — the literal-arm covers them.
+    //
+    // Soft-fail per FR-010 if either:
+    //   - the count is neither a decimal literal nor a known param
+    //     (Sema-clean inputs would have flagged it upstream);
+    //   - the body fails to lower (downstream gap);
+    //   - the count is < 1 (the M4 `RepeatOp::verify` would reject it
+    //     anyway — bail at the visitor to keep the partial IR clean).
+    const auto *rep = static_cast<const ast::RepeatExpr *>(expr);
+    int64_t count = 0;
+    const auto *count_expr = rep->count();
+    if (count_expr) {
+      if (count_expr->kind() == ast::LiteralExpr::kKind) {
+        count = resolveDecimalLiteral(count_expr);
+      } else if (count_expr->kind() == ast::IdentifierExpr::kKind) {
+        const auto *ident =
+            static_cast<const ast::IdentifierExpr *>(count_expr);
+        const auto &parts = ident->name().parts;
+        if (parts.size() == 1) {
+          auto it = paramTable_.find(parts.front());
+          if (it != paramTable_.end()) {
+            count = it->second;
+          }
+        }
+      }
+    }
+    if (count < 1) {
+      return {};
+    }
+    auto body_val = lowerExpr(rep->body());
+    if (!body_val) {
+      return {};
+    }
+    auto operand_bits =
+        mlir::dyn_cast<nsl::dialect::BitsType>(body_val.getType());
+    if (!operand_bits) {
+      return {};
+    }
+    uint64_t result_width =
+        static_cast<uint64_t>(count) * operand_bits.getWidth();
+    auto result_ty =
+        nsl::dialect::BitsType::get(&ctx_, static_cast<unsigned>(result_width));
+    auto loc = builder_.getUnknownLoc();
+    return nsl::dialect::RepeatOp::create(builder_, loc, result_ty, body_val,
+                                          builder_.getI64IntegerAttr(count))
+        .getResult();
+  }
+  // Other expression-position kinds (Call/IncDec/SystemVar) — T055.
   return {};
 }
 
@@ -1374,6 +1434,14 @@ void ASTToMLIR::visit(const ast::LiteralExpr &node) {
 void ASTToMLIR::visit(const ast::IdentifierExpr &node) {
   // Visitor entry-point form (cf. `visit(LiteralExpr)`). Pure value
   // — no IR emitted at the current insertion point.
+  (void)lowerExpr(&node);
+}
+
+void ASTToMLIR::visit(const ast::RepeatExpr &node) {
+  // Visitor entry-point form (cf. `visit(LiteralExpr)`). RepeatExpr
+  // is `Pure`, so direct statement-position visits are no-ops; real
+  // lowering happens via `lowerExpr` from a containing transfer /
+  // arg / etc.
   (void)lowerExpr(&node);
 }
 
@@ -2105,7 +2173,6 @@ STUB(LabeledStmt)
 STUB(GotoStmt)
 
 STUB(SystemVarExpr)
-STUB(RepeatExpr)
 STUB(CallExpr)
 STUB(IncDecExpr)
 

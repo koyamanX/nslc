@@ -112,22 +112,33 @@ fixtures inherit M5's golden-comparison form.
 
 ## §5. Stdin / stdout / pipe support
 
-- **Stdin (`nslc -emit=hw -`)**: **DEFERRED at M6** to a follow-on
-  driver patch. The original contract claimed stdin support to
-  match `-emit=tokens` / `-emit=ast` / `-emit=mlir` from M3/M5,
-  but `tools/nslc/main.cpp` does not yet recognise `-` as a
-  stdin marker for `-emit=hw`. The corresponding test fixture
-  `test/Lower/circt/round_trip/stdin_pipe.test` (T139) is
-  XFAIL'd until the driver-side patch lands. Full stdin support
-  is M7 scope (where `nsl-driver` wraps `nslc` and standardises
-  pipeline-shape behaviours); a smaller post-M6 PR may close the
-  gap earlier. PR #14 review-#4 fix: contract aligned with
-  current behaviour.
-- Output goes to stdout when `-o` is not specified (this works
-  today and is exercised by every Phase-4–7 fixture).
+- **Stdin (`nslc -emit=hw -`)**: **SUPPORTED** (post-M6 follow-on
+  PR; T139 fixture flipped XFAIL → PASS). `tools/nslc/main.cpp`
+  recognises `-` as a stdin marker for every `-emit=<stage>` —
+  the four distinct emission paths `tokens` / `ast` / `mlir` /
+  `hw` (with `circt` as the alias for `hw` per §1, so the
+  dispatch arm count is 4 even though there are 5 accepted
+  stage spellings). Implementation strategy: stdin is slurped
+  into a temp file (`mkstemp` under `$TMPDIR` or `/tmp` — empty
+  `TMPDIR` falls back to `/tmp`), the temp path is passed to
+  the emit function in lieu of the user-provided path, and an
+  `atexit` handler unlinks the temp file at process exit. The
+  emit functions themselves are unmodified — they continue to
+  call `sm.loadFile(path)` as before. Closes PR #14 review-#4
+  + the `/speckit-analyze` C2 finding.
+
+  **Known limitation**: `mkstemp` randomises the path suffix,
+  so `nslc -emit=tokens -` output (which embeds the input
+  path in each token's `(file:line:col)` annotation) varies
+  per invocation. Determinism for the stdin path requires a
+  separate refactor — plumb a stable virtual `<stdin>` label
+  through `SourceManager` rather than handing it a real
+  filesystem path. Tracked as a post-merge follow-on.
+- Output goes to stdout when `-o` is not specified (this has
+  worked since Phase 4 and is exercised by every fixture).
 - `cat input.nsl | nslc -emit=hw - | circt-opt …` is the
-  intended-but-not-yet-supported invocation; until stdin support
-  lands, the round-trip gate uses an explicit input path.
+  canonical pipe-driven invocation, exercised by
+  `test/Lower/circt/round_trip/stdin_pipe.test`.
 
 ---
 

@@ -110,8 +110,12 @@ Rule of thumb: a typical task needs **2–4 sections totaling 200–600 lines**,
 - M5 contract: `specs/008-m5-structural-passes/contracts/pass-pipeline.contract.md` §2 freezes the 6-slot pipeline (`nsl-resolve-params` → `nsl-expand-generate` → `nsl-expand-variables` → `nsl-explode-submod-array` → `nsl-inline-internal-func` (no-op slot per Q3 → Option B) → `nsl-check-semantics`)
 
 ### Implementing the LSP
-- `design/nsl_tooling_design.md` lines **105–292** (full LSP spec: features, scheduler, hover example)
+- `design/nsl_tooling_design.md` lines **105–303** (full LSP spec: T3-status banner + features + scheduler + hover example)
 - `design/nsl_tooling_design.md` lines **48–104** (CST + incremental parse — LSP needs both)
+- T3 is delivered as of 2026-05-05; the four contracts under
+  [`specs/010-t3-lsp-skeleton/contracts/`](../specs/010-t3-lsp-skeleton/contracts/)
+  freeze the wire-visible behavior. T4/T5/T9/T10 extend the
+  dispatch table in `lib/LSP/NslLSPServer.cpp`.
 
 ### Adding a lint rule
 - `design/nsl_tooling_design.md` lines **719–889** (linter architecture, rule interface, example)
@@ -304,20 +308,20 @@ amendments #9 + #10 + the M5/M6 commentary additions.
 | 360–462 | §4.2 TextMate Grammar Skeleton (JSON) |
 | 464–561 | §4.3 Tree-sitter Grammar Skeleton (JS + queries) |
 | 563–575 | §4.4 Editor Integration Matrix |
-| 578–597 | §5.1 Formatter design (opinionated, configurable) |
-| 598–664 | §5.2 Formatter Architecture (Wadler-Leijen + Doc IR) |
-| 666–701 | §5.3 NSL-Specific Formatting Rules |
-| 703–716 | §5.4 Diff-style CLI |
-| 719–752 | §6.1 Linter — Three Rule Tiers (W/S/H rules) |
-| 753–790 | §6.2 Linter Architecture |
-| 792–835 | §6.3 Rule Interface (C++) |
-| 836–859 | §6.4 Example Rule (UnusedRegRule) |
-| 861–879 | §6.5 Lint Configuration (TOML) |
-| 881–889 | §6.6 CI Integration |
-| 891–909 | §7 Cross-Tool Integration — LSP as hub |
-| 913–973 | §8 Shared Directory Layout |
-| 977–997 | §9 Milestone Plan (routing pointer to `../../README.md` §Roadmap, `../../CLAUDE.md` §2, and `../../CONTRIBUTING.md` §3.8–§3.9) |
-| 998–1015 | §10 Summary — Value Proposition |
+| 580–597 | §5.1 Formatter design (opinionated, configurable) |
+| 598–701 | §5.2 Formatter Architecture (Wadler-Leijen + Doc IR + directive-aware pre-pass) |
+| 702–738 | §5.3 NSL-Specific Formatting Rules |
+| 739–754 | §5.4 Diff-style CLI |
+| 757–788 | §6.1 Linter — Three Rule Tiers (W/S/H rules) |
+| 789–827 | §6.2 Linter Architecture |
+| 828–871 | §6.3 Rule Interface (C++) |
+| 872–896 | §6.4 Example Rule (UnusedRegRule) |
+| 897–916 | §6.5 Lint Configuration (TOML) |
+| 917–926 | §6.6 CI Integration |
+| 927–948 | §7 Cross-Tool Integration — LSP as hub |
+| 949–1012 | §8 Shared Directory Layout |
+| 1013–1033 | §9 Milestone Plan (routing pointer to `../../README.md` §Roadmap, `../../CLAUDE.md` §2, and `../../CONTRIBUTING.md` §3.8–§3.9) |
+| 1034–1051 | §10 Summary — Value Proposition |
 
 ---
 
