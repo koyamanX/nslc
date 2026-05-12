@@ -11,7 +11,7 @@ description: "Task list for M7 — `nsl-driver` end-to-end (`nslc -emit=verilog`
 **Input**: Design documents from `/specs/011-m7-driver-e2e/`
 **Prerequisites**: [`plan.md`](./plan.md) (required), [`spec.md`](./spec.md) (required for user stories), [`research.md`](./research.md), [`data-model.md`](./data-model.md), [`contracts/`](./contracts/)
 
-**Tests**: Test tasks are **MANDATORY** for this project per Constitution Principle VIII (Test-First Development, NON-NEGOTIABLE) and Principle VI (end-to-end clause is NON-NEGOTIABLE at M7 specifically). Every new TU + every audited-corpus cell lands with its fixture authored first (red-state captured); the audited-corpus regression's 14 cells are themselves the M7 acceptance gate. Tests MUST be observed FAILING before the corresponding implementation tasks begin.
+**Tests**: Test tasks are **MANDATORY** for this project per Constitution Principle VIII (Test-First Development, NON-NEGOTIABLE) and Principle VI (end-to-end clause is NON-NEGOTIABLE at M7 specifically). Every new TU + every audited-corpus cell lands with its fixture authored first (red-state captured); the audited-corpus regression's 8 cells (4 projects × 2 simulators; narrowed from originally-projected 14 per FR-009 amendment 2026-05-12) are themselves the M7 acceptance gate. Tests MUST be observed FAILING before the corresponding implementation tasks begin.
 
 **Organization**: Tasks are grouped by user story (US1–US4 from [`spec.md`](./spec.md)) to enable independent implementation and testing. US1 is the keystone (P1 — `nslc -emit=verilog` operational); US2 is P-VEN vendoring (P2); US3 is P-VCD golden VCDs (P2); US4 is the audited-corpus regression (P1 — the milestone acceptance gate). US1 + US4 together are required for M7 acceptance; US2 + US3 are prerequisites for US4.
 
@@ -113,11 +113,11 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 
 ---
 
-## Phase 4: User Story 2 — P-VEN: seven audited NSL projects vendored deterministically (Priority: P2)
+## Phase 4: User Story 2 — P-VEN: four audited NSL projects vendored deterministically (Priority: P2)
 
-**Goal**: All seven audited NSL projects are vendored under `test/audited/<project>/` with complete `PROVENANCE.md`. CI lint asserts no submodule / no FetchContent.
+**Goal**: All four audited NSL projects are vendored under `test/audited/<project>/` with complete `PROVENANCE.md`. CI lint asserts no submodule / no FetchContent.
 
-**Independent Test**: `cmake -B build-noasan -S .` (configure step) succeeds; configure-time lint asserts the seven directories exist with valid `PROVENANCE.md`; `grep -r 'submodule\|FetchContent' test/audited/ .gitmodules 2>/dev/null` returns no matches.
+**Independent Test**: `cmake -B build-noasan -S .` (configure step) succeeds; configure-time lint asserts the 4 vendored project directories exist with valid `PROVENANCE.md`; `grep -r 'submodule\|FetchContent' test/audited/ .gitmodules 2>/dev/null` returns no matches.
 
 ### Lint scaffolding (lands first, fails empty)
 
@@ -176,9 +176,9 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 
 ---
 
-## Phase 6: User Story 4 — Audited-corpus regression: all seven projects simulate equivalently under two simulators (Priority: P1)
+## Phase 6: User Story 4 — Audited-corpus regression: all 4 audited projects simulate equivalently under two simulators (Priority: P1)
 
-**Goal**: `cmake --build build-noasan --target check-audited` runs 14 cells (7 projects × 2 simulators) and ALL pass within 15 min wall-clock. This is the M7 acceptance gate (Constitution Principle VI NON-NEGOTIABLE end-to-end clause).
+**Goal**: `cmake --build build-noasan --target check-audited` runs 8 cells (4 projects × 2 simulators) and ALL pass within 15 min wall-clock. This is the M7 acceptance gate (Constitution Principle VI NON-NEGOTIABLE end-to-end clause).
 
 **Independent Test**: `cmake --build build-noasan --target check-audited` exits zero; the per-cell logs under `build-noasan/test/audited/<project>/<sim>/<scenario>.log` show successful pipeline.
 
@@ -214,7 +214,7 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 - [ ] T092 [US4] Top-level `check` target dependency wiring: amend `test/CMakeLists.txt` to add `check-audited` as a dependency of `check` so `ninja check` covers the audited regression by default.
 - [ ] T093 [US4] Reverse-test for SC-007 (load-bearing regression): on a throwaway branch, revert one M6 conversion pattern (e.g., `ArithPatterns.cpp`'s `nsl.add → comb.add` row). Verify that `check-audited` fails on at least one cell (likely a CPU project — arithmetic-heavy testbench). Restore the pattern. This is a one-time verification, not a permanent CI cell.
 
-**Checkpoint**: After T093, US4 is complete. The audited-corpus regression is the M7 acceptance gate; all 14 cells (or however many materialize from per-project scenario enumeration) PASS; load-bearing-ness verified.
+**Checkpoint**: After T093, US4 is complete. The audited-corpus regression is the M7 acceptance gate; all 8 cells (or however many materialize from per-project scenario enumeration) PASS; load-bearing-ness verified.
 
 ---
 
@@ -230,7 +230,7 @@ Single project, LLVM-style layered architecture (per [`plan.md`](./plan.md) §Pr
 - [ ] T099 [P] Run `/nsl-constitution-review` against the M7 working tree — verify all 9 principles, including the Phase 1 post-design gate from [`plan.md`](./plan.md) §Constitution Check.
 - [ ] T100 Run `/speckit-analyze` on the M7 working tree — surface any cross-artifact inconsistencies (spec ↔ plan ↔ data-model ↔ contracts ↔ tasks). Close findings in additional commits.
 - [ ] T101 Update `.specify/feature.json` and `CLAUDE.md` SPECKIT block to reflect M7's structurally-feature-complete state (the SPECKIT block was set up to point at this feature at /speckit-plan time; T101 amends the "structurally feature-complete" language).
-- [ ] T102 Final acceptance gate verification: run the full M7 lit suite via `cmake --build build-noasan --target check` (covers `check-nslc` + `check-emit-verilog` + `check-audited`). Confirm: every M6 fixture still passes (no regression), every M7-new fixture passes, all 14 audited cells PASS, wall-clock budget honored, no `--no-verify` / `--no-gpg-sign` used anywhere on the PR.
+- [ ] T102 Final acceptance gate verification: run the full M7 lit suite via `cmake --build build-noasan --target check` (covers `check-nslc` + `check-emit-verilog` + `check-audited`). Confirm: every M6 fixture still passes (no regression), every M7-new fixture passes, all 8 audited cells PASS (4 projects × 2 simulators per FR-009 amendment 2026-05-12), wall-clock budget honored, no `--no-verify` / `--no-gpg-sign` used anywhere on the PR.
 
 ---
 
@@ -338,7 +338,7 @@ After Phase 3 (US1), an internal demo of `nslc -emit=verilog` on a hand-authored
 - **US1**: `ninja -C build-noasan check-emit-verilog` exits zero; 10 fixtures PASS.
 - **US2**: `cmake -B build-noasan -S .` exits zero (configure-time lint succeeds); `grep -r 'submodule\|FetchContent' test/audited/ .gitmodules` shows no audited-corpus matches.
 - **US3**: `python3 -m unittest tools/test_vcd_diff.py` exits zero (8 cases PASS); `find test/audited -name 'REGEN.md' | xargs grep -l '^nslc' || echo "no self-referential goldens"` confirms no self-referential goldens.
-- **US4**: `cmake --build build-noasan --target check-audited` exits zero; all 14+ cells PASS within 15 min wall-clock.
+- **US4**: `cmake --build build-noasan --target check-audited` exits zero; all 8+ cells PASS within 15 min wall-clock (4 projects × 2 simulators × per-scenario multiplier).
 
 ---
 

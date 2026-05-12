@@ -15,7 +15,7 @@ policy); `container-m7.contract.md` (simulator availability)
 
 ## §1 Vendored project layout (P-VEN)
 
-Each of the seven audited projects MUST live under
+Each of the four audited projects MUST live under
 `test/audited/<project>/` with this minimum shape:
 
 ```text
@@ -79,8 +79,12 @@ Plus an optional `## Notes` H2 section for free-form annotations
 (license-header insertion, file renames, etc.).
 
 `License` MUST be in the Apache-2.0-WITH-LLVM-exception compatible
-set. Per research.md §8, the seven audited projects' licenses
-(BSD-2-Clause / MIT / Apache-2.0) are all compatible.
+set (per `cmake/CompatibleLicenses.cmake`). At M7 the four audited
+projects are vendored under explicit original-author Apache-2.0-WITH-LLVM-exception
+grants (the upstream repos have no LICENSE file at the vendored
+SHA; the original author — who is also the nslc maintainer — grants
+the compatible license for the vendored copy). Future additions
+require an LLVM-exception compatibility audit on the vendoring PR.
 
 ---
 
@@ -116,7 +120,7 @@ and asserts:
 
 | Check | Failure message |
 |---|---|
-| Each of the seven directories exists | `Missing vendored project: <name>` |
+| Each project directory in `NSL_AUDITED_PROJECTS` exists | `Missing vendored project: <name>` |
 | Each has `PROVENANCE.md` | `<project>/PROVENANCE.md missing` |
 | `PROVENANCE.md` contains required keys | `<project>/PROVENANCE.md missing required key: <key>` |
 | `Upstream-SHA` matches `^[0-9a-f]{40}$` | `<project>/PROVENANCE.md Upstream-SHA malformed` |
@@ -135,8 +139,8 @@ Failure mode: `message(FATAL_ERROR "...")` — configure aborts.
 
 `cmake/audited_corpus.cmake` defines `check-audited` with:
 
-- Dependencies: `nslc` build product + the seven vendored
-  projects + `tools/vcd_diff.py`.
+- Dependencies: `nslc` build product + the vendored audited
+  projects (4 at M7) + `tools/vcd_diff.py`.
 - Behavior: enumerates `test/audited/<project>/` directories,
   enumerates each project's `golden/*.vcd` scenarios, generates
   one lit-test instance per (project × simulator × scenario)
@@ -201,7 +205,7 @@ final summary.
 
 ## §8 New-project addition path (post-M7)
 
-Adding an 8th audited project after M7 lands is a routine PR
+Adding a new audited project (5th or beyond) after M7 lands is a routine PR
 that requires (per SC-006):
 
 1. Vendor `test/audited/<new-project>/` (sources + tb).

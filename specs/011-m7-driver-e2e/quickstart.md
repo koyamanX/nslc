@@ -149,7 +149,7 @@ Expected: all 10 fixtures from `driver-emit-verilog.contract.md` §7 pass.
 
 ## 5. Run the audited-corpus regression
 
-Prerequisite: P-VEN must be done (the seven projects vendored
+Prerequisite: P-VEN must be done (the four projects vendored
 under `test/audited/`).
 
 ```sh
@@ -239,7 +239,7 @@ you can see "what's in golden but not in emitted" and vice-versa.
 
 ## 7. Add a new audited project (post-M7, routine)
 
-Per SC-006 + audited-corpus contract §8, adding an 8th project
+Per SC-006 + audited-corpus contract §8, adding a new project (5th or beyond)
 is infra-free:
 
 ```sh

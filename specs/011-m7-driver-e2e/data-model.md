@@ -92,9 +92,9 @@ filesystem state) is unchanged from `research.md §2` and
 |---|---|
 | Owner | `lib/Driver/EmitVerilog.cpp` (NEW M7) |
 | Declared in | `include/nsl/Driver/EmitVerilog.h` (NEW M7) |
-| Signature | `int emitVerilog(llvm::StringRef input_path, const EmitTokensOptions &opts, llvm::raw_ostream &os, llvm::raw_ostream &err)` |
-| Mirrors | `nsl::driver::emitHW(...)` (M6) signature exactly |
-| Exit codes | 0=success, 1=at-least-one-error-severity-diagnostic, 3=input-file-could-not-be-opened (matches `emitHW.contract.md` §3) |
+| Signature | `int emitVerilog(llvm::StringRef input_path, llvm::StringRef output_path, const EmitTokensOptions &opts, llvm::raw_ostream &os, llvm::raw_ostream &err)` |
+| Mirrors | `nsl::driver::emitHW(...)` (M6) shape **plus a new `output_path` parameter** (post-`input_path`, pre-`opts`) — required because the `-o <path>` argument drives the Q1 → B Stdout / SingleFile / SplitDirectory dispatch in `Compilation::emit` (per `driver-emit-verilog.contract.md` §1). |
+| Exit codes | 0=success, 1=at-least-one-error-severity-diagnostic, 3=input-file-could-not-be-opened, 4=output-sink-could-not-be-created (NEW M7 — split-file `create_directories` failure path; matches `driver-emit-verilog.contract.md` §2) |
 | Buffering rule | "No partial output on error" — same as `emitHW`: bytes are buffered until completion, then written atomically to `os` |
 | Behavior | Runs the full pipeline (preprocess → lex → parse → sema → lowerToNSL → runNSLPasses → lowerToCIRCT → runCIRCTPasses → emit); calls into `Compilation` member functions for the stages it doesn't own directly |
 
@@ -104,14 +104,14 @@ filesystem state) is unchanged from `research.md §2` and
 
 | Property | Value |
 |---|---|
-| Cardinality | Exactly 7 directories at M7 acceptance: `cpu16`, `mips32_single_cycle`, `ahb_lite_nsl`, `mmcspi`, `SDRAM_Controler`, `rv32x_dev`, `turboV` |
+| Cardinality | Exactly 4 directories at M7 acceptance: `cpu16`, `mips32_single_cycle`, `ahb_lite_nsl`, `turboV` (narrowed from originally-projected 7 per FR-009 amendment 2026-05-12; the 3 dropped projects — `rv32x_dev` GPL-3.0, `mmcspi` + `SDRAM_Controler` forks — can re-enter via routine vendoring PRs once upstream licensing is resolved) |
 | Required files | `PROVENANCE.md`, one or more `.nsl` source files, `golden/` subdirectory |
-| Optional files | `tb/` (testbench) subdirectory, `tests/` (test inputs) subdirectory, `Makefile`, `README.md` |
+| Optional files | `tb/` (testbench) subdirectory OR upstream-equivalent (`sim/`, `tests/`, etc.) per upstream layout, `Makefile`, `README.md`, `simulator/` (turboV: vendored Python reference simulator) |
 | Lifecycle | Created by vendoring PR; updated by re-vendoring PR (fresh file copy, not diff) |
 | Validation | Configure-time lint via `cmake/AuditedCorpusLint.cmake` per FR-013 |
 
 State transitions: created → maintained → (re-vendored). No
-deletion path expected for the seven canonical projects;
+deletion path expected for the canonical projects;
 future additions go through their own vendoring PR.
 
 ---
@@ -250,10 +250,10 @@ emitted = "top.cpu.alu_out_w"
 | Property | Value |
 |---|---|
 | Owner | `cmake/audited_corpus.cmake` (NEW M7) under `test/audited/` |
-| Type | Custom target (depends on `nslc` build product + the seven vendored projects) |
+| Type | Custom target (depends on `nslc` build product + the vendored audited projects — 4 at M7) |
 | Invocation | `cmake --build build --target check-audited` |
 | Dependencies | `nslc` binary, the seven `test/audited/<project>/` directories, `tools/vcd_diff.py`, the M7 dev container (`:dev-m7`) with `iverilog` + `verilator` + `riscv-tests` |
-| Per-cell shape | One lit-test instance per (project, simulator, scenario) tuple — expected ~14–30 cells total |
+| Per-cell shape | One lit-test instance per (project, simulator, scenario) tuple — expected ~8–16 cells total |
 | Inclusion in `check` | Yes: top-level `check` target depends on `check-audited` (a non-zero exit fails CI) |
 
 ---

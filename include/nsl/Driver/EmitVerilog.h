@@ -23,9 +23,10 @@ namespace nsl::driver {
 /// preprocess + M1 lex + M2 parse + M3 Sema + M5 AST → `nsl`
 /// dialect lowering + M5 structural-expansion pipeline + M6
 /// `nsl` → CIRCT conversion + M7 stock-CIRCT post-processing
-/// pipeline (`createConvertFSMToSVPass` → `createLowerSeqToSVPass`
-/// → `createPrepareForEmissionPass`) + `circt::exportVerilog` /
-/// `circt::exportSplitVerilog` per the `-o` argument dispatch table.
+/// pipeline (`createConvertFSMToSVPass` → `createLowerSeqToSVPass`;
+/// `PrepareForEmission` runs internally inside `exportVerilog`
+/// per upstream `circt/Conversion/Passes.td:76`) + `circt::exportVerilog`
+/// / `circt::exportSplitVerilog` per the `-o` argument dispatch table.
 ///
 /// **Output dispatch (Q1 → B; pinned by
 /// `driver-emit-verilog.contract.md` §1)**:

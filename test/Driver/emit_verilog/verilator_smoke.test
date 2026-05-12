@@ -6,15 +6,14 @@
 // acceptance scenario #3 + driver-emit-verilog.contract.md §7
 // (verilator_smoke.test row).
 //
-// **Requires `verilator` on PATH** — present only in `:dev-m7`
-// container (per Q3 → A; container-m7.contract.md §2). Pre-image-
-// bump runs MAY UNSUPPORTED out via the REQUIRES directive once a
-// canonical `verilator-available` lit feature exists. For now,
-// expected-to-fail (directive below) pending the M7 container PR
-// (Phase 2A T006-T011), which flips this to a passing fixture
-// once Verilator is on PATH.
+// Needs `verilator` on PATH — present only in `:dev-m7`
+// container (per Q3 → A; container-m7.contract.md §2). The lit
+// feature gate below (matched by `test/lit.cfg.py`'s
+// `shutil.which('verilator')` available-features detection)
+// UNSUPPORTED-outs cleanly pre-`:dev-m7` and runs-and-asserts once
+// the container PR (Phase 2A T006-T011) lands.
 
-// XFAIL: *
+// REQUIRES: verilator
 // RUN: %nslc -emit=verilog %S/fixtures/single_module.nsl -o %t.v
 // RUN: verilator --lint-only %t.v
 

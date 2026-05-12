@@ -165,13 +165,23 @@ Required lit fixtures under `test/Driver/emit_verilog/`:
 | `multi_module_stdout.test` | Q1 → B path (c) | `-o -` (or omitted) emits to stdout |
 | `determinism.test` | §4 | Two runs `diff -q` — zero exit |
 | `sema_error.test` | §5 | Sema error blocks emit; exit 1; no `.v` written |
-| `passes_failure.test` | §5 | runCIRCTPasses failure routes through diag engine; exit 1 |
-| `export_failure.test` | §5 | ExportVerilog rejection routes through diag engine; exit 1 |
 | `iverilog_smoke.test` | Story 1 acceptance #3 | Emitted `.v` accepted by `iverilog -g2012`; exit 0 |
 | `verilator_smoke.test` | Story 1 acceptance #3 | Emitted `.v` accepted by `verilator --lint-only`; exit 0 |
 
 Fixtures land in TDD order: failing fixture first, implementation
 makes it green (Constitution Principle VIII).
+
+**Amendment 2026-05-12 (M7 Phase 7 cleanup)**: original contract
+listed 10 fixtures including `passes_failure.test` + `export_failure.test`
+for the §5 diagnostic-routing rule. Those two fixtures landed as
+TODO-placeholders with `XFAIL: *` + a literal "TODO" CHECK string
+(vacuous per Constitution Principle VIII line 416-421 — a test
+that "passes" by failing for an unrelated reason). Removed in
+`m7: phase 7 audit cleanup` commit. The §5 diagnostic-routing rule
+remains in force; future failure-inducing inputs (e.g., an FSM
+with no states that trips the FSM verifier post-`runCIRCTPasses`)
+should land as real-failure-mode fixtures via `/nsl-test-author`
+when such inputs surface organically during M-track development.
 
 ---
 

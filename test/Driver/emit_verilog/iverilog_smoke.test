@@ -6,14 +6,16 @@
 // error). spec.md User Story 1 acceptance scenario #3 +
 // driver-emit-verilog.contract.md §7 (iverilog_smoke.test row).
 //
-// **Requires `iverilog` on PATH** — verified 2026-05-12 that the
+// Needs `iverilog` on PATH — verified 2026-05-12 that the
 // existing `:dev` container does NOT include iverilog (only the
 // build toolchain + LLVM/MLIR/CIRCT). Both iverilog and Verilator
 // land via the `:dev-m7` container bump (Phase 2A T006-T011 per
-// container-m7.contract.md §2). This fixture XFAILs until that
-// container PR lands and CI pins `:dev-m7`.
+// container-m7.contract.md §2). The lit feature gate below
+// (matched by `test/lit.cfg.py`'s `shutil.which('iverilog')`
+// available-features detection) UNSUPPORTED-outs cleanly pre-
+// `:dev-m7` and runs-and-asserts once the container bumps land.
 
-// XFAIL: *
+// REQUIRES: iverilog
 // RUN: %nslc -emit=verilog %S/fixtures/single_module.nsl -o %t.v
 // RUN: iverilog -g2012 -o %t.vvp %t.v
 

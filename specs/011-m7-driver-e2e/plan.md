@@ -49,8 +49,8 @@ acceptance gate:
    goldens — Constitution Principle VI "Reference VCDs"
    sub-bullet).
 4. **Audited-corpus regression.** New CMake target `check-audited`
-   integrated into `ninja check`. For each of the seven projects ×
-   each of two simulators (Icarus Verilog + Verilator) = 14 cells,
+   integrated into `ninja check`. For each of the four projects ×
+   each of two simulators (Icarus Verilog + Verilator) = 8 cells,
    the regression: (a) invokes `nslc -emit=verilog` over the
    vendored NSL sources to populate a per-project
    `build/test/audited/<project>/verilog/` directory; (b) compiles
@@ -239,7 +239,7 @@ design.*
 | V. Inspectable, Deterministic Pipeline | **Pass** | New `-emit=verilog` flag completes the `-emit=*` staircase (Tokens → AST → NSLMLIR → HW → Verilog), giving every stage an inspectable cut. FR-005 + SC-002 + FR-024 mandate byte-identical output across two builds — the M5/M6 two-host-path `diff -q` determinism gate extends to `-emit=verilog`. The vendored Verilator + `riscv-tests` SHA pins keep the audited regression cell reproducible per Principle V's "deterministic build environment" clause. |
 | VI. Layered Test Discipline | **Pass** | This IS the milestone where the end-to-end clause (NON-NEGOTIABLE) materializes. The audited-corpus regression (Story 4 → FR-018 / FR-019) embodies it. P-VEN + P-VCD ("Delivery" + "Reference VCDs" sub-bullets) both land in scope. Self-referential goldens are blocked by FR-016's CI lint. The TWO-simulator requirement (Icarus + Verilator) materializes the sub-bullet's "independent simulator confirmation" expectation. |
 | VII. Spec ↔ Design Coupling | **Pass** | No `Sn`/`Nn`/`Pn` change at M7 → no quick-map / line-range update needed in `docs/CLAUDE.md` §5 quick-map. The Forward Roll-up in root `CLAUDE.md` §1 needs no edit (M7 entries are already inferred by README §Roadmap M7 row; the table's "Lower to CIRCT" column is already populated by M6 and M7 does not lower further within `nsl::*` — it just completes the CIRCT-side post-processing). The "Active feature" SPECKIT pointer in root `CLAUDE.md` is updated to point here (Phase 1 step 3). Docs §6 line ranges for `nsl_compiler_design.md` §11 are unchanged (M7 supplies bodies for existing signatures). |
-| VIII. Test-First Development | **Pass** | Every new TU lands with its lit fixture authored first (TDD). The `vcd_diff.py` helper lands with its `unittest` suite authored first. The audited-corpus regression's 14 cells each have their per-cell lit fixture authored before `nsl-driver` `-emit=verilog` is operational on that project — early cells initially XFAIL (recorded explicitly), turn green as the pipeline matures. The constructive-`Sn` carve-out from v1.6.0 does not apply at M7 (M7 introduces no `Sn`). |
+| VIII. Test-First Development | **Pass** | Every new TU lands with its lit fixture authored first (TDD). The `vcd_diff.py` helper lands with its `unittest` suite authored first. The audited-corpus regression's 8 cells each have their per-cell lit fixture authored before `nsl-driver` `-emit=verilog` is operational on that project — early cells initially XFAIL (recorded explicitly), turn green as the pipeline matures. The constructive-`Sn` carve-out from v1.6.0 does not apply at M7 (M7 introduces no `Sn`). |
 | IX. Continuous Integration & Delivery | **Pass** | The M0 CI matrix absorbs M7 with one addition: a new lit cell binding `check-audited`. The PARENT_IMAGE bump to `:dev-m7` lands as a self-contained leading commit on the M7 PR per Q3 → A (the publish-images workflow's PARENT_IMAGE pattern is the established mechanism). The M7 PR does NOT bump the rolling `:dev` tag — a follow-on PR does so after M7 merges, isolating the corpus-regression cell to the `:dev-m7` tag during M7's review cycle. No `--no-verify` / no `--no-gpg-sign`. Release artefact provenance (M9 territory) is out of scope. |
 
 ### Phase 1 (post-design) gate

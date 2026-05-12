@@ -5,15 +5,17 @@
 **Feature Branch**: `011-m7-driver-e2e`
 **Created**: 2026-05-11
 **Status**: Draft
-**Input**: User description: "M7 — end-to-end NSL → Verilog driver. Wire `nslc -emit=verilog input.nsl` to consume M6's nsl→CIRCT IR and produce a byte-stable Verilog file via stock CIRCT passes (`--convert-fsm-to-sv`, `--lower-seq-to-sv`, any other required prep) followed by `circt::ExportVerilog`. Two M7-gating deliverables also land in scope: P-VEN — vendor all seven audited projects (cpu16, mips32_single_cycle, ahb_lite_nsl, mmcspi, SDRAM_Controler, rv32x_dev, turboV) under `test/audited/<project>/` with `PROVENANCE.md` (URL + SHA + license per project; no git submodules, no configure-time fetches); and P-VCD — author `test/audited/<project>/golden/<scenario>.vcd` golden VCDs sourced externally (upstream NSL toolchain output for non-CPU projects; manually-authored/formal-validated for CPU projects), each with `REGEN.md`. The acceptance criterion (Principle VI NON-NEGOTIABLE): all seven audited projects compile via `nslc -emit=verilog` and simulate equivalently to their `golden/*.vcd` under both Icarus Verilog and Verilator. Principle V determinism: two builds with identical inputs/flags produce byte-identical Verilog output (verify via FileCheck case). Principle IX: no `--no-verify` bypass; all artifacts CI-built."
+**Input**: User description: "M7 — end-to-end NSL → Verilog driver. Wire `nslc -emit=verilog input.nsl` to consume M6's nsl→CIRCT IR and produce a byte-stable Verilog file via stock CIRCT passes (`--convert-fsm-to-sv`, `--lower-seq-to-sv`, any other required prep) followed by `circt::ExportVerilog`. Two M7-gating deliverables also land in scope: P-VEN — vendor all four audited projects (cpu16, mips32_single_cycle, ahb_lite_nsl, mmcspi, SDRAM_Controler, rv32x_dev, turboV) under `test/audited/<project>/` with `PROVENANCE.md` (URL + SHA + license per project; no git submodules, no configure-time fetches); and P-VCD — author `test/audited/<project>/golden/<scenario>.vcd` golden VCDs sourced externally (upstream NSL toolchain output for non-CPU projects; manually-authored/formal-validated for CPU projects), each with `REGEN.md`. The acceptance criterion (Principle VI NON-NEGOTIABLE): all four audited projects compile via `nslc -emit=verilog` and simulate equivalently to their `golden/*.vcd` under both Icarus Verilog and Verilator. Principle V determinism: two builds with identical inputs/flags produce byte-identical Verilog output (verify via FileCheck case). Principle IX: no `--no-verify` bypass; all artifacts CI-built."
 
 > **Scope interpretation.** "M7" maps to the **M7** row of
 > [`README.md`](../../README.md) §Roadmap, which delivers the
 > *demonstration moment* of the compiler track: the first
-> NSL-source-to-Verilog-bytes pipeline running against the seven
-> audited open-source NSL projects. The deliverable surface is
-> three orthogonal parts that all land on or before M7 per the
-> README's "Required Deliverables" table:
+> NSL-source-to-Verilog-bytes pipeline running against the
+> audited open-source NSL projects (the 4-project corpus at
+> M7 — see FR-009 amendment 2026-05-12 for the corpus
+> narrowing). The deliverable surface is three orthogonal
+> parts that all land on or before M7 per the README's
+> "Required Deliverables" table:
 >
 > 1. **`nsl-driver` (layer 9)** — wires the M6-output CIRCT IR to
 >    Verilog bytes. New driver flag: `nslc -emit=verilog`. New
@@ -27,11 +29,12 @@
 >    supplies the bodies. Public surface added to
 >    `include/nsl/Driver/`: `EmitVerilog.h` (1 header) mirroring the
 >    M6 `EmitHW.h` convention.
-> 2. **P-VEN (vendoring)** — seven audited projects (`cpu16`,
->    `mips32_single_cycle`, `ahb_lite_nsl`, `mmcspi`,
->    `SDRAM_Controler`, `rv32x_dev`, `turboV`) vendored under
->    `test/audited/<project>/` per the Constitution Principle VI
->    "Delivery" sub-bullet. Each project carries
+> 2. **P-VEN (vendoring)** — four audited projects
+>    (`cpu16`, `mips32_single_cycle`, `ahb_lite_nsl`, `turboV`)
+>    vendored under `test/audited/<project>/` per the
+>    Constitution Principle VI "Delivery" sub-bullet. Corpus
+>    narrowed from originally-projected 7 per FR-009 amendment
+>    (2026-05-12; license audit). Each project carries
 >    `PROVENANCE.md` recording upstream URL, commit SHA at time of
 >    vendoring, and license (must be Apache-2.0-WITH-LLVM-exception
 >    compatible). **No git submodules. No configure-time fetches.**
@@ -48,12 +51,12 @@
 > Plus one acceptance gate that joins all three:
 >
 > 4. **Audited-corpus regression** — a lit test layer that, for each
->    of the seven projects, runs `nslc -emit=verilog` over the
+>    of the four projects, runs `nslc -emit=verilog` over the
 >    project's NSL sources, simulates the result against the
 >    project's testbench under **both** Icarus Verilog and Verilator,
 >    and asserts equivalence against the project's `golden/*.vcd`.
 >    The Constitution Principle VI end-to-end clause is
->    NON-NEGOTIABLE: a change that breaks any of these seven
+>    NON-NEGOTIABLE: a change that breaks any of these
 >    regressions does not land.
 >
 > **What does NOT land at M7.** No riscv-formal integration — that
@@ -160,7 +163,7 @@ catalogued and ready for inspection.
 
 1. **Given** a fresh clone of the repository, **When** `ls test/audited/` is run, **Then** seven directories are listed: `cpu16`, `mips32_single_cycle`, `ahb_lite_nsl`, `mmcspi`, `SDRAM_Controler`, `rv32x_dev`, `turboV`.
 2. **Given** any of the seven `test/audited/<project>/` directories, **When** its `PROVENANCE.md` is read, **Then** the file contains at minimum: (a) `Upstream-URL:` line with a working URL, (b) `Upstream-SHA:` line with a 40-character hex SHA, (c) `License:` line naming a license compatible with Apache-2.0-WITH-LLVM-exception, (d) `Vendored-At:` line with an ISO-8601 date.
-3. **Given** the repository tree, **When** `grep -r 'submodule\|FetchContent\|ExternalProject' test/audited/ .gitmodules` is run (where `.gitmodules` may or may not exist), **Then** no match references any of the seven audited projects.
+3. **Given** the repository tree, **When** `grep -r 'submodule\|FetchContent\|ExternalProject' test/audited/ .gitmodules` is run (where `.gitmodules` may or may not exist), **Then** no match references any of the four audited projects.
 4. **Given** the repository, **When** the build is invoked offline (`--no-network` in container terms), **Then** the audited-corpus build succeeds — no network access is required to construct the corpus tree.
 
 ---
@@ -196,9 +199,9 @@ value: the goldens become reviewable assets independently of whether
 
 ---
 
-### User Story 4 — Audited-corpus regression: all seven projects simulate equivalently under two simulators (Priority: P1)
+### User Story 4 — Audited-corpus regression: all four projects simulate equivalently under two simulators (Priority: P1)
 
-A CI run (or a contributor running `cmake --build build --target check-audited`) executes the audited-corpus regression: for each of the seven projects, `nslc -emit=verilog` produces Verilog from the project's NSL sources; the project's testbench is compiled and simulated against the emitted Verilog under **both** Icarus Verilog and Verilator; the resulting VCD is compared against the project's `golden/*.vcd`; the comparison passes (per the equivalence criterion pinned by Clarifications Q2). All seven projects pass under both simulators.
+A CI run (or a contributor running `cmake --build build --target check-audited`) executes the audited-corpus regression: for each of the four projects, `nslc -emit=verilog` produces Verilog from the project's NSL sources; the project's testbench is compiled and simulated against the emitted Verilog under **both** Icarus Verilog and Verilator; the resulting VCD is compared against the project's `golden/*.vcd`; the comparison passes (per the equivalence criterion pinned by Clarifications Q2). All four projects pass under both simulators.
 
 **Why this priority**: This IS the M7 acceptance gate — the
 Constitution Principle VI end-to-end clause is NON-NEGOTIABLE and
@@ -211,11 +214,11 @@ pass.
 
 **Acceptance Scenarios**:
 
-1. **Given** the seven vendored audited projects and their goldens, **When** `cmake --build build --target check-audited` is run inside the dev container, **Then** each of the seven projects produces a Verilog file via `nslc -emit=verilog` that compiles cleanly under both Icarus Verilog and Verilator (zero exit code; no warnings escalated to errors).
+1. **Given** the four vendored audited projects and their goldens, **When** `cmake --build build --target check-audited` is run inside the dev container, **Then** each of the four projects produces a Verilog file via `nslc -emit=verilog` that compiles cleanly under both Icarus Verilog and Verilator (zero exit code; no warnings escalated to errors).
 2. **Given** the per-project simulator output VCD, **When** the equivalence comparison runs against `golden/*.vcd`, **Then** the comparison passes per Clarifications Q2 (semantic-equal: same `$var` signal set, same value-change-record sequence; `$date`/`$version`/`$timescale` headers ignored).
-3. **Given** a deliberate breakage of any M-track library (e.g. revert one M6 conversion pattern), **When** the audited-corpus regression runs, **Then** at least one of the seven projects fails — the regression must be *load-bearing*, not trivially-pass.
+3. **Given** a deliberate breakage of any M-track library (e.g. revert one M6 conversion pattern), **When** the audited-corpus regression runs, **Then** at least one of the four projects fails — the regression must be *load-bearing*, not trivially-pass.
 4. **Given** the regression is integrated into CI, **When** any PR runs through CI, **Then** the audited-corpus regression is part of the merge gate (Constitution Principle IX — no bypass).
-5. **Given** the seven projects, **When** the regression runs end-to-end, **Then** the total wall-clock time is bounded (target: ≤ 15 minutes inside the dev container on a standard CI runner) — slow regressions get bypassed in practice and erode Principle VI.
+5. **Given** the four projects, **When** the regression runs end-to-end, **Then** the total wall-clock time is bounded (target: ≤ 15 minutes inside the dev container on a standard CI runner) — slow regressions get bypassed in practice and erode Principle VI.
 
 ---
 
@@ -225,7 +228,7 @@ pass.
 - What happens when one simulator (Icarus or Verilator) reports a Verilog-syntax warning but the other accepts? → The regression treats both as authoritative — both must accept the emitted Verilog without warnings escalated to errors. Per-simulator-only acceptance is not "M7-passing".
 - What happens when a golden VCD's signal set is a strict superset of the simulator-emitted VCD (e.g. the upstream-NSL-toolchain golden exposes internal signals that `nslc` optimizes away)? → The semantic-equal comparison treats this as a tolerable difference: the comparison passes if the *intersection* signal set's value-change records match. The non-intersected signals are recorded in `REGEN.md` as "internal-only-on-upstream" so future maintainers know why.
 - What happens when an `nslc -emit=verilog` invocation produces Verilog that one simulator accepts and the other rejects with a hard syntax error? → Treated as a `nslc` bug, not a simulator bug: emitted Verilog MUST be acceptable to the canonical SystemVerilog-2012 / IEEE-1800-2009 subset that both simulators agree on. The regression fails the project.
-- What happens when a vendored project's license is GPL/copyleft? → P-VEN's license-compatibility check blocks the vendoring before the project lands. Resolution: the project is dropped from the corpus or relicensed by upstream consent (the seven projects on the list have already been vetted; this edge case is about future additions).
+- What happens when a vendored project's license is GPL/copyleft? → P-VEN's license-compatibility check blocks the vendoring before the project lands. Resolution: the project is dropped from the corpus or relicensed by upstream consent (the four projects on the list have already been vetted; this edge case is about future additions).
 - What happens when two consecutive `nslc -emit=verilog` invocations produce different bytes? → Treated as a hard Principle V violation: the build fails. Common root causes (and which this spec rules out): `std::unordered_map` iteration order (use deterministic containers); time-based identifiers (forbidden); environment-variable bleed (driver scrubs locale + `LC_*`); LLVM/MLIR `ValueRange` iteration with non-deterministic order (use stable sorts).
 - What happens when `-emit=verilog` is invoked with `-o -` (stdout)? → Single-file output to stdout. Useful for piping into `verilator --lint-only` or other quick checks. Per Clarifications Q1 — single-file when `-o -` or `-o <regular-file>`; split-file when `-o <directory>/`.
 
@@ -236,7 +239,7 @@ pass.
 #### Driver wiring (Story 1)
 
 - **FR-001**: The compiler driver MUST accept `-emit=verilog` as a stage flag on `nslc`. This flag corresponds to `CompileOptions::EmitKind::Verilog` (already declared in `docs/design/nsl_compiler_design.md` §11 line 1317; default emit value per line 1318). With this flag set, the pipeline runs preprocess → lex → parse → sema → lowerToNSL → runNSLPasses → lowerToCIRCT → **runCIRCTPasses → emit** (the last two are M7's deliverables); all earlier stages are M1–M6's deliverables and are not modified by M7.
-- **FR-002**: `Compilation::runCIRCTPasses` MUST invoke the stock CIRCT pass pipeline in the order pinned by `docs/design/nsl_compiler_design.md` §10 lines 1297–1301: (1) FSM → state-register/next-state lowering (vendored container's `--convert-fsm-to-sv` pass; design-doc's `circt::fsm::convertFSMToSeq` name is the same conversion — see Scope Interpretation note above), (2) `circt::seq::lowerSeqToSV`, (3) `circt::sv::prepareForEmission`. After this member function returns success, the `mlir::ModuleOp` contains only `hw`/`comb`/`sv` ops (no `nsl`, no `fsm`, no `seq` residue).
+- **FR-002**: `Compilation::runCIRCTPasses` MUST invoke the stock CIRCT pass pipeline pinned by `docs/design/nsl_compiler_design.md` §10 + `specs/011-m7-driver-e2e/contracts/circt-passes.contract.md` §1: (1) `circt::createConvertFSMToSVPass()` (FSM → state-register/next-state lowering; vendored container ships `--convert-fsm-to-sv`); (2) `circt::createLowerSeqToSVPass()`. `PrepareForEmission` is NOT invoked explicitly — it runs internally inside `circt::exportVerilog` per upstream `circt/Conversion/Passes.td:76`, and explicit invocation also fails the PassManager root-op binding check (the pass declares no root-op anchor). After this member function returns success and ExportVerilog runs PrepareForEmission internally, the emitted Verilog contains only `hw`/`comb`/`sv` semantics (no `nsl`, no `fsm`, no `seq` residue). **Amendment 2026-05-12 (FR-002)**: original FR-002 named a 3-slot pipeline in `circt::fsm::` / `circt::seq::` / `circt::sv::` sub-namespaces; the vendored CIRCT exposes 2 of the 3 in the flat `circt::` namespace and runs PrepareForEmission inside ExportVerilog. See `circt-passes.contract.md` §1.1 + `docs/design/nsl_compiler_design.md` §10 retrospective.
 - **FR-003**: `Compilation::emit` MUST dispatch on the shape of the `-o` argument per Clarifications Q1 → B: (a) if `-o <path>` ends in `/` or names an existing directory, invoke `circt::exportSplitVerilog(module, path)` and emit one `.v` per `hw.module` into the directory; (b) if `-o <file>` names a regular-file path, invoke `circt::exportVerilog(module, &outputFile)` and emit one combined `.v` to that file; (c) if `-o -` or `-o` omitted entirely, invoke `circt::exportVerilog(module, &llvm::outs())` and emit to stdout. The audited-corpus regression uses path (a); FileCheck fixtures use path (c).
 - **FR-004**: Failures inside `runCIRCTPasses` or `emit` (e.g. stock-CIRCT pass verifier failure, ExportVerilog rejection) MUST route through the project's single `basic::DiagnosticEngine` (Constitution Principle IV). CIRCT's internal `mlir::emitError` diagnostics MUST be bridged through a `mlir::ScopedDiagnosticHandler` registered at M7; users see one diagnostic channel, never a leaked MLIR/CIRCT stderr line.
 - **FR-005**: Two invocations of `nslc -emit=verilog <input> -o <output>` with identical inputs, flags, environment, and toolchain version MUST produce byte-identical `<output>` files (Constitution Principle V).
@@ -248,7 +251,7 @@ pass.
 
 - **FR-009**: Four audited projects (`cpu16`, `mips32_single_cycle`, `ahb_lite_nsl`, `turboV`) MUST be vendored under `test/audited/<project>/`. Vendoring is **verbatim file copy** of the upstream NSL source files into the directory — not a git submodule, not a `git clone` script, not a `FetchContent_Declare`, not an `ExternalProject_Add`. The Constitution Principle V deterministic-build-environment clause makes any network-dependent vendoring mechanism non-compliant. **Corpus narrowing (2026-05-12 amendment)**: the original spec listed 7 projects; the license audit at M7 implementation T046 surfaced 3 incompatible projects (`rv32x_dev`: GPL-3.0; `mmcspi` + `SDRAM_Controler`: forks with no upstream license + no original-author-grant path). They are dropped from M7's acceptance gate and may be re-added via routine vendoring PRs once their upstream licensing is resolved, per `CONTRIBUTING.md §2.1` + `audited-corpus.contract.md §8`. The four-project corpus preserves the milestone's load-bearing-ness: it covers the full M6 op-coverage surface (combinational + sequential + FSM + sim-only + struct-typed + CPU-control-flow) without the 3 dropped projects, since cpu16 + mips32_single_cycle exercise the CPU-skeleton shape, ahb_lite_nsl exercises the bus-protocol shape, and turboV exercises the full RISC-V-class CPU + Python reference simulator path.
 - **FR-010**: Each `test/audited/<project>/PROVENANCE.md` MUST record (at minimum, as machine-parseable `Key: Value` lines): `Upstream-URL`, `Upstream-SHA` (40-character hex), `License` (SPDX identifier or full name), `Vendored-At` (ISO-8601 date), and a `Notes:` block documenting any vendor-time modifications (formatting, license-header additions). If no modifications were made, `Notes: none` is acceptable.
-- **FR-011**: Each vendored project's `License` MUST be compatible with Apache-2.0 WITH LLVM-exception (the project's own license). The seven projects on the list have been pre-vetted; future additions require an LLVM-exception compatibility audit on the vendoring PR.
+- **FR-011**: Each vendored project's `License` MUST be compatible with Apache-2.0 WITH LLVM-exception (the project's own license). The four projects on the list have been pre-vetted; future additions require an LLVM-exception compatibility audit on the vendoring PR.
 - **FR-012**: Updating an audited project to a newer upstream commit MUST be a fresh re-vendoring commit that re-copies files and updates `Upstream-SHA` + `Vendored-At` in `PROVENANCE.md`. Not a submodule bump.
 - **FR-013**: A CI lint check MUST assert (a) the seven directories exist, (b) each has a `PROVENANCE.md` with the required `Key:` lines populated, (c) no `.gitmodules` entry references `test/audited/`, (d) no CMake `FetchContent`/`ExternalProject` invocation depends on `test/audited/` paths. Failures block the PR (Constitution Principle IX).
 
@@ -261,8 +264,8 @@ pass.
 
 #### Audited-corpus regression (Story 4)
 
-- **FR-018**: A new CMake target `check-audited` MUST exist that runs the audited-corpus regression for all seven projects under both Icarus Verilog and Verilator. The target is also part of the top-level `check` target (so `cmake --build build --target check` covers it).
-- **FR-019**: For each of the seven projects, the regression MUST: (a) invoke `nslc -emit=verilog` over the project's NSL sources, (b) compile the emitted Verilog + the project's testbench under Icarus Verilog, run the resulting binary, capture VCD; (c) compile the emitted Verilog + the project's testbench under Verilator, run the resulting binary, capture VCD; (d) compare each captured VCD against the project's `golden/*.vcd` per the equivalence criterion (Clarifications Q2).
+- **FR-018**: A new CMake target `check-audited` MUST exist that runs the audited-corpus regression for all four projects under both Icarus Verilog and Verilator. The target is also part of the top-level `check` target (so `cmake --build build --target check` covers it).
+- **FR-019**: For each of the four projects, the regression MUST: (a) invoke `nslc -emit=verilog` over the project's NSL sources, (b) compile the emitted Verilog + the project's testbench under Icarus Verilog, run the resulting binary, capture VCD; (c) compile the emitted Verilog + the project's testbench under Verilator, run the resulting binary, capture VCD; (d) compare each captured VCD against the project's `golden/*.vcd` per the equivalence criterion (Clarifications Q2).
 - **FR-020**: The regression MUST be hosted in lit (`test/audited/lit.cfg.py` extends the top-level `test/lit.cfg.py`) and integrate with the existing `ninja check` workflow. Per Constitution Principle IX, the regression runs in the same CI matrix cell as the rest of the lit suite.
 - **FR-021**: The equivalence comparison policy is pinned by Clarifications Q2 → B. Implementation lands a `tools/vcd_diff.py` helper (Python 3.11+ stdlib only; no PyPI deps). The helper accepts two VCD paths and an optional `--signal-map=<path>` argument (consumed when a project ships `golden/SIGNAL_MAP.toml` to alias upstream-vs-`nslc` signal-name mismatches). Behavior: parses both VCDs, ignores `$date`/`$version`/`$timescale`/`$comment` declarations, extracts `$var` signal sets as `(scope-path, name, width)` tuples, applies any signal-map aliases, compares value-change-record sequences on the matched-signal intersection. Exits zero on semantic-equal; non-zero on divergence with a human-readable first-divergence report to stderr (FR-022 hook).
 - **FR-022**: A regression failure MUST emit (to stderr and to a per-scenario log file under `build/test/audited/<project>/<scenario>.log`) a diff-formatted explanation of *why* the comparison failed — which signals diverged, at which simulation timestamps. Blind PASS/FAIL output is non-compliant with Constitution Principle V (inspectable pipeline).
@@ -298,7 +301,7 @@ pass.
 - **SC-004**: Every golden VCD has a `REGEN.md` peer whose regeneration command can be executed by a future maintainer to reproduce the golden from its external source (no information loss between original capture and committed recipe).
 - **SC-005**: A new contributor can run the full audited-corpus regression locally inside the dev container in under 15 minutes wall-clock on a standard development workstation (Linux x86_64, 8 cores, 16 GB RAM).
 - **SC-006**: Adding a new audited project to the corpus post-M7 is a routine single-PR change: vendor sources + `PROVENANCE.md` + `golden/*.vcd` + `golden/REGEN.md`, with no edits to `lib/Driver/`, no edits to `tools/nslc/`, and no edits to `test/lit.cfg.py`. The infrastructure carries the new project automatically once it lands under `test/audited/<project>/`.
-- **SC-007**: A deliberate breakage of any M-track library (e.g. revert one M6 conversion pattern) causes at least one of the 14 simulator/project regression cells to fail — the regression is *load-bearing*, not trivially-pass. (Verified once by a one-shot reverse-test during M7 implementation, then trusted thereafter.)
+- **SC-007**: A deliberate breakage of any M-track library (e.g. revert one M6 conversion pattern) causes at least one of the 8 simulator/project regression cells to fail — the regression is *load-bearing*, not trivially-pass. (Verified once by a one-shot reverse-test during M7 implementation, then trusted thereafter.)
 - **SC-008**: Diagnostics from anywhere in the `nslc -emit=verilog` pipeline (preprocessor, parser, Sema, nsl-lower, CIRCT passes, ExportVerilog) appear in exactly one stream (stderr or JSON-on-stdout, per existing `--diagnostic-format` flag), with no leaked MLIR/CIRCT internal diagnostics escaping to a second channel.
 
 ## Assumptions
