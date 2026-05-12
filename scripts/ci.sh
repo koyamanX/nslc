@@ -139,8 +139,15 @@ stage_static_checks() {
   local _git=(git -c safe.directory=*)
 
   # 1. clang-format dry-run (FR-009).
+  # `grammars/treesitter/src/` is the tree-sitter generator output
+  # (parser.c plus the bundled `tree_sitter/{alloc,array,parser}.h`
+  # ABI headers — third-party content); never hand-edited and
+  # therefore exempt from project clang-format style. The companion
+  # `treesitter-grammar-regen-diff` sub-step (below in stage 2)
+  # gates byte-stability of this directory instead.
   local format_files
-  format_files="$("${_git[@]}" ls-files '*.cpp' '*.h' '*.cc' '*.hpp' || true)"
+  format_files="$("${_git[@]}" ls-files '*.cpp' '*.h' '*.cc' '*.hpp' \
+                   ':!grammars/treesitter/src/**' || true)"
   local format_count
   format_count="$(printf '%s\n' "${format_files}" | grep -c .)"
   log "  clang-format --dry-run --Werror ${format_count} files"
