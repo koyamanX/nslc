@@ -61,7 +61,13 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# M5 + M6 originated this audit on lib/Lower; M7 extends the audit
+# surface to lib/Driver (per specs/011-m7-driver-e2e/tasks.md T019)
+# because M7 adds new TUs there (EmitVerilog.cpp, RunCIRCTPasses.cpp)
+# whose Verilog-bytes output must be byte-deterministic per FR-005.
 readonly LOWER_ROOT="${REPO_ROOT}/lib/Lower"
+readonly DRIVER_ROOT="${REPO_ROOT}/lib/Driver"
+readonly AUDIT_ROOTS=("${LOWER_ROOT}" "${DRIVER_ROOT}")
 
 QUIET=0
 VERBOSE=0
@@ -79,10 +85,12 @@ esac
 log()    { (( QUIET )) || printf '[audit_determinism] %s\n' "$*"; }
 detail() { (( VERBOSE )) && printf '[audit_determinism]   %s\n' "$*"; return 0; }
 
-if [[ ! -d "${LOWER_ROOT}" ]]; then
-  printf '[audit_determinism] error: cannot read directory %s\n' "${LOWER_ROOT}" >&2
-  exit 2
-fi
+for root in "${AUDIT_ROOTS[@]}"; do
+  if [[ ! -d "${root}" ]]; then
+    printf '[audit_determinism] error: cannot read directory %s\n' "${root}" >&2
+    exit 2
+  fi
+done
 
 # -----------------------------------------------------------------------------
 # Forbidden patterns table (research.md §13)
@@ -130,14 +138,16 @@ FAIL=0
 TOTAL_MATCHES=0
 
 for pattern in "${FORBIDDEN[@]}"; do
-  detail "scanning lib/Lower/ for: ${pattern}"
+  detail "scanning lib/Lower/ + lib/Driver/ for: ${pattern}"
   # `--include` keeps us on translation-unit and header source only;
   # `--exclude-dir build` defends against an accidental in-tree build.
+  # M7 (T019): scan both lib/Lower (M5/M6 origin) and lib/Driver
+  # (M7 new TUs: EmitVerilog.cpp, RunCIRCTPasses.cpp).
   if matches="$(grep -rEn \
       --include='*.cpp' --include='*.h' \
       --include='*.cc' --include='*.hpp' \
       --exclude-dir=build \
-      "${pattern}" "${LOWER_ROOT}" 2>/dev/null)"; then
+      "${pattern}" "${AUDIT_ROOTS[@]}" 2>/dev/null)"; then
     if [[ -n "${matches}" ]]; then
       printf '[audit_determinism] FORBIDDEN PATTERN: %s\n' "${pattern}" >&2
       printf '%s\n' "${matches}" >&2
@@ -155,7 +165,7 @@ done
 # -----------------------------------------------------------------------------
 
 if (( FAIL == 0 )); then
-  log "OK: zero forbidden patterns in lib/Lower/ (${#FORBIDDEN[@]} pattern(s) scanned)"
+  log "OK: zero forbidden patterns in lib/Lower/ + lib/Driver/ (${#FORBIDDEN[@]} pattern(s) scanned)"
   exit 0
 fi
 
