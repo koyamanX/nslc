@@ -150,8 +150,7 @@ void TUScheduler::schedule(std::string uri, int version, std::string contents,
       cb = on_diagnostics_;
     }
 
-    int diagnosed =
-        tu->reparse(version, std::move(contents), includes_owned);
+    int diagnosed = tu->reparse(version, std::move(contents), includes_owned);
 
     // Stale-drop per FR-008: if a newer version was received via
     // update() at any point (even if its reparse hasn't completed
