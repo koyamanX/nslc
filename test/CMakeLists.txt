@@ -28,3 +28,10 @@ add_lit_testsuite(check-nslc
   "Running the NSLC regression tests"
   ${CMAKE_CURRENT_BINARY_DIR}
   DEPENDS nslc FileCheck)
+
+# M7: audited-corpus regression (P-VEN + P-VCD + US4). The
+# audited subdirectory pulls in cmake/AuditedCorpusLint.cmake
+# (configure-time structural lint) and cmake/audited_corpus.cmake
+# (the `check-audited` target). Scaffold-only at Phase 1; per-cell
+# generation lands at T071.
+add_subdirectory(audited)
