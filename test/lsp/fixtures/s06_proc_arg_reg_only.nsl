@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s06_proc_arg_reg_only.nsl — T051 (US1).
+// S6: proc_name args must be 'reg'.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// violates S6.
+
+
+module m_fail {
+  wire w;
+  proc_name p(w);
+}

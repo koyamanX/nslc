@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s22_return_outside_func.nsl — T051 (US1).
+// S22: return only inside func.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// variant. A `return` inside a proc body (not a func) violates
+// S22.
+
+
+module m_fail {
+  proc_name p;
+  proc p {
+    return;
+  }
+}

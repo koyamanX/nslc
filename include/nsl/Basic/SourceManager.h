@@ -123,6 +123,23 @@ public:
   /// or when no include frame for `f` is currently active.
   [[nodiscard]] std::vector<SourceLocation> getIncludeStackFor(FileID f) const;
 
+  /// Return the chain of `#include` directive locations that
+  /// originally caused `f` to be loaded — innermost first — using
+  /// a permanent record populated at `pushIncludeFrame` time. Unlike
+  /// `getIncludeStackFor`, this survives `popIncludeFrame` and is
+  /// queryable by post-preprocessing consumers (Sema, MLIR passes,
+  /// LSP) when the dynamic include stack is empty (FR-026).
+  [[nodiscard]] std::vector<SourceLocation>
+  getOriginalIncludeStackFor(FileID f) const;
+
+  /// Linear path → FileID lookup over the registered buffers.
+  /// Returns the invalid sentinel when no buffer matches. Used by
+  /// post-preprocessing diagnostic plumbing to bridge a synthetic
+  /// preprocessed-buffer location back to the original physical
+  /// file (whose path the `#line` machinery preserves) so the
+  /// permanent include chain can be queried.
+  [[nodiscard]] FileID findFileIDByPath(llvm::StringRef path) const;
+
 private:
   // Pimpl-style impl pointer to keep the public header stable while
   // the `Buffer`-vector layout evolves over later milestones.

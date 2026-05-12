@@ -210,8 +210,8 @@ int emitHW(llvm::StringRef input_path, const EmitTokensOptions &opts,
     return 1;
   }
 
-  // ---------- Print (default printer per driver-emit-hw.contract.md §4) ----------
-  // Buffer the CIRCT-dialect MLIR text BEFORE checking for errors —
+  // ---------- Print (default printer per driver-emit-hw.contract.md §4)
+  // ---------- Buffer the CIRCT-dialect MLIR text BEFORE checking for errors —
   // same "no partial output on error" rule as EmitMLIR.
   std::string buf;
   {

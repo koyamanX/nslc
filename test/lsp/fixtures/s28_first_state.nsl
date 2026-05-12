@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s28_first_state.nsl — T051 (US1).
+// S28: first_state target.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// variant. `first_state` names an identifier that is NOT a
+// state_name in the enclosing proc's list — violates S28.
+
+
+module m_fail {
+  proc_name p;
+  proc p {
+    state_name s1;
+    first_state ghost;
+    state s1 { }
+  }
+}

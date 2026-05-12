@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s11_state_name_proc_scoped.nsl — T051 (US1).
+// S11: state_name proc-scoped.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// from outside (here from a sibling func body) violates S11.
+
+
+module m_fail {
+  reg q;
+  proc_name p;
+  proc p {
+    state_name inner_s1;
+    state inner_s1 { }
+  }
+  func ready {
+    q := inner_s1;
+  }
+}

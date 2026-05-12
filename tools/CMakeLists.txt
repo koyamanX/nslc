@@ -9,3 +9,4 @@
 
 add_subdirectory(nslc)
 add_subdirectory(nsl-opt)
+add_subdirectory(nsl-lsp)

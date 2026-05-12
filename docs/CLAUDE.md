@@ -110,8 +110,12 @@ Rule of thumb: a typical task needs **2–4 sections totaling 200–600 lines**,
 - M5 contract: `specs/008-m5-structural-passes/contracts/pass-pipeline.contract.md` §2 freezes the 6-slot pipeline (`nsl-resolve-params` → `nsl-expand-generate` → `nsl-expand-variables` → `nsl-explode-submod-array` → `nsl-inline-internal-func` (no-op slot per Q3 → Option B) → `nsl-check-semantics`)
 
 ### Implementing the LSP
-- `design/nsl_tooling_design.md` lines **105–292** (full LSP spec: features, scheduler, hover example)
+- `design/nsl_tooling_design.md` lines **105–303** (full LSP spec: T3-status banner + features + scheduler + hover example)
 - `design/nsl_tooling_design.md` lines **48–104** (CST + incremental parse — LSP needs both)
+- T3 is delivered as of 2026-05-05; the four contracts under
+  [`specs/010-t3-lsp-skeleton/contracts/`](../specs/010-t3-lsp-skeleton/contracts/)
+  freeze the wire-visible behavior. T4/T5/T9/T10 extend the
+  dispatch table in `lib/LSP/NslLSPServer.cpp`.
 
 ### Adding a lint rule
 - `design/nsl_tooling_design.md` lines **719–889** (linter architecture, rule interface, example)

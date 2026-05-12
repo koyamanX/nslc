@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s02_wire_with_init.nsl — S2 trigger (T051a).
+// Frozen diagnostic: `'wire' may not have an initializer; use 'reg'
+// instead (S2)`.
+
+module m {
+  wire bad = 0;
+}

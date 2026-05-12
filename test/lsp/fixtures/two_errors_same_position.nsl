@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/two_errors_same_position.nsl — fixture for
+// `DiagnosticsSuite::SortOrder_SeverityOnTie` (T061). Exercises the
+// `(line, character, severity)`-ascending sort tiebreaker per
+// `diagnostic-mapping.contract.md` §6 / §7.5.
+//
+// The `function` keyword on line 1 emits two diagnostics at byte-
+// identical `(line, character) = (1, 2)`:
+//
+//   * S26 warning at the `function` keyword begin (parser site,
+//     `lib/Parse/ParseDecl.cpp` `parseFuncDefn`).
+//   * S01 error at `FuncDefn.loc().begin()` (Sema site,
+//     `lib/Sema/Constraints/S01_NoDoubleUnderscore.cpp` NK_FuncDefn
+//     case) because the function name `bad__name` contains `__`.
+//     `FuncDefn.loc()` begins at the `function` keyword (per
+//     `parseFuncDefn`'s `rangeFromTo(kw.range().begin(), end_loc)`),
+//     so the start position byte-matches the warning.
+//
+// The function name does NOT use a `_`-prefix because the lexer
+// classifies `_`-prefix tokens via `classifyUnderscoreName` (N11)
+// and any non-system-task spelling becomes `tk_unused_underscore`,
+// which `consumeIdentifierLike` rejects — that would produce an
+// `expected identifier` error at the *name*'s column instead of
+// at the `function` kw column, breaking the position tie.
+//
+// LSP severity mapping (contract §2): Error → 1, Warning → 2. After
+// the mapper's sort, the Error precedes the Warning at the same
+// position. The fixture's filename retains the historical
+// `two_errors_*` prefix paired with `two_errors_same_line.nsl`
+// (T060); the actual diagnostics are one error + one warning.
+
+module m {
+  function bad__name { }
+}

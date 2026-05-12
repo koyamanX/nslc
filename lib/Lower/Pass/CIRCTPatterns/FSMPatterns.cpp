@@ -44,16 +44,13 @@
 
 #include "../CIRCTTypeConverter.h"
 #include "../NSLToCIRCTPass.h"
-
 #include "circt/Dialect/FSM/FSMOps.h"
-
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/SymbolTable.h"
 #include "mlir/Transforms/DialectConversion.h"
-
 #include "nsl/Dialect/NSL/IR/NSLDialect.h"
 
 #include "llvm/ADT/DenseMap.h"
@@ -115,10 +112,10 @@ circt::fsm::StateOp ensureSinkState(MachineBuilder &mb,
 /// referenced state is materialised as an empty state in the SAME
 /// machine (cross-machine fsm.transition is not supported by the
 /// FSM dialect's verifier).
-llvm::StringRef
-ensureCrossMachinePlaceholder(MachineBuilder &mb,
-                              mlir::OpBuilder &builder,
-                              mlir::Location loc, llvm::StringRef calleeName) {
+llvm::StringRef ensureCrossMachinePlaceholder(MachineBuilder &mb,
+                                              mlir::OpBuilder &builder,
+                                              mlir::Location loc,
+                                              llvm::StringRef calleeName) {
   // The state name format: "<callee>_initial_state".
   std::string nameStr = (calleeName + "_initial_state").str();
   auto nameAttr = builder.getStringAttr(nameStr);
@@ -146,10 +143,11 @@ ensureCrossMachinePlaceholder(MachineBuilder &mb,
 /// Per FSM dialect contract (`fsm::TransitionOp` HasParent<"StateOp">
 /// + located in `transitions` region), all created transitions go
 /// into the destination `fsm::StateOp`'s `transitions` region.
-mlir::LogicalResult
-lowerStateBody(MachineBuilder &mb, nsl::dialect::StateOp nslStateOp,
-               circt::fsm::StateOp fsmStateOp, mlir::OpBuilder &builder,
-               mlir::ModuleOp parentModule) {
+mlir::LogicalResult lowerStateBody(MachineBuilder &mb,
+                                   nsl::dialect::StateOp nslStateOp,
+                                   circt::fsm::StateOp fsmStateOp,
+                                   mlir::OpBuilder &builder,
+                                   mlir::ModuleOp parentModule) {
   // Ensure the fsm.state's transitions region has a block to insert
   // into. The default-built `fsm::StateOp` has empty regions.
   if (fsmStateOp.getTransitions().empty()) {
@@ -224,14 +222,12 @@ lowerStateBody(MachineBuilder &mb, nsl::dialect::StateOp nslStateOp,
       }
 
       mlir::OpBuilder::InsertionGuard guard(builder);
-      llvm::StringRef placeholderName =
-          ensureCrossMachinePlaceholder(mb, builder, callOp.getLoc(),
-                                        calleeName);
+      llvm::StringRef placeholderName = ensureCrossMachinePlaceholder(
+          mb, builder, callOp.getLoc(), calleeName);
       builder.setInsertionPointToEnd(&transitionsBlock);
       circt::fsm::TransitionOp::create(builder, callOp.getLoc(),
                                        placeholderName);
-    }
-    else {
+    } else {
       // Round-1 review fix for PR #14 Finding #7: previously the
       // walk silently fell through here, so any leaf op (transfer,
       // arith, etc.) inside a state body was dropped when the
@@ -260,9 +256,9 @@ lowerStateBody(MachineBuilder &mb, nsl::dialect::StateOp nslStateOp,
 /// Lower a single `nsl::ProcOp` (with its `nsl::StateOp` children
 /// and `nsl::FirstStateOp` declaration) to `fsm::MachineOp` placed
 /// at top level (sibling of the enclosing `hw::HWModuleOp`).
-mlir::LogicalResult
-lowerOneProc(nsl::dialect::ProcOp procOp, mlir::ModuleOp parentModule,
-             mlir::OpBuilder &builder) {
+mlir::LogicalResult lowerOneProc(nsl::dialect::ProcOp procOp,
+                                 mlir::ModuleOp parentModule,
+                                 mlir::OpBuilder &builder) {
   mlir::Location loc = procOp.getLoc();
   mlir::MLIRContext *ctx = builder.getContext();
 
@@ -279,8 +275,8 @@ lowerOneProc(nsl::dialect::ProcOp procOp, mlir::ModuleOp parentModule,
     }
   }
   if (initialStateName.empty()) {
-    for (auto stateOp : procOp.getBody().front()
-                            .getOps<nsl::dialect::StateOp>()) {
+    for (auto stateOp :
+         procOp.getBody().front().getOps<nsl::dialect::StateOp>()) {
       initialStateName = stateOp.getSymName();
       break;
     }
@@ -312,11 +308,10 @@ lowerOneProc(nsl::dialect::ProcOp procOp, mlir::ModuleOp parentModule,
   mb.machineOp = machineOp;
 
   builder.setInsertionPointToEnd(&machineOp.getBody().front());
-  for (auto stateOp : procOp.getBody().front()
-                          .getOps<nsl::dialect::StateOp>()) {
-    auto fsmState =
-        circt::fsm::StateOp::create(builder, stateOp.getLoc(),
-                                    stateOp.getSymName());
+  for (auto stateOp :
+       procOp.getBody().front().getOps<nsl::dialect::StateOp>()) {
+    auto fsmState = circt::fsm::StateOp::create(builder, stateOp.getLoc(),
+                                                stateOp.getSymName());
     // Materialise empty output + transitions regions for the state.
     if (fsmState.getOutput().empty()) {
       fsmState.getOutput().emplaceBlock();
@@ -330,15 +325,14 @@ lowerOneProc(nsl::dialect::ProcOp procOp, mlir::ModuleOp parentModule,
   // Step 4: walk proc body's `nsl.state` children again, this time
   // lowering each state body's goto / finish / call ops into the
   // matching `fsm.state`'s transitions region.
-  for (auto stateOp : procOp.getBody().front()
-                          .getOps<nsl::dialect::StateOp>()) {
+  for (auto stateOp :
+       procOp.getBody().front().getOps<nsl::dialect::StateOp>()) {
     auto fsmState = mb.stateMap.find(stateOp.getSymName());
     if (fsmState == mb.stateMap.end()) {
       continue;
     }
-    if (mlir::failed(
-            lowerStateBody(mb, stateOp, fsmState->second, builder,
-                           parentModule))) {
+    if (mlir::failed(lowerStateBody(mb, stateOp, fsmState->second, builder,
+                                    parentModule))) {
       return mlir::failure();
     }
   }
@@ -368,15 +362,14 @@ lowerOneProc(nsl::dialect::ProcOp procOp, mlir::ModuleOp parentModule,
 /// is a Phase-5 simplification; the M5 visitor's LabeledStmt /
 /// GotoStmt visitors are stubs, so richer labelled-goto control
 /// flow inside a seq is deferred.
-mlir::LogicalResult
-lowerOneFuncSeq(nsl::dialect::FuncOp funcOp, mlir::ModuleOp parentModule,
-                mlir::OpBuilder &builder) {
+mlir::LogicalResult lowerOneFuncSeq(nsl::dialect::FuncOp funcOp,
+                                    mlir::ModuleOp parentModule,
+                                    mlir::OpBuilder &builder) {
   // Only fire if the func body contains a single nsl.seq op as its
   // direct child. Otherwise, the func is a non-seq form (combinational
   // func body) and Phase-6 picks it up.
   llvm::SmallVector<nsl::dialect::SeqOp, 1> seqs;
-  for (auto seqOp : funcOp.getBody().front()
-                        .getOps<nsl::dialect::SeqOp>()) {
+  for (auto seqOp : funcOp.getBody().front().getOps<nsl::dialect::SeqOp>()) {
     seqs.push_back(seqOp);
   }
   if (seqs.empty()) {
@@ -405,8 +398,7 @@ lowerOneFuncSeq(nsl::dialect::FuncOp funcOp, mlir::ModuleOp parentModule,
   builder.setInsertionPointToEnd(parentModule.getBody());
   auto funcType = mlir::FunctionType::get(ctx, {}, {});
   auto machineOp = circt::fsm::MachineOp::create(
-      builder, loc, funcOp.getSymName(), llvm::StringRef("seq_0"),
-      funcType,
+      builder, loc, funcOp.getSymName(), llvm::StringRef("seq_0"), funcType,
       /*attrs=*/llvm::ArrayRef<mlir::NamedAttribute>{},
       /*argAttrs=*/llvm::ArrayRef<mlir::DictionaryAttr>{});
 

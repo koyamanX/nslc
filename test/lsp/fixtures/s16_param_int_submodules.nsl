@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s16_param_int_submodules.nsl — T051 (US1).
+// S16: param_int only for HDL submods.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// submodules. A pure-NSL module containing a top-level
+// param-int (without an HDL-flagged module declaration) violates
+// S16.
+
+
+param_int N = 8;
+module m_fail {
+  reg q[N];
+}

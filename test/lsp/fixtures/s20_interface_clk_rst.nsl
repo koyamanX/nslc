@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/lsp/fixtures/s20_interface_clk_rst.nsl — T051 (US1).
+// S20: interface modifier explicit clk/rst.
+// Frozen diagnostic per `specs/006-m3-sema/contracts/diagnostic-string.contract.md`.
+
+// and reset names violates the rule.
+
+
+declare interface iface {
+  input data;
+}

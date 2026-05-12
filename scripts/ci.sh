@@ -179,6 +179,23 @@ stage_static_checks() {
     log "  (skipping SPDX check: scripts/check_spdx.py not yet present — lands at T065)"
   fi
 
+  # T3 / Phase 6 (T103, T106): lib/LSP/ Principle II audit.
+  # Verifies the LSP server doesn't reimplement any frontend class
+  # and that the public-header surface is a single Server.h.
+  # Gate on file existence (`-f`), not executable bit (`-x`): the
+  # audit is load-bearing for Principle II — if the file is present
+  # but its mode was inadvertently lost (e.g., by a Windows-side
+  # checkout that drops `+x`), invoke via `bash` so we still run.
+  # A missing file is treated as an outright error rather than a
+  # silent skip.
+  if [[ -f "${REPO_ROOT}/scripts/lsp_link_audit.sh" ]]; then
+    log "  scripts/lsp_link_audit.sh"
+    bash "${REPO_ROOT}/scripts/lsp_link_audit.sh" || rc=$?
+  else
+    log "  ERROR: scripts/lsp_link_audit.sh is missing"
+    rc=1
+  fi
+
   # 4. M4 dialect fixture-coverage guard (spec FR-021 + research.md §9).
   # Vacuous at Phase 2 (op set empty); goes live as Phase 3 / 4
   # populate `lib/Dialect/NSL/IR/NSLOps.td` and

@@ -86,8 +86,8 @@ editor integration), this section tells you when it lands.
 
 | Method | Difficulty | Milestone |
 |---|---|---|
-| `publishDiagnostics` (errors / warnings) | Trivial | T3 |
-| `textDocument/foldingRange` | Trivial | T3 |
+| `publishDiagnostics` (errors / warnings) | Trivial | T3 — **delivered** |
+| `textDocument/foldingRange` | Trivial | T3 — **delivered** |
 | `textDocument/hover` | Low | T4 |
 | `textDocument/definition` | Low | T4 |
 | `textDocument/documentSymbol` (outline) | Low | T4 |
@@ -163,52 +163,45 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `010-m6-circt-lowering` — `nsl-lower` part 2
-(layer 8b) **structurally feature-complete (Phase 8 close-out
-2026-05-04; PR-ready)**: the **`NSLToCIRCTPass`** conversion pass
-consumes M5's `nsl::*` IR and produces `mlir::ModuleOp` populated
-entirely by ops from CIRCT's `hw`, `comb`, `seq`, `fsm`, `sv`
-dialects. User-visible deliverable: `nslc -emit=hw input.nsl`
-operational + byte-stable + verifier-clean across all five CIRCT
-dialects + survives stock CIRCT pass round-trip
-(`circt-opt --convert-fsm-to-sv --lower-seq-to-sv`) externally
-(`--convert-fsm-to-seq` is the doc-canonical name; vendored CIRCT
-ships `--convert-fsm-to-sv` — same effect). Driven via MLIR
-`DialectConversion` framework in full-conversion mode;
-`CIRCTTypeConverter` maps `!nsl.bits<W>` → `iW` and `!nsl.struct<@T>`
-→ packed `iN` (S18 MSB-first). Pattern families delivered:
-ModulePatterns (US2), FSMPatterns (US3 — `nsl.proc`/`nsl.state`/
-`nsl.seq` → `fsm.machine`), StatePatterns + ArithPatterns +
-BitOpPatterns + ControlPatterns + SimPatterns + ParamPatterns
-(US4 — leaf-op coverage of design §10's mapping table, ~40 rows).
-Three /speckit-clarify decisions pinned conventions: Q1 → A
-`comb`-only arithmetic (no `hwarith`, no `CIRCTHwArith` link
-dep); Q2 → C async **active-HIGH** default reset on `seq.firreg`
-(no-`interface` path) wired through implicit ports `m_clock` +
-`p_reset` per `nsl_lang.ebnf` §15 lines 818, 820 (the `p_`
-prefix indicates positive/active-HIGH polarity; PR #14 Round-1
-review correction superseded the original active-LOW
-`clk`/`rst_n` choice); Q3 → A mux-on-data for `nsl.if`-over-reg-LHS
-(one `seq.firreg` per `nsl.reg` regardless of conditional
-nesting). Two specify-time decisions: `_init` block (S29) →
-`sv.initial` under `sv.ifdef "SIMULATION"` (sim-only); `-emit=hw`
-halts strictly at the nsl→CIRCT conversion boundary — stock
-CIRCT passes are M7's responsibility. Wired new
-`Compilation::lowerToCIRCT` member function. Public umbrella
-header `Lower.h` grew from M5's 8 symbols to **10** (adds
-`createNSLToCIRCTPass` + `registerNSLToCIRCTPass`); M4 dialect
-contract gained M4-amendments #9 (`nsl::DeclareOp` + 3 port-info
-ops, closing a Principle VII coupling gap from /speckit-plan)
-and #10 (S20 `interface_clock`/`interface_reset` attrs on
-`nsl::DeclareOp`); M5 pass-pipeline contract is unchanged. Final
-lit gate: **620 PASS + 3 XFAIL out of 623**. For technologies,
-project structure, entity catalog, contracts, and quickstart,
-read the current plan:
-[`specs/010-m6-circt-lowering/plan.md`](./specs/010-m6-circt-lowering/plan.md).
+**Active feature**: `010-t3-lsp-skeleton` — land tooling-track
+milestone **T3**: the first user-visible LSP deliverable and the
+architectural seam every later LSP-track milestone (T4, T5, T9,
+T10, T11) builds on. Ships `tools/nsl-lsp/main.cpp` (thin entry
+point ≤ 70 lines), `lib/LSP/` (`libNSLLSP.a` — JSON-RPC framing,
+LSP-protocol layer, language-logic layer, TUScheduler + per-`NslTU`
+threading + cache, diagnostic-mapping + folding-range seams,
+position-encoding + cancellation-token + stderr-logger utilities),
+single public header at `include/nsl/LSP/Server.h` (per the
+Principle II single-public-header rule), and a new test layer at
+`test/lsp/` (four gtest binaries — `lifecycle_test`,
+`diagnostics_test`, `folding_test`, `cancellation_test` — driven
+by an in-tree `LspSession` harness that spawns `nsl-lsp` over
+stdio). Implements LSP methods `initialize` / `initialized` /
+`shutdown` / `exit` / `textDocument/{didOpen,didChange,didClose}` /
+`publishDiagnostics` / `textDocument/foldingRange` /
+`$/cancelRequest`. Per Clarifications session 2026-05-05: LSP 3.16
+floor (UTF-16 unconditionally; no `positionEncodings`); `Full`
+text sync only on `didChange`; `NSL_INCLUDE` env var read once at
+server startup for include-path discovery; stderr-only plain-text
+logging gated by `NSL_LSP_LOG_LEVEL`; **real** cancellation for
+`foldingRange` (the only cancellable T3 request). Reuses
+`libNSLFrontend.a` per Principle II — Sema diagnostics flow
+through the `DiagnosticEngine` → LSP `Diagnostic` mapper; folding
+ranges come from an `ASTVisitor` walk over the M2 parse tree. The
+test gate is the literal materialization of
+[`README.md`](./README.md) §Roadmap row T3: open a file with a
+Sema error, observe diagnostic; edit, observe re-diagnose. SC-003
+(determinism), SC-004 (250 ms didOpen→diagnostic), SC-007 (30 s
+combined CI), SC-008 (exact capability advertisement, asserted
+byte-equal against the frozen contract), SC-010 (200 ms
+cancellation budget) are the load-bearing measurable outcomes.
+For technologies, project structure, entity catalog, contracts,
+and quickstart, read the current plan:
+[`specs/010-t3-lsp-skeleton/plan.md`](./specs/010-t3-lsp-skeleton/plan.md).
 Companion artifacts:
-[`spec.md`](./specs/010-m6-circt-lowering/spec.md),
-[`research.md`](./specs/010-m6-circt-lowering/research.md),
-[`data-model.md`](./specs/010-m6-circt-lowering/data-model.md),
-[`contracts/`](./specs/010-m6-circt-lowering/contracts/),
-[`quickstart.md`](./specs/010-m6-circt-lowering/quickstart.md).
+[`spec.md`](./specs/010-t3-lsp-skeleton/spec.md),
+[`research.md`](./specs/010-t3-lsp-skeleton/research.md),
+[`data-model.md`](./specs/010-t3-lsp-skeleton/data-model.md),
+[`contracts/`](./specs/010-t3-lsp-skeleton/contracts/),
+[`quickstart.md`](./specs/010-t3-lsp-skeleton/quickstart.md).
 <!-- SPECKIT END -->
