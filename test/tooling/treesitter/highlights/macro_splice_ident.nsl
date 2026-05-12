@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T020 fixture — @constant.macro captures at %IDENT% splice positions.
+//
+// Cross-references:
+//   - spec FR-007 / FR-013
+//   - contracts/highlights-coverage.contract.md §1 row 9 (`@constant.macro`)
+//   - data-model.md §1.6 row 5 (parse-tree node bindings — `macro_identifier`
+//     token consumed wherever an identifier or expression is expected)
+//   - acceptance scenario AS1.6
+//   - spec/nsl_pp.ebnf §4 lines 312–343 (`%IDENT%` macro reference syntax)
+//   - parser-note P3 (preprocessor splicing).
+//
+// Three-plus splice positions per highlights-coverage §3 row 5
+// (≥ 3 splice positions: width, expression operand, identifier
+// substitute). Fixture asserts four sites for higher coverage.
+
+declare macro_demo {
+    input  d[%WIDTH%];
+//           ^ constant.macro
+    output q[8];
+}
+
+module macro_demo {
+    reg %NAME%[%WIDTH%] = 0;
+//      ^ constant.macro
+//             ^ constant.macro
+
+    %NAME% := d;
+//  ^ constant.macro
+    q = %NAME%;
+//      ^ constant.macro
+}

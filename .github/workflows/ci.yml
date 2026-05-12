@@ -202,6 +202,90 @@ jobs:
       - run: ./scripts/ci.sh formal
 
   # --------------------------------------------------------------------------
+  # T8 — tree-sitter-nsl.wasm build + upload
+  # (specs/010-t8-tree-sitter-grammar/spec.md Q2 → Option C).
+  #
+  # The WASM artefact is NOT committed; CI builds it on every PR and
+  # uploads as a workflow artefact. The `treesitter-wasm-determinism`
+  # sub-step in stage 2 (scripts/ci.sh) asserts byte-identity across
+  # two consecutive builds (SC-008 / Constitution Principle V).
+  #
+  # No `container:` block: `tree-sitter build-wasm --docker`
+  # internally `docker run`s the emscripten/emsdk image; that needs
+  # host-level Docker access which a service container does not
+  # expose. Running on the bare ubuntu-22.04 runner gives both
+  # Docker and Node out of the box.
+  #
+  # On tagged commits the artefact is also attached to the GitHub
+  # Release via softprops/action-gh-release, so downstream editor
+  # consumers (VS Code extension, etc.) can `curl`-fetch a stable
+  # URL per release tag.
+  # --------------------------------------------------------------------------
+  tree-sitter-wasm:
+    name: tree-sitter-wasm
+    runs-on: ubuntu-22.04
+    needs: static-checks
+    permissions:
+      contents: write                      # for action-gh-release on tag push
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Precheck — grammar.js present
+        id: precheck
+        shell: bash
+        run: |
+          if [[ -f grammars/treesitter/grammar.js ]]; then
+            echo "skip=0" >>"${GITHUB_OUTPUT}"
+          else
+            echo "skip=1" >>"${GITHUB_OUTPUT}"
+            echo "::warning::grammars/treesitter/grammar.js not present; skipping tree-sitter-wasm job"
+          fi
+
+      - name: Setup Node.js
+        if: steps.precheck.outputs.skip == '0'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # `npm ci` once package-lock.json lands (T002). Until then,
+      # `npm install` reads package.json's `^0.22.0` range and
+      # records a fresh lockfile in the workspace (not committed).
+      - name: Install tree-sitter-cli
+        if: steps.precheck.outputs.skip == '0'
+        working-directory: grammars/treesitter
+        run: |
+          if [[ -f package-lock.json ]]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Generate parser
+        if: steps.precheck.outputs.skip == '0'
+        working-directory: grammars/treesitter
+        run: npx --no-install tree-sitter generate
+
+      - name: Build WASM (--docker)
+        if: steps.precheck.outputs.skip == '0'
+        working-directory: grammars/treesitter
+        run: npx --no-install tree-sitter build-wasm --docker
+
+      - name: Upload tree-sitter-nsl-wasm artefact
+        if: steps.precheck.outputs.skip == '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tree-sitter-nsl-wasm
+          path: grammars/treesitter/tree-sitter-nsl.wasm
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach to GitHub Release (on tag push)
+        if: steps.precheck.outputs.skip == '0' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: grammars/treesitter/tree-sitter-nsl.wasm
+
+  # --------------------------------------------------------------------------
   # Wired-but-empty sticky comment (research §8). Always runs so
   # reviewers immediately see why stages 5/6 show as skipped.
   # --------------------------------------------------------------------------

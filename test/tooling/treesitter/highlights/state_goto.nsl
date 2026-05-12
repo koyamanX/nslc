@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T018 fixture — @label.state captures at state-definition sites and at
+// goto-target sites resolved to a state_name within the same proc.
+//
+// Cross-references:
+//   - spec FR-007 (sub-captures) and Clarifications session 2026-05-05 Q3 → Option B
+//   - contracts/highlights-coverage.contract.md §3 row 3
+//   - acceptance scenario AS1.4
+//   - examples/13_fsm.nsl (canonical state_name + first_state + goto pattern)
+//   - parser-note N5 + spec S11 (state_name proc-scope) and S25 (goto two
+//     kinds — label_name vs state_name; this fixture exercises the
+//     state_name kind)
+//
+// Two minimum assertions per highlights-coverage §3 row 3 (definition
+// site + goto-target site, "= 2 sites of same capture" per the table).
+// The fixture asserts four sites for higher coverage.
+
+declare fsm_demo {
+    input  start;
+    output st[2];
+}
+
+module fsm_demo {
+    proc_name run;
+
+    proc run {
+        state_name idle, busy;
+        first_state idle;
+
+        state idle {
+//            ^ label.state
+            st = 2'd0;
+            if (start) goto busy;
+//                          ^ label.state
+        }
+        state busy {
+//            ^ label.state
+            st = 2'd1;
+            goto idle;
+//               ^ label.state
+        }
+    }
+}

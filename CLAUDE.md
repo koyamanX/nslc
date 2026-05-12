@@ -176,48 +176,46 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `010-t2-formatter-v0` — land the first NSL
-code formatter: `nsl-fmt` CLI + `libNslFmt.a` (the first of the
-three Principle-II-named user-facing tooling binaries — `nsl-fmt`,
-`nsl-lsp`, `nsl-lint`). Implements
-[`docs/design/nsl_tooling_design.md`](./docs/design/nsl_tooling_design.md)
-§§2.4 and 5.1–5.4: the CST trivia layer, the Wadler–Leijen
-`Doc`-IR pretty-printer, the six NSL-specific layout rules, the
-ten `.nsl-fmt.toml` configuration knobs, and the seven CLI flags
-(`-i`, `-c`/`--check`, `--stdin`, `--config`, `--range`,
-positional file args, `--help`/`--version`). Three
-/speckit-clarify decisions land in this milestone: Q1 — the
-formatter parses *raw* source pre-preprocessing and treats each
-directive line as an opaque CST token (clang-format model — the
-only option compatible with SC-002 audited-corpus idempotence,
-since every audited file uses `#include`); Q2 — `--range LINE:LINE`
-ships at T2 (the layout engine already operates on subtrees,
-defining the full CLI surface now avoids retrofit at T5); Q3 —
-multi-file invocations continue past per-file errors, collect and
-report ALL offending files (gofmt / black --check style; CI logs
-surface the complete fix list in one round trip). **Session
-2026-05-05** adds three further clarifications: Q1 — strict
-refusal per FR-012 (any input the lex+parse pipeline rejects →
-exit non-zero; only directive lines + `%IDENT%` splices are
-tolerated pre-parse byte sequences; BOM + vendor pragmas + top-
-level system-task expressions are all parse errors); Q2 — inline
-comments between two tokens of a single statement are preserved
-byte-for-byte at the same token-relative position (no hoisting
-to leading/trailing); Q3 — output ALWAYS ends with exactly one
-trailing `\n` (gofmt / rustfmt / black convention; idempotent by
-construction). Public umbrella header `Fmt.h` exports 10 frozen
-symbols (3 types + 7 free functions); CST shape is internal but
-contractually frozen. T5 (LSP `textDocument/formatting`) is
-**out of scope** for T2; T2's `libNslFmt.a` is the API T5 will
-wrap. For technologies, project structure, entity catalog,
-contracts, and quickstart, read the current plan (which
-includes a Plan Revisions section logging the Session 2026-05-05
-amendments):
-[`specs/010-t2-formatter-v0/plan.md`](./specs/010-t2-formatter-v0/plan.md).
+**Active feature**: `010-t8-tree-sitter-grammar` — land
+tooling-track milestone **T8**: the second tier of the project's
+two-tier highlighter strategy (`docs/design/nsl_tooling_design.md
+§4`), building on T1's TextMate base layer with a context-aware
+tree-sitter parser that distinguishes identifier *contexts* T1
+explicitly left un-scoped (`reg` vs `wire` vs `proc_name` vs
+`func_in` references), tags control-terminal names per `S27`,
+handles `%IDENT%` macro splice sites, and resolves the parser-note
+ambiguities (`N5`, `N2`, `N3`, `N6`) T1 deferred. Ships
+`grammars/treesitter/grammar.js` (productions §§1–11 of
+`nsl_lang.ebnf` + preprocessor seam from `nsl_pp.ebnf §2`; keyword
+block **generated** from `include/nsl/Lex/KeywordSet.def` via a new
+`scripts/gen_treesitter_grammar.py`, mirroring the T1 precedent),
+`grammars/treesitter/queries/highlights.scm` (the §4.3 base set
+**plus 8 sub-captures** — `@variable.register`, `@variable.wire`,
+`@variable.memory`, `@function.proc`, `@function.func`,
+`@function.call.proc`, `@function.call.func`, `@label.state` —
+locked by Clarifications session 2026-05-05 Q3 → Option B), the
+generated `src/parser.c` / `src/grammar.json` /
+`src/node-types.json` (committed under `grammars/treesitter/src/`
+per the tree-sitter 0.22 generator layout; CI gates regenerate-
+and-diff via FR-017 using `tree-sitter generate --no-bindings`), and a VS
+Code extension shell under `editors/vscode/treesitter/` that loads
+`tree-sitter-nsl.wasm` via `web-tree-sitter`. **`tree-sitter-cli`
+is pinned to `0.22.x`** in `grammars/treesitter/package.json`
+(Q1 → Option B). The **WASM artefact is NOT committed** — CI
+builds it, asserts byte-identity (SC-008 / Principle V), uploads
+as a GHA workflow artefact, and tagged releases attach it
+(Q2 → Option C). Smoke gate parses the in-tree
+`examples/01_*.nsl`–`examples/20_simulation_tb.nsl` corpus
+(Q4 → Option C); the audited corpus joins the gate once P-VEN
+lands at M7. Marketplace publication and a `nvim-treesitter`
+upstream PR are explicitly deferred per `README.md §Roadmap`
+T1/T12 deferral note. For technologies, project structure,
+entity catalog, contracts, and quickstart, read the current plan:
+[`specs/010-t8-tree-sitter-grammar/plan.md`](./specs/010-t8-tree-sitter-grammar/plan.md).
 Companion artifacts:
-[`spec.md`](./specs/010-t2-formatter-v0/spec.md),
-[`research.md`](./specs/010-t2-formatter-v0/research.md),
-[`data-model.md`](./specs/010-t2-formatter-v0/data-model.md),
-[`contracts/`](./specs/010-t2-formatter-v0/contracts/),
-[`quickstart.md`](./specs/010-t2-formatter-v0/quickstart.md).
+[`spec.md`](./specs/010-t8-tree-sitter-grammar/spec.md),
+[`research.md`](./specs/010-t8-tree-sitter-grammar/research.md),
+[`data-model.md`](./specs/010-t8-tree-sitter-grammar/data-model.md),
+[`contracts/`](./specs/010-t8-tree-sitter-grammar/contracts/),
+[`quickstart.md`](./specs/010-t8-tree-sitter-grammar/quickstart.md).
 <!-- SPECKIT END -->

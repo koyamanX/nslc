@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
+# T035 — smoke-corpus path list for the `treesitter-smoke` CI
+# sub-step (scripts/ci.sh stage 3, stage_tooling_treesitter).
+#
+# Format: one repo-relative path per line. Lines starting with `#`
+# are comments; blank lines are skipped. Each listed file is parsed
+# by `npx tree-sitter parse --quiet --stat`; the gate FAILS on any
+# `(ERROR)` or `(MISSING)` node anywhere in the parse tree.
+#
+# Cross-references:
+#   - spec FR-014 (smoke-gate behaviour)
+#   - spec Q4 → Option C (in-tree examples corpus is the smoke source)
+#   - data-model.md §1.5 (corpus-file entity)
+#   - contracts/grammar-coverage.contract.md §4 (coverage gate)
+#
+# When P-VEN lands at M7 (audited-project vendoring), additional
+# entries under `test/audited/<project>/**/*.nsl` will be folded
+# into this list. The deferred-entry block below documents that
+# convention; uncomment when P-VEN is in.
+
+examples/01_hello.nsl
+examples/02_and_gate.nsl
+examples/03_register.nsl
+examples/04_counter.nsl
+examples/05_alu.nsl
+examples/06_alt_vs_any.nsl
+examples/07_function.nsl
+examples/08_func_self.nsl
+examples/09_proc_seq.nsl
+examples/10_for_loop.nsl
+examples/11_while_loop.nsl
+examples/12_generate.nsl
+examples/13_fsm.nsl
+examples/14_memory.nsl
+examples/15_struct.nsl
+examples/16_bit_ops.nsl
+examples/17_concat_lvalue.nsl
+examples/18_proc_methods.nsl
+examples/19_param.nsl
+examples/20_simulation_tb.nsl
+
+# T021 fixture is itself a smoke target — the parser-note
+# disambiguation file's whole point is "parses with no (ERROR)
+# nodes" (per highlights-coverage.contract.md §3 row 6).
+test/tooling/treesitter/highlights/parser_note_disambiguation.nsl
+
+# DEFERRED until P-VEN (M7): audited-project corpus.
+# When P-VEN lands the audited NSL projects (rv32x_dev, turboV,
+# mmcspi, SDRAM_Controler, mips32_single_cycle, ahb_lite_nsl,
+# cpu16) get vendored under test/audited/. Uncomment the
+# corresponding entries here in the same PR that lands P-VEN —
+# the smoke gate then ratifies that the T8 grammar parses real-
+# world NSL beyond the in-tree examples.
+#
+# test/audited/rv32x_dev/...
+# test/audited/turboV/...
+# test/audited/mmcspi/...
+# test/audited/SDRAM_Controler/...
+# test/audited/mips32_single_cycle/...
+# test/audited/ahb_lite_nsl/...
+# test/audited/cpu16/...

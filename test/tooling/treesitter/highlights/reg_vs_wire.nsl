@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// T016 fixture — @variable.register / @variable.wire / @variable.memory
+// captures at both declaration and reference sites.
+//
+// Cross-references:
+//   - spec FR-007 (sub-captures) and Clarifications session 2026-05-05 Q3 → Option B
+//   - contracts/highlights-coverage.contract.md §3 row 1
+//   - data-model.md §1.1 (parse-tree node bindings)
+//   - acceptance scenarios AS1.1 + AS1.2
+//
+// Assertion format (upstream tree-sitter test): see the
+// per-line inline assertions below; the leading-arrow form
+// targets column 0, the caret form targets the column it
+// aligns with on the line above.
+//
+// Six minimum assertions per highlights-coverage §3 row 1 (decl + ref
+// for each of register/wire/memory).
+
+declare reg_wire_mem {
+    input  d[8];
+    output q_out[8];
+}
+
+module reg_wire_mem {
+    reg q[8] = 0;
+//      ^ variable.register
+    wire w[8];
+//       ^ variable.wire
+    mem m[16][8];
+//      ^ variable.memory
+
+    q := d;
+//  ^ variable.register
+    w = q;
+//  ^ variable.wire
+    q_out = m[0];
+//          ^ variable.memory
+}
+
+// NOTE on the missing col-8-of-`w = q;` assertion:
+// `q` here is on the RHS of a wire assignment — its capture as
+// @variable.register requires resolving the identifier to the
+// register declarator one scope up. Tree-sitter's `tree-sitter test`
+// highlight checker does not propagate locals.scm
+// @local.definition.<NAME> captures to @local.reference sites
+// (that's an editor-runtime feature in some consumers, not standard
+// behaviour). The VS Code semantic-tokens provider at
+// editors/vscode/treesitter/highlight-provider.ts performs the
+// scope walk and produces the @variable.register capture at runtime
+// per AS1.2; the queries/locals.scm file declares the scopes and
+// definitions for that consumer. See queries/highlights.scm preamble
+// for the resolution-split rationale.
