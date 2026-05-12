@@ -249,12 +249,14 @@ TEST_F(LifecycleSuite, CapabilitiesExact) {
 
     // Canonicalize and compare against the frozen contract JSON.
     std::string actual = canonicalize(*caps);
-    EXPECT_EQ(actual, kFrozenCapabilitiesJSON);  // contract §1.2
+    EXPECT_EQ(actual, kFrozenCapabilitiesJSON);  // lsp-protocol.contract.md §1.2
 }
 ```
 
 `kFrozenCapabilitiesJSON` is a `constexpr` string literal in
-`lifecycle_test.cpp` matching the contract §1.2 verbatim.
+`lifecycle_test.cpp` matching `lsp-protocol.contract.md` §1.2
+verbatim. (Within *this* document, §1.2 is the threading model
+— the capability freeze lives in the sibling protocol contract.)
 
 ### §4.4 SC-004 latency budget
 
