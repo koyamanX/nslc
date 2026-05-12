@@ -176,48 +176,41 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `010-t2-formatter-v0` — land the first NSL
-code formatter: `nsl-fmt` CLI + `libNslFmt.a` (the first of the
-three Principle-II-named user-facing tooling binaries — `nsl-fmt`,
-`nsl-lsp`, `nsl-lint`). Implements
-[`docs/design/nsl_tooling_design.md`](./docs/design/nsl_tooling_design.md)
-§§2.4 and 5.1–5.4: the CST trivia layer, the Wadler–Leijen
-`Doc`-IR pretty-printer, the six NSL-specific layout rules, the
-ten `.nsl-fmt.toml` configuration knobs, and the seven CLI flags
-(`-i`, `-c`/`--check`, `--stdin`, `--config`, `--range`,
-positional file args, `--help`/`--version`). Three
-/speckit-clarify decisions land in this milestone: Q1 — the
-formatter parses *raw* source pre-preprocessing and treats each
-directive line as an opaque CST token (clang-format model — the
-only option compatible with SC-002 audited-corpus idempotence,
-since every audited file uses `#include`); Q2 — `--range LINE:LINE`
-ships at T2 (the layout engine already operates on subtrees,
-defining the full CLI surface now avoids retrofit at T5); Q3 —
-multi-file invocations continue past per-file errors, collect and
-report ALL offending files (gofmt / black --check style; CI logs
-surface the complete fix list in one round trip). **Session
-2026-05-05** adds three further clarifications: Q1 — strict
-refusal per FR-012 (any input the lex+parse pipeline rejects →
-exit non-zero; only directive lines + `%IDENT%` splices are
-tolerated pre-parse byte sequences; BOM + vendor pragmas + top-
-level system-task expressions are all parse errors); Q2 — inline
-comments between two tokens of a single statement are preserved
-byte-for-byte at the same token-relative position (no hoisting
-to leading/trailing); Q3 — output ALWAYS ends with exactly one
-trailing `\n` (gofmt / rustfmt / black convention; idempotent by
-construction). Public umbrella header `Fmt.h` exports 10 frozen
-symbols (3 types + 7 free functions); CST shape is internal but
-contractually frozen. T5 (LSP `textDocument/formatting`) is
-**out of scope** for T2; T2's `libNslFmt.a` is the API T5 will
-wrap. For technologies, project structure, entity catalog,
-contracts, and quickstart, read the current plan (which
-includes a Plan Revisions section logging the Session 2026-05-05
-amendments):
-[`specs/010-t2-formatter-v0/plan.md`](./specs/010-t2-formatter-v0/plan.md).
+**Active feature**: `011-t5-lsp-formatting` — wire the T2
+formatter (`libNslFmt.a`) into the T3 LSP server (`nsl-lsp`) via
+exactly two new LSP methods: `textDocument/formatting`
+(whole-document) and `textDocument/rangeFormatting` (line-range).
+Closes the forward-edge promised by T2 spec FR-019 + SC-005
+("at most ~30 lines of glue") and the T3 FR-019 "format-region
+seam" stub. The deliverable is one new C++ source file
+(`lib/LSP/Features/Formatting.cpp`, ~150 LOC), two dispatch-table
+entries and a two-key capability JSON amendment in
+`lib/LSP/NslLSPServer.cpp`, an in-place amendment to
+[`specs/010-t3-lsp-skeleton/contracts/lsp-protocol.contract.md`](./specs/010-t3-lsp-skeleton/contracts/lsp-protocol.contract.md)
+§1.2 (adding `documentFormattingProvider: true` and
+`documentRangeFormattingProvider: true`), and three new
+integration-test binaries plus an extended
+`lifecycle_test::CapabilitiesExact` assertion in `test/lsp/`.
+Five /speckit-clarify decisions (Session 2026-05-12) shape this
+milestone: Q1 — TOML wins (`.nsl-fmt.toml` is authoritative; the
+LSP `FormattingOptions` field is read off the wire and discarded;
+clang-format model); Q2 — single whole-span `TextEdit` on success
+(no Myers-diff at T5; byte-equivalent with `format_buffer` output
+by construction); Q3 — `null` on parse-error refusal (LSP
+convention "no formatting available"; double-reporting via JSON-
+RPC error rejected because the parse error already surfaces via
+T3's `publishDiagnostics` channel); Q4 — malformed `.nsl-fmt.toml`
+falls back to `default_configuration()` AND emits a side-channel
+`publishDiagnostics` against the TOML URI (FR-005c; format request
+proceeds normally with defaults); Q5 — in-flight format completes
+through `didClose` (matches T3's reparse posture; `$/cancelRequest`
+remains the only abort path). For technologies, project structure,
+entity catalog, contracts, and quickstart, read the current plan:
+[`specs/011-t5-lsp-formatting/plan.md`](./specs/011-t5-lsp-formatting/plan.md).
 Companion artifacts:
-[`spec.md`](./specs/010-t2-formatter-v0/spec.md),
-[`research.md`](./specs/010-t2-formatter-v0/research.md),
-[`data-model.md`](./specs/010-t2-formatter-v0/data-model.md),
-[`contracts/`](./specs/010-t2-formatter-v0/contracts/),
-[`quickstart.md`](./specs/010-t2-formatter-v0/quickstart.md).
+[`spec.md`](./specs/011-t5-lsp-formatting/spec.md),
+[`research.md`](./specs/011-t5-lsp-formatting/research.md),
+[`data-model.md`](./specs/011-t5-lsp-formatting/data-model.md),
+[`contracts/`](./specs/011-t5-lsp-formatting/contracts/),
+[`quickstart.md`](./specs/011-t5-lsp-formatting/quickstart.md).
 <!-- SPECKIT END -->
