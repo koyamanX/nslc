@@ -125,8 +125,16 @@ void TUScheduler::schedule(std::string uri, int version, std::string contents,
     }
   }
 
+  // Capture `includes` by value into the worker lambda. The pointer
+  // received from `update()` references the caller's
+  // `IncludeSearchPath` (currently `NslServer`'s long-lived member,
+  // but the signature doesn't guarantee that). Copying into an
+  // owning local removes the latent lifetime contract — the worker
+  // can outlive any caller scope without dangling.
+  IncludeSearchPath includes_owned = includes ? *includes : IncludeSearchPath();
+
   pool_.async([this, uri, version, contents = std::move(contents),
-               includes]() mutable {
+               includes_owned = std::move(includes_owned)]() mutable {
     // Capture a shared_ptr so the TU outlives a concurrent close(uri)
     // for the duration of this worker's reparse + diagnostics-publish
     // sequence — closes the use-after-free that a raw `NslTU*`
@@ -142,8 +150,8 @@ void TUScheduler::schedule(std::string uri, int version, std::string contents,
       cb = on_diagnostics_;
     }
 
-    int diagnosed = tu->reparse(version, std::move(contents),
-                                includes ? *includes : IncludeSearchPath());
+    int diagnosed =
+        tu->reparse(version, std::move(contents), includes_owned);
 
     // Stale-drop per FR-008: if a newer version was received via
     // update() at any point (even if its reparse hasn't completed

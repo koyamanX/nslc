@@ -140,7 +140,7 @@ Each binary registers itself with ctest via the existing
 
 ## §3 Fixture corpus layout
 
-```
+```text
 test/lsp/fixtures/
 ├── README.md                                # short index of fixture purpose
 ├── empty.nsl                                # 0-byte file
