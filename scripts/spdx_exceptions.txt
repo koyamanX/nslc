@@ -125,3 +125,27 @@ third_party/
 # T2 follow-up.
 # -----------------------------------------------------------------------------
 test/Fmt/smoke.test
+
+# -----------------------------------------------------------------------------
+# test/audited/<project>/ — vendored upstream audited NSL projects
+# (M7 P-VEN per Constitution Principle VI "Delivery" sub-bullet).
+# Each project is a verbatim file-copy from upstream; project-
+# authored SPDX headers MUST NOT be retrofitted into the vendored
+# sources (would violate the verbatim-copy rule + the upstream-
+# trace integrity property recorded in each project's
+# PROVENANCE.md `Upstream-SHA`). Per-project license tracking lives
+# in PROVENANCE.md rather than per-file SPDX headers — same posture
+# as `third_party/` above. Project-authored files INSIDE
+# `test/audited/` at the top (e.g. `lit.local.cfg`, the
+# `<project>_<simulator>.test` cell fixtures, `CMakeLists.txt`)
+# DO carry SPDX headers and are NOT exempt; only the per-project
+# subdirectories are exempt. Directory-scoped exemption per the 4
+# vendored projects (cpu16, mips32_single_cycle, ahb_lite_nsl,
+# turboV) — constitution v1.8.0 closed-list narrowing. Re-adds
+# (rv32x_dev, mmcspi, SDRAM_Controler — post-relicense) get their
+# own lines here at re-vendoring time.
+# -----------------------------------------------------------------------------
+test/audited/cpu16/
+test/audited/mips32_single_cycle/
+test/audited/ahb_lite_nsl/
+test/audited/turboV/
