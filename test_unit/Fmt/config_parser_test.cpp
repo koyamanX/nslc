@@ -23,28 +23,29 @@
 #include "llvm/ADT/StringRef.h"
 
 #include "gtest/gtest.h"
-
 #include <algorithm>
 #include <string>
 #include <vector>
 
 using nsl::FileID;
 using nsl::SourceManager;
-using nsl::fmt::Configuration;
-using nsl::fmt::FormatResult;
 using nsl::fmt::config_key_names;
+using nsl::fmt::Configuration;
 using nsl::fmt::default_configuration;
+using nsl::fmt::FormatResult;
 using nsl::fmt::parse_config_file;
 
 namespace {
 
 std::vector<char> bytesOf(const char *literal) {
   std::vector<char> out;
-  while (*literal != 0) out.push_back(*literal++);
+  while (*literal != 0)
+    out.push_back(*literal++);
   return out;
 }
 
-FileID addBufferOf(SourceManager &sm, llvm::StringRef name, llvm::StringRef content) {
+FileID addBufferOf(SourceManager &sm, llvm::StringRef name,
+                   llvm::StringRef content) {
   std::vector<char> bytes(content.begin(), content.end());
   return sm.addBufferInMemory(name.str(), std::move(bytes));
 }
@@ -71,11 +72,13 @@ TEST(ConfigParserTest, KeyNamesAreTen) {
   EXPECT_EQ(keys.size(), 10u);
   // Spot-check a few names by content.
   std::vector<std::string> as_strings;
-  for (auto k : keys) as_strings.emplace_back(k.str());
+  for (auto k : keys)
+    as_strings.emplace_back(k.str());
   EXPECT_NE(std::find(as_strings.begin(), as_strings.end(), "indent"),
             as_strings.end());
-  EXPECT_NE(std::find(as_strings.begin(), as_strings.end(), "preserve_comments"),
-            as_strings.end());
+  EXPECT_NE(
+      std::find(as_strings.begin(), as_strings.end(), "preserve_comments"),
+      as_strings.end());
   EXPECT_NE(std::find(as_strings.begin(), as_strings.end(), "brace_style"),
             as_strings.end());
 }
@@ -85,17 +88,16 @@ TEST(ConfigParserTest, KeyNamesAreTen) {
 // -----------------------------------------------------------------------------
 TEST(ConfigParserTest, ParseAllTenKeys) {
   // A TOML file flipping every key to a non-default value.
-  const char *kTOML =
-      "indent = \"tab\"\n"
-      "max_line_length = 80\n"
-      "spaces_around_binary_ops = false\n"
-      "spaces_inside_braces = true\n"
-      "align_struct_members = false\n"
-      "align_case_arrows = false\n"
-      "brace_style = \"allman\"\n"
-      "trailing_commas = \"add\"\n"
-      "blank_lines_between_modules = 1\n"
-      "preserve_comments = \"leading_only\"\n";
+  const char *kTOML = "indent = \"tab\"\n"
+                      "max_line_length = 80\n"
+                      "spaces_around_binary_ops = false\n"
+                      "spaces_inside_braces = true\n"
+                      "align_struct_members = false\n"
+                      "align_case_arrows = false\n"
+                      "brace_style = \"allman\"\n"
+                      "trailing_commas = \"add\"\n"
+                      "blank_lines_between_modules = 1\n"
+                      "preserve_comments = \"leading_only\"\n";
 
   SourceManager sm;
   FileID fid = addBufferOf(sm, "/virt/test.toml", kTOML);
@@ -126,10 +128,9 @@ TEST(ConfigParserTest, ParseAllTenKeys) {
 TEST(ConfigParserTest, UnknownKeyWarning) {
   // Unknown keys MUST produce a Warning diagnostic but MUST NOT
   // fail the parse (FR-015).
-  const char *kTOML =
-      "indent = 4\n"
-      "totally_made_up_key = \"hello\"\n"
-      "another_unknown = 42\n";
+  const char *kTOML = "indent = 4\n"
+                      "totally_made_up_key = \"hello\"\n"
+                      "another_unknown = 42\n";
 
   SourceManager sm;
   FileID fid = addBufferOf(sm, "/virt/unknown.toml", kTOML);
@@ -151,8 +152,7 @@ TEST(ConfigParserTest, UnknownKeyWarning) {
           << d.message;
     }
   }
-  EXPECT_EQ(warnings, 2)
-      << "expected 2 unknown-key warnings; got " << warnings;
+  EXPECT_EQ(warnings, 2) << "expected 2 unknown-key warnings; got " << warnings;
 }
 
 // -----------------------------------------------------------------------------

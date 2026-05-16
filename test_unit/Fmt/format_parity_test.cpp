@@ -29,15 +29,13 @@
 #include "llvm/ADT/StringRef.h"
 
 #include "gtest/gtest.h"
-
 #include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <string>
+#include <unistd.h> // POSIX: write, close, unlink, mkstemp
 #include <vector>
-
-#include <unistd.h>     // POSIX: write, close, unlink, mkstemp
 
 #ifndef NSL_FMT_BINARY_PATH
 #error "NSL_FMT_BINARY_PATH must be defined by CMake"
@@ -46,9 +44,9 @@
 using nsl::FileID;
 using nsl::SourceManager;
 using nsl::fmt::Configuration;
-using nsl::fmt::FormatResult;
 using nsl::fmt::default_configuration;
 using nsl::fmt::format_buffer;
+using nsl::fmt::FormatResult;
 
 namespace {
 
@@ -78,12 +76,12 @@ std::string runCLIStdin(llvm::StringRef input) {
   // canonical POSIX pattern.
   char tmpl[] = "/tmp/nsl-fmt-parityXXXXXX";
   int infd = ::mkstemp(tmpl);
-  if (infd < 0) return std::string{};
+  if (infd < 0)
+    return std::string{};
 
   // Write input to tmpfile, close.
   if (input.size() > 0) {
-    [[maybe_unused]] ssize_t w =
-        ::write(infd, input.data(), input.size());
+    [[maybe_unused]] ssize_t w = ::write(infd, input.data(), input.size());
     (void)w; // best-effort; stat-based size check below is the gate
   }
   ::close(infd);
@@ -103,7 +101,8 @@ std::string runCLIStdin(llvm::StringRef input) {
   char buf[4096];
   while (true) {
     std::size_t n = std::fread(buf, 1, sizeof(buf), pipe);
-    if (n == 0) break;
+    if (n == 0)
+      break;
     out.append(buf, n);
   }
   ::pclose(pipe);
@@ -123,8 +122,8 @@ TEST(FormatParityTest, CLIMatchesLibrary) {
     SourceManager sm;
     std::vector<char> bytes = bytesOf(input);
     FileID fid = sm.addBufferInMemory("/virt/parity.nsl", std::move(bytes));
-    FormatResult lib = format_buffer(llvm::StringRef(input), cfg, fid,
-                                     std::nullopt);
+    FormatResult lib =
+        format_buffer(llvm::StringRef(input), cfg, fid, std::nullopt);
     ASSERT_EQ(lib.status, FormatResult::Status::Success)
         << "library should succeed on fixture " << i;
 
@@ -150,16 +149,16 @@ TEST(FormatParityTest, IdempotencePostCondition) {
     SourceManager sm1;
     std::vector<char> bytes1 = bytesOf(input);
     FileID fid1 = sm1.addBufferInMemory("/virt/idem1.nsl", std::move(bytes1));
-    FormatResult once = format_buffer(llvm::StringRef(input), cfg, fid1,
-                                      std::nullopt);
+    FormatResult once =
+        format_buffer(llvm::StringRef(input), cfg, fid1, std::nullopt);
     ASSERT_EQ(once.status, FormatResult::Status::Success)
         << "first format must succeed on fixture " << i;
 
     SourceManager sm2;
     std::vector<char> bytes2 = bytesOf(once.formattedText);
     FileID fid2 = sm2.addBufferInMemory("/virt/idem2.nsl", std::move(bytes2));
-    FormatResult twice = format_buffer(llvm::StringRef(once.formattedText),
-                                       cfg, fid2, std::nullopt);
+    FormatResult twice = format_buffer(llvm::StringRef(once.formattedText), cfg,
+                                       fid2, std::nullopt);
     ASSERT_EQ(twice.status, FormatResult::Status::Success)
         << "second format must succeed on fixture " << i;
 
@@ -188,10 +187,8 @@ TEST(FormatParityTest, IdempotencePostCondition) {
 TEST(FormatParityTest, ExternalLinkSmoke) {
   Configuration cfg = default_configuration();
   SourceManager sm;
-  FileID fid = sm.addBufferInMemory("/virt/empty.nsl",
-                                    std::vector<char>{});
-  FormatResult res =
-      format_buffer(llvm::StringRef(""), cfg, fid, std::nullopt);
+  FileID fid = sm.addBufferInMemory("/virt/empty.nsl", std::vector<char>{});
+  FormatResult res = format_buffer(llvm::StringRef(""), cfg, fid, std::nullopt);
   EXPECT_EQ(res.status, FormatResult::Status::Success);
   EXPECT_TRUE(res.formattedText.empty());
 }

@@ -7,13 +7,9 @@
 // driver-emit-verilog.contract.md §2):
 //
 //   load(input) → Preprocessor::run → Lexer::next → parseCompilationUnit
-//                                                  → runSema
-//                                                  → Compilation::lowerToNSL
-//                                                  → Compilation::runNSLPasses
-//                                                  → Compilation::lowerToCIRCT
-//                                                  → Compilation::runCIRCTPasses  ← M7
-//                                                  → circt::exportVerilog /     ← M7
-//                                                    circt::exportSplitVerilog
+//   → runSema → Compilation::lowerToNSL → Compilation::runNSLPasses
+//   → Compilation::lowerToCIRCT → Compilation::runCIRCTPasses  (M7 NEW)
+//   → circt::exportVerilog / circt::exportSplitVerilog          (M7 NEW)
 //
 // Implementation note: this file is a near-duplicate of EmitHW.cpp
 // extended with two additional stages (`runCIRCTPasses`, then the
@@ -39,6 +35,7 @@
 
 #include "nsl/Driver/EmitVerilog.h"
 
+#include "circt/Conversion/ExportVerilog.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OperationSupport.h"
 #include "mlir/Support/LogicalResult.h"
@@ -52,8 +49,6 @@
 #include "nsl/Parse/Parser.h"
 #include "nsl/Preprocess/Preprocessor.h"
 #include "nsl/Sema/Sema.h"
-
-#include "circt/Conversion/ExportVerilog.h"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/ErrorOr.h"
@@ -72,7 +67,8 @@ namespace nsl::driver {
 
 namespace {
 
-/// Split a `-D NAME=value` argument (mirrors EmitHW/EmitMLIR/EmitAST/EmitTokens).
+/// Split a `-D NAME=value` argument (mirrors
+/// EmitHW/EmitMLIR/EmitAST/EmitTokens).
 std::pair<std::string, std::string> splitMacroDef(llvm::StringRef arg) {
   std::size_t const eq = arg.find('=');
   if (eq == llvm::StringRef::npos) {
@@ -260,8 +256,9 @@ int emitVerilog(llvm::StringRef input_path, llvm::StringRef output_path,
       }
     }
     if (diag.hasError()) {
-      diag.renderAll(err, opts.diagnostic_json ? DiagnosticEngine::Format::JSON
-                                               : DiagnosticEngine::Format::Text);
+      diag.renderAll(err, opts.diagnostic_json
+                              ? DiagnosticEngine::Format::JSON
+                              : DiagnosticEngine::Format::Text);
       return 1;
     }
     os << buf;
@@ -287,8 +284,9 @@ int emitVerilog(llvm::StringRef input_path, llvm::StringRef output_path,
       }
     }
     if (diag.hasError()) {
-      diag.renderAll(err, opts.diagnostic_json ? DiagnosticEngine::Format::JSON
-                                               : DiagnosticEngine::Format::Text);
+      diag.renderAll(err, opts.diagnostic_json
+                              ? DiagnosticEngine::Format::JSON
+                              : DiagnosticEngine::Format::Text);
       return 1;
     }
     ofs << buf;
@@ -310,8 +308,9 @@ int emitVerilog(llvm::StringRef input_path, llvm::StringRef output_path,
       return 1;
     }
     if (diag.hasError()) {
-      diag.renderAll(err, opts.diagnostic_json ? DiagnosticEngine::Format::JSON
-                                               : DiagnosticEngine::Format::Text);
+      diag.renderAll(err, opts.diagnostic_json
+                              ? DiagnosticEngine::Format::JSON
+                              : DiagnosticEngine::Format::Text);
       return 1;
     }
   }

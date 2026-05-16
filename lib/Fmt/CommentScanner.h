@@ -76,9 +76,8 @@ scanComments(llvm::StringRef src, std::uint32_t begin, std::uint32_t end,
 /// Compute the 1-indexed line number for a byte offset, given a
 /// pre-built line-start table. Out-of-range offsets clamp to the
 /// last line.
-std::uint32_t
-lineForOffsetIn(const std::vector<std::uint32_t> &lineTable,
-                std::uint32_t offset) noexcept;
+std::uint32_t lineForOffsetIn(const std::vector<std::uint32_t> &lineTable,
+                              std::uint32_t offset) noexcept;
 
 } // namespace nsl::fmt
 

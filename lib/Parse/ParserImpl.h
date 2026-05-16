@@ -44,7 +44,7 @@
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Lex/Lexer.h"
 #include "nsl/Lex/Token.h"
-#include "nsl/Parse/Parser.h"   // CSTSink (T2 Phase 2b)
+#include "nsl/Parse/Parser.h" // CSTSink (T2 Phase 2b)
 
 #include "llvm/ADT/StringRef.h"
 

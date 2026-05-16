@@ -101,9 +101,15 @@ FormatResult format_buffer(llvm::StringRef sourceBuffer,
   // Tab mode uses negative-1 sentinel per LayoutRenderer.h doc.
   int indent_spaces = 4;
   switch (config.indent) {
-    case Configuration::Indent::Spaces2: indent_spaces = 2;  break;
-    case Configuration::Indent::Spaces4: indent_spaces = 4;  break;
-    case Configuration::Indent::Tab:     indent_spaces = -1; break;
+  case Configuration::Indent::Spaces2:
+    indent_spaces = 2;
+    break;
+  case Configuration::Indent::Spaces4:
+    indent_spaces = 4;
+    break;
+  case Configuration::Indent::Tab:
+    indent_spaces = -1;
+    break;
   }
   LayoutRenderer renderer;
 
@@ -155,9 +161,8 @@ FormatResult format_buffer(llvm::StringRef sourceBuffer,
     int fragmentStartLine = 1;
     {
       std::uint32_t sliceBeginOff = s.range.begin().offset();
-      std::uint32_t scanLimit =
-          std::min<std::uint32_t>(sliceBeginOff,
-                                  static_cast<std::uint32_t>(sourceBuffer.size()));
+      std::uint32_t scanLimit = std::min<std::uint32_t>(
+          sliceBeginOff, static_cast<std::uint32_t>(sourceBuffer.size()));
       for (std::uint32_t i = 0; i < scanLimit; ++i) {
         if (sourceBuffer[i] == '\n') {
           ++fragmentStartLine;
@@ -197,7 +202,8 @@ FormatResult format_buffer(llvm::StringRef sourceBuffer,
   // trailing `\n` collapse to one; missing trailing `\n` is added.
   // Empty input → empty output (no spurious `\n`).
   if (!out.empty()) {
-    while (out.size() > 1 && out.back() == '\n' && out[out.size() - 2] == '\n') {
+    while (out.size() > 1 && out.back() == '\n' &&
+           out[out.size() - 2] == '\n') {
       out.pop_back();
     }
     if (out.back() != '\n') {
