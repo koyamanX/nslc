@@ -145,9 +145,22 @@ stage_static_checks() {
   # therefore exempt from project clang-format style. The companion
   # `treesitter-grammar-regen-diff` sub-step (below in stage 2)
   # gates byte-stability of this directory instead.
+  # Vendored audited NSL projects under `test/audited/<project>/`
+  # are verbatim upstream copies (M7 P-VEN); their `.h` files MUST
+  # NOT be reformatted (would violate the verbatim-copy rule +
+  # break the `Upstream-SHA` integrity property recorded in each
+  # PROVENANCE.md). Same posture as `scripts/spdx_exceptions.txt`'s
+  # directory-scoped exemptions for `test/audited/<project>/`.
+  # The project-authored files at the top of `test/audited/` (e.g.
+  # `*_iverilog.test`, `*_verilator.test`, `lit.local.cfg`,
+  # `CMakeLists.txt`) have no `.h`/`.cpp` files so the exclusion
+  # only affects vendored content. Same applies to `third_party/`
+  # (T2 vendored content).
   local format_files
   format_files="$("${_git[@]}" ls-files '*.cpp' '*.h' '*.cc' '*.hpp' \
-                   ':!grammars/treesitter/src/**' || true)"
+                   ':!grammars/treesitter/src/**' \
+                   ':!test/audited/**' \
+                   ':!third_party/**' || true)"
   local format_count
   format_count="$(printf '%s\n' "${format_files}" | grep -c .)"
   log "  clang-format --dry-run --Werror ${format_count} files"
@@ -173,8 +186,13 @@ stage_static_checks() {
     die "clang-tidy needs compile_commands.json in build-*; run" \
         "\`./scripts/ci.sh build-matrix\` first"
   fi
+  # Exclude vendored `.cpp` files from clang-tidy for the same
+  # reason they're excluded from clang-format (above): verbatim
+  # upstream copies must not be reformatted/refactored.
   local tidy_files
-  tidy_files="$("${_git[@]}" ls-files '*.cpp' || true)"
+  tidy_files="$("${_git[@]}" ls-files '*.cpp' \
+                  ':!test/audited/**' \
+                  ':!third_party/**' || true)"
   if [[ -n "${tidy_files}" ]]; then
     log "  clang-tidy --warnings-as-errors=* -p ${tidy_build_dir}"
     # shellcheck disable=SC2086
