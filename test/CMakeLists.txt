@@ -36,3 +36,10 @@ add_lit_testsuite(check-nslc
 # the in-tree subprocess harness). Per
 # `specs/010-t3-lsp-skeleton/contracts/lsp-test-harness.contract.md`.
 add_subdirectory(lsp)
+
+# M7: audited-corpus regression (P-VEN + P-VCD + US4). The
+# audited subdirectory pulls in cmake/AuditedCorpusLint.cmake
+# (configure-time structural lint) and cmake/audited_corpus.cmake
+# (the `check-audited` target). Scaffold-only at Phase 1; per-cell
+# generation lands at T071.
+add_subdirectory(audited)

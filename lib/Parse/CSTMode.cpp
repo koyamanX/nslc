@@ -27,13 +27,11 @@
 //   - Constitution Principle II — no second public header on
 //     nsl-parse; this file is private to lib/Parse/.
 
-#include "nsl/Parse/Parser.h"
-
 #include "ParserImpl.h"
-
 #include "nsl/AST/CompilationUnit.h"
 #include "nsl/Basic/SourceLocation.h"
 #include "nsl/Lex/Lexer.h"
+#include "nsl/Parse/Parser.h"
 
 #include "llvm/ADT/StringRef.h"
 

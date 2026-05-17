@@ -17,10 +17,9 @@
 //   - format-api.contract.md §3 — public-symbol freeze.
 //   - nsl_tooling_design.md §5.1 — example default values.
 
-#include "nsl/Fmt/Fmt.h"
-
 #include "nsl/Basic/Diagnostic.h"
 #include "nsl/Basic/SourceLocation.h"
+#include "nsl/Fmt/Fmt.h"
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
@@ -89,17 +88,19 @@ llvm::StringRef version_string() noexcept {
 // Error diagnostics + Status::Error.
 //
 // Frozen diagnostic strings (per `formatting-rules.contract.md` §8):
-//   * unknown key:    "warning: unknown configuration key '<k>' at <file>:<line>; ignoring"
-//   * out-of-range:   "error: configuration value for '<k>' must be <expected>; got <actual> at <file>:<line>"
-//   * TOML parse:     "error: TOML parse error at <file>:<line>:<col>: <description>"
+//   * unknown key:    "warning: unknown configuration key '<k>' at
+//   <file>:<line>; ignoring"
+//   * out-of-range:   "error: configuration value for '<k>' must be <expected>;
+//   got <actual> at <file>:<line>"
+//   * TOML parse:     "error: TOML parse error at <file>:<line>:<col>:
+//   <description>"
 
 namespace {
 
 // Helper: append a Diagnostic to the result. The fileID is the
 // caller-supplied one (usually the .nsl-fmt.toml file's FileID).
-void emitDiag(FormatResult &res, ::nsl::Severity sev,
-              ::nsl::FileID fid, std::uint32_t offset,
-              std::string msg) {
+void emitDiag(FormatResult &res, ::nsl::Severity sev, ::nsl::FileID fid,
+              std::uint32_t offset, std::string msg) {
   ::nsl::Diagnostic d;
   d.severity = sev;
   d.loc = ::nsl::SourceLocation::make(fid, offset);
@@ -143,16 +144,17 @@ const std::set<std::string_view> &knownKeySet() {
 
 } // namespace
 
-FormatResult parse_config_file(llvm::StringRef tomlBuffer,
-                               ::nsl::FileID fileID, Configuration *out) {
+FormatResult parse_config_file(llvm::StringRef tomlBuffer, ::nsl::FileID fileID,
+                               Configuration *out) {
   FormatResult res;
 
   // `out` is required per the contract. Defensive null-check;
   // assert in debug builds.
   if (out == nullptr) {
     res.status = FormatResult::Status::Error;
-    emitDiag(res, ::nsl::Severity::Error, fileID, 0,
-             "internal error: parse_config_file called with null out parameter");
+    emitDiag(
+        res, ::nsl::Severity::Error, fileID, 0,
+        "internal error: parse_config_file called with null out parameter");
     return res;
   }
 
@@ -201,8 +203,8 @@ FormatResult parse_config_file(llvm::StringRef tomlBuffer,
       } else if (*sv == "spaces4") {
         out->indent = Configuration::Indent::Spaces4;
       } else {
-        badValue("indent", *node,
-                 "\"tab\" | \"spaces2\" | \"spaces4\" | 2 | 4", "\"" + *sv + "\"");
+        badValue("indent", *node, "\"tab\" | \"spaces2\" | \"spaces4\" | 2 | 4",
+                 "\"" + *sv + "\"");
       }
     } else if (auto iv = node->value<int64_t>()) {
       if (*iv == 2) {
@@ -210,8 +212,7 @@ FormatResult parse_config_file(llvm::StringRef tomlBuffer,
       } else if (*iv == 4) {
         out->indent = Configuration::Indent::Spaces4;
       } else {
-        badValue("indent", *node,
-                 "\"tab\" | \"spaces2\" | \"spaces4\" | 2 | 4",
+        badValue("indent", *node, "\"tab\" | \"spaces2\" | \"spaces4\" | 2 | 4",
                  std::to_string(*iv));
       }
     } else {
@@ -290,8 +291,8 @@ FormatResult parse_config_file(llvm::StringRef tomlBuffer,
       if (*v >= 0 && *v <= 100) {
         out->blank_lines_between_modules = static_cast<int>(*v);
       } else {
-        badValue("blank_lines_between_modules", *node,
-                 "integer in [0, 100]", std::to_string(*v));
+        badValue("blank_lines_between_modules", *node, "integer in [0, 100]",
+                 std::to_string(*v));
       }
     } else {
       badValue("blank_lines_between_modules", *node, "integer",
@@ -332,8 +333,8 @@ FormatResult parse_config_file(llvm::StringRef tomlBuffer,
     }
   }
 
-  res.status = any_error ? FormatResult::Status::Error
-                         : FormatResult::Status::Success;
+  res.status =
+      any_error ? FormatResult::Status::Error : FormatResult::Status::Success;
   return res;
 }
 

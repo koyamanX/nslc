@@ -61,13 +61,17 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# M5 + M6 originated this audit on lib/Lower; M7 extends the audit
+# surface to lib/Driver (per specs/011-m7-driver-e2e/tasks.md T019)
+# because M7 adds new TUs there (EmitVerilog.cpp, RunCIRCTPasses.cpp)
+# whose Verilog-bytes output must be byte-deterministic per FR-005.
+# T2 Phase 2c (T028) further extended to `lib/Fmt/` — the formatter
+# is a deterministic stage (same source bytes + same config + same
+# flags ⇒ same output bytes).
 readonly LOWER_ROOT="${REPO_ROOT}/lib/Lower"
-# T2 Phase 2c (T028) — `lib/Fmt/` joins the determinism gate. Per
-# Constitution Principle V the formatter is also a deterministic
-# stage: same source bytes + same config + same flags ⇒ same output
-# bytes. The same forbidden-pattern table applies (no
-# unordered_map / pointer-derived ordering / time / random / pid).
+readonly DRIVER_ROOT="${REPO_ROOT}/lib/Driver"
 readonly FMT_ROOT="${REPO_ROOT}/lib/Fmt"
+readonly AUDIT_ROOTS=("${LOWER_ROOT}" "${DRIVER_ROOT}" "${FMT_ROOT}")
 
 QUIET=0
 VERBOSE=0
@@ -85,10 +89,12 @@ esac
 log()    { (( QUIET )) || printf '[audit_determinism] %s\n' "$*"; }
 detail() { (( VERBOSE )) && printf '[audit_determinism]   %s\n' "$*"; return 0; }
 
-if [[ ! -d "${LOWER_ROOT}" ]]; then
-  printf '[audit_determinism] error: cannot read directory %s\n' "${LOWER_ROOT}" >&2
-  exit 2
-fi
+for root in "${AUDIT_ROOTS[@]}"; do
+  if [[ ! -d "${root}" ]]; then
+    printf '[audit_determinism] error: cannot read directory %s\n' "${root}" >&2
+    exit 2
+  fi
+done
 
 # `lib/Fmt/` is allowed to be absent (during early scaffolding
 # when this script runs against an old commit) — only enforce its
@@ -147,7 +153,7 @@ if [[ -d "${FMT_ROOT}" ]]; then
 fi
 
 for pattern in "${FORBIDDEN[@]}"; do
-  for root in "${SCAN_ROOTS[@]}"; do
+  for root in "${AUDIT_ROOTS[@]}"; do
     detail "scanning ${root#${REPO_ROOT}/} for: ${pattern}"
     # `--include` keeps us on translation-unit and header source only;
     # `--exclude-dir build` defends against an accidental in-tree build.
@@ -175,9 +181,9 @@ done
 # -----------------------------------------------------------------------------
 
 if (( FAIL == 0 )); then
-  scanned_summary="lib/Lower/"
+  scanned_summary="lib/Lower/ + lib/Driver/"
   if [[ -d "${FMT_ROOT}" ]]; then
-    scanned_summary="lib/Lower/ + lib/Fmt/"
+    scanned_summary="${scanned_summary} + lib/Fmt/"
   fi
   log "OK: zero forbidden patterns in ${scanned_summary} (${#FORBIDDEN[@]} pattern(s) scanned)"
   exit 0

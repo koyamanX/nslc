@@ -63,6 +63,17 @@ For C++ / TableGen / build files, the LLVM convention applies:
 
 All contributions must be compatible with this license. The patent grant in Apache 2.0 §3 and the LLVM Exception together mean (a) contributors grant a patent license alongside their copyright contribution, and (b) Verilog and other artifacts produced *by* the compiler are not encumbered by the compiler's own license.
 
+### 2.1 Audited corpus (`test/audited/`)
+
+The `test/audited/<project>/` directories contain **vendored copies** of audited open-source NSL projects used for the M7 end-to-end regression (Constitution Principle VI "Delivery" sub-bullet). Per [`specs/011-m7-driver-e2e/contracts/audited-corpus.contract.md`](specs/011-m7-driver-e2e/contracts/audited-corpus.contract.md) §2 and FR-009/FR-011/FR-012:
+
+- Each project ships a `PROVENANCE.md` recording `Upstream-URL`, `Upstream-SHA` (40-hex), `License`, and `Vendored-At` (ISO-8601). The `License` value MUST match an entry in [`cmake/CompatibleLicenses.cmake`](cmake/CompatibleLicenses.cmake)'s `NSL_LICENSE_COMPATIBLE` list (Apache-2.0 / Apache-2.0 WITH LLVM-exception / BSD-2-Clause / BSD-3-Clause / MIT).
+- **No submodules, no `FetchContent_Declare`, no `ExternalProject_Add`** — Constitution Principle V (deterministic build environment) makes any network-dependent vendoring mechanism non-compliant.
+- **Updating** an audited project to a newer upstream commit is a **fresh re-vendoring commit** that re-copies files and updates `Upstream-SHA` + `Vendored-At` in `PROVENANCE.md`. Not a submodule bump.
+- **Adding a new audited project** post-M7 is a routine single-PR change. See [`specs/011-m7-driver-e2e/contracts/audited-corpus.contract.md`](specs/011-m7-driver-e2e/contracts/audited-corpus.contract.md) §8 for the full procedure (vendor → PROVENANCE.md → `golden/<scenario>.vcd` + `golden/REGEN.md` → optional `golden/SIGNAL_MAP.toml`). Zero edits to `lib/Driver/`, `tools/nslc/`, or `cmake/audited_corpus.cmake` are required — `cmake/AuditedCorpusLint.cmake`'s `NSL_AUDITED_PROJECTS` list is the single edit point that picks up the new project.
+- **Original-author grants**: if a vendored project has no upstream LICENSE file but the original author is also an nslc contributor, the author MAY grant `Apache-2.0 WITH LLVM-exception` (or any other compatible license) for the vendored copy. Record the grant in `PROVENANCE.md` `Notes:` block (e.g., `License: Apache-2.0 WITH LLVM-exception (original-author grant)`). The lint at configure time strips the parenthetical comment for the compatibility check; the canonical SPDX identifier must be the prefix.
+- **`golden/REGEN.md` MUST NOT invoke `nslc`** — self-referential goldens are forbidden by FR-016 (regeneration must trace to an external known-good source: the upstream NSL toolchain output, a manually-authored reference trace, or a formal-validation framework export per FR-017).
+
 ---
 
 ## 3. Tooling and workflow

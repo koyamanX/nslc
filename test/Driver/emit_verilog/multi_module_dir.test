@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/emit_verilog/multi_module_dir.test — M7 US1 fixture
+// (T023). Asserts `-o <dir>/` (trailing slash) emits split-file
+// Verilog with one `.v` per `hw.module` in the directory.
+//
+// Per `driver-emit-verilog.contract.md` §1 dispatch path (a) +
+// research.md §2 ("ends in `/` → exportSplitVerilog").
+
+// RUN: rm -rf %t-dir && mkdir -p %t-dir
+// RUN: %nslc -emit=verilog %S/fixtures/multi_module.nsl -o %t-dir/
+// Verify per-module files exist (CIRCT exportSplitVerilog names
+// files `<hw.module-name>.{v,sv}`). The vendored CIRCT may emit
+// either extension; the dispatch test pins existence + content,
+// not extension.
+// RUN: ls %t-dir | %FileCheck %s --check-prefix=DIRLIST
+// RUN: cat %t-dir/* | %FileCheck %s --check-prefix=COMBINED
+
+// DIRLIST: ModA
+// DIRLIST: ModB
+
+// COMBINED-DAG: module ModA
+// COMBINED-DAG: module ModB
+// COMBINED-NOT: nsl.
+// COMBINED-NOT: fsm.
+// COMBINED-NOT: seq.

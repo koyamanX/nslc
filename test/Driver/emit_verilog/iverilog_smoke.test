@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/emit_verilog/iverilog_smoke.test — M7 US1 fixture
+// (T028). Asserts the emitted Verilog is syntactically valid
+// SystemVerilog-2012 (Icarus Verilog `-g2012` accepts it without
+// error). spec.md User Story 1 acceptance scenario #3 +
+// driver-emit-verilog.contract.md §7 (iverilog_smoke.test row).
+//
+// Needs `iverilog` on PATH — verified 2026-05-12 that the
+// existing `:dev` container does NOT include iverilog (only the
+// build toolchain + LLVM/MLIR/CIRCT). Both iverilog and Verilator
+// land via the `:dev-m7` container bump (Phase 2A T006-T011 per
+// container-m7.contract.md §2). The lit feature gate below
+// (matched by `test/lit.cfg.py`'s `shutil.which('iverilog')`
+// available-features detection) UNSUPPORTED-outs cleanly pre-
+// `:dev-m7` and runs-and-asserts once the container bumps land.
+
+// REQUIRES: iverilog
+// RUN: %nslc -emit=verilog %S/fixtures/single_module.nsl -o %t.v
+// RUN: iverilog -g2012 -o %t.vvp %t.v
+
+// Verification: the iverilog command exited zero. No FileCheck
+// needed; iverilog's exit code is the assertion.

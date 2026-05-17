@@ -22,21 +22,45 @@ References to `lang.ebnf §X` are sections in
 `pp.ebnf §X` are sections in
 [`docs/spec/nsl_pp.ebnf`](./docs/spec/nsl_pp.ebnf).
 
-> **Status as of 2026-05-04**: M1, M2, M3, M4, M5, and M6 (this
-> branch, structurally feature-complete) are delivered. The "M5 (...)"
-> column entries — `%IDENT%` residue check (`NSLCheckSemanticsPass`),
-> `generate` unroll (`NSLExpandGeneratePass`), expression visitor
-> coverage, width / constant expressions (`NSLResolveParamsPass`) —
-> are all wired into the `Compilation::runNSLPasses` pipeline (slots
-> 1, 2, 6 of 6 per `008-m5-structural-passes/contracts/pass-pipeline.
-> contract.md` §2). The "M6 ✓" entries — the `nsl::*` → CIRCT
-> conversion pass (`NSLToCIRCTPass`) producing `hw`/`comb`/`seq`/
-> `fsm`/`sv` IR per `010-m6-circt-lowering/contracts/circt-lowering.
-> contract.md` §1 — are wired into `Compilation::lowerToCIRCT` and
-> exposed via `nslc -emit=hw`. 620 PASS + 3 XFAIL out of 623 lit
-> tests inside the dev container. M7 (`-emit=verilog` via stock
-> CIRCT passes + `circt::ExportVerilog`) and beyond remain
-> forward-looking.
+> **Status as of 2026-05-12**: M1, M2, M3, M4, M5, M6, and M7
+> (this branch, Phases 1–6 implementation-complete; Phases 5-final
+> + 2A-container + 7-polish forward-looking) are delivered. The
+> "M5 (...)" column entries — `%IDENT%` residue check
+> (`NSLCheckSemanticsPass`), `generate` unroll
+> (`NSLExpandGeneratePass`), expression visitor coverage, width /
+> constant expressions (`NSLResolveParamsPass`) — are wired into
+> the `Compilation::runNSLPasses` pipeline (slots 1, 2, 6 of 6 per
+> `008-m5-structural-passes/contracts/pass-pipeline.contract.md`
+> §2). The "M6 ✓" entries are wired into
+> `Compilation::lowerToCIRCT` and exposed via `nslc -emit=hw`.
+> **M7 deliverables (2026-05-12)**: `nsl::driver::emitVerilog`
+> chains `Compilation::runCIRCTPasses` (2 stock CIRCT passes:
+> `circt::createConvertFSMToSVPass` + `circt::createLowerSeqToSVPass`;
+> `PrepareForEmission` runs internally inside ExportVerilog) +
+> `circt::exportVerilog` / `circt::exportSplitVerilog` with `-o`
+> argument-shape dispatch per Q1 → B. P-VEN: 4 audited NSL
+> projects vendored (cpu16, mips32_single_cycle, ahb_lite_nsl,
+> turboV) under original-author grant of Apache-2.0 WITH
+> LLVM-exception (corpus narrowed from 7 → 4 per license audit;
+> rv32x_dev/mmcspi/SDRAM_Controler dropped — license-incompatible
+> or non-original-author). `cmake/AuditedCorpusLint.cmake` +
+> `cmake/CompatibleLicenses.cmake` enforce configure-time
+> structural lint per FR-013. `tools/vcd_diff.py` (Python 3.11+
+> stdlib only) is the semantic-equal VCD comparator per Q2 → B; 8
+> unittest cases pass. Phase 6 scaffold: 8 per-cell .test fixtures
+> at `test/audited/<project>_<simulator>.test` (4 projects × 2
+> simulators) UNSUPPORTED-out via `REQUIRES: iverilog/verilator`
+> until the `:dev-m7` container PR (Phase 2A T006-T011) ships
+> Verilator + iverilog. 645 lit tests total inside `:dev`
+> container: 630 PASS + 7 XFAIL + 8 UNSUPPORTED + 0 FAIL — zero
+> regressions from M6 baseline (623 = 620 PASS + 3 XFAIL).
+> Remaining for M7 acceptance: Phase 5 final (T062-T068; needs
+> upstream NSL toolchain access for golden VCD generation; turboV
+> via vendored Python reference simulator); Phase 2A
+> (`:dev-m7`-container PR via `gh workflow run publish-images.yml`);
+> Phase 7 polish (T094-T102; includes /nsl-coupling-audit +
+> /nsl-constitution-review). M8 (riscv-formal for turboV) + M9
+> (1.0.0 release) remain forward-looking.
 
 | Language area | Spec reference | Lex / parse / sema | Lower to dialect | Lower to CIRCT |
 |---|---|---|---|---|
@@ -176,46 +200,91 @@ editor integration), this section tells you when it lands.
 ---
 
 <!-- SPECKIT START -->
-**Active feature**: `010-t8-tree-sitter-grammar` — land
-tooling-track milestone **T8**: the second tier of the project's
-two-tier highlighter strategy (`docs/design/nsl_tooling_design.md
-§4`), building on T1's TextMate base layer with a context-aware
-tree-sitter parser that distinguishes identifier *contexts* T1
-explicitly left un-scoped (`reg` vs `wire` vs `proc_name` vs
-`func_in` references), tags control-terminal names per `S27`,
-handles `%IDENT%` macro splice sites, and resolves the parser-note
-ambiguities (`N5`, `N2`, `N3`, `N6`) T1 deferred. Ships
-`grammars/treesitter/grammar.js` (productions §§1–11 of
-`nsl_lang.ebnf` + preprocessor seam from `nsl_pp.ebnf §2`; keyword
-block **generated** from `include/nsl/Lex/KeywordSet.def` via a new
-`scripts/gen_treesitter_grammar.py`, mirroring the T1 precedent),
-`grammars/treesitter/queries/highlights.scm` (the §4.3 base set
-**plus 8 sub-captures** — `@variable.register`, `@variable.wire`,
-`@variable.memory`, `@function.proc`, `@function.func`,
-`@function.call.proc`, `@function.call.func`, `@label.state` —
-locked by Clarifications session 2026-05-05 Q3 → Option B), the
-generated `src/parser.c` / `src/grammar.json` /
-`src/node-types.json` (committed under `grammars/treesitter/src/`
-per the tree-sitter 0.22 generator layout; CI gates regenerate-
-and-diff via FR-017 using `tree-sitter generate --no-bindings`), and a VS
-Code extension shell under `editors/vscode/treesitter/` that loads
-`tree-sitter-nsl.wasm` via `web-tree-sitter`. **`tree-sitter-cli`
-is pinned to `0.22.x`** in `grammars/treesitter/package.json`
-(Q1 → Option B). The **WASM artefact is NOT committed** — CI
-builds it, asserts byte-identity (SC-008 / Principle V), uploads
-as a GHA workflow artefact, and tagged releases attach it
-(Q2 → Option C). Smoke gate parses the in-tree
-`examples/01_*.nsl`–`examples/20_simulation_tb.nsl` corpus
-(Q4 → Option C); the audited corpus joins the gate once P-VEN
-lands at M7. Marketplace publication and a `nvim-treesitter`
-upstream PR are explicitly deferred per `README.md §Roadmap`
-T1/T12 deferral note. For technologies, project structure,
-entity catalog, contracts, and quickstart, read the current plan:
-[`specs/010-t8-tree-sitter-grammar/plan.md`](./specs/010-t8-tree-sitter-grammar/plan.md).
+**Active feature**: `011-m7-driver-e2e` — M7 *demonstration
+moment* (implementation-complete inside `:dev` container as of
+2026-05-12; pending Phase 2A container PR + Phase 5 final goldens
+before the milestone-acceptance gate (T102) can run end-to-end).
+Constitution amended to v1.8.0 (commit `c7af756`) to formally
+narrow the Principle VI "closed list" from 7 → 4 audited projects
+per the M7 license audit. M7 delivers four orthogonal
+sub-deliverables: (1) **`nsl-driver` end-to-end** —
+`nslc -emit=verilog` chains M6's CIRCT IR through 2 stock CIRCT
+passes (`circt::createConvertFSMToSVPass` +
+`circt::createLowerSeqToSVPass` in flat `circt::` namespace;
+`PrepareForEmission` runs internally inside ExportVerilog per
+upstream `Passes.td:76`) + `circt::exportVerilog` /
+`circt::exportSplitVerilog` with `-o`-argument-shape dispatch
+(Q1 → B). New `Compilation::runCIRCTPasses` member function +
+`nsl::driver::emitVerilog` free-function dispatch (data-model.md
+§3 deviation: dispatch lives inline in `emitVerilog` not in a
+`Compilation::emit` member — matches the existing per-stage
+emit-glue pattern). New public header `EmitVerilog.h` mirroring
+`EmitHW.h`'s shape (with added `output_path` parameter). 3 new
+CIRCT `LINK_LIBS`: `CIRCTExportVerilog`, `CIRCTFSMToSV`,
+`CIRCTSeqToSV` (corrected from spec's `CIRCT{FSM,Seq,SV}Transforms`
+names via build verification — the To-SV conversion libs are
+separate from the internal-transform libs by upstream design).
+(2) **P-VEN (vendoring)** — 4 audited NSL projects (`cpu16`,
+`mips32_single_cycle`, `ahb_lite_nsl`, `turboV`) vendored
+verbatim under `test/audited/<project>/` under explicit
+original-author Apache-2.0-WITH-LLVM-exception grants (the
+user is the maintainer of all 4 upstream repos). Corpus narrowed
+from spec's original 7 per license audit at T046: rv32x_dev is
+GPL-3.0; mmcspi + SDRAM_Controler are forks without an
+original-author-grant path. The 3 dropped projects can be
+re-added via routine vendoring PRs once their upstream licensing
+is resolved per constitution v1.8.0's "narrow now, re-expand
+later" pattern. `cmake/AuditedCorpusLint.cmake` +
+`cmake/CompatibleLicenses.cmake` enforce configure-time
+structural lint per FR-013 (configure aborts FATAL_ERROR on
+missing PROVENANCE.md keys, malformed Upstream-SHA, license not
+in compatible set, missing golden/REGEN.md, or self-referential
+nslc invocations in REGEN.md). (3) **P-VCD scaffold** —
+`tools/vcd_diff.py` (Python 3.11+ stdlib only; ~440 LOC; 8
+unittest cases all GREEN inside `:dev`) is the semantic-equal
+VCD comparator per Q2 → B; per-project `golden/REGEN.md`
+scaffolds in place; actual golden `.vcd` files land at Phase 5
+final (T062-T068; needs upstream NSL toolchain access for
+non-CPU projects, vendored Python ref-simulator runtime for
+turboV). (4) **Audited-corpus regression** — `cmake --build
+build --target check-audited` will run 8 cells (4 projects × 2
+simulators: Icarus + Verilator); 8 per-cell `.test` fixtures at
+the top of `test/audited/` UNSUPPORTED-out via
+`REQUIRES: iverilog/verilator` gates until the `:dev-m7`
+container PR (Phase 2A T006-T011) ships Verilator + iverilog
+via the established `PARENT_IMAGE` build-arg pattern. Wall-clock
+budget for the full regression: ≤ 15 min. Two-simulator parity
+rule (no per-simulator XFAILs). Adding a new project post-M7
+(5th-or-beyond) is a routine vendoring-only PR — the single
+edit point is `cmake/AuditedCorpusLint.cmake`'s
+`NSL_AUDITED_PROJECTS` list. **Lit suite inside `:dev` container
+(verified 2026-05-12)**: 643 / 643 — 630 PASS + 3 XFAIL + 10
+UNSUPPORTED + 0 FAIL; zero regressions from M6 baseline (623);
++20 net tests from M7. **Three /speckit-clarify decisions**
+pinned at /speckit-clarify time (2026-05-11): Q1 → B hybrid
+`-o` dispatch; Q2 → B vendored Python `vcd_diff.py`
+semantic-equal with optional per-project `SIGNAL_MAP.toml`
+aliasing; Q3 → A extend `Dockerfile.dev` with Verilator +
+`riscv-tests` via `PARENT_IMAGE`. **Two /nsl-coupling-audit +
+/nsl-constitution-review passes** (commits 0df14bf + c7af756)
+closed all CRITICAL + HIGH + MEDIUM findings; advisory items
+recorded for follow-on PRs. **Remaining for M7 acceptance
+(forward-looking)**: Phase 2A (`:dev-m7` container PR — needs
+`gh workflow run publish-images.yml` from outside the sandbox);
+Phase 5 final (real golden VCDs — needs upstream NSL toolchain
+access); Phase 6 cell runs (blocked on 2A + 5-final); Phase 7
+T102 final acceptance gate; T044 two-host-path determinism CI
+extension (file-authoring task; not blocked). For technologies,
+project structure, entity catalog, contracts, and quickstart,
+read the current plan:
+[`specs/011-m7-driver-e2e/plan.md`](./specs/011-m7-driver-e2e/plan.md).
 Companion artifacts:
-[`spec.md`](./specs/010-t8-tree-sitter-grammar/spec.md),
-[`research.md`](./specs/010-t8-tree-sitter-grammar/research.md),
-[`data-model.md`](./specs/010-t8-tree-sitter-grammar/data-model.md),
-[`contracts/`](./specs/010-t8-tree-sitter-grammar/contracts/),
-[`quickstart.md`](./specs/010-t8-tree-sitter-grammar/quickstart.md).
+[`spec.md`](./specs/011-m7-driver-e2e/spec.md),
+[`research.md`](./specs/011-m7-driver-e2e/research.md),
+[`data-model.md`](./specs/011-m7-driver-e2e/data-model.md),
+[`contracts/`](./specs/011-m7-driver-e2e/contracts/),
+[`quickstart.md`](./specs/011-m7-driver-e2e/quickstart.md),
+[`tasks.md`](./specs/011-m7-driver-e2e/tasks.md) (§Remaining
+work section pins the 18 open tasks + 13 N/A tasks + unblocking
+dependencies).
 <!-- SPECKIT END -->

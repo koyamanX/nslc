@@ -26,6 +26,7 @@
 #include "nsl/Driver/EmitHW.h"
 #include "nsl/Driver/EmitMLIR.h"
 #include "nsl/Driver/EmitTokens.h"
+#include "nsl/Driver/EmitVerilog.h"
 #include "nsl/Driver/Version.h"
 
 #include "llvm/ADT/StringRef.h"
@@ -41,14 +42,20 @@
 namespace {
 constexpr const char *kUsage =
     "usage: nslc [--version] [-I <dir>]... [-D NAME=value]... "
-    "[--diagnostic-format=text|json] -emit=<stage> <input>\n"
+    "[-o <path>] [--diagnostic-format=text|json] -emit=<stage> <input>\n"
     "  -emit=<stage>   Stop after stage. Stages:\n"
     "                    tokens   M1 lex output\n"
     "                    ast      M2/M3 AST snapshot\n"
     "                    mlir     M5 nsl::* MLIR (post-structural-expansion)\n"
     "                    hw       M6 CIRCT MLIR (hw/comb/seq/fsm/sv;\n"
     "                             also accepts -emit=circt as an alias)\n"
-    "                    verilog  (M7+) — not yet implemented\n";
+    "                    verilog  M7 SystemVerilog (single-file when -o is\n"
+    "                             omitted/`-`/file; split-file when -o is\n"
+    "                             directory)\n"
+    "  -o <path>       Output destination (Verilog emit only at M7):\n"
+    "                    omitted or `-` → stdout (single file)\n"
+    "                    `<dir>/` or existing directory → split-file\n"
+    "                    `<file>` → single-file write to file\n";
 bool starts(const char *s, const char *p) {
   return std::strncmp(s, p, std::strlen(p)) == 0;
 }
@@ -139,6 +146,7 @@ int main(int argc, char **argv) {
   nsl::driver::EmitTokensOptions opts;
   llvm::StringRef stage;
   llvm::StringRef input;
+  llvm::StringRef output_path;
   for (int i = 1; i < argc; ++i) {
     const char *a = argv[i];
     if ((std::strcmp(a, "--version") == 0) || (std::strcmp(a, "-v") == 0)) {
@@ -155,6 +163,10 @@ int main(int argc, char **argv) {
       opts.predefined_macros.emplace_back(argv[++i]);
     } else if (starts(a, "-D") && a[2] != '\0') {
       opts.predefined_macros.emplace_back(a + 2);
+    } else if ((std::strcmp(a, "-o") == 0) && i + 1 < argc) {
+      output_path = argv[++i];
+    } else if (starts(a, "-o") && a[2] != '\0') {
+      output_path = a + 2;
     } else if (std::strcmp(a, "--diagnostic-format=json") == 0) {
       opts.diagnostic_json = true;
     } else if (std::strcmp(a, "--diagnostic-format=text") == 0) {
@@ -199,10 +211,11 @@ int main(int argc, char **argv) {
   if (stage == "hw" || stage == "circt") {
     return nsl::driver::emitHW(input, opts, llvm::outs(), llvm::errs());
   }
+  // M7: -emit=verilog dispatches by -o argument shape per
+  // driver-emit-verilog.contract.md §1.
   if (stage == "verilog") {
-    llvm::errs()
-        << "error: '-emit=verilog' is not yet implemented (planned for M7)\n";
-    return 2;
+    return nsl::driver::emitVerilog(input, output_path, opts, llvm::outs(),
+                                    llvm::errs());
   }
   llvm::errs() << "unknown emit stage: " << stage << "\n" << kUsage;
   return 2;

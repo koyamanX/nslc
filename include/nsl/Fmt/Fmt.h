@@ -126,8 +126,8 @@ FormatResult format_buffer(llvm::StringRef sourceBuffer,
 // a warning into `diagnostics` but do NOT change the status (so a
 // caller can ignore them and proceed). `out` MUST NOT be null.
 
-FormatResult parse_config_file(llvm::StringRef tomlBuffer,
-                               ::nsl::FileID fileID, Configuration *out);
+FormatResult parse_config_file(llvm::StringRef tomlBuffer, ::nsl::FileID fileID,
+                               Configuration *out);
 
 // -----------------------------------------------------------------------------
 // 6. discover_config — upward .nsl-fmt.toml walk (Phase 6 — T106)

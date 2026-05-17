@@ -98,6 +98,26 @@ public:
   /// §4 + `circt-lowering.contract.md` §1 (per-op mapping freeze).
   mlir::LogicalResult lowerToCIRCT(mlir::ModuleOp module);
 
+  /// Run the M7 stock-CIRCT post-processing pipeline over the
+  /// post-M6 CIRCT IR (M7 deliverable; FR-002). Assembles an
+  /// un-anchored `mlir::PassManager` containing two upstream-CIRCT
+  /// passes (both in the flat `circt::` namespace):
+  ///   1. `circt::createConvertFSMToSVPass()`
+  ///   2. `circt::createLowerSeqToSVPass()`
+  /// `circt::createPrepareForEmission()` is NOT invoked explicitly
+  /// — it runs internally inside `circt::exportVerilog` per upstream
+  /// `circt/Conversion/Passes.td:76`, and explicit invocation would
+  /// fail the PassManager root-op binding check. After success,
+  /// every reachable op belongs to `hw`, `comb`, or `sv` (no `fsm`,
+  /// no `seq`); `sv.alwaysff` + `sv.reg` materialize from the `seq.*`
+  /// lowering. Failures route through `DiagnosticEngine` via the
+  /// same `DiagnosticBridge` M6 uses.
+  ///
+  /// Pinned by `specs/011-m7-driver-e2e/contracts/circt-passes.contract.md`
+  /// §1 + §1.1 (pass identity + PrepareForEmission rationale) + §3
+  /// (PassManager config).
+  mlir::LogicalResult runCIRCTPasses(mlir::ModuleOp module);
+
   /// Read-only accessor for the embedded MLIR context. M5 lowering
   /// passes consume this when constructing ops.
   mlir::MLIRContext &context() noexcept { return mlir_ctx_; }

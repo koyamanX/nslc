@@ -38,12 +38,11 @@
 #define NSL_FMT_LIB_LAYOUT_PLANNER_H
 
 #include "Doc.h"
-
 #include "nsl/AST/ASTVisitor.h"
 #include "nsl/AST/AltBlock.h"   // for the shared `CondCase` struct
 #include "nsl/AST/BinaryExpr.h" // for nested `BinaryExpr::Op`
 #include "nsl/AST/CompilationUnit.h"
-#include "nsl/AST/UnaryExpr.h"  // for nested `UnaryExpr::Op`
+#include "nsl/AST/UnaryExpr.h" // for nested `UnaryExpr::Op`
 #include "nsl/Fmt/Fmt.h"
 // `SliceExpr`, `ConcatExpr`, `WireDecl`, etc. are forward-declared by
 // `ASTVisitor.h`'s NodeKind.def expansion above — no extra includes
@@ -181,10 +180,9 @@ protected:
   /// `AltBlock.h`'s shared struct) and the same R1 alignment rule —
   /// only the leading keyword differs. Pass it via `keyword` ("alt"
   /// or "any"). Returns the canonical Doc for the block.
-  DocPtr formatCondCaseBlock(
-      const std::vector<::nsl::ast::CondCase> &cases,
-      const ::nsl::ast::Stmt *elseCase,
-      llvm::StringRef keyword);
+  DocPtr formatCondCaseBlock(const std::vector<::nsl::ast::CondCase> &cases,
+                             const ::nsl::ast::Stmt *elseCase,
+                             llvm::StringRef keyword);
 
   /// Visit a single child node and return its Doc representation.
   /// Future Phase 3-rules overrides (T049-T055) use this to recurse
@@ -212,8 +210,7 @@ protected:
   /// Slice `src_` for [begin, end) byte offsets and wrap as
   /// Doc::text. Used by `interleaveChildren` for the inter-child
   /// gaps.
-  DocPtr verbatimFromOffsets(std::uint32_t begin,
-                             std::uint32_t end) const;
+  DocPtr verbatimFromOffsets(std::uint32_t begin, std::uint32_t end) const;
 
   /// T051 R6 helper. Same as `verbatimFromOffsets` but, when
   /// `cfg_.preserve_comments == CommentMode::None`, scans the gap
@@ -223,8 +220,7 @@ protected:
   /// don't fuse). Used by `interleaveChildren` so the `none`
   /// policy also strips inline comments that sit BETWEEN two
   /// tokens of a single decl (e.g., `reg /* inline */ q[8];`).
-  DocPtr verbatimGapFiltered(std::uint32_t begin,
-                             std::uint32_t end) const;
+  DocPtr verbatimGapFiltered(std::uint32_t begin, std::uint32_t end) const;
 
   /// Emit a parent node by interleaving verbatim source bytes
   /// (between children) with recursive child visits via
@@ -235,9 +231,9 @@ protected:
   /// Used by parent visitors (CompilationUnit, ModuleBlock,
   /// RegDecl, etc.) so canonical-layout child overrides
   /// (BinaryExpr, UnaryExpr, ...) can fire on nested nodes.
-  DocPtr interleaveChildren(
-      ::nsl::SourceRange parent_range,
-      llvm::ArrayRef<const ::nsl::ast::ASTNode *> children);
+  DocPtr
+  interleaveChildren(::nsl::SourceRange parent_range,
+                     llvm::ArrayRef<const ::nsl::ast::ASTNode *> children);
 
   /// Direct access to the source buffer + active config for
   /// derived rule visitors that need finer-grained slicing than
@@ -276,8 +272,7 @@ private:
 
   /// Compute the absolute file line number (1-indexed) for a byte
   /// offset into `src_`. Out-of-range offsets clamp to the last line.
-  [[nodiscard]] int
-  lineForOffset(std::uint32_t offset) const noexcept;
+  [[nodiscard]] int lineForOffset(std::uint32_t offset) const noexcept;
 };
 
 } // namespace nsl::fmt

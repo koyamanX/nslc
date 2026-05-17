@@ -13,16 +13,19 @@ add_nsl_library(nsl-driver
   EmitAST.cpp
   EmitMLIR.cpp
   EmitHW.cpp
+  EmitVerilog.cpp      # M7 (FR-001, FR-006): emitVerilog() free function
   Sema.cpp
   Compilation.cpp
   LowerToNSL.cpp
   RunNSLPasses.cpp
   LowerToCIRCT.cpp
+  RunCIRCTPasses.cpp   # M7 (FR-002): Compilation::runCIRCTPasses body
   HEADERS
     ${CMAKE_SOURCE_DIR}/include/nsl/Driver/EmitTokens.h
     ${CMAKE_SOURCE_DIR}/include/nsl/Driver/EmitAST.h
     ${CMAKE_SOURCE_DIR}/include/nsl/Driver/EmitMLIR.h
     ${CMAKE_SOURCE_DIR}/include/nsl/Driver/EmitHW.h
+    ${CMAKE_SOURCE_DIR}/include/nsl/Driver/EmitVerilog.h  # M7 (FR-006)
     ${CMAKE_SOURCE_DIR}/include/nsl/Driver/Sema.h
     ${CMAKE_SOURCE_DIR}/include/nsl/Driver/Compilation.h
   DEPENDS
@@ -40,7 +43,32 @@ add_nsl_library(nsl-driver
     # bodies. The reverse edge (nsl-dialect → nsl-driver) is
     # forbidden by Principle II + AddNSLLibrary's layer-index check.
     nsl-dialect
-    nsl-lower)
+    nsl-lower
+  LINK_LIBS
+    # M7 (FR-002 + FR-003): three new CIRCT link libs for the stock-
+    # CIRCT post-processing pipeline + ExportVerilog dispatch per
+    # specs/011-m7-driver-e2e/contracts/driver-emit-verilog.contract.md
+    # §6 and specs/011-m7-driver-e2e/contracts/circt-passes.contract.md
+    # §1. Each is non-substitutable. Library names are upstream-
+    # canonical CIRCTTargets.cmake exports verified 2026-05-12 against
+    # the vendored :dev container.
+    #
+    # Library → provided symbols:
+    #   - CIRCTExportVerilog → circt::exportVerilog,
+    #                          circt::exportSplitVerilog
+    #                          (PrepareForEmission runs internally;
+    #                          not invoked explicitly per
+    #                          circt/Conversion/Passes.td:76)
+    #   - CIRCTFSMToSV       → circt::createConvertFSMToSVPass
+    #   - CIRCTSeqToSV       → circt::createLowerSeqToSVPass
+    #
+    # (Spec named CIRCTSeqTransforms / CIRCTSVTransforms /
+    # CIRCTFSMTransforms; these provide internal Seq/SV/FSM
+    # transforms but NOT the to-SV conversion passes we want here.
+    # The "-To-SV" conversion libs are separate by upstream design.)
+    CIRCTExportVerilog
+    CIRCTFSMToSV
+    CIRCTSeqToSV)
 
 # nsl-driver is the first M-track library to consume MLIR headers
 # (Compilation.cpp pulls in mlir::MLIRContext + the dialect-load call

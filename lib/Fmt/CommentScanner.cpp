@@ -10,9 +10,8 @@
 
 namespace nsl::fmt {
 
-std::uint32_t
-lineForOffsetIn(const std::vector<std::uint32_t> &lineTable,
-                std::uint32_t offset) noexcept {
+std::uint32_t lineForOffsetIn(const std::vector<std::uint32_t> &lineTable,
+                              std::uint32_t offset) noexcept {
   if (lineTable.empty()) {
     return 1;
   }
@@ -97,8 +96,7 @@ scanComments(llvm::StringRef src, std::uint32_t begin, std::uint32_t end,
           j = end;
         }
         tok.end = j;
-        tok.endLine = lineForOffsetIn(
-            lineTable, j > 0 ? j - 1 : j);
+        tok.endLine = lineForOffsetIn(lineTable, j > 0 ? j - 1 : j);
         out.push_back(tok);
         i = j;
         continue;

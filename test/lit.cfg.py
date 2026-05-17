@@ -10,6 +10,7 @@
 
 import os
 import shlex
+import shutil
 
 import lit.formats
 
@@ -87,15 +88,44 @@ if nslc_src:
          f"{shlex.quote(python)} "
          f"{shlex.quote(os.path.join(nslc_src, 'scripts', 'check_spdx.py'))}"))
 
+# M7 audited-corpus regression substitutions
+# (specs/011-m7-driver-e2e/contracts/audited-corpus.contract.md §5).
+#
+# `%vcd-diff` → tools/vcd_diff.py invocation (Python stdlib-only
+# semantic-equal VCD comparator per Clarifications Q2 → B).
+if nslc_src:
+    config.substitutions.append(
+        ("%vcd-diff",
+         f"{shlex.quote(python)} "
+         f"{shlex.quote(os.path.join(nslc_src, 'tools', 'vcd_diff.py'))}"))
+
+# Simulator-availability features for the audited-corpus regression.
+# Cells under test/audited/<project>_<simulator>.test use
+# `REQUIRES: iverilog` or `REQUIRES: verilator` to UNSUPPORTED out
+# pre-`:dev-m7` (which is the container that ships the simulators).
+# This keeps the cells reviewable as part of the M7 PR without
+# turning them RED in CI before the container bumps land.
+if shutil.which("iverilog"):
+    config.available_features.add("iverilog")
+if shutil.which("verilator"):
+    config.available_features.add("verilator")
+
 # -----------------------------------------------------------------------------
 # Audited-corpus features (T2 T109 — auto-activates on M7 P-VEN vendoring)
 # -----------------------------------------------------------------------------
 #
-# Each of the seven Principle-VI-named audited projects exposes a lit
-# feature `audited-<project>` iff `test/audited/<project>/` exists in
-# the source tree. The T2 audited idempotence fixtures gate on the
+# Each Principle-VI-named audited project exposes a lit feature
+# `audited-<project>` iff `test/audited/<project>/` exists in the
+# source tree. T2's audited idempotence fixtures gate on the
 # corresponding feature with `REQUIRES:`, so they auto-activate the
 # moment M7 vendors the project tree — no T2-side edit required.
+# **Note**: the list below is the *original-pre-narrowing 7-set* —
+# the constitution v1.8.0 amendment (2026-05-12) narrowed the M7
+# acceptance corpus to 4 (cpu16, mips32_single_cycle, ahb_lite_nsl,
+# turboV); the other 3 (`rv32x_dev`, `mmcspi`, `SDRAM_Controler`)
+# may re-enter via routine vendoring PRs per the v1.8.0 re-addition
+# path. The list here stays at 7 so re-additions auto-feature
+# without lit.cfg.py edits.
 _audited_projects = [
     "rv32x_dev",
     "turboV",

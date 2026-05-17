@@ -360,8 +360,8 @@ int main(int argc, char **argv) {
   if (configPath.has_value()) {
     auto contentOpt = readFileFully(*configPath);
     if (!contentOpt) {
-      llvm::errs() << "error: configuration file not found: "
-                   << *configPath << "\n";
+      llvm::errs() << "error: configuration file not found: " << *configPath
+                   << "\n";
       return 2;
     }
     nsl::SourceManager sm;
@@ -372,9 +372,15 @@ int main(int argc, char **argv) {
     for (const nsl::Diagnostic &d : cfgRes.diagnostics) {
       const char *sev = "note";
       switch (d.severity) {
-        case nsl::Severity::Error:   sev = "error";   break;
-        case nsl::Severity::Warning: sev = "warning"; break;
-        case nsl::Severity::Note:    sev = "note";    break;
+      case nsl::Severity::Error:
+        sev = "error";
+        break;
+      case nsl::Severity::Warning:
+        sev = "warning";
+        break;
+      case nsl::Severity::Note:
+        sev = "note";
+        break;
       }
       llvm::errs() << "nsl-fmt: " << *configPath << ": " << sev << ": "
                    << d.message << "\n";
@@ -440,7 +446,8 @@ int main(int argc, char **argv) {
     if (!configPath.has_value()) {
       std::filesystem::path input_path(path);
       std::filesystem::path start_dir = input_path.parent_path();
-      if (start_dir.empty()) start_dir = ".";
+      if (start_dir.empty())
+        start_dir = ".";
       auto discovered = nsl::fmt::discover_config(start_dir.string());
       if (discovered.has_value()) {
         auto cfgContentOpt = readFileFully(*discovered);
@@ -452,12 +459,18 @@ int main(int argc, char **argv) {
           for (const nsl::Diagnostic &d : cfgRes.diagnostics) {
             const char *sev = "note";
             switch (d.severity) {
-              case nsl::Severity::Error:   sev = "error";   break;
-              case nsl::Severity::Warning: sev = "warning"; break;
-              case nsl::Severity::Note:    sev = "note";    break;
+            case nsl::Severity::Error:
+              sev = "error";
+              break;
+            case nsl::Severity::Warning:
+              sev = "warning";
+              break;
+            case nsl::Severity::Note:
+              sev = "note";
+              break;
             }
-            llvm::errs() << "nsl-fmt: " << *discovered << ": " << sev
-                         << ": " << d.message << "\n";
+            llvm::errs() << "nsl-fmt: " << *discovered << ": " << sev << ": "
+                         << d.message << "\n";
           }
           if (cfgRes.status != nsl::fmt::FormatResult::Status::Success) {
             // Discovered-config error → skip this input (FR-016 spirit).
@@ -478,8 +491,8 @@ int main(int argc, char **argv) {
       }
     }
 
-    int rc = processInput(path, *contentOpt, per_file_cfg, checkMode,
-                          inPlace, path, parsedRange);
+    int rc = processInput(path, *contentOpt, per_file_cfg, checkMode, inPlace,
+                          path, parsedRange);
     if (rc != 0) {
       aggregateExit = 1;
     }

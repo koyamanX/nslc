@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/emit_verilog/fixtures/sema_error.nsl — M7 US1 negative
+// fixture source. Trips S15 (bit-slice indices must be compile-time
+// constants) by using a non-constant register value as a bit-slice
+// index. The Sema layer rejects this at M3 — `nslc -emit=verilog`
+// must short-circuit on Sema error per spec.md User Story 1
+// acceptance scenario #4 + driver-emit-verilog.contract.md §5.
+
+declare M {
+  output q;
+}
+
+module M {
+  reg r[8] = 0;
+  reg slice_idx[3] = 0;
+
+  // S15 violation: slice_idx is a `reg`, not a compile-time constant.
+  // Sema layer surfaces this as an error at M3.
+  q = r[slice_idx];
+}

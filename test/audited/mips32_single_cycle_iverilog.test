@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/audited/mips32_single_cycle_iverilog.test — M7 US4 cell for
+// (mips32_single_cycle × iverilog). Phase 6 scaffold.
+
+// REQUIRES: iverilog
+
+// 1. Emit Verilog from the project's src/ NSL sources.
+// RUN: rm -rf %t-verilog && mkdir -p %t-verilog
+// RUN: %nslc -emit=verilog %S/mips32_single_cycle/src/mips32.nsl -o %t-verilog/
+
+// 2. Compile + simulate under iverilog using the project's sim/
+//    harness.
+// RUN: iverilog -g2012 -o %t.vvp %t-verilog/*.v %S/mips32_single_cycle/sim/mips_sim.nsl
+
+// 3. Capture VCD.
+// RUN: cd %T && vvp %t.vvp +VCDFILE=%t.vcd
+
+// 4. Compare against golden (Phase 5 T063 lands the golden).
+// RUN: %vcd-diff %S/mips32_single_cycle/golden/mips_hello.vcd %t.vcd

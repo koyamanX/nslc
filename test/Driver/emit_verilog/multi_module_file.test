@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/emit_verilog/multi_module_file.test — M7 US1 fixture
+// (T022). Asserts `-o <file>` (regular-file path) emits a single
+// combined Verilog file containing both modules.
+//
+// Per `driver-emit-verilog.contract.md` §1 dispatch path (b).
+
+// RUN: rm -f %t.v
+// RUN: %nslc -emit=verilog %S/fixtures/multi_module.nsl -o %t.v
+// RUN: %FileCheck %s --input-file=%t.v
+
+// Both modules appear in the single file.
+// CHECK-DAG: module ModA
+// CHECK-DAG: module ModB
+
+// File-mode-specific: stdout receives nothing (the redirect for
+// stdout isn't checked here — the assertion is just that the file
+// contains the modules).
+// CHECK-NOT: nsl.
+// CHECK-NOT: fsm.
+// CHECK-NOT: seq.

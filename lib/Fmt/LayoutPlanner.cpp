@@ -71,7 +71,6 @@
 #include "nsl/AST/WhileBlock.h"
 #include "nsl/AST/WireDecl.h"
 #include "nsl/AST/ZeroExtendExpr.h"
-
 #include "nsl/Basic/SourceLocation.h"
 
 #include "llvm/ADT/StringRef.h"
@@ -95,8 +94,8 @@ void LayoutPlanner::buildLineTable() noexcept {
 int LayoutPlanner::lineForOffset(std::uint32_t offset) const noexcept {
   // Binary search the line-start table; line N (1-indexed) covers
   // [lineStartOffsets_[N-1], lineStartOffsets_[N]).
-  auto it = std::upper_bound(lineStartOffsets_.begin(),
-                             lineStartOffsets_.end(), offset);
+  auto it = std::upper_bound(lineStartOffsets_.begin(), lineStartOffsets_.end(),
+                             offset);
   int fragmentLine = static_cast<int>(it - lineStartOffsets_.begin());
   if (fragmentLine < 1) {
     fragmentLine = 1;
@@ -319,8 +318,7 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ASTNode &node) {
 // emit the whole `module ... { reg x[8] = a+b; }` byte range and the
 // inner R5 rule would never see the `a+b`.
 
-DocPtr
-LayoutPlanner::formatNode(const ::nsl::ast::CompilationUnit &node) {
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::CompilationUnit &node) {
   std::vector<const ::nsl::ast::ASTNode *> children;
   children.reserve(node.items().size());
   for (const auto &item : node.items()) {
@@ -438,7 +436,7 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ModuleBlock &node) {
     std::vector<CommentTok> leading;
     std::vector<CommentTok> trailing; // 0+ comments on prev's line
     int newlinesOutsideComments = 0;
-    bool hasBlankLine = false;        // 2+ newlines in a row
+    bool hasBlankLine = false; // 2+ newlines in a row
   };
   auto classifyGap = [&](std::uint32_t gap_begin, std::uint32_t gap_end,
                          std::uint32_t prev_end_off,
@@ -534,7 +532,7 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ModuleBlock &node) {
     }
     llvm::StringRef text(src_.data() + c.begin, c.end - c.begin);
     body_parts.push_back(Doc::comment(text, /*leading=*/true,
-                                       /*trailing=*/false));
+                                      /*trailing=*/false));
     at_line_start = false;
     body_has_break = true;
   };
@@ -548,13 +546,13 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ModuleBlock &node) {
       // decl context). Fall back to leading placement.
       llvm::StringRef text(src_.data() + c.begin, c.end - c.begin);
       body_parts.push_back(Doc::comment(text, /*leading=*/false,
-                                         /*trailing=*/true));
+                                        /*trailing=*/true));
       return;
     }
     body_parts.push_back(Doc::text(llvm::StringRef(" ")));
     llvm::StringRef text(src_.data() + c.begin, c.end - c.begin);
     body_parts.push_back(Doc::comment(text, /*leading=*/false,
-                                       /*trailing=*/true));
+                                      /*trailing=*/true));
   };
 
   for (const ::nsl::ast::ASTNode *child : children) {
@@ -569,12 +567,10 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ModuleBlock &node) {
       return verbatimFromRange(node.loc());
     }
 
-    ClassifiedGap g =
-        classifyGap(cursor, child_begin, prev_end_off, have_prev);
+    ClassifiedGap g = classifyGap(cursor, child_begin, prev_end_off, have_prev);
 
     // Decide layout mode for this gap.
-    const bool gap_has_any_comment =
-        !g.leading.empty() || !g.trailing.empty();
+    const bool gap_has_any_comment = !g.leading.empty() || !g.trailing.empty();
     const bool gap_has_break = g.newlinesOutsideComments > 0;
     const bool canonical = gap_has_any_comment || gap_has_break;
 
@@ -635,8 +631,7 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ModuleBlock &node) {
   // Final gap: [cursor, body_end). Trailing line comment on the
   // last decl's line (`reg r[8]; // trailing\n}`) and any orphan
   // leading comments before `}`.
-  ClassifiedGap tail =
-      classifyGap(cursor, body_end, prev_end_off, have_prev);
+  ClassifiedGap tail = classifyGap(cursor, body_end, prev_end_off, have_prev);
   for (const CommentTok &c : tail.trailing) {
     emitTrailingComment(c);
   }
@@ -708,9 +703,9 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::BinaryExpr &node) {
   // lhs/rhs via `visitNode` so nested binary/unary subtrees get the
   // same canonicalisation.
   DocPtr lhs_doc = node.lhs() != nullptr ? visitNode(*node.lhs())
-                                          : Doc::text(llvm::StringRef{});
+                                         : Doc::text(llvm::StringRef{});
   DocPtr rhs_doc = node.rhs() != nullptr ? visitNode(*node.rhs())
-                                          : Doc::text(llvm::StringRef{});
+                                         : Doc::text(llvm::StringRef{});
   std::vector<DocPtr> parts;
   parts.reserve(5);
   parts.push_back(std::move(lhs_doc));
@@ -725,7 +720,7 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::UnaryExpr &node) {
   // R5: no space between the unary operator and its operand. The
   // operator immediately abuts the recursively-formatted operand.
   DocPtr sub_doc = node.sub() != nullptr ? visitNode(*node.sub())
-                                          : Doc::text(llvm::StringRef{});
+                                         : Doc::text(llvm::StringRef{});
   std::vector<DocPtr> parts;
   parts.reserve(2);
   parts.push_back(Doc::text(unaryOpSpelling(node.op())));
@@ -770,9 +765,9 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::SliceExpr &node) {
   // concats / unary forms inside any index get the canonical
   // treatment too.
   DocPtr sub_doc = node.sub() != nullptr ? visitNode(*node.sub())
-                                          : Doc::text(llvm::StringRef{});
+                                         : Doc::text(llvm::StringRef{});
   DocPtr hi_doc = node.hi() != nullptr ? visitNode(*node.hi())
-                                        : Doc::text(llvm::StringRef{});
+                                       : Doc::text(llvm::StringRef{});
   std::vector<DocPtr> parts;
   parts.reserve(6);
   parts.push_back(std::move(sub_doc));
@@ -918,8 +913,7 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ProcDefn &node) {
   return interleaveChildren(node.loc(), children);
 }
 
-DocPtr
-LayoutPlanner::formatNode(const ::nsl::ast::ProcNameDecl &node) {
+DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ProcNameDecl &node) {
   // R3 §3 (amended Session 2026-05-12 — see `plan.md` Plan
   // Revisions): single-line form when total fits within
   // `max_line_length`, otherwise multi-line form with each arg
@@ -958,8 +952,7 @@ LayoutPlanner::formatNode(const ::nsl::ast::ProcNameDecl &node) {
   // running column, so assume the canonical parent indent is one
   // `indentStep()` (`proc_name` decls always live inside a module
   // body in valid NSL; the parser disallows top-level position).
-  const std::size_t parent_indent_cols =
-      static_cast<std::size_t>(indentStep());
+  const std::size_t parent_indent_cols = static_cast<std::size_t>(indentStep());
   std::size_t projected = parent_indent_cols +
                           /* "proc_name " */ 10 + name.size() +
                           /* "(" */ 1 + /* ");" */ 2;
@@ -1071,12 +1064,12 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ParallelBlock &node) {
 
 DocPtr LayoutPlanner::formatNode(const ::nsl::ast::AltBlock &node) {
   return formatCondCaseBlock(node.cases(), node.elseCase(),
-                              llvm::StringRef("alt"));
+                             llvm::StringRef("alt"));
 }
 
 DocPtr LayoutPlanner::formatNode(const ::nsl::ast::AnyBlock &node) {
   return formatCondCaseBlock(node.cases(), node.elseCase(),
-                              llvm::StringRef("any"));
+                             llvm::StringRef("any"));
 }
 
 DocPtr LayoutPlanner::formatNode(const ::nsl::ast::IfStmt &node) {
@@ -1480,18 +1473,17 @@ DocPtr LayoutPlanner::formatCondCaseBlock(
   for (const auto &c : cases) {
     body_parts.push_back(Doc::hardline());
     body_parts.push_back(c.cond ? visitNode(*c.cond)
-                                  : Doc::text(llvm::StringRef{}));
+                                : Doc::text(llvm::StringRef{}));
     const std::size_t cond_w =
         c.cond ? (c.cond->loc().end().offset() - c.cond->loc().begin().offset())
                : std::size_t{0};
-    const std::size_t pad = cfg_.align_case_arrows
-                                ? ((max_cond + 1) - cond_w)
-                                : std::size_t{1};
+    const std::size_t pad =
+        cfg_.align_case_arrows ? ((max_cond + 1) - cond_w) : std::size_t{1};
     const std::string padding(pad, ' ');
     body_parts.push_back(Doc::text(llvm::StringRef(padding)));
     body_parts.push_back(Doc::text(llvm::StringRef(": ")));
     body_parts.push_back(c.body ? visitNode(*c.body)
-                                  : Doc::text(llvm::StringRef{}));
+                                : Doc::text(llvm::StringRef{}));
   }
   if (elseCase != nullptr) {
     body_parts.push_back(Doc::hardline());
@@ -1530,14 +1522,13 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::TransferStmt &node) {
   // slice/concat expression inside fires the R5 / R4 layout —
   // without this override, TransferStmt was a verbatim leaf and
   // `q := a+b;` came out as-is rather than `q := a + b;`.
-  llvm::StringRef op =
-      node.op() == ::nsl::ast::TransferStmt::Op::RegColonEq
-          ? llvm::StringRef(":=")
-          : llvm::StringRef("=");
+  llvm::StringRef op = node.op() == ::nsl::ast::TransferStmt::Op::RegColonEq
+                           ? llvm::StringRef(":=")
+                           : llvm::StringRef("=");
   DocPtr lhs_doc = node.lhs() != nullptr ? visitNode(*node.lhs())
-                                          : Doc::text(llvm::StringRef{});
+                                         : Doc::text(llvm::StringRef{});
   DocPtr rhs_doc = node.rhs() != nullptr ? visitNode(*node.rhs())
-                                          : Doc::text(llvm::StringRef{});
+                                         : Doc::text(llvm::StringRef{});
   std::vector<DocPtr> parts;
   parts.reserve(6);
   parts.push_back(std::move(lhs_doc));
@@ -1555,10 +1546,10 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ConcatExpr &node) {
   // configuration has `spaces_inside_braces=true`, in which case
   // an extra space pads each side of the brace pair.
   const bool inside = cfg_.spaces_inside_braces;
-  llvm::StringRef open_brace = inside ? llvm::StringRef("{ ")
-                                       : llvm::StringRef("{");
-  llvm::StringRef close_brace = inside ? llvm::StringRef(" }")
-                                        : llvm::StringRef("}");
+  llvm::StringRef open_brace =
+      inside ? llvm::StringRef("{ ") : llvm::StringRef("{");
+  llvm::StringRef close_brace =
+      inside ? llvm::StringRef(" }") : llvm::StringRef("}");
   std::vector<DocPtr> parts;
   // worst case: 1 (open) + 2*N - 1 (parts + separators) + 1 (close)
   parts.reserve(2 + 2 * node.parts().size());
@@ -1577,8 +1568,7 @@ DocPtr LayoutPlanner::formatNode(const ::nsl::ast::ConcatExpr &node) {
 
 // ---- Op-spelling tables -------------------------------------------------
 
-llvm::StringRef
-LayoutPlanner::binaryOpSpelling(::nsl::ast::BinaryExpr::Op op) {
+llvm::StringRef LayoutPlanner::binaryOpSpelling(::nsl::ast::BinaryExpr::Op op) {
   using Op = ::nsl::ast::BinaryExpr::Op;
   switch (op) {
   case Op::Add:
@@ -1621,8 +1611,7 @@ LayoutPlanner::binaryOpSpelling(::nsl::ast::BinaryExpr::Op op) {
   return llvm::StringRef{};
 }
 
-llvm::StringRef
-LayoutPlanner::unaryOpSpelling(::nsl::ast::UnaryExpr::Op op) {
+llvm::StringRef LayoutPlanner::unaryOpSpelling(::nsl::ast::UnaryExpr::Op op) {
   using Op = ::nsl::ast::UnaryExpr::Op;
   switch (op) {
   case Op::Neg:

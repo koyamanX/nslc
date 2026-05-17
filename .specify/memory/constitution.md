@@ -1,7 +1,50 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.6.0 → 1.7.0
+Version change: 1.7.0 → 1.8.0
+Bump rationale: MINOR — Principle VI "End-to-end tests" closed-list
+narrowed from 7 → 4 projects (`cpu16`, `mips32_single_cycle`,
+`ahb_lite_nsl`, `turboV`). Surfaced by the M7 license audit at
+`specs/011-m7-driver-e2e/spec.md` FR-009 amendment (2026-05-12):
+`rv32x_dev` is GPL-3.0 (incompatible); `mmcspi` + `SDRAM_Controler`
+are forks without original-author-grant paths. Dropped projects
+may be re-added via routine vendoring PRs once their upstream
+licensing is resolved — no further constitutional amendment
+required for re-adds within the original pre-narrowing 7-set
+("narrow now, re-expand later as license-clean" pattern). Rule
+narrowing without removal — MINOR per the v1.4.0 versioning
+policy. The closed-list rule itself is preserved; only the set
+narrows.
+
+Modified principles (1.7.0 → 1.8.0):
+  - VI. Layered Test Discipline — "End-to-end tests" sub-bullet
+    narrows the canonical audited-corpus from 7 → 4 projects
+    + adds an amendment-rationale paragraph + clarifies the
+    re-addition path (routine vendoring PR for re-adds within
+    the original 7-set; constitutional amendment for novel
+    projects outside that set).
+
+Sync status (post-amendment):
+  ✅ specs/011-m7-driver-e2e/spec.md FR-009 (amended in commit
+     7a76a7f, 2026-05-12 — pre-constitution-amendment)
+  ✅ specs/011-m7-driver-e2e/contracts/audited-corpus.contract.md
+     §1 + §3 (amended in commits 7a76a7f + 0df14bf)
+  ✅ specs/011-m7-driver-e2e/data-model.md §5 (amended in 0df14bf)
+  ✅ README.md M7 row (amended in 0df14bf)
+  ✅ docs/design/nsl_compiler_design.md §14 item 6 (amended in 0df14bf)
+  ✅ docs/CLAUDE.md §3 M7 contract list (amended in 7a76a7f)
+  ✅ cmake/AuditedCorpusLint.cmake NSL_AUDITED_PROJECTS list
+     (amended in 6d842be — corpus literal narrowed to 4)
+  ⚠ Root CLAUDE.md "Active feature" block (lines ~190-214) —
+     pending refresh in a follow-on commit (PR-prep time).
+
+Modified Principle VI sub-bullets affected: "End-to-end tests"
++ "Delivery" (cardinality reference; minor) + "Reference VCDs"
+(cardinality reference; minor).
+
+No other principles modified.
+
+Previous version change: 1.6.0 → 1.7.0
 Bump rationale: MINOR — Principle I gains a "no silent AST drops"
 sub-clause, surfaced by post-merge audit on M3 (commit eed9bdb)
 which fixed three places where the parser was consuming-then-
@@ -350,13 +393,34 @@ canonical regression suite is the seven audited open-source NSL projects.
 - **Dialect tests** use `nsl-opt` for round-trip verification of `.mlir`.
 - **Lowering tests** use lit + FileCheck (`nslc -emit=hw foo.nsl |
   FileCheck foo.nsl`).
-- **End-to-end tests**: `cpu16`, `mips32_single_cycle`, `ahb_lite_nsl`,
-  `mmcspi`, `SDRAM_Controler`, `rv32x_dev`, `turboV` MUST each compile to
-  Verilog and simulate equivalently to a reference VCD under Icarus
-  Verilog and/or Verilator (CIRCT's primary simulator targets). A change
-  that breaks any of these does not land. **This list is closed**:
-  expanding it (adding an audited project) or shrinking it requires a
-  constitutional amendment.
+- **End-to-end tests**: the M7-vendored audited corpus —
+  `cpu16`, `mips32_single_cycle`, `ahb_lite_nsl`, `turboV` —
+  MUST each compile to Verilog and simulate equivalently to a
+  reference VCD under Icarus Verilog and/or Verilator (CIRCT's
+  primary simulator targets). A change that breaks any of these
+  does not land. **The list is closed** in the M7-narrowing
+  sense documented below: re-additions are routine vendoring
+  PRs, but a *novel* project (one outside the original
+  pre-narrowing 7-set) requires a constitutional amendment.
+  - **Amendment 2026-05-12 (1.7.0 → 1.8.0; narrowing).** The
+    original closed list at v1.3.0 named 7 projects (`cpu16`,
+    `mips32_single_cycle`, `ahb_lite_nsl`, `mmcspi`,
+    `SDRAM_Controler`, `rv32x_dev`, `turboV`). The M7 license
+    audit (`specs/011-m7-driver-e2e/spec.md` FR-009 amendment,
+    2026-05-12) surfaced 3 incompatible projects: `rv32x_dev`
+    is licensed GPL-3.0 (copyleft; incompatible with Apache-2.0
+    WITH LLVM-exception); `mmcspi` + `SDRAM_Controler` are
+    forks with no upstream LICENSE file and no original-author
+    grant path. These 3 are dropped from the M7 acceptance gate
+    and may be re-added via routine vendoring PRs (no further
+    constitution amendment required for re-adds within the
+    original 7-set) once their upstream licensing is resolved
+    (e.g., user relicenses `rv32x_dev` upstream; user adds a
+    compatible LICENSE file to the `mmcspi` + `SDRAM_Controler`
+    upstreams or transitions to non-fork sources with grant
+    paths). The remaining 4 are vendored under explicit
+    original-author Apache-2.0-WITH-LLVM-exception grants
+    recorded in each project's PROVENANCE.md `Notes` block.
   - **Delivery.** Each audited project is vendored under
     `test/audited/<project>/` with a `PROVENANCE.md` recording the
     upstream URL, commit SHA, and license. Git submodules are NOT
@@ -727,4 +791,4 @@ Constitution wins.
   `T*`) follow the monotonic-numbering rule of Principle I — retired
   numbers MUST NOT be reused; renumbering is forbidden.
 
-**Version**: 1.7.0 | **Ratified**: 2026-04-25 | **Last Amended**: 2026-04-30
+**Version**: 1.8.0 | **Ratified**: 2026-04-25 | **Last Amended**: 2026-05-12

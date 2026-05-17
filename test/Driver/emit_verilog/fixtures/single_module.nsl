@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// test/Driver/emit_verilog/fixtures/single_module.nsl — M7 US1
+// keystone fixture source. Minimal NSL shape exercising the
+// post-M6 conversion pipeline: 1 declare + 1 module + 1 reg + 1
+// output. Per `spec.md` §User Story 1 acceptance scenario #1
+// and `driver-emit-verilog.contract.md` §7 (single_module.test row).
+
+declare M {
+  output q[8];
+}
+
+module M {
+  reg r[8] = 0;
+
+  r := r + 1;
+  q = r;
+}
